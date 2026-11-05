@@ -2357,6 +2357,10 @@ fn check_speed_and_duration<'a>(
                         // times, and the stops before and after them.
                         let mut d = BTreeMap::new();
                         d.insert("stop_id".to_string(), idx.stop_id_of(a).to_string());
+                        // Grouping key with stop_id: the route whose stop pattern repeats the stop.
+                        if let Some(route_id) = trip_to_route.get(trip_id) {
+                            d.insert("route_id".to_string(), route_id.to_string());
+                        }
                         add_segment_context(&mut d, idx, stimes, i);
                         n035.details = Some(d.into());
                         notices.push(n035);

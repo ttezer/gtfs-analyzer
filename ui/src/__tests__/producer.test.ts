@@ -523,6 +523,45 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('yolcunun nasıl rezervasyon yapacağı tanımlanmamış');
   });
 
+  it('STM_035 hattın seferlerini listeler; STM_033–035 haritası hat yönü ve hatalı durakla çizilir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı' },
+      routes: { R1: '10' }, trips: { T1: 'Merkez', T2: 'Merkez' }, trip_routes: { T1: 'R1', T2: 'R1' },
+      trip_first_dep: { T1: '08:00', T2: '09:00' },
+      trip_stops: { T1: ['S1', 'S2', 'S3'], T2: ['S1', 'S2', 'S3'] },
+      trip_stop_sequences: { T1: [1, 2, 4], T2: [1, 2, 4] },
+      stop_coords: { S1: [41, 29], S2: [41.01, 29.01], S3: [41.02, 29.02] },
+      service_days: { APR: ['1111111', '20260401', '20260430', '0'], MAY: ['1111111', '20260501', '20260531', '0'] },
+    };
+    const n035 = notice('a', 'STM_035', 'INFO', {
+      entity_type: 'Trip', entity_id: 'T1', observed_value: 'S2', details: {
+        stop_id: 'S2', route_id: 'R1', stop_a_sequence: '2', stop_b_sequence: '3', stop_a_departure: '08:10:00', stop_b_arrival: '08:15:00',
+        prev_stop_id: 'S1', prev_stop_sequence: '1', next_stop_id: 'S3', next_stop_sequence: '4', affected_trips: '2', affected_rows: '2',
+        example_0_trip: 'T1', example_0_stop_a_sequence: '2', example_0_stop_b_sequence: '3', example_0_stop_a_departure: '08:10:00', example_0_stop_b_arrival: '08:15:00', example_0_service_id: 'APR',
+        example_1_trip: 'T2', example_1_stop_a_sequence: '2', example_1_stop_b_sequence: '3', example_1_stop_a_departure: '09:10:00', example_1_stop_b_arrival: '09:15:00', example_1_service_id: 'MAY',
+      },
+    });
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    const r = result([n035], [], [['STM_035', 1, 1]], true, ni);
+    renderProducer(root, r);
+    expect(root.innerHTML).toContain('Bu durak hattın 2 seferinde arka arkaya iki kez geçiyor');
+    expect(root.innerHTML).toContain('Bu durağın arka arkaya geçtiği seferler (2)');
+    expect(root.innerHTML).toContain('<td>2–3 · 09:10 → 09:15</td><td>Her gün</td><td>01.05.2026 – 31.05.2026</td>');
+    const map = plannerMap(n035, r);
+    // The red pin carries the stop's position in the trip, not only its name.
+    expect(map.opts?.pins.filter(p => p.primary).map(p => p.label)).toEqual([expect.stringContaining('Okul (S2) · durak sırası 2')]);
+    expect(map.opts?.pins.some(p => !p.primary && p.label.includes('Hastane'))).toBe(true);
+    expect(map.opts?.extraPolylines?.some(line => line.arrows)).toBe(true);
+
+    for (const rule of ['STM_033', 'STM_034']) {
+      const n = notice('b', rule, 'LOW', { entity_type: 'Trip', entity_id: 'T1', details: { stop_id: 'S3', stop_sequence: '4' } });
+      const m = plannerMap(n, result([n], [], [[rule, 1, 1]], true, ni));
+      expect(m.opts?.pins.filter(p => p.primary).map(p => p.label), rule).toEqual([expect.stringContaining('Çarşı (S3) · durak sırası 4')]);
+      expect(m.opts?.extraPolylines?.some(line => line.arrows), rule).toBe(true);
+    }
+  });
+
   it('STM_022 özeti örnek satırlara açılır; kart durağı, yazılan değeri ve ölçülen deseni gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,

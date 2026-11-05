@@ -436,7 +436,9 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
           stop: name(d.stop_id),
           first_sequence: d.stop_a_sequence || '—', second_sequence: d.stop_b_sequence || '—',
           first_time: time(d.stop_a_arrival, d.stop_a_departure), second_time: time(d.stop_b_arrival, d.stop_b_departure),
-        });
+        }) + (Number(d.affected_trips) > 1
+          ? ` ${t('producer.card.STM_035.what_trips', { n: localizedNumber(d.affected_trips) })}`
+          : '');
       }
       if (!what) return null;
       return {
@@ -890,6 +892,27 @@ function plannerServiceText(serviceId: string | null | undefined, result: Valida
   return serviceId && text === serviceId ? t('producer.days.check') : text;
 }
 
+/** The trips behind a finding grouped across trips (STM_021, STM_035): route, first departure,
+ *  where the finding sits in each trip, service days and the calendar's validity range. Trip copies
+ *  often differ only in that range (one per month), so it is a column of its own. Empty for one trip. */
+function tripListTable(d: Record<string, string>, result: ValidationResult, place: (at: (key: string) => string | undefined) => string, captionKey = 'stm021_trips'): string {
+  const ni = result.name_index;
+  const trips: string[] = [];
+  for (let i = 0; d[`example_${i}_trip`]; i++) {
+    const at = (key: string) => d[`example_${i}_${key}`];
+    const tripId = at('trip')!;
+    const routeId = ni.trip_routes?.[tripId];
+    const service = at('service_id');
+    trips.push(`<tr><td>${routeId ? routeBadgeHtml(routeId, result) : '—'}</td><td>${escHtml(ni.trip_first_dep?.[tripId] || '—')}</td><td>${escHtml(place(at))}</td><td>${escHtml(plannerServiceText(service, result))}</td><td>${escHtml(serviceRangeText(service, result))}</td></tr>`);
+  }
+  if (trips.length < 2) return '';
+  const total = Number(d.affected_trips) || trips.length;
+  const caption = total > trips.length
+    ? t(`producer.times.${captionKey}_some`, { n: localizedNumber(String(total)), shown: trips.length })
+    : t(`producer.times.${captionKey}`, { n: localizedNumber(String(total)) });
+  return `<p class="producer-card-label">${escHtml(caption)}</p><table class="planner-times planner-trip-list"><thead><tr><th>${t('producer.col.route')}</th><th>${t('producer.col.departure')}</th><th>${t('producer.times.stm021_order')}</th><th>${t('producer.col.service')}</th><th>${t('producer.times.validity')}</th></tr></thead><tbody>${trips.join('')}</tbody></table>`;
+}
+
 /** The segment rules (STM_021/025/026): previous stop, the two stops of the segment (marked) and
  *  the next stop, with sequence, times, coordinates and straight-line distance from the row above. */
 type SegmentStopRow = { stop: string; sequence: string; arrival?: string; departure?: string; lat: string; lon: string; distance: string; bad: boolean };
@@ -1110,7 +1133,7 @@ function timeStrip(n: Notice, result: ValidationResult): string {
     const rows = segmentStopRows({ ...d, stop_a: d.stop_id, stop_b: d.stop_id }, result);
     return `<table class="planner-times planner-stm035-times"><thead><tr><th>${t('producer.col.stop')}</th><th>${t('producer.times.sequence')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th></tr></thead><tbody>${
       rows.map(r => `<tr${r.bad ? ' class="bad"' : ''}><td>${escHtml(r.stop)}</td><td>${escHtml(r.sequence)}</td><td>${escHtml(plannerTime(r.arrival) || '—')}</td><td>${escHtml(plannerTime(r.departure) || '—')}</td></tr>`).join('')
-    }</tbody></table>`;
+    }</tbody></table>` + tripListTable(d, result, at => `${at('stop_a_sequence') || '—'}–${at('stop_b_sequence') || '—'} · ${plannerTime(at('stop_a_departure')) || '—'} → ${plannerTime(at('stop_b_arrival')) || '—'}`, 'stm035_trips');
   }
   if (['STM_037', 'STM_038', 'STM_039', 'STM_040'].includes(n.rule_id) && (d.location_id || d.location_group_id)) {
     const cells = [
@@ -1159,23 +1182,9 @@ function timeStrip(n: Notice, result: ValidationResult): string {
   }
   if (n.rule_id === 'STM_021' && d.stop_a && d.stop_b) {
     const stopTable = segmentCoordTable(segmentStopRows(d, result), 'planner-stm021-times');
-    // Every trip that runs between the two stops. They often differ only in their calendar's
-    // validity range (one trip copy per month), so the range is a column of its own.
-    const ni = result.name_index;
-    const trips: string[] = [];
-    for (let i = 0; d[`example_${i}_trip`]; i++) {
-      const at = (key: string) => d[`example_${i}_${key}`];
-      const tripId = at('trip')!;
-      const routeId = ni.trip_routes?.[tripId];
-      const service = at('service_id');
-      trips.push(`<tr><td>${routeId ? routeBadgeHtml(routeId, result) : '—'}</td><td>${escHtml(ni.trip_first_dep?.[tripId] || '—')}</td><td>${escHtml(`${name(at('stop_a'))} (${at('stop_a_sequence') || '—'}) → ${name(at('stop_b'))} (${at('stop_b_sequence') || '—'})`)}</td><td>${escHtml(plannerServiceText(service, result))}</td><td>${escHtml(serviceRangeText(service, result))}</td></tr>`);
-    }
-    if (trips.length < 2) return stopTable;
-    const total = Number(d.affected_trips) || trips.length;
-    const caption = total > trips.length
-      ? t('producer.times.stm021_trips_some', { n: localizedNumber(String(total)), shown: trips.length })
-      : t('producer.times.stm021_trips', { n: localizedNumber(String(total)) });
-    return `${stopTable}<p class="producer-card-label">${escHtml(caption)}</p><table class="planner-times planner-stm021-trips"><thead><tr><th>${t('producer.col.route')}</th><th>${t('producer.col.departure')}</th><th>${t('producer.times.stm021_order')}</th><th>${t('producer.col.service')}</th><th>${t('producer.times.validity')}</th></tr></thead><tbody>${trips.join('')}</tbody></table>`;
+    const name2 = (id?: string) => (id ? result.name_index.stops?.[id] || id : '—');
+    return stopTable + tripListTable(d, result,
+      (at: (key: string) => string | undefined) => `${name2(at('stop_a'))} (${at('stop_a_sequence') || '—'}) → ${name2(at('stop_b'))} (${at('stop_b_sequence') || '—'})`);
   }
   if (n.rule_id === 'STM_020' && d.stop_a && d.stop_b) {
     type ZeroTravelRow = [string, string, string, string, string, boolean];
@@ -1588,7 +1597,9 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
           pin.small = false;
           pin.color = MAP_RED;
           pin.stroke = '#ffffff';
-          pin.label = makeLabel();
+          // Relabel only with a sequence: a later call without one (the generic `stop_id` pass at
+          // the end) must not erase the position an earlier, rule-specific call wrote.
+          if (sequence != null) pin.label = makeLabel();
           if (!focus) focus = [pin.lat, pin.lon];
         }
       }
@@ -1630,7 +1641,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     const color = routeColor(ni.trip_routes?.[n.entity_id]);
     const directShape = ni.trip_shapes?.[n.entity_id];
     const selectedShape = directShape
-      || ((n.rule_id === 'STM_015' || n.rule_id === 'STM_016' || n.rule_id === 'STM_018' || n.rule_id === 'STM_019' || n.rule_id === 'STM_020' || n.rule_id === 'STM_021' || n.rule_id === 'STM_028' || n.rule_id === 'STM_029' || n.rule_id === 'STM_030')
+      || ((n.rule_id === 'STM_015' || n.rule_id === 'STM_016' || n.rule_id === 'STM_018' || n.rule_id === 'STM_019' || n.rule_id === 'STM_020' || n.rule_id === 'STM_021' || n.rule_id === 'STM_028' || n.rule_id === 'STM_029' || n.rule_id === 'STM_030' || n.rule_id === 'STM_032' || n.rule_id === 'STM_033' || n.rule_id === 'STM_034' || n.rule_id === 'STM_035')
         ? routeDirectionShapeId(ni, ni.trip_routes?.[n.entity_id], ni.trip_directions?.[n.entity_id])
         : undefined);
     const directPath = tripStops.map(id => ni.stop_coords?.[id]).filter(Boolean).length > 1;
@@ -1690,6 +1701,22 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
         }
         focus = undefined;
       }
+    } else if (n.rule_id === 'STM_032' || n.rule_id === 'STM_033' || n.rule_id === 'STM_034' || n.rule_id === 'STM_035') {
+      // Stop-row findings: the route and direction with every stop, the faulty stop(s) in red,
+      // the neighbours of a repeated stop in grey.
+      const stopSequences = ni.trip_stop_sequences?.[n.entity_id] ?? [];
+      const d = n.details ?? {};
+      if (n.rule_id === 'STM_032') {
+        addStop(d.first_stop_id, true, n.observed_value);
+        addStop(d.second_stop_id, true, n.observed_value);
+      } else if (n.rule_id === 'STM_035') {
+        addStop(d.stop_id, true, d.stop_a_sequence);
+        addStop(d.prev_stop_id, false, d.prev_stop_sequence);
+        addStop(d.next_stop_id, false, d.next_stop_sequence);
+      } else {
+        addStop(d.stop_id, true, d.stop_sequence);
+      }
+      for (const [index, stopId] of tripStops.entries()) addStop(stopId, false, stopSequences[index]);
     } else if (n.rule_id === 'STM_028' || n.rule_id === 'STM_029' || n.rule_id === 'STM_030') {
       // Whole-trip findings: the route and direction with every stop, the faulty place in red.
       const stopSequences = ni.trip_stop_sequences?.[n.entity_id] ?? [];

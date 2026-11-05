@@ -16,7 +16,7 @@ JPN_020  k4_cross_ref.rs:office_phone  k4_cross_ref.rs:office_url
 JPN_022  k4_cross_ref.rs:agency_lang  k4_cross_ref.rs:location_type
 OPR_010  k6_analytics.rs:bikes_allowed  k6_analytics.rs:wheelchair_accessible
 RCT_004  rider_categories.rs:max_age  rider_categories.rs:min_age
-STM_021  k6_analytics.rs:stop_id  lib.rs:stop_a+stop_b
+STM_021  k6_analytics.rs:stop_id  lib.rs:stop_a+stop_a_sequence+stop_b+stop_b_sequence
 STM_034  stop_times.rs:arrival_time  stop_times.rs:departure_time
 STM_037  stop_times.rs:arrival_time  stop_times.rs:drop_off_booking_rule_id+location_group_id+location_id+pickup_booking_rule_id+window_end+window_start
 STM_038  stop_times.rs:drop_off_booking_rule_id+location_group_id+location_id+pickup_booking_rule_id+window_end+window_start  stop_times.rs:start_pickup_drop_off_window

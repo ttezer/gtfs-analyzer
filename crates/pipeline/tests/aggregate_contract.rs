@@ -26,6 +26,8 @@ enum Group {
     /// Summary per unordered stop pair (`details.stop_a` / `stop_b`); the key is `"A|B"` and the
     /// raw notices alternate its direction, as trips run the pair both ways.
     StopPair,
+    /// Summary per route and stop (`details.route_id` / `stop_id`); the key is `"R|S"`.
+    RouteStop,
 }
 
 /// Location of the affected-record count in a summary notice.
@@ -55,6 +57,7 @@ const CASES: &[(&str, Group, Count)] = &[
     ("TRP_005", Group::Feed, Count::Observed),
     ("STM_022", Group::Feed, Count::Observed),
     ("STM_021", Group::StopPair, Count::Detail("affected_rows")),
+    ("STM_035", Group::RouteStop, Count::Detail("affected_rows")),
     ("FRQ_007", Group::Feed, Count::Observed),
     ("TRF_019", Group::Feed, Count::Observed),
     ("CAL_008", Group::Observed, Count::Detail("affected_services")),
@@ -67,7 +70,7 @@ fn raw(rule_id: &str, group: Group, key: &str, row: u64) -> Notice {
     let meta = gtfs_rules::get_rule(rule_id).expect("registry'de olmayan kural");
     let (entity_type, entity_id) = match group {
         Group::Entity(kind) => (kind, key.to_string()),
-        Group::StopPair => (EntityType::Trip, format!("{rule_id}-{row}")),
+        Group::StopPair | Group::RouteStop => (EntityType::Trip, format!("{rule_id}-{row}")),
         _ => (EntityType::Row, format!("{rule_id}-{row}")),
     };
     let details = match group {
@@ -78,6 +81,16 @@ fn raw(rule_id: &str, group: Group, key: &str, row: u64) -> Notice {
                 BTreeMap::from([
                     ("stop_a".to_string(), a.to_string()),
                     ("stop_b".to_string(), b.to_string()),
+                ])
+                .into(),
+            )
+        }
+        Group::RouteStop => {
+            let (route, stop) = key.split_once('|').expect("RouteStop anahtarı R|S");
+            Some(
+                BTreeMap::from([
+                    ("route_id".to_string(), route.to_string()),
+                    ("stop_id".to_string(), stop.to_string()),
                 ])
                 .into(),
             )
@@ -147,6 +160,7 @@ fn every_aggregated_rule_carries_the_affected_count() {
             Group::File => "stop_times.txt",
             Group::Observed => "20260601",
             Group::StopPair => "S1|S2",
+            Group::RouteStop => "R1|S1",
             _ => "K1",
         };
         let mut input: Vec<Notice> = (1..=3).map(|row| raw(rule_id, group, key, row)).collect();
@@ -185,6 +199,7 @@ fn grouped_rules_summarise_each_group_separately() {
             Group::Observed => ["20260601", "20260615"],
             Group::Entity(_) => ["K1", "K2"],
             Group::StopPair => ["S1|S2", "S3|S4"],
+            Group::RouteStop => ["R1|S1", "R2|S1"],
         };
         let input = vec![
             raw(rule_id, group, keys[0], 1),

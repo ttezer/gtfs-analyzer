@@ -6957,3 +6957,53 @@ start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id,d
         Some("BR1")
     );
 }
+
+#[test]
+fn repeated_stop_is_one_finding_per_route_and_stop() {
+    // STM_035: S2 twice in a row on two trips of R1 and one trip of R2. The record to fix is each
+    // route's stop pattern, so R1 and R2 give one finding each; R1's lists both its trips.
+    static ROUTES2: &[u8] =
+        b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,3\n";
+    static TRIPS3: &[u8] = b"route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR2,SVC1,T3\n";
+    static TIMES3: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT1,08:15:00,08:15:00,S2,3\n\
+          T2,09:00:00,09:00:00,S1,1\nT2,09:10:00,09:10:00,S2,2\nT2,09:15:00,09:15:00,S2,3\n\
+          T3,10:00:00,10:00:00,S1,1\nT3,10:10:00,10:10:00,S2,2\nT3,10:15:00,10:15:00,S2,3\n";
+    let mut files = base_files();
+    files[2] = ("routes.txt", ROUTES2);
+    files[3] = ("trips.txt", TRIPS3);
+    files[4] = ("stop_times.txt", TIMES3);
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("ValidateResult::Ok beklendi");
+    };
+    let found: Vec<_> = vr
+        .notices
+        .iter()
+        .filter(|n| n.rule_id == "STM_035")
+        .collect();
+    assert_eq!(found.len(), 2, "hat + durak başına bir bulgu");
+    let r1 = found
+        .iter()
+        .find(|n| n.entity_id.as_deref() == Some("T1"))
+        .expect("R1 bulgusu T1 ile temsil edilmeli");
+    let d = r1.details.as_ref().expect("ayrıntı");
+    let get = |k: &str| d.get(k).map(String::as_str);
+    assert_eq!(get("route_id"), Some("R1"));
+    assert_eq!(get("affected_trips"), Some("2"));
+    assert_eq!(get("example_0_trip"), Some("T1"));
+    assert_eq!(get("example_1_trip"), Some("T2"));
+    assert_eq!(get("example_1_stop_b_arrival"), Some("09:15:00"));
+    assert_eq!(get("example_2_trip"), None);
+    assert!(r1.message.contains("2 seferinde"));
+    let r2 = found
+        .iter()
+        .find(|n| n.entity_id.as_deref() == Some("T3"))
+        .expect("R2 bulgusu");
+    assert_eq!(
+        r2.details
+            .as_ref()
+            .and_then(|d| d.get("affected_trips"))
+            .map(String::as_str),
+        Some("1")
+    );
+}

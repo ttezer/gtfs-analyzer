@@ -1420,33 +1420,72 @@ fn aggregate_trp005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     *notices = retained;
 }
 
-/// Maximum number of trip examples in an STM_021 stop-pair finding.
-const STM021_EXAMPLE_CAP: usize = 50;
+/// Maximum number of trip examples in a finding grouped across trips (STM_021, STM_035).
+const TRIP_GROUP_EXAMPLE_CAP: usize = 50;
 
 /// STM_021 is a stops.txt problem: two different stops share one coordinate. K6 finds it on every
 /// trip that runs between them, so one bad pair used to appear once per trip (one FlixBus pair:
 /// 18 identical-looking rows that differed only in their monthly calendar). Reduce the findings to
-/// one per unordered stop pair (A→B and B→A are the same record to fix). The representative is the
-/// first trip in trip_id/line order and keeps its own row context; `affected_trips` and up to
-/// [`STM021_EXAMPLE_CAP`] `example_<i>_*` trips list where the pair is used.
+/// one per unordered stop pair (A→B and B→A are the same record to fix).
 fn aggregate_stm021(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
+    aggregate_across_trips(
+        notices,
+        resolver,
+        "STM_021",
+        |d| {
+            let a = d.get("stop_a")?.clone();
+            let b = d.get("stop_b")?.clone();
+            Some(if a <= b { (a, b) } else { (b, a) })
+        },
+        &["stop_a", "stop_b", "stop_a_sequence", "stop_b_sequence"],
+        |trips| format!("Aynı durak çifti {trips} seferde ardışık kullanılıyor."),
+    );
+}
+
+/// STM_035: the same stop twice in a row is written in a route's stop pattern, so it repeats on
+/// every trip of that pattern (corpus: 593,671 findings). One finding per route and stop: the
+/// record to fix is that route's pattern, and the same terminal on two routes may be a deliberate
+/// loop on one and an extra row on the other.
+fn aggregate_stm035(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
+    aggregate_across_trips(
+        notices,
+        resolver,
+        "STM_035",
+        |d| Some((d.get("route_id")?.clone(), d.get("stop_id")?.clone())),
+        &[
+            "stop_a_sequence",
+            "stop_b_sequence",
+            "stop_a_departure",
+            "stop_b_arrival",
+        ],
+        |trips| format!("Aynı durak bu hattın {trips} seferinde ardışık iki kez geçiyor."),
+    );
+}
+
+/// Reduces a trip-level rule's findings to one per `key` (taken from the finding's `details`).
+/// The representative is the first trip in trip_id/line order and keeps its own row context;
+/// `affected_trips`, `affected_rows` and up to [`TRIP_GROUP_EXAMPLE_CAP`] `example_<i>_*` trips
+/// (with `example_keys` copied) list where it occurs. Findings without a key are left as they are.
+fn aggregate_across_trips(
+    notices: &mut Vec<gtfs_core::Notice>,
+    resolver: &AgencyResolver,
+    rule_id: &str,
+    key: impl Fn(&gtfs_core::NoticeDetails) -> Option<(String, String)>,
+    example_keys: &[&str],
+    message_suffix: impl Fn(usize) -> String,
+) {
     let mut first_position = None;
     let mut groups: std::collections::BTreeMap<(String, String), Vec<gtfs_core::Notice>> =
         std::collections::BTreeMap::new();
     let mut retained = Vec::with_capacity(notices.len());
     for (index, notice) in notices.drain(..).enumerate() {
-        let pair = (notice.rule_id == "STM_021")
-            .then(|| {
-                let d = notice.details.as_ref()?;
-                let a = d.get("stop_a")?.clone();
-                let b = d.get("stop_b")?.clone();
-                Some(if a <= b { (a, b) } else { (b, a) })
-            })
+        let group_key = (notice.rule_id == rule_id)
+            .then(|| notice.details.as_ref().and_then(&key))
             .flatten();
-        match pair {
-            Some(key) => {
+        match group_key {
+            Some(k) => {
                 first_position.get_or_insert(index);
-                groups.entry(key).or_default().push(notice);
+                groups.entry(k).or_default().push(notice);
             }
             None => retained.push(notice),
         }
@@ -1469,7 +1508,7 @@ fn aggregate_stm021(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         trips.dedup();
         let affected_trips = trips.len();
         let mut examples = std::collections::BTreeMap::new();
-        for (i, row) in group.iter().take(STM021_EXAMPLE_CAP).enumerate() {
+        for (i, row) in group.iter().take(TRIP_GROUP_EXAMPLE_CAP).enumerate() {
             let prefix = format!("example_{i}_");
             let Some(d) = row.details.as_ref() else {
                 continue;
@@ -1482,7 +1521,7 @@ fn aggregate_stm021(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
                 format!("{prefix}line"),
                 row.line.unwrap_or_default().to_string(),
             );
-            for key in ["stop_a", "stop_b", "stop_a_sequence", "stop_b_sequence"] {
+            for key in example_keys {
                 if let Some(value) = d.get(key) {
                     examples.insert(format!("{prefix}{key}"), value.clone());
                 }
@@ -1491,10 +1530,7 @@ fn aggregate_stm021(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         let rows = group.len();
         let mut summary = take_representative(&mut group, resolver);
         if affected_trips > 1 {
-            summary.message = format!(
-                "{} Aynı durak çifti {affected_trips} seferde ardışık kullanılıyor.",
-                summary.message
-            );
+            summary.message = format!("{} {}", summary.message, message_suffix(affected_trips));
         }
         let mut details: std::collections::BTreeMap<String, String> = summary
             .details
@@ -2194,6 +2230,7 @@ pub fn aggregate_feed_level_notices(
     timed_aggregate!("TRP_005", aggregate_trp005);
     timed_aggregate!("STM_022", aggregate_stm022);
     timed_aggregate!("STM_021", aggregate_stm021);
+    timed_aggregate!("STM_035", aggregate_stm035);
     timed_aggregate!("FRQ_007", aggregate_frq007);
     timed_aggregate!("TRF_019", aggregate_trf019);
     timed_aggregate!("CAL_008", aggregate_cal008);
