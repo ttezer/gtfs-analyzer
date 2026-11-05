@@ -6,6 +6,7 @@ import { MAX_MAP_PINS, openMapModal, type MapPin, type MapOptions } from '../map
 import { requestShapeCoords } from '../validator-client';
 import { openPatternModal } from '../pattern-modal';
 import { escHtml } from '../escape';
+import { crossFilter } from '../cross-filter';
 import { SEVERITY_ORDER, SEVERITY_RANK } from '../severity-order';
 import { renderHiddenRulesBar, attachHiddenRuleListeners } from '../hidden-rules';
 
@@ -1626,27 +1627,20 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
   function applyFilters(): void {
     const rule = ruleFilter?.value ?? '';
     const file = fileFilterEl?.value ?? '';
-    let visible = 0, total = 0;
-    const ruleSet = new Set<string>();
-    const fileSet = new Set<string>();
-
-    table!.querySelectorAll<HTMLTableRowElement>('tbody tr').forEach(row => {
-      total++;
-      const rowSev  = row.dataset['severity'] ?? '';
-      const rowCls  = row.dataset['class']    ?? '';
-      const rowRule = row.dataset['rule']      ?? '';
-      const rowFile = row.dataset['file']      ?? '';
-      const sevMatch  = sevActive.size === 0 || sevActive.has(rowSev);
-      const clsMatch  = clsActive.size === 0 || clsActive.has(rowCls);
-      const ruleMatch = !rule || rowRule === rule;
-      const fileMatch = !file || rowFile === file;
-      const show = sevMatch && clsMatch && ruleMatch && fileMatch;
+    const rows = Array.from(table!.querySelectorAll<HTMLTableRowElement>('tbody tr'));
+    // Same cross-filtering as the planner page: each list counted under the other filters.
+    const facets = crossFilter(rows.map(row => ({
+      sev: row.dataset['severity'] ?? '',
+      cls: row.dataset['class'] ?? '',
+      rule: row.dataset['rule'] ?? '',
+      file: row.dataset['file'] ?? '',
+    })), { sev: sevActive, cls: clsActive, rule, file });
+    const total = rows.length;
+    let visible = 0;
+    rows.forEach((row, i) => {
+      const show = facets.visible[i];
       row.style.display = show ? '' : 'none';
       if (show) visible++;
-      // Rule/file dropdowns preserve cross-filtering: derive their options from the row set
-      // after the other filters have been applied.
-      if (sevMatch && clsMatch && fileMatch) ruleSet.add(rowRule);
-      if (sevMatch && clsMatch && ruleMatch) fileSet.add(rowFile);
     });
 
     const anyFilter = sevActive.size > 0 || clsActive.size > 0 || rule || file;
@@ -1667,20 +1661,18 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
       }
     }
 
-    if (ruleFilter) {
-      ruleFilter.innerHTML = `<option value="">${t('fix.filter.all')}</option>` +
-        allRuleOpts.filter(([v]) => ruleSet.has(v))
-                   .map(([v, l]) => `<option value="${v}"${v === rule ? ' selected' : ''}>${escHtml(l)}</option>`)
-                   .join('');
-      if (rule && !ruleSet.has(rule)) ruleFilter.value = '';
-    }
-    if (fileFilterEl) {
-      fileFilterEl.innerHTML = `<option value="">${t('fix.filter.all')}</option>` +
-        allFileOpts.filter(([v]) => fileSet.has(v))
-                   .map(([v, l]) => `<option value="${v}"${v === file ? ' selected' : ''}>${escHtml(l)}</option>`)
-                   .join('');
-      if (file && !fileSet.has(file)) fileFilterEl.value = '';
-    }
+    // Options with rows left, each with its count; a chosen option stays (with 0) so the user
+    // sees why the table is empty instead of the choice silently falling back to "All".
+    const fillSelect = (select: HTMLSelectElement | null, options: [string, string][], counts: Map<string, number>, current: string) => {
+      if (!select) return;
+      select.innerHTML = `<option value="">${t('fix.filter.all')}</option>` +
+        options.filter(([v]) => (counts.get(v) ?? 0) > 0 || v === current)
+          .map(([v, l]) => `<option value="${escHtml(v)}"${v === current ? ' selected' : ''}>${escHtml(l)} (${(counts.get(v) ?? 0).toLocaleString(intlLocale())})</option>`)
+          .join('');
+      select.value = current;
+    };
+    fillSelect(ruleFilter, allRuleOpts, facets.rules, rule);
+    fillSelect(fileFilterEl, allFileOpts, facets.files, file);
   }
 
   sevChipBox?.querySelectorAll<HTMLButtonElement>('.sev-chip').forEach(chip => {
@@ -1704,8 +1696,9 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
 
   // If arriving with a filter from the files page (file filter) or a score-component card
   // (class filter), apply it immediately and scroll to R2.
+  // Counts in the lists from the first paint.
+  applyFilters();
   if ((fileFilterEl && fileFilterEl.value) || clsActive.size > 0) {
-    applyFilters();
     requestAnimationFrame(() => {
       root.querySelector('#r2-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });

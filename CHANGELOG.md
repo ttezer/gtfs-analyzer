@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Make the "Details and Fix" filters behave like the planner page: the rule and file lists show how many findings each option would show under the other filters, and a chosen option whose findings are all filtered out stays selected with (0) instead of silently falling back to "All".
 - Link the planner page filters: every option list (rule, file, route, stop, shape, service) now offers only what is still reachable under the other active filters, with the number of records it would show, and keeps a chosen option even when its count drops to zero. Picking a route narrows the stop list to that route's stops, and so on. Route/stop/shape/service filters now search every row of a card, not only the first 500 shown.
 - Name a reversed route line as the cause on the `STM_056` planner card: when the engine reports `SHP_016` for the trip's shape, the card says the line is drawn backwards and asks to fix its direction first. In one measured export every trip with a constant distance had a reversed line.
 - Tell planners when a whole `STM_056` trip carries one distance: the finding marks a trip whose every stop has the same cumulative distance (`trip_constant_value`, `trip_stop_count`) and the summary counts such trips (`constant_trips`); the card then describes the trip and points at the export setting. The card no longer shows a dash for a missing neighbour stop and drops the "not the straight-line distance" sentence. The number of findings is unchanged.
