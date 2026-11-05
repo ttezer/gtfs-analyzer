@@ -9,8 +9,12 @@ except Exception:
 
 # Keep both validators under the same per-feed wall-clock budget so a slower
 # analyzer run is not turned into a false corpus discrepancy.
-ANALYZER_TIMEOUT=420
-MD_TIMEOUT=420
+# Was 420 s. In run 41518940787 the two 543 MB feeds (mdb-3215, mdb-784) hit it on
+# the MobilityData side at ~425 s while the analyzer took 282-298 s, so the run had
+# no complete timing for its heaviest feeds. 1800 s leaves room for both; the longest
+# shard in that run took 807 s against a 300-minute job limit.
+ANALYZER_TIMEOUT=1800
+MD_TIMEOUT=1800
 DOWNLOAD_TIMEOUT=300
 # `mdb-2014` could not be downloaded in run-31934698855 because it was 1.2 GB
 # (`download_status=failed`, both validators `not_run`), and a separate "residual" workflow
@@ -251,13 +255,31 @@ def run_analyzer_profile(analyzer,z,work,profile):
     result["state"]=classify_analyzer(exit_code,report,stderr)
     return result
 
-def run_one(feed,root,analyzer,mdjar,profiles=("auto",)):
+def host_info():
+    """CPU and memory of the runner, so per-feed timings can be compared across shards."""
+    info={"nproc":os.cpu_count()}
+    try:
+        for line in Path("/proc/cpuinfo").read_text(errors="replace").splitlines():
+            if line.startswith("model name"):
+                info["cpu_model"]=line.split(":",1)[1].strip(); break
+    except OSError:
+        pass
+    try:
+        for line in Path("/proc/meminfo").read_text(errors="replace").splitlines():
+            if line.startswith("MemTotal:"):
+                info["mem_total_kb"]=int(line.split()[1]); break
+    except (OSError,ValueError,IndexError):
+        pass
+    return info
+
+def run_one(feed,root,analyzer,mdjar,profiles=("auto",),host=None):
     fid=feed["feed_id"]
     work=root/fid.replace("/","_")
     shutil.rmtree(work,ignore_errors=True)
     (work/"analyzer").mkdir(parents=True)
     (work/"md").mkdir(parents=True)
     result={"feed":feed,"started_at_epoch":time.time()}
+    if host: result["host"]=host
     z=work/"feed.zip"
 
     rc,err,download_meta=download(feed["url"],z)
@@ -343,13 +365,14 @@ def main():
     root.mkdir(parents=True,exist_ok=True)
     analyzer=Path(args.analyzer).resolve(); mdjar=Path(args.md_jar).resolve()
     outp=Path(args.out); outp.parent.mkdir(parents=True,exist_ok=True)
+    host=host_info()
     with outp.open("w",encoding="utf-8") as fh:
         for i,feed in enumerate(feeds,1):
             print(f"[shard {args.shard}/{args.shards}] {i}/{len(feeds)} {feed['feed_id']} {feed.get('provider','')}",flush=True)
             try:
-                r=run_one(feed,root,analyzer,mdjar,profiles)
+                r=run_one(feed,root,analyzer,mdjar,profiles,host)
             except Exception as e:
-                r={"feed":feed,"runner_exception":repr(e),"finished_at_epoch":time.time()}
+                r={"feed":feed,"host":host,"runner_exception":repr(e),"finished_at_epoch":time.time()}
             fh.write(json.dumps(r,ensure_ascii=False,separators=(",",":"))+"\n")
             fh.flush()
     shutil.rmtree(root,ignore_errors=True)

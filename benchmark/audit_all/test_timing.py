@@ -326,5 +326,16 @@ class AdjudicationLedgerReachable(unittest.TestCase):
                         f"aggregate.py defteri okuyamıyor: {decision}")
 
 
+class FeedBudget(unittest.TestCase):
+    def test_validators_share_one_budget_above_heaviest_measured_feed(self):
+        # run 41518940787: MobilityData was cut at ~425 s on the 543 MB feeds.
+        self.assertEqual(shard.ANALYZER_TIMEOUT, shard.MD_TIMEOUT)
+        self.assertGreater(shard.MD_TIMEOUT, 425)
+
+    def test_host_info_reports_cpu_count(self):
+        info = shard.host_info()
+        self.assertIsInstance(info.get("nproc"), int)
+
+
 if __name__ == "__main__":
     unittest.main()
