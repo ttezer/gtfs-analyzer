@@ -1323,6 +1323,7 @@ const tr = {
     'producer.card.STM_017.what_trip': "Bu seferin {total} durağından {affected} tanesinde, güzergâh başından itibaren kümülatif mesafe eksik.",
     'producer.card.STM_017.action_feed': "Durakların güzergâh üzerindeki konumunu doğrulamak istiyorsanız, etkilenen seferlerin bütün duraklarına güzergâh başından itibaren kümülatif mesafeyi girin. Bu mesafe bilgisini bilinçli olarak kullanmıyorsanız ek işlem gerekmez.",
     'producer.card.STM_017.action_trip': "Kümülatif mesafeyi kullanıyorsanız eksik duraklara güzergâh başından itibaren mesafeyi girin. Kullanmıyorsanız bu seferdeki diğer mesafe değerlerini de kaldırın.",
+    'producer.card.STM_017.action_trip_all': "Bu seferin hiçbir durağında kümülatif mesafe yok. Mesafe kullanmıyorsanız bir şey yapmanız gerekmez; kullanıyorsanız bütün duraklara güzergâh başından itibaren kümülatif mesafeyi girin.",
     'producer.card.STM_018.title': "Hat bölümünde biniş ayarı geçersiz",
     'producer.card.STM_018.what': "{stop} durağından sonraki hat bölümünde yolcu alma ayarı “{value}” olarak yazılmış. Bu değer tanımlı seçeneklerden biri değil.",
     'producer.card.STM_018.what_segment': "{from} ile {to} arasındaki hat bölümünde yolcu alma ayarı “{value}” olarak yazılmış. Bu değer tanımlı seçeneklerden biri değil.",

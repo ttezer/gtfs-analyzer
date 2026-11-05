@@ -385,7 +385,11 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
             affected: d.affected_stop_count || '—',
             total: d.stop_count || '—',
           }),
-        action: t(summary ? 'producer.card.STM_017.action_feed' : 'producer.card.STM_017.action_trip'),
+        // Every stop missing: there are no other distances to remove, so say what applies.
+        action: t(summary ? 'producer.card.STM_017.action_feed'
+          : Number(d.affected_stop_count) > 0 && d.affected_stop_count === d.stop_count
+            ? 'producer.card.STM_017.action_trip_all'
+            : 'producer.card.STM_017.action_trip'),
       };
     }
     case 'STM_018':

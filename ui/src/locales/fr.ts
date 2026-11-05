@@ -1325,6 +1325,7 @@ const fr: LocaleShape = {
     'producer.card.STM_017.what_trip': "La distance cumulée depuis le début du parcours manque à {affected} des {total} arrêts de cette course.",
     'producer.card.STM_017.action_feed': "Pour vérifier la position des arrêts le long du parcours, saisissez la distance cumulée depuis le début du parcours à chaque arrêt des courses concernées. Si vous n’utilisez volontairement pas cette distance, aucune action n’est nécessaire.",
     'producer.card.STM_017.action_trip': "Si vous utilisez la distance cumulée, saisissez la distance depuis le début du parcours aux arrêts concernés. Sinon, supprimez aussi les autres distances de cette course.",
+    'producer.card.STM_017.action_trip_all': "Aucun arrêt de cette course n’a de distance cumulée. Si vous n’utilisez pas les distances, aucune action n’est nécessaire ; sinon, saisissez la distance cumulée depuis le début du parcours à chaque arrêt.",
     'producer.card.STM_018.title': "Paramètre de montée continue invalide sur une section",
     'producer.card.STM_018.what': "Le paramètre de montée continue après l’arrêt {stop} est « {value} ». Cette valeur ne fait pas partie des options définies.",
     'producer.card.STM_018.what_segment': "Le paramètre de montée continue entre {from} et {to} est « {value} ». Cette valeur ne fait pas partie des options définies.",

@@ -1387,9 +1387,16 @@ impl<'a> StopTimesIndex<'a> {
         // Post-build: trips_missing_sdt
         let mut trips_missing_sdt: FxHashMap<&'a str, u64> = FxHashMap::default();
         trips_missing_sdt.reserve(n_trips / 4);
+        // Only rows with a stop_id: an on-demand zone row (location_id / location_group_id, no
+        // stop_id) has no point on the shape, and MobilityData rejects a distance there
+        // (`forbidden_shape_dist_traveled`). Counting those rows as "missing" was a false
+        // positive (mdb-2447: every fixed stop had a distance, every zone row was flagged).
         for (&tid, v) in &by_trip {
             if trip_shape.contains_key(tid) {
-                if let Some(st) = v.iter().find(|s| s.shape_dist_traveled().is_none()) {
+                if let Some(st) = v
+                    .iter()
+                    .find(|s| s.shape_dist_traveled().is_none() && !k2.stop_id_of(s).is_empty())
+                {
                     trips_missing_sdt.insert(tid, st.line as u64);
                 }
             }
@@ -7200,11 +7207,17 @@ fn add_stm017_trip_details(
     let Some(stops) = idx.by_trip.get(trip_id) else {
         return;
     };
-    let missing: Vec<&CompactStopTime> = stops
+    // Fixed stops only; on-demand zone rows (no stop_id) carry no distance by design.
+    let fixed: Vec<&CompactStopTime> = stops
         .iter()
+        .filter(|stop| !idx.stop_id_of(stop).is_empty())
+        .collect();
+    let missing: Vec<&CompactStopTime> = fixed
+        .iter()
+        .copied()
         .filter(|stop| stop.shape_dist_traveled().is_none())
         .collect();
-    details.insert(format!("{prefix}stop_count"), stops.len().to_string());
+    details.insert(format!("{prefix}stop_count"), fixed.len().to_string());
     details.insert(
         format!("{prefix}affected_stop_count"),
         missing.len().to_string(),

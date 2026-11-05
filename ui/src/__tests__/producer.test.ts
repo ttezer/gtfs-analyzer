@@ -592,6 +592,18 @@ describe('Üretici kartı görünümü', () => {
     expect(html).toContain('satır 2–5');
   });
 
+  it('STM_017 kartı seferin bütün durakları eksikse kaldırılacak başka değer olmadığını söyler', () => {
+    const ni: NameIndex = { ...emptyNameIndex, stops: { S1: 'Firals' }, routes: { R1: 'L1' }, trip_routes: { T1: 'R1' }, trip_stops: { T1: ['S1'] } };
+    const n = notice('a', 'STM_017', 'MEDIUM', {
+      entity_type: 'Trip', entity_id: 'T1', field: 'shape_dist_traveled',
+      details: { stop_count: '44', affected_stop_count: '44', missing_0_stop_id: 'S1', missing_0_stop_sequence: '1' },
+    });
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [['STM_017', 2, 1]], true, ni));
+    expect(root.innerHTML).toContain('Bu seferin hiçbir durağında kümülatif mesafe yok');
+    expect(root.innerHTML).not.toContain('diğer mesafe değerlerini de kaldırın');
+  });
+
   it('STM_022 özeti örnek satırlara açılır; kart durağı, yazılan değeri ve ölçülen deseni gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,
@@ -1372,6 +1384,9 @@ describe('STM_017 planlamacı kanıtı', () => {
     expect(el.innerHTML).toContain('Onkoloji ile birlikte 2 durakta kümülatif mesafe eksik');
     expect(el.innerHTML).not.toContain('Güzergâh üzerindeki mesafe');
     expect(el.innerHTML).toContain('<th>Kümülatif mesafe</th>');
+    // 2 of 3 stops missing: the trip still has a distance to keep or remove.
+    expect(el.innerHTML).toContain('Kullanmıyorsanız bu seferdeki diğer mesafe değerlerini de kaldırın');
+    expect(el.innerHTML).not.toContain('Bu seferin hiçbir durağında kümülatif mesafe yok');
     expect(el.innerHTML).toContain('<th>Çalışma günleri</th>');
     expect(el.innerHTML).toContain('<td>Hafta içi</td>');
     const map = plannerMap(n, r);

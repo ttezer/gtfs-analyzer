@@ -7043,3 +7043,49 @@ fn unsorted_stop_times_summary_names_each_trips_case_and_place() {
     assert_eq!(get("example_1_line_from"), Some("2"));
     assert_eq!(get("example_1_line_to"), Some("5"));
 }
+
+#[test]
+fn stm017_ignores_on_demand_zone_rows_but_keeps_missing_fixed_stops() {
+    // mdb-2447: fixed stops alternate with on-demand zone rows (location_id + window, no
+    // stop_id). Every fixed stop carries a distance; the zone rows carry none, as they must
+    // (MobilityData `forbidden_shape_dist_traveled`). That trip has no STM_017. A trip whose
+    // FIXED stop lacks a distance still has one, counted over fixed stops only.
+    static TRIPS2: &[u8] =
+        b"route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\nR1,SVC1,T2,SH1\n";
+    static SHAPES1: &[u8] =
+        b"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
+          SH1,41.0,29.0,1,0\nSH1,41.1,29.1,2,13900\n";
+    static TIMES_FLEX: &[u8] =
+        b"trip_id,arrival_time,departure_time,stop_id,location_id,stop_sequence,\
+start_pickup_drop_off_window,end_pickup_drop_off_window,shape_dist_traveled\n\
+          T1,08:00:00,08:00:00,S1,,1,,,0\n\
+          T1,,,,Z1,2,08:00:00,08:10:00,\n\
+          T1,08:10:00,08:10:00,S2,,3,,,13900\n\
+          T2,09:00:00,09:00:00,S1,,1,,,0\n\
+          T2,,,,Z1,2,09:00:00,09:10:00,\n\
+          T2,09:10:00,09:10:00,S2,,3,,,\n";
+    let mut files = base_files();
+    files[3] = ("trips.txt", TRIPS2);
+    files[4] = ("stop_times.txt", TIMES_FLEX);
+    files.push(("shapes.txt", SHAPES1));
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("ValidateResult::Ok beklendi");
+    };
+    let found: Vec<_> = vr
+        .notices
+        .iter()
+        .filter(|n| n.rule_id == "STM_017")
+        .collect();
+    assert_eq!(
+        found.len(),
+        1,
+        "yalnız sabit durağı eksik olan T2: {found:?}"
+    );
+    assert_eq!(found[0].entity_id.as_deref(), Some("T2"));
+    let d = found[0].details.as_ref().expect("ayrıntı");
+    let get = |k: &str| d.get(k).map(String::as_str);
+    assert_eq!(get("stop_count"), Some("2"), "bölge satırı durak sayılmaz");
+    assert_eq!(get("affected_stop_count"), Some("1"));
+    assert_eq!(get("missing_0_stop_id"), Some("S2"));
+    assert_eq!(get("missing_1_stop_id"), None);
+}

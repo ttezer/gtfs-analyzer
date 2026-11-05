@@ -1324,6 +1324,7 @@ const ja: LocaleShape = {
     'producer.card.STM_017.what_trip': "この便の {total} 停留所のうち {affected} か所で、経路始点からの累積距離がありません。",
     'producer.card.STM_017.action_feed': "経路上の停留所位置を確認する場合は、該当便のすべての停留所に経路始点からの累積距離を入力してください。この距離を意図的に使用しない場合、対応は不要です。",
     'producer.card.STM_017.action_trip': "累積距離を使用する場合は、該当停留所に経路始点からの距離を入力してください。使用しない場合は、この便の他の距離値も削除してください。",
+    'producer.card.STM_017.action_trip_all': "この便のどの停留所にも累積距離がありません。距離を使用しない場合は対応不要です。使用する場合は、すべての停留所に経路始点からの累積距離を入力してください。",
     'producer.card.STM_018.title': "区間の連続乗車設定が無効",
     'producer.card.STM_018.what': "{stop} 停留所から先の区間で、連続乗車設定が「{value}」になっています。この値は定義済みの選択肢ではありません。",
     'producer.card.STM_018.what_segment': "{from} から {to} までの区間で、連続乗車設定が「{value}」になっています。この値は定義済みの選択肢ではありません。",

@@ -1325,6 +1325,7 @@ const en: LocaleShape = {
     'producer.card.STM_017.what_trip': "The cumulative distance from the start of the route is missing at {affected} of this trip’s {total} stops.",
     'producer.card.STM_017.action_feed': "If you need to verify stop positions along the route, enter the cumulative distance from the start of the route at every stop of the affected trips. If you intentionally do not use this distance, no action is needed.",
     'producer.card.STM_017.action_trip': "If you use the cumulative distance, enter the distance from the start of the route at the missing stops. Otherwise remove the other distance values from this trip as well.",
+    'producer.card.STM_017.action_trip_all': "No stop of this trip has a cumulative distance. If you do not use distances, no action is needed; if you do, enter the cumulative distance from the start of the route at every stop.",
     'producer.card.STM_018.title': "Continuous pickup setting invalid on a route section",
     'producer.card.STM_018.what': "The continuous pickup setting after {stop} is written as “{value}”. This is not one of the defined options.",
     'producer.card.STM_018.what_segment': "The continuous pickup setting between {from} and {to} is written as “{value}”. This is not one of the defined options.",
