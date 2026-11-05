@@ -7038,7 +7038,25 @@
         {
           "details": {
             "affected_trips": "2",
-            "example_trips": "T1, T2"
+            "example_0_curr_seq": "1",
+            "example_0_curr_stop": "S2",
+            "example_0_kind": "order",
+            "example_0_line": "3",
+            "example_0_prev_seq": "2",
+            "example_0_prev_stop": "S1",
+            "example_0_service_id": "SVC1",
+            "example_0_trip": "T1",
+            "example_1_curr_seq": "1",
+            "example_1_curr_stop": "S2",
+            "example_1_kind": "order",
+            "example_1_line": "5",
+            "example_1_prev_seq": "2",
+            "example_1_prev_stop": "S1",
+            "example_1_service_id": "SVC1",
+            "example_1_trip": "T2",
+            "example_trips": "T1, T2",
+            "order_trips": "2",
+            "scattered_trips": "0"
           },
           "entity_id": null,
           "entity_type": "Feed",

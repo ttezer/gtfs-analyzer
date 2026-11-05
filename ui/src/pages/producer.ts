@@ -448,6 +448,30 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         action: t(`producer.card.${g.ruleId}.action`),
       };
     }
+    case 'STM_036': {
+      const d = n.details ?? {};
+      if (!d.kind) return null;
+      const name = (id?: string) => (id ? result.name_index.stops?.[id] || id : '—');
+      const what = d.kind === 'order'
+        ? t('producer.card.STM_036.what_order', {
+          current: name(d.curr_stop), current_sequence: d.curr_seq ?? '—',
+          previous: name(d.prev_stop), previous_sequence: d.prev_seq ?? '—',
+        })
+        : t('producer.card.STM_036.what_scattered', { from: d.line_from ?? '—', to: d.line_to ?? '—' });
+      const total = Number(d.affected_trips);
+      const feed = total > 1
+        ? ` ${t('producer.card.STM_036.what_feed', {
+          n: localizedNumber(String(total)),
+          order: localizedNumber(d.order_trips ?? '0'), scattered: localizedNumber(d.scattered_trips ?? '0'),
+        })}`
+        : '';
+      return {
+        title: t('producer.card.STM_036.title'),
+        context: tripContextText(tripContext(n, result)),
+        what: what + feed,
+        action: t('producer.card.STM_036.action'),
+      };
+    }
     case 'STM_037':
     case 'STM_038':
     case 'STM_039':
@@ -1066,7 +1090,7 @@ function timeStrip(n: Notice, result: ValidationResult): string {
       ]);
     }
     if (!rows.length) return '';
-    return `<table class="planner-times planner-stm017-times"><thead><tr><th>${t('producer.col.stop')}</th><th>${t('producer.times.sequence')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th><th>${t('producer.times.shape_distance')}</th></tr></thead><tbody>${
+    return `<table class="planner-times planner-stm017-times"><thead><tr><th>${t('producer.col.stop')}</th><th>${t('producer.times.sequence')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th><th>${t('producer.times.cumulative_distance')}</th></tr></thead><tbody>${
       rows.map(([stop, sequence, arrival, departure]) => `<tr class="bad"><td>${escHtml(stop)}</td><td>${escHtml(sequence)}</td><td>${escHtml(arrival)}</td><td>${escHtml(departure)}</td><td>${t('producer.times.missing')}</td></tr>`).join('')
     }</tbody></table>`;
   }
@@ -1136,14 +1160,21 @@ function timeStrip(n: Notice, result: ValidationResult): string {
     }</tbody></table>` + tripListTable(d, result, at => `${at('stop_a_sequence') || '—'}–${at('stop_b_sequence') || '—'} · ${plannerTime(at('stop_a_departure')) || '—'} → ${plannerTime(at('stop_b_arrival')) || '—'}`, 'stm035_trips');
   }
   if (['STM_037', 'STM_038', 'STM_039', 'STM_040'].includes(n.rule_id) && (d.location_id || d.location_group_id)) {
-    const cells = [
-      d.location_id || d.location_group_id || '—', d.stop_sequence || '—',
-      plannerTime(d.window_start) || '—', plannerTime(d.window_end) || '—',
-      plannerTime(d.arrival) || '—', plannerTime(d.departure) || '—',
-      d.pickup_booking_rule_id || d.drop_off_booking_rule_id || '—',
-    ];
-    return `<table class="planner-times planner-flex-times"><thead><tr><th>${t('producer.times.flex_zone')}</th><th>${t('producer.times.sequence')}</th><th>${t('producer.times.window_start')}</th><th>${t('producer.times.window_end')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th><th>${t('producer.times.booking_rule')}</th></tr></thead><tbody><tr class="bad">${
-      cells.map(cell => `<td>${escHtml(cell)}</td>`).join('')
+    // Only the columns the finding is about (at most four): a seven-column table did not fit the
+    // card's text column and pushed past the card.
+    const zone = d.location_id || d.location_group_id || '—';
+    const window = `${plannerTime(d.window_start) || '—'}–${plannerTime(d.window_end) || '—'}`;
+    const columns: Array<[string, string]> = [[t('producer.times.flex_zone'), zone], [t('producer.times.sequence'), d.stop_sequence || '—']];
+    if (n.rule_id === 'STM_037') {
+      columns.push([t('producer.times.window'), window],
+        [t('producer.times.fixed_time'), `${plannerTime(d.arrival) || '—'} / ${plannerTime(d.departure) || '—'}`]);
+    } else if (n.rule_id === 'STM_040') {
+      columns.push([t('producer.times.window'), window], [t('producer.times.booking_rule'), d.pickup_booking_rule_id || d.drop_off_booking_rule_id || '—']);
+    } else {
+      columns.push([t('producer.times.window_start'), plannerTime(d.window_start) || '—'], [t('producer.times.window_end'), plannerTime(d.window_end) || '—']);
+    }
+    return `<table class="planner-times planner-flex-times"><thead><tr>${columns.map(([head]) => `<th>${escHtml(head)}</th>`).join('')}</tr></thead><tbody><tr class="bad">${
+      columns.map(([, cell]) => `<td>${escHtml(cell)}</td>`).join('')
     }</tr></tbody></table>`;
   }
   if ((n.rule_id === 'STM_028' || n.rule_id === 'STM_029') && d.first_stop_id && d.last_stop_id) {
@@ -1340,6 +1371,11 @@ function timeSpot(n: Notice, result: ValidationResult): string | null {
   }
   if ((n.rule_id === 'STM_028' || n.rule_id === 'STM_029') && d.first_stop_id && d.last_stop_id) {
     return `${name(d.first_stop_id)} ${d.first_departure ?? '—'} → ${name(d.last_stop_id)} ${d.last_arrival ?? '—'}`;
+  }
+  if (n.rule_id === 'STM_036' && d.kind) {
+    return d.kind === 'order'
+      ? t('producer.times.spot_stm036_order', { current: name(d.curr_stop), previous: name(d.prev_stop) })
+      : t('producer.times.spot_stm036_scattered', { from: d.line_from ?? '—', to: d.line_to ?? '—' });
   }
   if (n.rule_id === 'STM_032' && d.first_stop_id && d.second_stop_id) {
     return `${name(d.first_stop_id)} / ${name(d.second_stop_id)} · ${t('producer.times.sequence')} ${n.observed_value ?? '—'}`;
@@ -2390,8 +2426,8 @@ function exampleRows(n: Notice): Notice[] | null {
   for (let i = 0; d[`example_${i}_trip`]; i++) {
     const at = (key: string) => d[`example_${i}_${key}`];
     const details: Record<string, string> = { ...summary };
-    if (n.rule_id === 'STM_056' || n.rule_id === 'STM_024') {
-      // STM_056 / STM_024 examples carry the pinpoint row's details verbatim (prev2…next2 stops, times,
+    if (n.rule_id === 'STM_056' || n.rule_id === 'STM_024' || n.rule_id === 'STM_036') {
+      // STM_056 / STM_024 / STM_036 examples carry the pinpoint row's details verbatim (prev2…next2 stops, times,
       // distances); copy them as-is so the card, time table and map read the same keys.
       const prefix = `example_${i}_`;
       for (const [key, value] of Object.entries(d)) {

@@ -514,13 +514,21 @@ describe('Üretici kartı görünümü', () => {
     const flex = { location_id: 'Z1', stop_sequence: '1', window_start: '10:00:00', window_end: '09:00:00', arrival: '08:00:00' };
     out = render(trip('STM_037', { field: 'arrival_time', details: flex }));
     expect(out.html).toContain('Bölge Z1 için talebe bağlı hizmet penceresi 10:00–09:00, ama aynı satıra sabit saat de girilmiş (08:00)');
-    expect(out.html).toContain('<th>Pencere başlangıcı</th>');
+    expect(out.html).toContain('<th>Sabit saat (varış / kalkış)</th>');
+    expect(out.html).toContain('<td>10:00–09:00</td><td>08:00 / —</td>');
+    // At most four columns: a wider table pushed past the card.
+    const flexHeads = (html: string) => (html.match(/planner-flex-times"><thead><tr>(.*?)<\/tr>/)?.[1].match(/<th>/g) ?? []).length;
+    expect(flexHeads(out.html)).toBeLessThanOrEqual(4);
     out = render(trip('STM_038', { field: 'start_pickup_drop_off_window', details: flex }));
     expect(out.html).toContain('hizmet penceresi 10:00 → 09:00: bitiş başlangıçtan sonra değil');
+    expect(out.html).toContain('<th>Pencere başlangıcı</th><th>Pencere bitişi</th>');
+    expect(flexHeads(out.html)).toBeLessThanOrEqual(4);
     out = render(trip('STM_039', { field: 'end_pickup_drop_off_window', details: { location_id: 'Z2', window_start: '11:00:00' } }));
     expect(out.html).toContain('Bölge Z2 için hizmet penceresinin bitiş saati girilmemiş');
     out = render(trip('STM_040', { field: 'pickup_booking_rule_id', details: flex }));
     expect(out.html).toContain('yolcunun nasıl rezervasyon yapacağı tanımlanmamış');
+    expect(out.html).toContain('<th>Rezervasyon kuralı</th>');
+    expect(flexHeads(out.html)).toBeLessThanOrEqual(4);
   });
 
   it('STM_035 hattın seferlerini listeler; STM_033–035 haritası hat yönü ve hatalı durakla çizilir', () => {
@@ -560,6 +568,28 @@ describe('Üretici kartı görünümü', () => {
       expect(m.opts?.pins.filter(p => p.primary).map(p => p.label), rule).toEqual([expect.stringContaining('Çarşı (S3) · durak sırası 4')]);
       expect(m.opts?.extraPolylines?.some(line => line.arrows), rule).toBe(true);
     }
+  });
+
+  it('STM_036 özeti her seferin hangi durumda olduğunu ve yerini söyler', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul' }, routes: { R1: '10' },
+      trips: { T1: 'Merkez', T2: 'Merkez' }, trip_routes: { T1: 'R1', T2: 'R1' }, trip_first_dep: { T1: '08:00', T2: '07:00' },
+    };
+    const summary = notice('a', 'STM_036', 'INFO', {
+      entity_type: 'Feed', file: 'stop_times.txt', field: 'trip_id', observed_value: '2', details: {
+        affected_trips: '2', example_trips: 'T1, T2', order_trips: '1', scattered_trips: '1',
+        example_0_trip: 'T1', example_0_line: '4', example_0_kind: 'order', example_0_curr_stop: 'S1', example_0_curr_seq: '1', example_0_prev_stop: 'S2', example_0_prev_seq: '2',
+        example_1_trip: 'T2', example_1_line: '2', example_1_kind: 'scattered', example_1_line_from: '2', example_1_line_to: '5',
+      },
+    });
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([summary], [], [['STM_036', 1, 2]], true, ni));
+    const html = root.innerHTML;
+    expect(html).toContain('Hastane (durak sırası 1) dosyada Okul (durak sırası 2) satırından sonra yazılmış');
+    expect(html).toContain('2 sefer böyle: 1 seferde durak sırası geriye gidiyor, 1 seferde satırlar dağınık');
+    expect(html).toContain('Hastane, Okul satırından sonra');
+    expect(html).toContain('satır 2–5');
   });
 
   it('STM_022 özeti örnek satırlara açılır; kart durağı, yazılan değeri ve ölçülen deseni gösterir', () => {
@@ -1340,6 +1370,8 @@ describe('STM_017 planlamacı kanıtı', () => {
     expect(el.innerHTML).toContain('Bu seferin 3 durağından 2 tanesinde');
     expect(el.innerHTML).toContain('<td>Onkoloji</td><td>1</td><td>06:15:00</td><td>06:15:00</td><td>eksik</td>');
     expect(el.innerHTML).toContain('Onkoloji ile birlikte 2 durakta kümülatif mesafe eksik');
+    expect(el.innerHTML).not.toContain('Güzergâh üzerindeki mesafe');
+    expect(el.innerHTML).toContain('<th>Kümülatif mesafe</th>');
     expect(el.innerHTML).toContain('<th>Çalışma günleri</th>');
     expect(el.innerHTML).toContain('<td>Hafta içi</td>');
     const map = plannerMap(n, r);

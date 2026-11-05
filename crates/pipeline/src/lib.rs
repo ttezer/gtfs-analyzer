@@ -273,6 +273,68 @@ pub fn check_rule_scope(config: &ValidatorConfig) -> Result<(), FatalError> {
     Ok(())
 }
 
+/// Maximum number of trip examples in the STM_036 feed summary.
+const STM036_EXAMPLE_CAP: usize = 50;
+
+/// STM_036 summary context: up to [`STM036_EXAMPLE_CAP`] trips in trip_id order, each with its
+/// case (`example_<i>_kind`: `order` — a stop written after a later one, from K2, with
+/// `curr_stop`/`curr_seq` and `prev_stop`/`prev_seq`; `scattered` — the trip's rows spread over the
+/// file, from K6, with `line_from`/`line_to`) and the count of trips in each case.
+fn stm036_row_examples(
+    representative: &gtfs_core::Notice,
+    rest: &[gtfs_core::Notice],
+) -> std::collections::BTreeMap<String, String> {
+    let mut rows: Vec<&gtfs_core::Notice> =
+        std::iter::once(representative).chain(rest.iter()).collect();
+    rows.sort_by(|a, b| {
+        a.entity_id
+            .cmp(&b.entity_id)
+            .then_with(|| a.line.cmp(&b.line))
+    });
+    let is_order = |n: &gtfs_core::Notice| {
+        n.details
+            .as_ref()
+            .is_some_and(|d| d.get("curr_stop").is_some())
+    };
+    let mut out = std::collections::BTreeMap::new();
+    let order = rows.iter().filter(|n| is_order(n)).count();
+    out.insert("order_trips".to_string(), order.to_string());
+    out.insert(
+        "scattered_trips".to_string(),
+        (rows.len() - order).to_string(),
+    );
+    for (i, row) in rows.iter().take(STM036_EXAMPLE_CAP).enumerate() {
+        let prefix = format!("example_{i}_");
+        out.insert(
+            format!("{prefix}trip"),
+            row.entity_id.clone().unwrap_or_default(),
+        );
+        out.insert(
+            format!("{prefix}line"),
+            row.line.unwrap_or_default().to_string(),
+        );
+        out.insert(
+            format!("{prefix}kind"),
+            if is_order(row) { "order" } else { "scattered" }.to_string(),
+        );
+        if let Some(d) = row.details.as_ref() {
+            for key in [
+                "curr_stop",
+                "curr_seq",
+                "prev_stop",
+                "prev_seq",
+                "line_from",
+                "line_to",
+            ] {
+                if let Some(value) = d.get(key) {
+                    out.insert(format!("{prefix}{key}"), value.clone());
+                }
+            }
+        }
+    }
+    out
+}
+
 /// Report-scope filtering shared by every orchestration (native
 /// `validate_bytes` and both WASM paths). Runs after K6 and before K7 so that
 /// removed notices cannot affect scores, report views, or the R9 queue.
@@ -306,6 +368,9 @@ fn aggregate_stm036(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     examples.sort_unstable();
     examples.dedup();
     examples.truncate(5);
+    // Planner context, before the representative loses its trip: which of the two cases each
+    // trip has (a stop written after a later one, or its rows spread over the file) and where.
+    let row_examples = stm036_row_examples(&aggregate, &matched);
 
     aggregate.entity_type = gtfs_core::EntityType::Feed;
     aggregate.entity_id = None;
@@ -324,6 +389,7 @@ fn aggregate_stm036(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         if !examples.is_empty() {
             details.insert("example_trips".to_string(), examples.join(", "));
         }
+        details.extend(row_examples);
         details.into()
     });
     aggregate.service_id = None;

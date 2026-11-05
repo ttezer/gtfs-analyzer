@@ -1722,14 +1722,23 @@ fn check_speed_and_duration<'a>(
     }
     noncontig.sort_by_key(|&(_, lo, _)| lo);
     for (trip_id, lo, hi) in noncontig {
-        notices.push(k6_notice(
+        let mut n = k6_notice(
             ctr, "STM_036", EntityType::Trip,
             Some(trip_id.to_string()), Some(trip_id.to_string()),
             "stop_times.txt", Some(lo as u64), Some("stop_sequence"),
             Some(format!("line_range={lo}-{hi}")), Some("trip'e göre gruplu".to_string()),
             format!("'{trip_id}' seferinin stop_times satırları dosyada dağınık (trip_id'ye göre gruplu değil); {lo}–{hi} arasına yayılmış."),
             "stop_times.txt'i trip_id ve stop_sequence'a göre sıralayın.",
-        ));
+        );
+        // Planner context: the trip's rows are spread over these file lines.
+        n.details = Some(
+            BTreeMap::from([
+                ("line_from".to_string(), lo.to_string()),
+                ("line_to".to_string(), hi.to_string()),
+            ])
+            .into(),
+        );
+        notices.push(n);
     }
 
     // Reusable per-trip coordinate buffer: 1 lookup/stop (windows(2) would mean 2 lookups/pair).

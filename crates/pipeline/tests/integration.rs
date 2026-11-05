@@ -7007,3 +7007,39 @@ fn repeated_stop_is_one_finding_per_route_and_stop() {
         Some("1")
     );
 }
+
+#[test]
+fn unsorted_stop_times_summary_names_each_trips_case_and_place() {
+    // STM_036 stays one feed summary. T1 writes a stop after a later one (sequence 2 then 1),
+    // T2's rows are spread over the file (T1's rows sit between them): each example says which.
+    static TRIPS2: &[u8] = b"route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n";
+    static UNSORTED: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T2,07:00:00,07:00:00,S1,1\n\
+          T1,08:10:00,08:10:00,S2,2\nT1,08:00:00,08:00:00,S1,1\n\
+          T2,07:10:00,07:10:00,S2,2\n";
+    let mut files = base_files();
+    files[3] = ("trips.txt", TRIPS2);
+    files[4] = ("stop_times.txt", UNSORTED);
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("ValidateResult::Ok beklendi");
+    };
+    let found: Vec<_> = vr
+        .notices
+        .iter()
+        .filter(|n| n.rule_id == "STM_036")
+        .collect();
+    assert_eq!(found.len(), 1, "STM_036 feed başına tek özet");
+    let d = found[0].details.as_ref().expect("özet ayrıntısı");
+    let get = |k: &str| d.get(k).map(String::as_str);
+    assert_eq!(get("affected_trips"), Some("2"));
+    assert_eq!(get("order_trips"), Some("1"));
+    assert_eq!(get("scattered_trips"), Some("1"));
+    assert_eq!(get("example_0_trip"), Some("T1"));
+    assert_eq!(get("example_0_kind"), Some("order"));
+    assert_eq!(get("example_0_curr_stop"), Some("S1"));
+    assert_eq!(get("example_0_prev_stop"), Some("S2"));
+    assert_eq!(get("example_1_trip"), Some("T2"));
+    assert_eq!(get("example_1_kind"), Some("scattered"));
+    assert_eq!(get("example_1_line_from"), Some("2"));
+    assert_eq!(get("example_1_line_to"), Some("5"));
+}
