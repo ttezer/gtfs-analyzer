@@ -1463,6 +1463,8 @@ const fr: LocaleShape = {
     'producer.card.STM_056.what_detail': "Ordre des arrêts : {stops}. De {previous} à {current}, la distance cumulée depuis le début du parcours n’augmente pas ({previous_distance} → {current_distance}).",
     'producer.card.STM_056.action_detail': "Vérifiez l’ordre arrêt précédent → arrêt en erreur → arrêt suivant et leurs distances cumulées le long du tracé. Si l’arrêt lui-même est erroné, corrigez l’ordre des arrêts ; s’il est correct, corrigez la distance le long du tracé. N’intervertissez pas les arrêts à l’aveugle.",
     'producer.card.STM_056.action_constant': "Vérifiez le paramètre d’export : chaque arrêt doit avoir sa distance cumulée depuis le début du parcours. Si vous n’utilisez pas les distances, laissez cette information vide à tous les arrêts.",
+    'producer.card.STM_056.what_reversed': "Le tracé de cette course est dessiné dans le sens inverse (le premier arrêt est à la fin du tracé), c’est pourquoi les distances n’augmentent pas.",
+    'producer.card.STM_056.action_reversed': "Corrigez d’abord le sens du tracé : il doit commencer au premier arrêt de la course et finir au dernier. Exportez ensuite à nouveau les distances.",
     'producer.card.STM_056.what_constant_feed': "{n} courses du jeu de données sont dans le même cas.",
     'producer.card.STM_056.what_constant': "Les {stops} arrêts de cette course portent tous la même distance cumulée depuis le début du parcours ({value}) ; la valeur n’augmente jamais le long du parcours.",
     'producer.card.STM_058.title': "Heure de fenêtre illisible",

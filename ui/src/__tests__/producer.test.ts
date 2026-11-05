@@ -562,13 +562,15 @@ describe('Üretici kartı görünümü', () => {
       trip_routes: { T1: 'R1' },
       trip_first_dep: { T1: '07:00' },
       trip_stops: { T1: ['S1', 'S2', 'S3', 'S4'] },
+      trip_shapes: { T1: 'SH1' },
     };
-    const render = (details: Record<string, string>) => {
+    const render = (details: Record<string, string>, shapeReversed = false) => {
       const n = notice('a', 'STM_056', 'CRITICAL', {
         entity_type: 'Trip', entity_id: 'T1', field: 'shape_dist_traveled', observed_value: '25.644928', expected_value: '> 25.644928', details,
       });
+      const shp016 = notice('s', 'SHP_016', 'HIGH', { entity_type: 'Shape', entity_id: 'SH1', field: 'shape_id' });
       const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
-      renderProducer(root, result([n], ['a'], [['STM_056', 5, 1]], true, ni));
+      renderProducer(root, result(shapeReversed ? [n, shp016] : [n], ['a'], [['STM_056', 5, 1], ['SHP_016', 2, 1]], true, ni));
       return root.innerHTML;
     };
     const pair = {
@@ -584,6 +586,14 @@ describe('Üretici kartı görünümü', () => {
     expect(html).toContain('Bu seferin 46 durağının hepsinde güzergâh başından itibaren kümülatif mesafe aynı (25.644928)');
     expect(html).toContain('aynı durumdaki sefer sayısı 2.010.');
     expect(html).toContain('Dışa aktarma ayarını kontrol edin');
+    expect(html).not.toContain('ters yönde çizilmiş');
+
+    // SHP_016 on the trip's shape: the card names the reversed line and asks to fix it first.
+    html = render({ ...pair, trip_constant_value: '25.644928', trip_stop_count: '46' }, true);
+    expect(html).toContain('Bu seferin güzergâh çizgisi ters yönde çizilmiş (ilk durak çizginin sonunda)');
+    expect(html).toContain('Önce güzergâh çizgisinin yönünü düzeltin');
+    html = render(pair, true);
+    expect(html).toContain('ters yönde çizilmiş');
   });
 
   it('AGN_003 kartında yalnız motorun bildirdiği geçersiz URL ve gözlenen değer gösterilir', () => {

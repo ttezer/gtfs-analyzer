@@ -1462,6 +1462,8 @@ const ja: LocaleShape = {
     'producer.card.STM_056.what_detail': "停留所の順序: {stops}。{previous} から {current} へ進むとき、経路始点からの累積距離が増えていません({previous_distance} → {current_distance})。",
     'producer.card.STM_056.action_detail': "前 → 誤り → 次の停留所の順序と、経路形状上の累積距離を確認してください。停留所そのものが誤っている場合は停留所の順序を修正し、停留所が正しい場合は経路形状上の距離を修正してください。停留所をむやみに入れ替えないでください。",
     'producer.card.STM_056.action_constant': "エクスポート設定を確認してください。各停留所には経路始点からの累積距離が必要です。距離を使用しない場合は、すべての停留所でこの情報を空欄にしてください。",
+    'producer.card.STM_056.what_reversed': "この便の経路線は逆方向に描かれています(最初の停留所が線の終点にあります)。そのため距離が増えません。",
+    'producer.card.STM_056.action_reversed': "まず経路線の向きを修正してください。線は便の最初の停留所から始まり、最後の停留所で終わる必要があります。その後、距離を再度エクスポートしてください。",
     'producer.card.STM_056.what_constant_feed': "フィード内で同じ状態の便は {n} 便です。",
     'producer.card.STM_056.what_constant': "この便の {stops} 停留所すべてで経路始点からの累積距離が同じ値({value})で、経路に沿って一度も増えていません。",
     'producer.card.STM_058.title': "デマンド型時間帯の時刻を読み取れません",

@@ -1463,6 +1463,8 @@ const en: LocaleShape = {
     'producer.card.STM_056.what_detail': "Stop order: {stops}. From {previous} to {current}, the cumulative distance from the start of the route does not increase ({previous_distance} → {current_distance}).",
     'producer.card.STM_056.action_detail': "Check the previous → faulty → next stop order and their cumulative distances along the shape. If the stop itself is wrong, correct the stop order; if the stop is correct, correct the distance along the shape. Do not swap stops blindly.",
     'producer.card.STM_056.action_constant': "Check the export setting: each stop needs its cumulative distance from the start of the route. If you do not use distances, leave this information empty at every stop.",
+    'producer.card.STM_056.what_reversed': "This trip's route line is drawn in the opposite direction (the first stop is at the end of the line), which is why the distances do not increase.",
+    'producer.card.STM_056.action_reversed': "First fix the direction of the route line: it must start at the trip's first stop and end at its last stop. Then export the distances again.",
     'producer.card.STM_056.what_constant_feed': "{n} trips in the feed are in the same state.",
     'producer.card.STM_056.what_constant': "All {stops} stops of this trip carry the same cumulative distance from the start of the route ({value}); the value never increases along the route.",
     'producer.card.STM_058.title': "Demand-responsive window time cannot be read",

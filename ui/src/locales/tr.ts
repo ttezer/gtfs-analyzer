@@ -1461,6 +1461,8 @@ const tr = {
     'producer.card.STM_056.what_detail': "Durak sırası: {stops}. {previous} durağından {current} durağına geçerken güzergâh başından itibaren kümülatif mesafe artmıyor ({previous_distance} → {current_distance}).",
     'producer.card.STM_056.action_detail': "Önceki → hatalı → sonraki durak sırasını ve güzergâh üzerindeki kümülatif mesafe değerlerini kontrol edin. Durak gerçekten yanlışsa durak sırasını düzeltin; durak doğruysa güzergâh mesafesini düzeltin. Körlemesine durakları yer değiştirmeyin.",
     'producer.card.STM_056.action_constant': "Dışa aktarma ayarını kontrol edin: her durak için güzergâh başından itibaren kümülatif mesafe yazılmalı. Mesafe kullanmıyorsanız bu bilgiyi bütün duraklarda boş bırakın.",
+    'producer.card.STM_056.what_reversed': "Bu seferin güzergâh çizgisi ters yönde çizilmiş (ilk durak çizginin sonunda); mesafeler bu yüzden artmıyor.",
+    'producer.card.STM_056.action_reversed': "Önce güzergâh çizgisinin yönünü düzeltin: çizgi seferin ilk durağından başlayıp son durağında bitmeli. Ardından mesafeleri yeniden dışa aktarın.",
     'producer.card.STM_056.what_constant_feed': "Feed'de aynı durumdaki sefer sayısı {n}.",
     'producer.card.STM_056.what_constant': "Bu seferin {stops} durağının hepsinde güzergâh başından itibaren kümülatif mesafe aynı ({value}); değer güzergâh boyunca hiç artmıyor.",
     'producer.card.STM_058.title': "Talebe bağlı hizmet penceresi saati okunamıyor",

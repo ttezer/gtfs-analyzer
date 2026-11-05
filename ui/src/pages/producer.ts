@@ -92,6 +92,17 @@ function coordText(value: number | undefined): string {
   return value === undefined || !Number.isFinite(value) ? '—' : String(Number(value.toFixed(6)));
 }
 
+/** Shapes the engine found drawn against the direction of travel (SHP_016), per result. */
+const reversedShapeCache = new WeakMap<ValidationResult, Set<string>>();
+function reversedShapes(result: ValidationResult): Set<string> {
+  let shapes = reversedShapeCache.get(result);
+  if (!shapes) {
+    shapes = new Set(result.notices.filter(n => n.rule_id === 'SHP_016' && n.entity_id).map(n => n.entity_id!));
+    reversedShapeCache.set(result, shapes);
+  }
+  return shapes;
+}
+
 /** Seconds as "26 sa 26 dk" / "45 dk" / "30 sn" in the page language. */
 function durationText(seconds: number): string {
   if (!Number.isFinite(seconds)) return '—';
@@ -695,6 +706,11 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       const d = n.details ?? {};
       const stopName = (id?: string) => id ? result.name_index.stops?.[id] || id : '';
       const context = tripContext(n, result);
+      // A route line drawn backwards (SHP_016 on this trip's shape) is the usual cause: distances
+      // measured along a reversed line cannot grow. Said only when the engine found it.
+      const shapeId = n.entity_id ? result.name_index.trip_shapes?.[n.entity_id] : undefined;
+      const reversed = Boolean(shapeId && reversedShapes(result).has(shapeId));
+      const reversedText = reversed ? ` ${t('producer.card.STM_056.what_reversed')}` : '';
       const constantTrips = Number(d.constant_trips);
       const feed = constantTrips > 1
         ? ` ${t('producer.card.STM_056.what_constant_feed', { n: localizedNumber(String(constantTrips)) })}`
@@ -707,8 +723,8 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
           what: t('producer.card.STM_056.what_constant', {
             stops: d.trip_stop_count ?? '—',
             value: d.trip_constant_value,
-          }) + feed,
-          action: t('producer.card.STM_056.action_constant'),
+          }) + reversedText + feed,
+          action: t(reversed ? 'producer.card.STM_056.action_reversed' : 'producer.card.STM_056.action_constant'),
         };
       }
       // Only the neighbours that exist: the first stop has no stop before it.
@@ -725,8 +741,8 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
           current: stopName(d.stop_id) || '—',
           previous_distance: d.prev_shape_dist_traveled || '—',
           current_distance: d.shape_dist_traveled || n.observed_value || '—',
-        }),
-        action: t('producer.card.STM_056.action_detail'),
+        }) + reversedText,
+        action: t(reversed ? 'producer.card.STM_056.action_reversed' : 'producer.card.STM_056.action_detail'),
       };
     }
     default: {
