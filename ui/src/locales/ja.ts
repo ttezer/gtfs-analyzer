@@ -1450,7 +1450,7 @@ const ja: LocaleShape = {
     'producer.card.STM_045.title': "便が運行日の範囲外に出発",
     'producer.card.STM_045.what': "便の出発時刻が運行日の通常の終わり（既定 27:00）を超えています。",
     'producer.card.STM_045.action': "出発時刻を確認し、翌日の便なら正しい日とカレンダーへ移してください。",
-    'producer.card.STM_045.what_detail': "この便は「{stop}」を{time}に出発します。この時刻は運行日の通常の終わりを過ぎています。",
+    'producer.card.STM_045.what_detail': "この便は「{stop}」を{time}に出発します。運行日は{limit}に終わり、この時刻はそれを過ぎています。",
     'producer.card.STM_046.title': "停留所時刻が便に紐付いていません",
     'producer.card.STM_046.what': "停留所時刻のレコードに所属する便がありません。",
     'producer.card.STM_046.action': "停留所時刻を該当する便に紐付けてください。",

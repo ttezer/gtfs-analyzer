@@ -4522,7 +4522,7 @@ fn check_geo_shape_trip_analytics(
             } else {
                 max_dep_h
             };
-            for st in stops {
+            for (i, st) in stops.iter().enumerate() {
                 let Some((h, m, s)) = st.departure_time() else {
                     continue;
                 };
@@ -4535,13 +4535,18 @@ fn check_geo_shape_trip_analytics(
                         format!("'{trip_id}' seferinde {h:02}:{m:02}:{s:02} kalkış saati — servis günü penceresini ({max_dep_h} saat) aşıyor."),
                         "departure_time ve service_day_start_hour ayarını kontrol edin; bu pencereyi aşan değerler genellikle veri hatasıdır.",
                     );
-                    // Let the planner see which stop has the departure beyond the window.
+                    // Let the planner see which stop has the departure beyond the window, with
+                    // its sequence and times and the previous and next row.
                     let mut d = std::collections::BTreeMap::new();
                     d.insert(
                         "stop_id".to_string(),
                         records.stop_times_index.stop_id_of(st).to_string(),
                     );
-                    n.details = Some(d.into());
+                    let mut d: gtfs_core::NoticeDetails = d.into();
+                    records
+                        .stop_times_index
+                        .add_row_neighbours(stops, i, &mut d);
+                    n.details = Some(d);
                     notices.push(n);
                     break; // one notice per trip is enough
                 }

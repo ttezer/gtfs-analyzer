@@ -1451,7 +1451,7 @@ const fr: LocaleShape = {
     'producer.card.STM_045.title': "Départ hors de la journée de service",
     'producer.card.STM_045.what': "L’heure de départ dépasse la fin habituelle de la journée de service (27:00 par défaut).",
     'producer.card.STM_045.action': "Vérifiez l’heure ; si c’est une course du lendemain, placez-la sur le bon jour et calendrier.",
-    'producer.card.STM_045.what_detail': "La course part de {stop} à {time} ; cette heure dépasse la fin habituelle de la journée de service.",
+    'producer.card.STM_045.what_detail': "La course part de {stop} à {time} ; la journée de service se termine à {limit} et cette heure la dépasse.",
     'producer.card.STM_046.title': "Horaire non rattaché à une course",
     'producer.card.STM_046.what': "Un horaire n’indique pas à quelle course il appartient.",
     'producer.card.STM_046.action': "Rattachez l’horaire à sa course.",

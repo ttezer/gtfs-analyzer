@@ -685,6 +685,48 @@ describe('Üretici kartı görünümü', () => {
     expect(out.map.opts?.pins.filter(p => p.primary)).toHaveLength(2);
   });
 
+  it('STM_045, STM_048 ve STM_049 önceki / hatalı / sonraki satırı durak sırasıyla gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı' },
+      routes: { R1: '10' }, trips: { T1: 'Merkez' }, trip_routes: { T1: 'R1' }, trip_first_dep: { T1: '23:40' },
+      trip_stops: { T1: ['S1', 'S2', 'S3'] }, stop_coords: { S1: [41, 29], S2: [41.01, 29.01], S3: [41.02, 29.02] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+    const rows = {
+      prev_stop_id: 'S1', prev_stop_sequence: '1', prev_arrival: '23:40:00', prev_departure: '23:40:00',
+      stop_id: 'S2', stop_sequence: '2',
+      next_stop_id: 'S3', next_stop_sequence: '3', next_arrival: '00:20:00', next_departure: '00:20:00',
+    };
+    const trip = (rule: string, extra: Partial<Notice>) => notice('a', rule, 'HIGH', { entity_type: 'Trip', entity_id: 'T1', ...extra });
+
+    let out = render(trip('STM_048', { field: 'arrival_time', observed_value: '00:10:00', details: {
+      ...rows, arrival: '00:10:00', departure: '00:10:00', previous_time: '23:40:00', observed_time: '00:10:00', expected_time: '24:10:00',
+    } }));
+    expect(out.html).toContain('<th>Durak sırası</th><th>Durak</th><th>Varış</th><th>Kalkış</th>');
+    expect(out.html).toContain('<tr><td>1</td><td>Hastane</td><td>23:40</td><td>23:40</td></tr>');
+    expect(out.html).toContain('<tr class="bad"><td>2</td><td>Okul</td><td>00:10 → 24:10</td><td>00:10</td></tr>');
+    expect(out.html).toContain('<tr><td>3</td><td>Çarşı</td><td>00:20</td><td>00:20</td></tr>');
+    expect(out.map.opts?.pins.filter(p => p.primary)).toHaveLength(1);
+
+    out = render(trip('STM_049', { field: 'departure_time', observed_value: '00:02:00', details: {
+      ...rows, arrival: '23:58:00', departure: '00:02:00', previous_time: '23:58:00', observed_time: '00:02:00', expected_time: '24:02:00',
+    } }));
+    expect(out.html).toContain('<tr class="bad"><td>2</td><td>Okul</td><td>23:58</td><td>00:02 → 24:02</td></tr>');
+
+    out = render(trip('STM_045', { field: 'departure_time', observed_value: '28:30:00', expected_value: '≤27:00:00', details: {
+      ...rows, arrival: '28:20:00', departure: '28:30:00',
+    } }));
+    expect(out.html).toContain('Sefer Okul durağından 28:30 saatinde kalkıyor; servis gününün sonu 27:00, bu saat onu aşıyor.');
+    // STM_045 has no expected time per row: the faulty row is shown as written.
+    expect(out.html).toContain('<tr class="bad"><td>2</td><td>Okul</td><td>28:20</td><td>28:30</td></tr>');
+  });
+
   it('STM_022 özeti örnek satırlara açılır; kart durağı, yazılan değeri ve ölçülen deseni gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,

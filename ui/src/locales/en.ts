@@ -1451,7 +1451,7 @@ const en: LocaleShape = {
     'producer.card.STM_045.title': "Trip leaves outside the service day",
     'producer.card.STM_045.what': "The trip’s departure time exceeds the usual end of the service day (27:00 by default).",
     'producer.card.STM_045.action': "Check the departure time; if it is a trip of the next day, move it to the right day and calendar.",
-    'producer.card.STM_045.what_detail': "The trip leaves {stop} at {time}; this time is past the usual end of the service day.",
+    'producer.card.STM_045.what_detail': "The trip leaves {stop} at {time}; the service day ends at {limit}, and this time is past it.",
     'producer.card.STM_046.title': "Stop time not linked to a trip",
     'producer.card.STM_046.what': "A stop time record does not say which trip it belongs to.",
     'producer.card.STM_046.action': "Match the stop time to its trip.",

@@ -379,6 +379,63 @@ impl StopTimesIndex {
         }
     }
 
+    /// The row's sequence and times plus the previous and next row (stop, sequence, times), as
+    /// written in the feed, so a planner card can show previous / faulty / next. Used by
+    /// STM_045 (K6) and STM_048/049 (`add_midnight_context`).
+    pub fn add_row_neighbours(
+        &self,
+        rows: &[CompactStopTime],
+        i: usize,
+        d: &mut gtfs_core::NoticeDetails,
+    ) {
+        let Some(row) = rows.get(i) else {
+            return;
+        };
+        let mut put = |prefix: &str, row: &CompactStopTime, with_stop: bool| {
+            if with_stop {
+                d.insert(format!("{prefix}stop_id"), self.stop_id_of(row).to_string());
+            }
+            if let Some(seq) = row.stop_sequence() {
+                d.insert(format!("{prefix}stop_sequence"), seq.to_string());
+            }
+            for (key, secs) in [
+                ("arrival", row.arrival_secs),
+                ("departure", row.departure_secs),
+            ] {
+                let label = row_time_label(secs, None);
+                if !label.is_empty() {
+                    d.insert(format!("{prefix}{key}"), label);
+                }
+            }
+        };
+        put("", row, false);
+        if let Some(prev) = i.checked_sub(1).and_then(|j| rows.get(j)) {
+            put("prev_", prev, true);
+        }
+        if let Some(next) = rows.get(i + 1) {
+            put("next_", next, true);
+        }
+    }
+
+    /// STM_048/049: the faulty row and its neighbours (see `add_row_neighbours`).
+    fn add_midnight_context(&self, notices: &mut [Notice]) {
+        for n in notices
+            .iter_mut()
+            .filter(|n| n.rule_id == "STM_048" || n.rule_id == "STM_049")
+        {
+            let (Some(trip_id), Some(line)) = (n.entity_id.clone(), n.line) else {
+                continue;
+            };
+            let Some(rows) = self.sorted_stops(&trip_id) else {
+                continue;
+            };
+            let Some(i) = rows.iter().position(|r| r.line_u64() == line) else {
+                continue;
+            };
+            self.add_row_neighbours(rows, i, n.details.get_or_insert_with(Default::default));
+        }
+    }
+
     /// STM_018/019: identify the stop-time row carrying the invalid continuous-service value
     /// and the next stop, because the setting applies from this row to the next row in stop_sequence.
     /// STM_030: the previous and next stop of the row with the invalid distance and their
@@ -4133,6 +4190,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
     }
 
     index.add_malformed_time_context(&mut st.notices);
+    index.add_midnight_context(&mut st.notices);
     index.add_missing_stop_time_context(&mut st.notices);
     index.add_continuous_service_context(&mut st.notices);
     index.add_invalid_distance_context(&mut st.notices);

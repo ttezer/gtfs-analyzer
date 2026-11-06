@@ -7164,3 +7164,55 @@ start_pickup_drop_off_window,end_pickup_drop_off_window\n\
     assert_eq!(get(&d, "example_1_departure").as_deref(), Some("08:12:00"));
     assert_eq!(get(&d, "message_variant"), None);
 }
+
+#[test]
+fn midnight_and_service_day_findings_carry_neighbour_rows() {
+    // STM_045, STM_048 and STM_049 name the faulty row's sequence and times and the previous
+    // and next row, so the planner card can show previous / faulty / next. Counts unchanged.
+    let details = |files: &[(&str, &[u8])], rule: &str| match run(files) {
+        ValidateResult::Ok(vr) => vr
+            .notices
+            .iter()
+            .find(|n| n.rule_id == rule)
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor")),
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+    let mut files = base_files();
+
+    static LATE: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,26:50:00,26:50:00,S1,1\nT1,27:20:00,27:30:00,S2,2\nT1,27:40:00,27:40:00,S3,3\n";
+    files[4] = ("stop_times.txt", LATE);
+    let d = details(&files, "STM_045");
+    assert_eq!(get(&d, "stop_id").as_deref(), Some("S2"));
+    assert_eq!(get(&d, "stop_sequence").as_deref(), Some("2"));
+    assert_eq!(get(&d, "arrival").as_deref(), Some("27:20:00"));
+    assert_eq!(get(&d, "departure").as_deref(), Some("27:30:00"));
+    assert_eq!(get(&d, "prev_stop_id").as_deref(), Some("S1"));
+    assert_eq!(get(&d, "prev_departure").as_deref(), Some("26:50:00"));
+    assert_eq!(get(&d, "next_stop_id").as_deref(), Some("S3"));
+    assert_eq!(get(&d, "next_stop_sequence").as_deref(), Some("3"));
+
+    static WRAP: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,23:40:00,23:40:00,S1,1\nT1,00:10:00,00:10:00,S2,2\nT1,00:20:00,00:20:00,S3,3\n";
+    files[4] = ("stop_times.txt", WRAP);
+    let d = details(&files, "STM_048");
+    assert_eq!(get(&d, "stop_id").as_deref(), Some("S2"));
+    assert_eq!(get(&d, "stop_sequence").as_deref(), Some("2"));
+    assert_eq!(get(&d, "arrival").as_deref(), Some("00:10:00"));
+    assert_eq!(get(&d, "expected_time").as_deref(), Some("24:10:00"));
+    assert_eq!(get(&d, "prev_stop_sequence").as_deref(), Some("1"));
+    assert_eq!(get(&d, "prev_arrival").as_deref(), Some("23:40:00"));
+    assert_eq!(get(&d, "next_stop_id").as_deref(), Some("S3"));
+
+    static SAME_ROW: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,23:30:00,23:30:00,S1,1\nT1,23:58:00,00:02:00,S2,2\nT1,24:10:00,24:10:00,S3,3\n";
+    files[4] = ("stop_times.txt", SAME_ROW);
+    let d = details(&files, "STM_049");
+    assert_eq!(get(&d, "stop_sequence").as_deref(), Some("2"));
+    assert_eq!(get(&d, "arrival").as_deref(), Some("23:58:00"));
+    assert_eq!(get(&d, "departure").as_deref(), Some("00:02:00"));
+    assert_eq!(get(&d, "prev_stop_id").as_deref(), Some("S1"));
+    assert_eq!(get(&d, "next_arrival").as_deref(), Some("24:10:00"));
+}

@@ -1449,7 +1449,7 @@ const tr = {
     'producer.card.STM_045.title': "Sefer servis gününün dışında kalkıyor",
     'producer.card.STM_045.what': "Seferin kalkış saati, servis gününün olağan sonunu (varsayılan 27:00) aşıyor.",
     'producer.card.STM_045.action': "Kalkış saatini kontrol edin; sefer ertesi günün seferiyse doğru güne ve takvime taşıyın.",
-    'producer.card.STM_045.what_detail': "Sefer {stop} durağından {time} saatinde kalkıyor; bu saat servis gününün olağan sonunu aşıyor.",
+    'producer.card.STM_045.what_detail': "Sefer {stop} durağından {time} saatinde kalkıyor; servis gününün sonu {limit}, bu saat onu aşıyor.",
     'producer.card.STM_046.title': "Durak saati bir sefere bağlı değil",
     'producer.card.STM_046.what': "Bir durak saati kaydında hangi sefere ait olduğu boş bırakılmış.",
     'producer.card.STM_046.action': "Durak saatini ait olduğu seferle eşleştirin.",

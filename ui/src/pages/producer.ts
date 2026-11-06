@@ -517,7 +517,11 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         if (!d.stop_headsign) return null;
         what = t('producer.card.STM_042.what_detail', { stop, sequence, headsign: d.stop_headsign, char: n.observed_value ?? '—' });
       } else if (g.ruleId === 'STM_045') {
-        what = t('producer.card.STM_045.what_detail', { stop, time: plannerTime(n.observed_value) || n.observed_value || '—' });
+        // The engine's own window end (≤27:00:00 by default; config and rail trips change it).
+        const limit = /^≤(\d{2,3}:\d{2}:\d{2})$/.exec(n.expected_value ?? '')?.[1];
+        what = t('producer.card.STM_045.what_detail', {
+          stop, time: plannerTime(n.observed_value) || n.observed_value || '—', limit: plannerTime(limit) || '—',
+        });
       } else {
         what = t('producer.card.STM_046.what_detail', { stop, sequence, time });
       }
@@ -1044,6 +1048,25 @@ function timeStrip(n: Notice, result: ValidationResult): string {
   const d = n.details;
   if (!d) return '';
   const name = (id?: string, fallback?: string) => (id ? result.name_index.stops?.[id] : undefined) || fallback || id || '—';
+  if (['STM_045', 'STM_048', 'STM_049'].includes(n.rule_id) && d.stop_id && (d.arrival || d.departure)) {
+    // Previous / faulty / next row, as written in the feed. STM_048/049: the faulty time
+    // (arrival for 048, departure for 049) also shows the value it should have.
+    const fix = (value: string | undefined, side: 'arrival_time' | 'departure_time') => {
+      const shown = plannerTime(value) || '—';
+      return (n.rule_id === 'STM_048' || n.rule_id === 'STM_049') && n.field === side && d.expected_time
+        ? `${shown} → ${plannerTime(d.expected_time)}`
+        : shown;
+    };
+    type NeighbourRow = [string, string, string, string, boolean];
+    const rows: NeighbourRow[] = [
+      ...(d.prev_stop_id ? [[d.prev_stop_sequence || '—', name(d.prev_stop_id), plannerTime(d.prev_arrival) || '—', plannerTime(d.prev_departure) || '—', false] as NeighbourRow] : []),
+      [d.stop_sequence || '—', name(d.stop_id), fix(d.arrival, 'arrival_time'), fix(d.departure, 'departure_time'), true],
+      ...(d.next_stop_id ? [[d.next_stop_sequence || '—', name(d.next_stop_id), plannerTime(d.next_arrival) || '—', plannerTime(d.next_departure) || '—', false] as NeighbourRow] : []),
+    ];
+    return `<table class="planner-times planner-neighbour-times"><thead><tr><th>${t('producer.times.sequence')}</th><th>${t('producer.col.stop')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th></tr></thead><tbody>${
+      rows.map(([sequence, stop, arrival, departure, bad]) => `<tr${bad ? ' class="bad"' : ''}><td>${escHtml(sequence)}</td><td>${escHtml(stop)}</td><td>${escHtml(arrival)}</td><td>${escHtml(departure)}</td></tr>`).join('')
+    }</tbody></table>`;
+  }
   if (n.rule_id === 'STM_056') {
     type DistanceRow = [string, string, string, string, string, boolean];
     const rows: DistanceRow[] = [];
@@ -1784,7 +1807,8 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     const directShape = ni.trip_shapes?.[n.entity_id];
     const selectedShape = directShape
       || ((n.rule_id === 'STM_015' || n.rule_id === 'STM_016' || n.rule_id === 'STM_018' || n.rule_id === 'STM_019' || n.rule_id === 'STM_020' || n.rule_id === 'STM_021' || n.rule_id === 'STM_028' || n.rule_id === 'STM_029' || n.rule_id === 'STM_030' || n.rule_id === 'STM_032' || n.rule_id === 'STM_033' || n.rule_id === 'STM_034' || n.rule_id === 'STM_035'
-        || n.rule_id === 'STM_041' || n.rule_id === 'STM_042' || n.rule_id === 'STM_043' || n.rule_id === 'STM_045' || n.rule_id === 'STM_047')
+        || n.rule_id === 'STM_041' || n.rule_id === 'STM_042' || n.rule_id === 'STM_043' || n.rule_id === 'STM_045' || n.rule_id === 'STM_047'
+        || n.rule_id === 'STM_048' || n.rule_id === 'STM_049')
         ? routeDirectionShapeId(ni, ni.trip_routes?.[n.entity_id], ni.trip_directions?.[n.entity_id])
         : undefined);
     const directPath = tripStops.map(id => ni.stop_coords?.[id]).filter(Boolean).length > 1;
@@ -1844,7 +1868,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
         }
         focus = undefined;
       }
-    } else if (['STM_032', 'STM_033', 'STM_034', 'STM_035', 'STM_041', 'STM_042', 'STM_045', 'STM_047'].includes(n.rule_id)) {
+    } else if (['STM_032', 'STM_033', 'STM_034', 'STM_035', 'STM_041', 'STM_042', 'STM_045', 'STM_047', 'STM_048', 'STM_049'].includes(n.rule_id)) {
       // Stop-row findings: the route and direction with every stop, the faulty stop(s) in red,
       // the neighbours of a repeated stop in grey.
       const stopSequences = ni.trip_stop_sequences?.[n.entity_id] ?? [];
