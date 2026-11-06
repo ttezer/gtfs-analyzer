@@ -7215,4 +7215,13 @@ fn midnight_and_service_day_findings_carry_neighbour_rows() {
     assert_eq!(get(&d, "departure").as_deref(), Some("00:02:00"));
     assert_eq!(get(&d, "prev_stop_id").as_deref(), Some("S1"));
     assert_eq!(get(&d, "next_arrival").as_deref(), Some("24:10:00"));
+
+    // STM_003/004 (add_malformed_time_context) name the stop sequences too.
+    static MALFORMED: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,8:6O,08:10:00,S2,2\nT1,08:20:00,08:20:00,S3,3\n";
+    files[4] = ("stop_times.txt", MALFORMED);
+    let d = details(&files, "STM_003");
+    assert_eq!(get(&d, "stop_sequence").as_deref(), Some("2"));
+    assert_eq!(get(&d, "prev_stop_sequence").as_deref(), Some("1"));
+    assert_eq!(get(&d, "next_stop_sequence").as_deref(), Some("3"));
 }

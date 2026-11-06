@@ -363,6 +363,9 @@ impl StopTimesIndex {
             let d = n.details.get_or_insert_with(Default::default);
             let row = &rows[i];
             d.insert("stop_id".to_string(), self.stop_id_of(row).to_string());
+            if let Some(seq) = row.stop_sequence() {
+                d.insert("stop_sequence".to_string(), seq.to_string());
+            }
             d.insert("arrival".to_string(), label(row, true));
             d.insert("departure".to_string(), label(row, false));
             for (side, other) in [("prev", i.checked_sub(1)), ("next", Some(i + 1))] {
@@ -373,6 +376,9 @@ impl StopTimesIndex {
                     format!("{side}_stop_id"),
                     self.stop_id_of(other).to_string(),
                 );
+                if let Some(seq) = other.stop_sequence() {
+                    d.insert(format!("{side}_stop_sequence"), seq.to_string());
+                }
                 d.insert(format!("{side}_arrival"), label(other, true));
                 d.insert(format!("{side}_departure"), label(other, false));
             }

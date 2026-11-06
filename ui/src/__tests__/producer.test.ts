@@ -725,6 +725,16 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('Sefer Okul durağından 28:30 saatinde kalkıyor; servis gününün sonu 27:00, bu saat onu aşıyor.');
     // STM_045 has no expected time per row: the faulty row is shown as written.
     expect(out.html).toContain('<tr class="bad"><td>2</td><td>Okul</td><td>28:20</td><td>28:30</td></tr>');
+
+    // STM_003/004: same table; the faulty cell is the raw value, "?" on a neighbour reads as invalid.
+    out = render(trip('STM_003', { field: 'arrival_time', observed_value: '8:6O', details: {
+      ...rows, arrival: '?', departure: '08:10:00', next_arrival: '?',
+    } }));
+    expect(out.html).toContain('<tr><td>1</td><td>Hastane</td><td>23:40:00</td><td>23:40:00</td></tr>');
+    expect(out.html).toContain('<tr class="bad"><td>2</td><td>Okul</td><td>8:6O</td><td>08:10:00</td></tr>');
+    expect(out.html).toContain('<tr><td>3</td><td>Çarşı</td><td>geçersiz</td><td>00:20:00</td></tr>');
+    out = render(trip('STM_004', { field: 'departure_time', observed_value: '25:61:00', details: { ...rows, arrival: '08:10:00', departure: '?' } }));
+    expect(out.html).toContain('<tr class="bad"><td>2</td><td>Okul</td><td>08:10:00</td><td>25:61:00</td></tr>');
   });
 
   it('STM_022 özeti örnek satırlara açılır; kart durağı, yazılan değeri ve ölçülen deseni gösterir', () => {

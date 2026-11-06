@@ -1048,6 +1048,21 @@ function timeStrip(n: Notice, result: ValidationResult): string {
   const d = n.details;
   if (!d) return '';
   const name = (id?: string, fallback?: string) => (id ? result.name_index.stops?.[id] : undefined) || fallback || id || '—';
+  if ((n.rule_id === 'STM_003' || n.rule_id === 'STM_004') && d.stop_id) {
+    // Previous / faulty / next row with stop sequence (same table as STM_045/048/049). The engine
+    // represents a malformed time as "?" and an empty field as ""; the faulty row's own value is observed.
+    const time = (v?: string) => v === '?' ? t('producer.times.invalid') : v || '—';
+    const raw = n.observed_value ?? '?';
+    type MalformedRow = [string, string, string, string, boolean];
+    const rows: MalformedRow[] = [
+      ...(d.prev_stop_id ? [[d.prev_stop_sequence || '—', name(d.prev_stop_id), time(d.prev_arrival), time(d.prev_departure), false] as MalformedRow] : []),
+      [d.stop_sequence || '—', name(d.stop_id), n.rule_id === 'STM_003' ? raw : time(d.arrival), n.rule_id === 'STM_004' ? raw : time(d.departure), true],
+      ...(d.next_stop_id ? [[d.next_stop_sequence || '—', name(d.next_stop_id), time(d.next_arrival), time(d.next_departure), false] as MalformedRow] : []),
+    ];
+    return `<table class="planner-times planner-neighbour-times"><thead><tr><th>${t('producer.times.sequence')}</th><th>${t('producer.col.stop')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th></tr></thead><tbody>${
+      rows.map(([sequence, stop, arrival, departure, bad]) => `<tr${bad ? ' class="bad"' : ''}><td>${escHtml(sequence)}</td><td>${escHtml(stop)}</td><td>${escHtml(arrival)}</td><td>${escHtml(departure)}</td></tr>`).join('')
+    }</tbody></table>`;
+  }
   if (['STM_045', 'STM_048', 'STM_049'].includes(n.rule_id) && d.stop_id && (d.arrival || d.departure)) {
     // Previous / faulty / next row, as written in the feed. STM_048/049: the faulty time
     // (arrival for 048, departure for 049) also shows the value it should have.
@@ -1378,15 +1393,6 @@ function timeStrip(n: Notice, result: ValidationResult): string {
       ...(d.next_arrival !== undefined || d.next_departure !== undefined
         ? [[stopName(d.next_stop_id), time(d.next_arrival), time(d.next_departure), false] as Row]
         : []),
-    ];
-  } else if ((n.rule_id === 'STM_003' || n.rule_id === 'STM_004') && d.stop_id) {
-  // The engine represents a malformed time as "?" and an empty field as ""; the faulty row's own value is observed.
-    const time = (v?: string) => v === '?' ? t('producer.times.invalid') : v || '—';
-    const raw = n.observed_value ?? '?';
-    rows = [
-      ...(d.prev_stop_id ? [[name(d.prev_stop_id), time(d.prev_arrival), time(d.prev_departure), false] as Row] : []),
-      [name(d.stop_id), n.rule_id === 'STM_003' ? raw : time(d.arrival), n.rule_id === 'STM_004' ? raw : time(d.departure), true],
-      ...(d.next_stop_id ? [[name(d.next_stop_id), time(d.next_arrival), time(d.next_departure), false] as Row] : []),
     ];
   }
   if (!rows.length) return '';
