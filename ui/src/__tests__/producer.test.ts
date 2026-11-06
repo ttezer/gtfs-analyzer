@@ -628,6 +628,63 @@ describe('Üretici kartı görünümü', () => {
     expect(map.caption).toContain('durak sırası 41 → 42');
   });
 
+  it('STM_041–047 kartları durağı, sırayı, saati ve seferin uçlarını gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı' },
+      routes: { R1: '10' }, trips: { T1: 'Merkez' }, trip_routes: { T1: 'R1' }, trip_first_dep: { T1: '08:00' },
+      trip_stops: { T1: ['S1', 'S2', 'S3'] }, stop_coords: { S1: [41, 29], S2: [41.01, 29.01], S3: [41.02, 29.02] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+    const trip = (rule: string, extra: Partial<Notice>) => notice('a', rule, 'LOW', { entity_type: 'Trip', entity_id: 'T1', ...extra });
+
+    let out = render(trip('STM_041', { details: { stop_id: 'S1', location_id: 'Z1', stop_sequence: '1', departure: '08:00:00' } }));
+    expect(out.html).toContain('1. sıradaki satırda hem Hastane durağı hem Z1 talebe bağlı hizmet bölgesi seçilmiş');
+    expect(out.html).toContain('<tr class="bad"><td>Hastane</td><td>Z1</td><td>1</td><td>08:00</td></tr>');
+    expect(out.html).toContain('Hastane · Durak sırası 1');
+
+    out = render(trip('STM_042', { observed_value: '*', details: { stop_id: 'S2', stop_sequence: '2', departure: '08:10:00', stop_headsign: 'Centre*' } }));
+    expect(out.html).toContain('Okul durağında (2. sıra) gösterilen yön metni „Centre*” içinde * karakteri var');
+    expect(out.html).toContain('<th>Yön metni</th>');
+
+    out = render(trip('STM_043', { observed_value: '201', details: {
+      first_stop_id: 'S1', first_stop_sequence: '1', first_departure: '06:00:00',
+      last_stop_id: 'S3', last_stop_sequence: '201', last_arrival: '09:20:00', stop_count: '201', distinct_stops: '3',
+    } }));
+    expect(out.html).toContain('Sefer Hastane durağından 06:00 saatinde kalkıp Çarşı durağına 09:20 saatinde varıyor; 201 durak saati var.');
+    expect(out.html).toContain('yalnız 3 farklı durak var');
+    expect(out.html).toContain('Hastane 06:00 → Çarşı 09:20');
+    expect(out.map.opts?.pins.filter(p => p.primary)).toHaveLength(2);
+    // Every stop distinct: no merge sentence.
+    out = render(trip('STM_043', { details: { first_stop_id: 'S1', last_stop_id: 'S3', stop_count: '201', distinct_stops: '201' } }));
+    expect(out.html).not.toContain('farklı durak var');
+
+    out = render(notice('a', 'STM_044', 'INFO', { entity_type: 'Feed', observed_value: '2100000' }));
+    expect(out.html).toContain('Veri setinde 2.100.000 durak saati kaydı var');
+
+    out = render(trip('STM_045', { observed_value: '28:30:00', details: { stop_id: 'S2' } }));
+    expect(out.html).toContain('Sefer Okul durağından 28:30 saatinde kalkıyor');
+
+    out = render(notice('a', 'STM_046', 'CRITICAL', { entity_type: 'Trip', details: { stop_id: 'S3', stop_sequence: '4', arrival: '08:20:00', departure: '08:21:00' } }));
+    expect(out.html).toContain('Çarşı durağında 08:21 saatli (4. sıra) bir durak saati var');
+    expect(out.html).toContain('<tr class="bad"><td>Çarşı</td><td>4</td><td>08:20</td><td>08:21</td></tr>');
+
+    out = render(trip('STM_047', { details: {
+      affected_rows: '2',
+      example_0_stop_id: 'S2', example_0_stop_sequence: '2', example_0_missing: 'both',
+      example_1_stop_id: 'S3', example_1_stop_sequence: '3', example_1_missing: 'arrival', example_1_departure: '08:12:00',
+    } }));
+    expect(out.html).toContain('Bu seferde 2 kesin zaman noktasında saat eksik; ilki Okul durağı (2. sıra).');
+    expect(out.html).toContain('<tr class="bad"><td>Okul</td><td>2</td><td>eksik</td><td>eksik</td></tr>');
+    expect(out.html).toContain('<tr class="bad"><td>Çarşı</td><td>3</td><td>eksik</td><td>08:12</td></tr>');
+    expect(out.map.opts?.pins.filter(p => p.primary)).toHaveLength(2);
+  });
+
   it('STM_022 özeti örnek satırlara açılır; kart durağı, yazılan değeri ve ölçülen deseni gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,

@@ -7490,7 +7490,10 @@
         },
         {
           "details": {
-            "affected_rows": "1"
+            "affected_rows": "1",
+            "example_0_missing": "both",
+            "example_0_stop_id": "S1",
+            "example_0_stop_sequence": "1"
           },
           "entity_id": "T1",
           "entity_type": "Trip",

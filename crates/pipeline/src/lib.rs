@@ -809,11 +809,31 @@ fn aggregate_stm047(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         aggregate.message = format!(
             "trip_id '{trip_id}' için {affected_rows} kesin zaman noktası satırında saat eksik."
         );
-        aggregate.details = Some({
-            let mut details = BTreeMap::new();
-            details.insert("affected_rows".to_string(), affected_rows.to_string());
-            details.into()
+        // Planner examples: the rows' stops, sequences, the time that is there and the missing
+        // side, in stop order, at most 50 (the row details are replaced by the trip summary).
+        let mut rows: Vec<&gtfs_core::NoticeDetails> = std::iter::once(&aggregate)
+            .chain(matches.iter())
+            .filter_map(|notice| notice.details.as_ref())
+            .collect();
+        rows.sort_by_key(|row| {
+            row.get("stop_sequence")
+                .and_then(|seq| seq.parse::<u64>().ok())
+                .unwrap_or(u64::MAX)
         });
+        let mut details = BTreeMap::new();
+        details.insert("affected_rows".to_string(), affected_rows.to_string());
+        for (i, row) in rows.iter().take(50).enumerate() {
+            for key in ["stop_id", "stop_sequence", "arrival", "departure"] {
+                if let Some(value) = row.get(key) {
+                    details.insert(format!("example_{i}_{key}"), value.to_string());
+                }
+            }
+            if let Some(variant) = row.get("message_variant") {
+                let missing = variant.strip_prefix("missing_").unwrap_or(variant);
+                details.insert(format!("example_{i}_missing"), missing.to_string());
+            }
+        }
+        aggregate.details = Some(details.into());
         aggregate.service_id = None;
         aggregate.whitespace_derived = matches.iter().all(|n| n.whitespace_derived)
             && aggregate.whitespace_derived;

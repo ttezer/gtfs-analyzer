@@ -7089,3 +7089,78 @@ start_pickup_drop_off_window,end_pickup_drop_off_window,shape_dist_traveled\n\
     assert_eq!(get("missing_0_stop_id"), Some("S2"));
     assert_eq!(get("missing_1_stop_id"), None);
 }
+
+#[test]
+fn stop_time_findings_041_to_047_carry_planner_context() {
+    // STM_041 names the row's stop and zone, STM_042 the stop and the headsign text, STM_043 the
+    // trip's ends and distinct stops, STM_046 the stop and times of the row without a trip, and
+    // STM_047 the rows of its trip summary. Counts are unchanged; only details are added.
+    let details = |files: &[(&str, &[u8])], rule: &str| match run(files) {
+        ValidateResult::Ok(vr) => vr
+            .notices
+            .iter()
+            .find(|n| n.rule_id == rule)
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor")),
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+    let mut files = base_files();
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+
+    static BOTH: &[u8] = b"trip_id,stop_id,location_id,stop_sequence,arrival_time,departure_time,\
+start_pickup_drop_off_window,end_pickup_drop_off_window\n\
+          T1,S1,Z1,1,08:00:00,08:00:00,,\n";
+    files[4] = ("stop_times.txt", BOTH);
+    let d = details(&files, "STM_041");
+    assert_eq!(get(&d, "stop_id").as_deref(), Some("S1"));
+    assert_eq!(get(&d, "location_id").as_deref(), Some("Z1"));
+    assert_eq!(get(&d, "stop_sequence").as_deref(), Some("1"));
+
+    static HEADSIGN: &[u8] =
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\n\
+          T1,08:00:00,08:00:00,S1,1,Centre*\nT1,08:10:00,08:10:00,S2,2,\n";
+    files[4] = ("stop_times.txt", HEADSIGN);
+    let d = details(&files, "STM_042");
+    assert_eq!(get(&d, "stop_id").as_deref(), Some("S1"));
+    assert_eq!(get(&d, "stop_headsign").as_deref(), Some("Centre*"));
+    assert_eq!(get(&d, "departure").as_deref(), Some("08:00:00"));
+
+    let mut long = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n".to_vec();
+    for i in 0..201u32 {
+        let (h, m) = (6 + i / 60, i % 60);
+        let stop = if i % 2 == 0 { "S1" } else { "S2" };
+        long.extend_from_slice(
+            format!("T1,{h:02}:{m:02}:00,{h:02}:{m:02}:00,{stop},{}\n", i + 1).as_bytes(),
+        );
+    }
+    files[4] = ("stop_times.txt", &long);
+    let d = details(&files, "STM_043");
+    assert_eq!(get(&d, "first_stop_id").as_deref(), Some("S1"));
+    assert_eq!(get(&d, "first_departure").as_deref(), Some("06:00:00"));
+    assert_eq!(get(&d, "last_stop_sequence").as_deref(), Some("201"));
+    assert_eq!(get(&d, "last_arrival").as_deref(), Some("09:20:00"));
+    assert_eq!(get(&d, "stop_count").as_deref(), Some("201"));
+    assert_eq!(get(&d, "distinct_stops").as_deref(), Some("2"));
+
+    static NO_TRIP: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n,08:20:00,08:21:00,S3,4\n";
+    files[4] = ("stop_times.txt", NO_TRIP);
+    let d = details(&files, "STM_046");
+    assert_eq!(get(&d, "stop_id").as_deref(), Some("S3"));
+    assert_eq!(get(&d, "stop_sequence").as_deref(), Some("4"));
+    assert_eq!(get(&d, "arrival").as_deref(), Some("08:20:00"));
+
+    static TIMEPOINT: &[u8] =
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,timepoint\n\
+          T1,08:00:00,08:00:00,S1,1,1\nT1,,08:12:00,S3,3,1\nT1,,,S2,2,1\n";
+    files[4] = ("stop_times.txt", TIMEPOINT);
+    let d = details(&files, "STM_047");
+    assert_eq!(get(&d, "affected_rows").as_deref(), Some("2"));
+    // In stop order: sequence 2 (both missing) before sequence 3 (arrival missing).
+    assert_eq!(get(&d, "example_0_stop_id").as_deref(), Some("S2"));
+    assert_eq!(get(&d, "example_0_missing").as_deref(), Some("both"));
+    assert_eq!(get(&d, "example_1_stop_id").as_deref(), Some("S3"));
+    assert_eq!(get(&d, "example_1_missing").as_deref(), Some("arrival"));
+    assert_eq!(get(&d, "example_1_departure").as_deref(), Some("08:12:00"));
+    assert_eq!(get(&d, "message_variant"), None);
+}

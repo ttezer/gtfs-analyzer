@@ -497,6 +497,66 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         action: t(`producer.card.${g.ruleId}.action`),
       };
     }
+    case 'STM_041':
+    case 'STM_042':
+    case 'STM_045':
+    case 'STM_046': {
+      // Stop-row findings: the row's stop and time (STM_046 has no trip to name, so the stop,
+      // sequence and time are what the planner searches by).
+      const d = n.details ?? {};
+      if (!d.stop_id) return null;
+      const stop = result.name_index.stops?.[d.stop_id] || d.stop_id;
+      const sequence = d.stop_sequence || '—';
+      const time = plannerTime(d.departure) || plannerTime(d.arrival) || '—';
+      let what: string;
+      if (g.ruleId === 'STM_041') {
+        const zone = d.location_id || d.location_group_id;
+        if (!zone) return null;
+        what = t('producer.card.STM_041.what_detail', { stop, zone, sequence });
+      } else if (g.ruleId === 'STM_042') {
+        if (!d.stop_headsign) return null;
+        what = t('producer.card.STM_042.what_detail', { stop, sequence, headsign: d.stop_headsign, char: n.observed_value ?? '—' });
+      } else if (g.ruleId === 'STM_045') {
+        what = t('producer.card.STM_045.what_detail', { stop, time: plannerTime(n.observed_value) || n.observed_value || '—' });
+      } else {
+        what = t('producer.card.STM_046.what_detail', { stop, sequence, time });
+      }
+      return {
+        title: t(`producer.card.${g.ruleId}.title`),
+        context: g.ruleId === 'STM_046' ? undefined : tripContextText(tripContext(n, result)),
+        what,
+        action: t(`producer.card.${g.ruleId}.action`),
+      };
+    }
+    case 'STM_043': {
+      const d = n.details ?? {};
+      if (!d.first_stop_id || !d.last_stop_id) return null;
+      const name = (id: string) => result.name_index.stops?.[id] || id;
+      const stops = Number(d.stop_count);
+      const distinct = Number(d.distinct_stops);
+      // Only a measured repeat is named: fewer distinct stops than stop times.
+      const repeated = distinct > 0 && distinct < stops
+        ? ` ${t('producer.card.STM_043.repeated', { distinct: localizedNumber(d.distinct_stops) })}`
+        : '';
+      return {
+        title: t('producer.card.STM_043.title'),
+        context: tripContextText(tripContext(n, result)),
+        what: t('producer.card.STM_043.what_detail', {
+          first: name(d.first_stop_id), dep: plannerTime(d.first_departure) || '—',
+          last: name(d.last_stop_id), arr: plannerTime(d.last_arrival) || '—',
+          stops: localizedNumber(d.stop_count ?? '0'),
+        }) + repeated,
+        action: t('producer.card.STM_043.action'),
+      };
+    }
+    case 'STM_044': {
+      if (!n.observed_value || !/^\d+$/.test(n.observed_value)) return null;
+      return {
+        title: t('producer.card.STM_044.title'),
+        what: t('producer.card.STM_044.what_detail', { count: localizedNumber(n.observed_value) }),
+        action: t('producer.card.STM_044.action'),
+      };
+    }
     case 'STM_028':
     case 'STM_029': {
       const d = n.details ?? {};
@@ -786,10 +846,18 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
           : '',
         t('producer.card.trip_count_context', { count: g.count }),
       ].filter(Boolean);
+      const d = n.details ?? {};
+      const firstStop = d.example_0_stop_id;
       return {
         title: t('producer.card.STM_047.title'),
         context: contextParts.join(t('producer.card.context_separator')),
-        what: t('producer.card.STM_047.what'),
+        what: firstStop
+          ? t('producer.card.STM_047.what_detail', {
+            n: localizedNumber(d.affected_rows ?? '1'),
+            stop: result.name_index.stops?.[firstStop] || firstStop,
+            sequence: d.example_0_stop_sequence || '—',
+          })
+          : t('producer.card.STM_047.what'),
         action: t('producer.card.STM_047.action'),
       };
     }
@@ -1146,7 +1214,31 @@ function timeStrip(n: Notice, result: ValidationResult): string {
       cells.map(cell => `<td>${escHtml(cell)}</td>`).join('')
     }</tr></tbody></table>`;
   }
-  if ((n.rule_id === 'STM_032' && d.first_stop_id) || ((n.rule_id === 'STM_033' || n.rule_id === 'STM_034') && d.stop_id)) {
+  if ((n.rule_id === 'STM_041' || n.rule_id === 'STM_042') && d.stop_id) {
+    // The row's stop and what conflicts on it: the zone written next to it, or the headsign text.
+    const columns: Array<[string, string]> = n.rule_id === 'STM_041'
+      ? [[t('producer.col.stop'), name(d.stop_id)], [t('producer.times.flex_zone'), d.location_id || d.location_group_id || '—'],
+        [t('producer.times.sequence'), d.stop_sequence || '—'], [t('producer.times.departure'), plannerTime(d.departure) || '—']]
+      : [[t('producer.col.stop'), name(d.stop_id)], [t('producer.times.sequence'), d.stop_sequence || '—'],
+        [t('producer.times.departure'), plannerTime(d.departure) || '—'], [t('producer.times.headsign'), d.stop_headsign || '—']];
+    return `<table class="planner-times planner-stop-times"><thead><tr>${columns.map(([head]) => `<th>${escHtml(head)}</th>`).join('')}</tr></thead><tbody><tr class="bad">${
+      columns.map(([, cell]) => `<td>${escHtml(cell)}</td>`).join('')
+    }</tr></tbody></table>`;
+  }
+  if (n.rule_id === 'STM_047' && d.example_0_stop_id) {
+    // The trip's exact timepoints without a time, in stop order; the missing side reads "missing".
+    const missing = t('producer.times.missing');
+    const rows: string[] = [];
+    for (let i = 0; d[`example_${i}_stop_id`]; i++) {
+      const at = (key: string) => d[`example_${i}_${key}`];
+      const side = at('missing');
+      const arrival = side === 'arrival' || side === 'both' ? missing : plannerTime(at('arrival')) || '—';
+      const departure = side === 'departure' || side === 'both' ? missing : plannerTime(at('departure')) || '—';
+      rows.push(`<tr class="bad"><td>${escHtml(name(at('stop_id')))}</td><td>${escHtml(at('stop_sequence') || '—')}</td><td>${escHtml(arrival)}</td><td>${escHtml(departure)}</td></tr>`);
+    }
+    return `<p class="producer-card-label">${escHtml(t('producer.times.stm047_examples'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.col.stop')}</th><th>${t('producer.times.sequence')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  }
+  if ((n.rule_id === 'STM_032' && d.first_stop_id) || ((n.rule_id === 'STM_033' || n.rule_id === 'STM_034' || n.rule_id === 'STM_046') && d.stop_id)) {
     type StopRow = [string, string, string, string, boolean];
     const rows: StopRow[] = n.rule_id === 'STM_032'
       ? [
@@ -1183,7 +1275,7 @@ function timeStrip(n: Notice, result: ValidationResult): string {
       columns.map(([, cell]) => `<td>${escHtml(cell)}</td>`).join('')
     }</tr></tbody></table>`;
   }
-  if ((n.rule_id === 'STM_028' || n.rule_id === 'STM_029') && d.first_stop_id && d.last_stop_id) {
+  if ((n.rule_id === 'STM_028' || n.rule_id === 'STM_029' || n.rule_id === 'STM_043') && d.first_stop_id && d.last_stop_id) {
     type SpanRow = [string, string, string, string, boolean];
     const rows: SpanRow[] = [[name(d.first_stop_id), d.first_stop_sequence || '—', '—', plannerTime(d.first_departure) || '—', n.rule_id === 'STM_029']];
     if (n.rule_id === 'STM_028' && d.gap_stop_a && d.gap_stop_b) {
@@ -1386,8 +1478,14 @@ function timeSpot(n: Notice, result: ValidationResult): string | null {
   if (n.rule_id === 'STM_032' && d.first_stop_id && d.second_stop_id) {
     return `${name(d.first_stop_id)} / ${name(d.second_stop_id)} · ${t('producer.times.sequence')} ${n.observed_value ?? '—'}`;
   }
-  if ((n.rule_id === 'STM_033' || n.rule_id === 'STM_034') && d.stop_id) {
+  if ((n.rule_id === 'STM_033' || n.rule_id === 'STM_034' || n.rule_id === 'STM_041' || n.rule_id === 'STM_042' || n.rule_id === 'STM_046') && d.stop_id) {
     return `${name(d.stop_id)} · ${t('producer.times.sequence')} ${d.stop_sequence || '—'}`;
+  }
+  if (n.rule_id === 'STM_047' && d.example_0_stop_id) {
+    return `${name(d.example_0_stop_id)} · ${t('producer.times.sequence')} ${d.example_0_stop_sequence || '—'}`;
+  }
+  if (n.rule_id === 'STM_043' && d.first_stop_id && d.last_stop_id) {
+    return `${name(d.first_stop_id)} ${plannerTime(d.first_departure) || '—'} → ${name(d.last_stop_id)} ${plannerTime(d.last_arrival) || '—'}`;
   }
   if (n.rule_id === 'STM_035' && d.stop_id) {
     return `${name(d.stop_id)} · ${t('producer.times.sequence')} ${d.stop_a_sequence || '—'}–${d.stop_b_sequence || '—'}`;
@@ -1685,7 +1783,8 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     const color = routeColor(ni.trip_routes?.[n.entity_id]);
     const directShape = ni.trip_shapes?.[n.entity_id];
     const selectedShape = directShape
-      || ((n.rule_id === 'STM_015' || n.rule_id === 'STM_016' || n.rule_id === 'STM_018' || n.rule_id === 'STM_019' || n.rule_id === 'STM_020' || n.rule_id === 'STM_021' || n.rule_id === 'STM_028' || n.rule_id === 'STM_029' || n.rule_id === 'STM_030' || n.rule_id === 'STM_032' || n.rule_id === 'STM_033' || n.rule_id === 'STM_034' || n.rule_id === 'STM_035')
+      || ((n.rule_id === 'STM_015' || n.rule_id === 'STM_016' || n.rule_id === 'STM_018' || n.rule_id === 'STM_019' || n.rule_id === 'STM_020' || n.rule_id === 'STM_021' || n.rule_id === 'STM_028' || n.rule_id === 'STM_029' || n.rule_id === 'STM_030' || n.rule_id === 'STM_032' || n.rule_id === 'STM_033' || n.rule_id === 'STM_034' || n.rule_id === 'STM_035'
+        || n.rule_id === 'STM_041' || n.rule_id === 'STM_042' || n.rule_id === 'STM_043' || n.rule_id === 'STM_045' || n.rule_id === 'STM_047')
         ? routeDirectionShapeId(ni, ni.trip_routes?.[n.entity_id], ni.trip_directions?.[n.entity_id])
         : undefined);
     const directPath = tripStops.map(id => ni.stop_coords?.[id]).filter(Boolean).length > 1;
@@ -1745,12 +1844,14 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
         }
         focus = undefined;
       }
-    } else if (n.rule_id === 'STM_032' || n.rule_id === 'STM_033' || n.rule_id === 'STM_034' || n.rule_id === 'STM_035') {
+    } else if (['STM_032', 'STM_033', 'STM_034', 'STM_035', 'STM_041', 'STM_042', 'STM_045', 'STM_047'].includes(n.rule_id)) {
       // Stop-row findings: the route and direction with every stop, the faulty stop(s) in red,
       // the neighbours of a repeated stop in grey.
       const stopSequences = ni.trip_stop_sequences?.[n.entity_id] ?? [];
       const d = n.details ?? {};
-      if (n.rule_id === 'STM_032') {
+      if (n.rule_id === 'STM_047') {
+        for (let i = 0; d[`example_${i}_stop_id`]; i++) addStop(d[`example_${i}_stop_id`], true, d[`example_${i}_stop_sequence`]);
+      } else if (n.rule_id === 'STM_032') {
         addStop(d.first_stop_id, true, n.observed_value);
         addStop(d.second_stop_id, true, n.observed_value);
       } else if (n.rule_id === 'STM_035') {
@@ -1761,11 +1862,15 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
         addStop(d.stop_id, true, d.stop_sequence);
       }
       for (const [index, stopId] of tripStops.entries()) addStop(stopId, false, stopSequences[index]);
-    } else if (n.rule_id === 'STM_028' || n.rule_id === 'STM_029' || n.rule_id === 'STM_030') {
+    } else if (n.rule_id === 'STM_028' || n.rule_id === 'STM_029' || n.rule_id === 'STM_030' || n.rule_id === 'STM_043') {
       // Whole-trip findings: the route and direction with every stop, the faulty place in red.
       const stopSequences = ni.trip_stop_sequences?.[n.entity_id] ?? [];
       const d = n.details ?? {};
-      if (n.rule_id === 'STM_028') {
+      if (n.rule_id === 'STM_029' || n.rule_id === 'STM_043') {
+        // STM_043 has no faulty stop: the trip's two ends mark where the long trip starts and ends.
+        addStop(d.first_stop_id, true, d.first_stop_sequence);
+        addStop(d.last_stop_id, true, d.last_stop_sequence);
+      } else if (n.rule_id === 'STM_028') {
         addStop(d.gap_stop_a, true, d.gap_a_sequence);
         addStop(d.gap_stop_b, true, d.gap_b_sequence);
         const from = coord(d.gap_stop_a);
@@ -1775,9 +1880,6 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
           const onShape = segmentOnShape(shape, from, to);
           segments.push({ coords: onShape.length > 1 ? onShape : [from, to], color: MAP_RED, weight: 8, zoomTo: true });
         }
-      } else if (n.rule_id === 'STM_029') {
-        addStop(d.first_stop_id, true, d.first_stop_sequence);
-        addStop(d.last_stop_id, true, d.last_stop_sequence);
       } else {
         addStop(d.stop_id, true, d.stop_sequence);
         addStop(d.prev_stop_id, false, d.prev_stop_sequence);

@@ -4571,14 +4571,44 @@ fn check_geo_shape_trip_analytics(
                     .and_then(|s| s.departure_time())
                     .map(|(h, m, _)| format!(" {h:02}:{m:02} kalkışlı"))
                     .unwrap_or_default();
-                notices.push(k6_notice(
+                let mut n = k6_notice(
                     ctr, "STM_043", EntityType::Trip,
                     Some((*trip_id).to_string()), Some((*trip_id).to_string()),
                     "stop_times.txt", None, None,
                     Some(count.to_string()), Some("≤200".to_string()),
                     format!("'{trip_id}'{dep_suffix} seferinde {count} durak var — olası veri birleştirme hatası."),
                     "Bu sefer için stop_times.txt'i gözden geçirin; seferler mantıksal segmentlere ayrılabilir.",
-                ));
+                );
+                // Planner context: the trip's ends and how many distinct stops it visits (a trip
+                // that passes the same stops again is the usual sign of merged trips).
+                if let (Some(first), Some(last)) = (stops.first(), stops.last()) {
+                    // Same keys as trip_span_details (STM_028/029), read from the K2 index here.
+                    let idx = &records.stop_times_index;
+                    let mut d = gtfs_core::NoticeDetails::new();
+                    d.insert(
+                        "first_stop_id".to_string(),
+                        idx.stop_id_of(first).to_string(),
+                    );
+                    if let Some(seq) = first.stop_sequence() {
+                        d.insert("first_stop_sequence".to_string(), seq.to_string());
+                    }
+                    if let Some(dep) = first.departure_time() {
+                        d.insert("first_departure".to_string(), format_hms(hms_to_secs(dep)));
+                    }
+                    d.insert("last_stop_id".to_string(), idx.stop_id_of(last).to_string());
+                    if let Some(seq) = last.stop_sequence() {
+                        d.insert("last_stop_sequence".to_string(), seq.to_string());
+                    }
+                    if let Some(arr) = last.arrival_time() {
+                        d.insert("last_arrival".to_string(), format_hms(hms_to_secs(arr)));
+                    }
+                    d.insert("stop_count".to_string(), count.to_string());
+                    let distinct: FxHashSet<&str> =
+                        stops.iter().map(|s| idx.stop_id_of(s)).collect();
+                    d.insert("distinct_stops".to_string(), distinct.len().to_string());
+                    n.details = Some(d);
+                }
+                notices.push(n);
             }
         }
     }

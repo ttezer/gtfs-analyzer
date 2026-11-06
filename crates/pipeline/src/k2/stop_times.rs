@@ -2261,6 +2261,8 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             let eid = || (!trip_id.is_empty()).then(|| trip_id.to_string());
 
             // STM_046: trip_id required (if the column is absent, ARC_025 takes over → skip).
+            // Its planner context (stop, sequence, times) is added once stop_time_details exists.
+            let stm046_at = (trip_id.is_empty() && has_trip_id_col).then_some(st.notices.len());
             if trip_id.is_empty() && has_trip_id_col {
                 st.notices.push(make_k2_notice(
                     &mut st.counter,
@@ -2524,6 +2526,16 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 }
                 details
             };
+            // STM_046 has no trip to name: the stop, sequence and times let the planner find the row.
+            if let Some(at) = stm046_at {
+                let details = stop_time_details();
+                if !details.is_empty() {
+                    if let Some(notice) = st.notices.get_mut(at).filter(|n| n.rule_id == "STM_046")
+                    {
+                        notice.details = Some(details.into());
+                    }
+                }
+            }
             let pickup_notice_start = st.notices.len();
             let pickup_type = parse_pickup_dropoff_col(
                 pickup_type_raw,
@@ -2753,13 +2765,10 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         ),
                         remediation,
                     );
-                    notice.details = Some(
-                        std::collections::BTreeMap::from([(
-                            "message_variant".to_string(),
-                            message_variant.to_string(),
-                        )])
-                        .into(),
-                    );
+                    // The row's stop and times; aggregate_stm047 turns them into the trip's examples.
+                    let mut details = stop_time_details();
+                    details.insert("message_variant".to_string(), message_variant.to_string());
+                    notice.details = Some(details.into());
                     st.notices.push(notice);
                 }
             }
@@ -2823,13 +2832,18 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             if let Some(ref hs) = stop_headsign {
                 const FORBIDDEN: &[char] = &['!', '$', '%', '\\', '*', '=', '_'];
                 if let Some(bad) = hs.chars().find(|c| FORBIDDEN.contains(c)) {
-                    st.notices.push(make_k2_notice(
+                    let mut notice = make_k2_notice(
                     &mut st.counter, "STM_042", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("stop_headsign"),
                     Some(bad.to_string()), None,
                     format!("stop_headsign '{}' Google Transit tarafından desteklenmeyen karakter içeriyor: '{bad}'.", hs),
                     "stop_headsign değerinden ! $ % \\ * = _ karakterlerini kaldırın.",
-                ));
+                );
+                    // Planner context: the stop row and the headsign text as written in the feed.
+                    let mut details = stop_time_details();
+                    details.insert("stop_headsign".to_string(), hs.to_string());
+                    notice.details = Some(details.into());
+                    st.notices.push(notice);
                 }
             }
 
@@ -3097,12 +3111,12 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 "Standart stop için yalnızca stop_id, Flex stop için yalnızca location_id veya location_group_id kullanın.",
             ));
                 }
-                // Planner context for the Flex row findings (STM_037–040): the stop row, the zone
+                // Planner context for the Flex row findings (STM_037–041): the stop row, the zone
                 // and its window, the booking rules and the fixed times written next to the window.
                 for notice in &mut st.notices[flex_notice_start..] {
                     if !matches!(
                         notice.rule_id.as_str(),
-                        "STM_037" | "STM_038" | "STM_039" | "STM_040"
+                        "STM_037" | "STM_038" | "STM_039" | "STM_040" | "STM_041"
                     ) {
                         continue;
                     }
