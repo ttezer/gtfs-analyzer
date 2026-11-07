@@ -2939,6 +2939,28 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     format!("trip_id '{}' {which} (telefonla rezervasyon) ama {field} eksik.", trip_id),
                     "Talep-üzerine biniş/iniş için booking_rules.txt'teki ilgili kuralı bu alana bağlayın.",
                 ));
+                    // Planner context: the row's stop (or zone and window) and both sides' settings.
+                    let mut details = stop_time_details();
+                    for (key, value) in [
+                        ("location_id", location_id_raw),
+                        ("location_group_id", location_group_id_raw),
+                        (
+                            "window_start",
+                            get_col(row, cols.start_pickup_drop_off_window),
+                        ),
+                        ("window_end", get_col(row, cols.end_pickup_drop_off_window)),
+                        ("pickup_type", pickup_type_raw),
+                        ("drop_off_type", drop_off_type_raw),
+                        ("pickup_booking_rule_id", pbr),
+                        ("drop_off_booking_rule_id", dobr),
+                    ] {
+                        if !value.is_empty() {
+                            details.insert(key.to_string(), value.to_string());
+                        }
+                    }
+                    if let Some(notice) = st.notices.last_mut() {
+                        notice.details = Some(details.into());
+                    }
                 }
             }
 
@@ -3174,7 +3196,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 "Standart stop için yalnızca stop_id, Flex stop için yalnızca location_id veya location_group_id kullanın.",
             ));
                 }
-                // Planner context for the Flex row findings (STM_037–041, STM_051/052/054/055): the
+                // Planner context for the Flex row findings (STM_037–041, STM_051/052/054/055, STM_058): the
                 // stop row, the zone and its window, the booking rules and the fixed times written
                 // next to the window.
                 for notice in &mut st.notices[flex_notice_start..] {
@@ -3189,6 +3211,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             | "STM_052"
                             | "STM_054"
                             | "STM_055"
+                            | "STM_058"
                     ) {
                         continue;
                     }

@@ -7228,6 +7228,98 @@ continuous_pickup,continuous_drop_off\n\
 }
 
 #[test]
+fn findings_058_to_061_carry_planner_context() {
+    // STM_058 names the Flex row's zone and window, STM_059 the stop row and both booking sides,
+    // STM_060 the two overlapping records with their zone rings, and STM_061 the stop pair's
+    // sequences and the fastest trip's times. Counts are unchanged.
+    let details = |files: &[(&str, &[u8])], rule: &str| match run(files) {
+        ValidateResult::Ok(vr) => vr
+            .notices
+            .iter()
+            .find(|n| n.rule_id == rule)
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor")),
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+    let mut files = base_files();
+
+    static BAD_WINDOW: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,\
+end_pickup_drop_off_window,pickup_type,drop_off_type\n\
+          T1,Z1,1,9am,12:00:00,2,2\n";
+    files[4] = ("stop_times.txt", BAD_WINDOW);
+    let d = details(&files, "STM_058");
+    assert_eq!(get(&d, "location_id").as_deref(), Some("Z1"));
+    assert_eq!(get(&d, "window_start").as_deref(), Some("9am"));
+    assert_eq!(get(&d, "window_end").as_deref(), Some("12:00:00"));
+
+    static PHONE: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,\
+pickup_type,drop_off_type,pickup_booking_rule_id\n\
+          T1,08:00:00,08:00:00,S1,1,2,0,\nT1,08:10:00,08:10:00,S2,2,0,0,\n";
+    let mut phone = files.clone();
+    phone[4] = ("stop_times.txt", PHONE);
+    phone.push((
+        "booking_rules.txt",
+        b"booking_rule_id,booking_type,prior_notice_duration_min\nBR1,1,30\n",
+    ));
+    let d = details(&phone, "STM_059");
+    assert_eq!(get(&d, "stop_id").as_deref(), Some("S1"));
+    assert_eq!(get(&d, "stop_sequence").as_deref(), Some("1"));
+    assert_eq!(get(&d, "pickup_type").as_deref(), Some("2"));
+    assert_eq!(get(&d, "drop_off_type").as_deref(), Some("0"));
+    assert_eq!(get(&d, "pickup_booking_rule_id"), None);
+
+    static OVERLAP: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,\
+end_pickup_drop_off_window,pickup_type,drop_off_type\n\
+        T1,Z1,1,08:00:00,10:00:00,2,1\nT1,Z2,2,09:00:00,11:00:00,2,2\n";
+    let d = details(&flex_overlap_feed(ZONES, OVERLAP), "STM_060");
+    assert_eq!(get(&d, "zone_a_id").as_deref(), Some("Z1"));
+    assert_eq!(get(&d, "zone_b_id").as_deref(), Some("Z2"));
+    assert_eq!(get(&d, "zone_b_stop_sequence").as_deref(), Some("2"));
+    assert_eq!(get(&d, "zone_a_window_end").as_deref(), Some("10:00:00"));
+    assert_eq!(get(&d, "zone_a_drop_off").as_deref(), Some("false"));
+    assert_eq!(get(&d, "overlap").as_deref(), Some("pickup"));
+    assert_eq!(get(&d, "window_overlap_start").as_deref(), Some("09:00:00"));
+    assert_eq!(get(&d, "window_overlap_end").as_deref(), Some("10:00:00"));
+    // The ring is lat,lon (GeoJSON stores lon,lat).
+    assert_eq!(
+        get(&d, "zone_b_ring").as_deref(),
+        Some("5.00000,5.00000;15.00000,5.00000;15.00000,15.00000;5.00000,15.00000;5.00000,5.00000")
+    );
+
+    static FAR_STOPS: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
+          S1,Stop1,41.0,29.0\nSM,Mid,41.0,29.01\nS2,Stop2,41.2,29.2\n";
+    static FAR_TRIPS: &[u8] = b"route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n";
+    // The faster trip (4 minutes against 5) is the example, and the card's sequences must come
+    // from it with its times. The two trips write different sequences (1/3 and 10/30), and the
+    // check runs both ways round, so whichever trip `by_trip` meets first, one case would mix
+    // the first trip's sequences with the faster trip's times.
+    static FAR_T2_FAST: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:01:00,08:01:00,SM,2\nT1,08:05:00,08:05:00,S2,3\n\
+          T2,09:00:00,09:00:00,S1,10\nT2,09:01:00,09:01:00,SM,20\nT2,09:04:00,09:04:00,S2,30\n";
+    static FAR_T1_FAST: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:01:00,08:01:00,SM,2\nT1,08:04:00,08:04:00,S2,3\n\
+          T2,09:00:00,09:00:00,S1,10\nT2,09:01:00,09:01:00,SM,20\nT2,09:05:00,09:05:00,S2,30\n";
+    let mut far = files.clone();
+    far[1] = ("stops.txt", FAR_STOPS);
+    far[3] = ("trips.txt", FAR_TRIPS);
+    for (times, trip, a, b, dep, arr) in [
+        (FAR_T2_FAST, "T2", "10", "30", "09:00:00", "09:04:00"),
+        (FAR_T1_FAST, "T1", "1", "3", "08:00:00", "08:04:00"),
+    ] {
+        far[4] = ("stop_times.txt", times);
+        let d = details(&far, "STM_061");
+        assert_eq!(get(&d, "example_trip_id").as_deref(), Some(trip));
+        assert_eq!(get(&d, "stop_a_sequence").as_deref(), Some(a), "{trip}");
+        assert_eq!(get(&d, "stop_b_sequence").as_deref(), Some(b), "{trip}");
+        assert_eq!(get(&d, "stop_a_departure").as_deref(), Some(dep));
+        assert_eq!(get(&d, "stop_b_arrival").as_deref(), Some(arr));
+        assert_eq!(get(&d, "between_stops").as_deref(), Some("1"));
+        assert_eq!(get(&d, "threshold_kmh").as_deref(), Some("120"));
+    }
+}
+
+#[test]
 fn midnight_and_service_day_findings_carry_neighbour_rows() {
     // STM_045, STM_048 and STM_049 name the faulty row's sequence and times and the previous
     // and next row, so the planner card can show previous / faulty / next. Counts unchanged.

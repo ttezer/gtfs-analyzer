@@ -808,6 +808,66 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('<li>Süre bilinmiyorsa bu durakları yaklaşık olarak işaretleyin (timepoint=0).</li>');
   });
 
+  it('STM_058–061 kartları pencereyi, rezervasyon tarafını, çakışan bölgeleri ve uzak durak çiftini gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı' },
+      routes: { R1: '10' }, trips: { T1: 'Merkez' }, trip_routes: { T1: 'R1' }, trip_first_dep: { T1: '08:00' },
+      trip_stops: { T1: ['S1', 'S2', 'S3'] }, trip_stop_sequences: { T1: [1, 2, 3] },
+      stop_coords: { S1: [41, 29], S2: [41.01, 29.01], S3: [41.2, 29.2] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+    const trip = (rule: string, extra: Partial<Notice>) => notice('a', rule, 'HIGH', { entity_type: 'Trip', entity_id: 'T1', ...extra });
+
+    let out = render(trip('STM_058', { field: 'start_pickup_drop_off_window', observed_value: '9am', details: {
+      location_id: 'Z1', stop_sequence: '1', window_start: '9am', window_end: '12:00:00',
+    } }));
+    expect(out.html).toContain('Bölge Z1 için hizmet penceresinin başlangıç saati “9am” yazılmış; bu geçerli bir saat değil.');
+    expect(out.html).toContain('<tr class="bad"><td>Z1</td><td>1</td><td>9am</td><td>12:00</td></tr>');
+
+    out = render(trip('STM_059', { field: 'pickup_booking_rule_id', details: {
+      stop_id: 'S2', stop_sequence: '2', pickup_type: '2', drop_off_type: '0',
+    } }));
+    expect(out.html).toContain('Okul durağı (2. sıra) için biniş “telefonla rezervasyon” (2) seçilmiş');
+    expect(out.html).toContain('<tr class="bad"><td>Okul</td><td>2</td><td>2</td><td>eksik</td></tr>');
+    expect(out.html).toContain('Okul · Durak sırası 2');
+    expect(out.map.opts?.pins.filter(p => p.primary)).toHaveLength(1);
+
+    out = render(trip('STM_060', { details: {
+      zone_a_id: 'Z1', zone_a_stop_sequence: '1', zone_a_window_start: '08:00:00', zone_a_window_end: '10:00:00', zone_a_pickup: 'true', zone_a_drop_off: 'false',
+      zone_b_id: 'Z2', zone_b_stop_sequence: '2', zone_b_window_start: '09:00:00', zone_b_window_end: '11:00:00', zone_b_pickup: 'true', zone_b_drop_off: 'true',
+      overlap: 'pickup', window_overlap_start: '09:00:00', window_overlap_end: '10:00:00',
+      zone_a_ring: '41,29;41,29.1;41.1,29.1;41,29', zone_b_ring: '41.05,29.05;41.05,29.2;41.2,29.2;41.05,29.05',
+    } }));
+    expect(out.html).toContain('Bu seferde Z1 (1. sıra, 08:00–10:00) ve Z2 (2. sıra, 09:00–11:00) bölgeleri haritada kesişiyor; pencereler 09:00–10:00 arasında çakışıyor ve ikisinde de biniş açık.');
+    expect(out.html).toContain('<tr class="bad"><td>Z1</td><td>1</td><td>08:00–10:00</td><td>açık / kapalı</td></tr>');
+    expect(out.html).toContain('Bölge Z1 / Z2 · 09:00–10:00');
+    const rings = out.map.opts?.extraPolylines?.filter(line => line.color === '#dc2626') ?? [];
+    expect(rings).toHaveLength(2);
+    expect(rings[0].coords[1]).toEqual([41, 29.1]);
+    expect(rings[0].zoomTo).toBe(true);
+
+    out = render(notice('a', 'STM_061', 'HIGH', { entity_type: 'Route', entity_id: 'R1:0:S1→S3', details: {
+      stop_a: 'S1', stop_b: 'S3', route_id: 'R1', route_label: '10', direction_id: '0', trip_count: '2',
+      dist_km: '28.3', speed_min: '340', speed_max: '425', stop_a_sequence: '1', stop_b_sequence: '3', threshold_kmh: '120',
+      example_trip_id: 'T1', stop_a_departure: '09:00:00', stop_b_arrival: '09:04:00', between_stops: '1', trips: 'T1',
+    } }));
+    expect(out.html).toContain('Hastane (1. sıra) ile Çarşı (3. sıra) arası kuş uçuşu 28,3 km. En hızlı örnek seferde 09:00 kalkış ile 09:04 varış arasında 4 dakika var; bu 425 km/h demek, bu hat türünün sınırı 120 km/h.');
+    expect(out.html).toContain('<li>09:00 kalkış ve 09:04 varış saatlerini kontrol edin;');
+    expect(out.html).toContain('10 hattı');
+    expect(out.html).toContain('<tr class="bad"><td>1</td><td>Hastane</td><td>—</td><td>09:00</td></tr>');
+    expect(out.html).toContain('<td>1 ara durak</td>');
+    expect(out.html).toContain('<tr class="bad"><td>3</td><td>Çarşı</td><td>09:04</td><td>—</td></tr>');
+    const red = out.map.opts?.pins.filter(p => p.primary).map(p => p.label) ?? [];
+    expect(red).toEqual([expect.stringContaining('durak sırası 1'), expect.stringContaining('durak sırası 3')]);
+    expect(out.map.opts?.pins).toHaveLength(3);
+  });
+
   it('STM_022 özeti örnek satırlara açılır; kart durağı, yazılan değeri ve ölçülen deseni gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,

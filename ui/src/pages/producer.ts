@@ -35,6 +35,13 @@ function flexSetting(n: Notice): { value: string; meaning: string } {
   return { value: raw || '—', meaning: t(`producer.card.flex_meaning.${kind}_${raw}`) };
 }
 
+/** The Flex row's place: its zone, or its stop by name. */
+function flexPlace(d: Record<string, string>, result: ValidationResult): string {
+  const zone = d.location_id || d.location_group_id;
+  if (zone) return t('producer.card.flex_place_zone', { zone });
+  return d.stop_id ? t('producer.card.flex_place_stop', { stop: result.name_index.stops?.[d.stop_id] || d.stop_id }) : '';
+}
+
 /** STM_053: the example trip's rows (one before the run, the run, one after) in stop order. */
 function stm053Rows(d: Record<string, string>): Array<{ stop: string; sequence: string; arrival: string; departure: string; run: boolean }> {
   const rows = [];
@@ -909,6 +916,84 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         action: t(`producer.card.${g.ruleId}.action`),
       };
     }
+    case 'STM_058': {
+      const d = n.details ?? {};
+      const place = flexPlace(d, result);
+      if (!place) return null;
+      return {
+        title: t('producer.card.STM_058.title'),
+        context: tripContextText(tripContext(n, result)),
+        what: t('producer.card.STM_058.what_detail', {
+          place,
+          side: t(n.field === 'end_pickup_drop_off_window' ? 'producer.card.STM_039.missing_end' : 'producer.card.STM_039.missing_start'),
+          value: visibleValue(n.observed_value) || '—',
+        }),
+        action: t('producer.card.STM_058.action'),
+      };
+    }
+    case 'STM_059': {
+      const d = n.details ?? {};
+      const place = flexPlace(d, result);
+      if (!place) return null;
+      return {
+        title: t('producer.card.STM_059.title'),
+        context: tripContextText(tripContext(n, result)),
+        what: t('producer.card.STM_059.what_detail', {
+          place,
+          sequence: d.stop_sequence || '—',
+          side: t(n.field === 'drop_off_booking_rule_id' ? 'producer.card.STM_059.side_drop_off' : 'producer.card.STM_059.side_pickup'),
+        }),
+        action: t('producer.card.STM_059.action'),
+      };
+    }
+    case 'STM_060': {
+      // Two Flex records of one trip: both zones, their windows and the side both offer.
+      const d = n.details ?? {};
+      if (!d.zone_a_id || !d.zone_b_id) return null;
+      return {
+        title: t('producer.card.STM_060.title'),
+        context: tripContextText(tripContext(n, result)),
+        what: t('producer.card.STM_060.what_detail', {
+          a: d.zone_a_id, a_sequence: d.zone_a_stop_sequence || '—',
+          a_start: plannerTime(d.zone_a_window_start) || '—', a_end: plannerTime(d.zone_a_window_end) || '—',
+          b: d.zone_b_id, b_sequence: d.zone_b_stop_sequence || '—',
+          b_start: plannerTime(d.zone_b_window_start) || '—', b_end: plannerTime(d.zone_b_window_end) || '—',
+          start: plannerTime(d.window_overlap_start) || '—', end: plannerTime(d.window_overlap_end) || '—',
+          side: t(`producer.card.STM_060.side_${d.overlap === 'both' || d.overlap === 'drop_off' ? d.overlap : 'pickup'}`),
+        }),
+        action: t('producer.card.STM_060.action'),
+      };
+    }
+    case 'STM_061': {
+      // A distant stop pair: the distance, the fastest example trip's times and the speed they imply.
+      const d = n.details ?? {};
+      if (!d.stop_a || !d.stop_b || !d.stop_a_departure || !d.stop_b_arrival) return null;
+      const name = (id: string) => result.name_index.stops?.[id] || id;
+      const dep = hmsSeconds(d.stop_a_departure);
+      const arr = hmsSeconds(d.stop_b_arrival);
+      const minutes = Number.isFinite(arr - dep) ? Math.round((arr - dep) / 6) / 10 : null;
+      const routeId = routeIdOfNotice(n) || d.route_id;
+      const route = (routeId ? result.name_index.routes?.[routeId] : undefined) || d.route_label;
+      const params = {
+        from: name(d.stop_a), to: name(d.stop_b),
+        a_sequence: d.stop_a_sequence || '—', b_sequence: d.stop_b_sequence || '—',
+        distance: localizedNumber(d.dist_km ?? '—'),
+        dep: plannerTime(d.stop_a_departure) || '—', arr: plannerTime(d.stop_b_arrival) || '—',
+        minutes: minutes === null ? '—' : localizedNumber(String(minutes)),
+        speed: localizedNumber(d.speed_max ?? '—'),
+        threshold: localizedNumber(d.threshold_kmh ?? '—'),
+        between: localizedNumber(d.between_stops ?? '0'),
+      };
+      return {
+        title: t('producer.card.STM_061.title'),
+        context: [
+          route ? t('producer.card.route_context', { route }) : '',
+          d.trip_count ? t('producer.card.trip_count_context', { count: localizedNumber(d.trip_count) }) : '',
+        ].filter(Boolean).join(t('producer.card.context_separator')) || undefined,
+        what: t('producer.card.STM_061.what_detail', params),
+        action: t('producer.card.STM_061.action_detail', params),
+      };
+    }
     case 'STM_053': {
       // Route summary: how many trips repeat one time, and the example trip's run by name.
       const d = n.details ?? {};
@@ -1390,7 +1475,43 @@ function timeStrip(n: Notice, result: ValidationResult): string {
       rows.map(r => `<tr${r.run ? ' class="bad"' : ''}><td>${escHtml(r.sequence || '—')}</td><td>${escHtml(name(r.stop))}</td><td>${escHtml(plannerTime(r.arrival) || '—')}</td><td>${escHtml(plannerTime(r.departure) || '—')}</td></tr>`).join('')
     }</tbody></table>`;
   }
-  if (['STM_037', 'STM_038', 'STM_039', 'STM_040'].includes(n.rule_id) && (d.location_id || d.location_group_id)) {
+  if (n.rule_id === 'STM_059' && (d.stop_id || d.location_id || d.location_group_id)) {
+    // The row, the side set to "book by phone" and the booking rule it lacks.
+    const zone = d.location_id || d.location_group_id;
+    const dropOff = n.field === 'drop_off_booking_rule_id';
+    const columns: Array<[string, string]> = [
+      zone ? [t('producer.times.flex_zone'), zone] : [t('producer.col.stop'), name(d.stop_id)],
+      [t('producer.times.sequence'), d.stop_sequence || '—'],
+      [t(dropOff ? 'producer.times.drop_off_type' : 'producer.times.pickup_type'), (dropOff ? d.drop_off_type : d.pickup_type) || '2'],
+      [t('producer.times.booking_rule'), t('producer.times.missing')],
+    ];
+    return `<table class="planner-times planner-flex-times"><thead><tr>${columns.map(([head]) => `<th>${escHtml(head)}</th>`).join('')}</tr></thead><tbody><tr class="bad">${
+      columns.map(([, cell]) => `<td>${escHtml(cell)}</td>`).join('')
+    }</tr></tbody></table>`;
+  }
+  if (n.rule_id === 'STM_060' && d.zone_a_id && d.zone_b_id) {
+    // Both records: zone, sequence, window and which sides they offer.
+    const sides = (prefix: string) => [d[`${prefix}_pickup`], d[`${prefix}_drop_off`]]
+      .map(v => t(v === 'false' ? 'producer.times.closed' : 'producer.times.open')).join(' / ');
+    const rows = ['zone_a', 'zone_b'].map(prefix => [
+      d[`${prefix}_id`], d[`${prefix}_stop_sequence`] || '—',
+      `${plannerTime(d[`${prefix}_window_start`]) || '—'}–${plannerTime(d[`${prefix}_window_end`]) || '—'}`, sides(prefix),
+    ]);
+    return `<table class="planner-times planner-flex-times"><thead><tr><th>${t('producer.times.flex_zone')}</th><th>${t('producer.times.sequence')}</th><th>${t('producer.times.window')}</th><th>${t('producer.times.pickup_drop_off')}</th></tr></thead><tbody>${
+      rows.map(cells => `<tr class="bad">${cells.map(cell => `<td>${escHtml(cell)}</td>`).join('')}</tr>`).join('')
+    }</tbody></table>`;
+  }
+  if (n.rule_id === 'STM_061' && d.stop_a && d.stop_b && (d.stop_a_departure || d.stop_b_arrival)) {
+    // The example trip's departure from A, the stops between, its arrival at B.
+    const between = Number(d.between_stops ?? '0');
+    const rows = [
+      `<tr class="bad"><td>${escHtml(d.stop_a_sequence || '—')}</td><td>${escHtml(name(d.stop_a))}</td><td>—</td><td>${escHtml(plannerTime(d.stop_a_departure) || '—')}</td></tr>`,
+      ...(between > 0 ? [`<tr><td>…</td><td>${escHtml(t('producer.times.between_stops', { n: localizedNumber(String(between)) }))}</td><td></td><td></td></tr>`] : []),
+      `<tr class="bad"><td>${escHtml(d.stop_b_sequence || '—')}</td><td>${escHtml(name(d.stop_b))}</td><td>${escHtml(plannerTime(d.stop_b_arrival) || '—')}</td><td>—</td></tr>`,
+    ];
+    return `<table class="planner-times planner-neighbour-times"><thead><tr><th>${t('producer.times.sequence')}</th><th>${t('producer.col.stop')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  }
+  if (['STM_037', 'STM_038', 'STM_039', 'STM_040', 'STM_058'].includes(n.rule_id) && (d.location_id || d.location_group_id)) {
     // Only the columns the finding is about (at most four): a seven-column table did not fit the
     // card's text column and pushed past the card.
     const zone = d.location_id || d.location_group_id || '—';
@@ -1621,7 +1742,11 @@ function timeSpot(n: Notice, result: ValidationResult): string | null {
     const run = stm053Rows(d).filter(row => row.run);
     if (run.length) return `${name(run[0].stop)} → ${name(run[run.length - 1].stop)} · ${plannerTime(run[0].arrival) || plannerTime(run[0].departure) || '—'}`;
   }
-  if (['STM_037', 'STM_038', 'STM_039', 'STM_040', 'STM_051', 'STM_052', 'STM_054', 'STM_055'].includes(n.rule_id) && (d.location_id || d.location_group_id)) {
+  if (n.rule_id === 'STM_060' && d.zone_a_id && d.zone_b_id) {
+    return `${t('producer.times.flex_zone')} ${d.zone_a_id} / ${d.zone_b_id} · ${plannerTime(d.window_overlap_start) || '—'}–${plannerTime(d.window_overlap_end) || '—'}`;
+  }
+  if (n.rule_id === 'STM_059' && d.stop_id) return `${name(d.stop_id)} · ${t('producer.times.sequence')} ${d.stop_sequence || '—'}`;
+  if (['STM_037', 'STM_038', 'STM_039', 'STM_040', 'STM_051', 'STM_052', 'STM_054', 'STM_055', 'STM_058', 'STM_059'].includes(n.rule_id) && (d.location_id || d.location_group_id)) {
     return `${t('producer.times.flex_zone')} ${d.location_id || d.location_group_id} · ${plannerTime(d.window_start) || '—'}–${plannerTime(d.window_end) || '—'}`;
   }
   if (n.rule_id === 'STM_030' && d.stop_id) {
@@ -1916,7 +2041,8 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     const selectedShape = directShape
       || ((n.rule_id === 'STM_015' || n.rule_id === 'STM_016' || n.rule_id === 'STM_018' || n.rule_id === 'STM_019' || n.rule_id === 'STM_020' || n.rule_id === 'STM_021' || n.rule_id === 'STM_028' || n.rule_id === 'STM_029' || n.rule_id === 'STM_030' || n.rule_id === 'STM_032' || n.rule_id === 'STM_033' || n.rule_id === 'STM_034' || n.rule_id === 'STM_035'
         || n.rule_id === 'STM_041' || n.rule_id === 'STM_042' || n.rule_id === 'STM_043' || n.rule_id === 'STM_045' || n.rule_id === 'STM_047'
-        || n.rule_id === 'STM_048' || n.rule_id === 'STM_049' || n.rule_id === 'STM_051' || n.rule_id === 'STM_052' || n.rule_id === 'STM_054' || n.rule_id === 'STM_055')
+        || n.rule_id === 'STM_048' || n.rule_id === 'STM_049' || n.rule_id === 'STM_051' || n.rule_id === 'STM_052' || n.rule_id === 'STM_054' || n.rule_id === 'STM_055'
+        || n.rule_id === 'STM_058' || n.rule_id === 'STM_059' || n.rule_id === 'STM_060')
         ? routeDirectionShapeId(ni, ni.trip_routes?.[n.entity_id], ni.trip_directions?.[n.entity_id])
         : undefined);
     const directPath = tripStops.map(id => ni.stop_coords?.[id]).filter(Boolean).length > 1;
@@ -1976,7 +2102,17 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
         }
         focus = undefined;
       }
-    } else if (['STM_032', 'STM_033', 'STM_034', 'STM_035', 'STM_041', 'STM_042', 'STM_045', 'STM_047', 'STM_048', 'STM_049', 'STM_051', 'STM_052', 'STM_054', 'STM_055'].includes(n.rule_id)) {
+    } else if (n.rule_id === 'STM_060') {
+      // The two overlapping zones outlined in red (the first one zoomed to), the trip's stops grey.
+      for (const [index, key] of ['zone_a_ring', 'zone_b_ring'].entries()) {
+        const coords = (n.details?.[key] ?? '').split(';')
+          .map(point => point.split(',').map(Number))
+          .filter((p): p is [number, number] => p.length === 2 && p.every(Number.isFinite));
+        if (coords.length > 1) segments.push({ coords, color: MAP_RED, weight: 4, zoomTo: index === 0 });
+      }
+      const stopSequences = ni.trip_stop_sequences?.[n.entity_id] ?? [];
+      for (const [index, stopId] of tripStops.entries()) addStop(stopId, false, stopSequences[index]);
+    } else if (['STM_032', 'STM_033', 'STM_034', 'STM_035', 'STM_041', 'STM_042', 'STM_045', 'STM_047', 'STM_048', 'STM_049', 'STM_051', 'STM_052', 'STM_054', 'STM_055', 'STM_058', 'STM_059'].includes(n.rule_id)) {
       // STM_051/052/054/055 on a zone row have no stop to mark (zone shapes are not in the name
       // index): the route and its stops are drawn; a stop-based Flex row gets its red pin.
       // Stop-row findings: the route and direction with every stop, the faulty stop(s) in red,
@@ -2123,8 +2259,9 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     const routeId = routeIdOfNotice(n)!;
     const color = routeColor(routeId);
     stopRing = color;
-    if (n.rule_id === 'STM_014') {
-      const sampleTripId = stm014SampleTripId(n, result);
+    if (n.rule_id === 'STM_014' || n.rule_id === 'STM_061') {
+      // STM_061 draws its fastest example trip; STM_014 the first sample with a line.
+      const sampleTripId = (n.rule_id === 'STM_061' ? n.details?.example_trip_id : undefined) || stm014SampleTripId(n, result);
       const tripStops = sampleTripId ? ni.trip_stops?.[sampleTripId] ?? [] : [];
       const stopSequences = sampleTripId ? ni.trip_stop_sequences?.[sampleTripId] ?? [] : [];
       const sampleShape = (sampleTripId ? ni.trip_shapes?.[sampleTripId] : undefined)
@@ -2155,8 +2292,8 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     const b = coord(n.details?.stop_b);
     if (a && b) {
       segments.push({ coords: [a, b], color: MAP_RED, weight: 7 });
-      addStop(n.details?.stop_a, true);
-      addStop(n.details?.stop_b, true);
+      addStop(n.details?.stop_a, true, n.details?.stop_a_sequence);
+      addStop(n.details?.stop_b, true, n.details?.stop_b_sequence);
     }
     if (n.rule_id === 'STM_014') {
       addStop(n.details?.prev_stop_id, false);

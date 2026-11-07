@@ -7823,7 +7823,8 @@ fn check_flex_zone_overlap(
     if idx.flex_map.is_empty() {
         return;
     }
-    type FlexWindow<'a> = (&'a str, u32, u32, bool, bool, u64);
+    // (location_id, window start, window end, offers pickup, offers drop-off, line, stop_sequence)
+    type FlexWindow<'a> = (&'a str, u32, u32, bool, bool, u64, Option<u32>);
     type FlexWindowsByTrip<'a> = HashMap<&'a str, Vec<FlexWindow<'a>>>;
     let mut by_trip: FlexWindowsByTrip<'_> = HashMap::new();
     for (trip_id, stops) in idx.iter_trips() {
@@ -7847,6 +7848,7 @@ fn check_flex_zone_overlap(
                 f.pickup_type != Some(1),
                 f.drop_off_type != Some(1),
                 st.line_u64(),
+                st.stop_sequence(),
             ));
         }
     }
@@ -7859,11 +7861,11 @@ fn check_flex_zone_overlap(
         if rows.len() < 2 {
             continue;
         }
-        let mut found: Option<(&str, &str, u64)> = None;
+        let mut found: Option<(usize, usize)> = None;
         'pairs: for i in 0..rows.len() {
             for j in (i + 1)..rows.len() {
-                let (l1, s1, e1, p1, d1, _) = rows[i];
-                let (l2, s2, e2, p2, d2, line2) = rows[j];
+                let (l1, s1, e1, p1, d1, _, _) = rows[i];
+                let (l2, s2, e2, p2, d2, _, _) = rows[j];
                 if s1 >= e2 || s2 >= e1 {
                     continue; // time windows do not overlap
                 }
@@ -7885,13 +7887,14 @@ fn check_flex_zone_overlap(
                 if !geoms_overlap(&map.geojson_geometries[l1], &map.geojson_geometries[l2]) {
                     continue; // regions are disjoint in space
                 }
-                found = Some((l1, l2, line2));
+                found = Some((i, j));
                 break 'pairs;
             }
         }
-        if let Some((l1, l2, line)) = found {
+        if let Some((i, j)) = found {
+            let (l1, l2, line) = (rows[i].0, rows[j].0, rows[j].5);
             let zones = format!("'{l1}' ve '{l2}' bölgeleri");
-            notices.push(notice(
+            let mut n = notice(
                 ctr, "STM_060", EntityType::Trip,
                 Some(trip.to_string()), Some(trip.to_string()),
                 "stop_times.txt", Some(line), Some("location_id"),
@@ -7902,9 +7905,55 @@ fn check_flex_zone_overlap(
                 ),
                 "Pencereleri ayırın, bölge geometrilerini çakışmayacak şekilde düzeltin ya da \
                  kayıtlardan birinde pickup/drop_off tipini kapatın.",
-            ));
+            );
+            n.details = Some(stm060_details(&rows[i], &rows[j], map).into());
+            notices.push(n);
         }
     }
+}
+
+/// STM_060 planner context: each record's zone, sequence, window and offered sides, which side
+/// overlaps, and each zone's outer ring (`lat,lon;…`, at most 64 points) so the map can draw it.
+fn stm060_details(
+    a: &(&str, u32, u32, bool, bool, u64, Option<u32>),
+    b: &(&str, u32, u32, bool, bool, u64, Option<u32>),
+    map: &EntityMap,
+) -> BTreeMap<String, String> {
+    let hms = |secs: u32| format!("{:02}:{:02}:{:02}", secs / 3600, secs / 60 % 60, secs % 60);
+    let mut d = BTreeMap::new();
+    for (prefix, row) in [("zone_a", a), ("zone_b", b)] {
+        let &(loc, start, end, pickup, drop_off, _, sequence) = row;
+        d.insert(format!("{prefix}_id"), loc.to_string());
+        if let Some(seq) = sequence {
+            d.insert(format!("{prefix}_stop_sequence"), seq.to_string());
+        }
+        d.insert(format!("{prefix}_window_start"), hms(start));
+        d.insert(format!("{prefix}_window_end"), hms(end));
+        d.insert(format!("{prefix}_pickup"), pickup.to_string());
+        d.insert(format!("{prefix}_drop_off"), drop_off.to_string());
+        if let Some(ring) = map
+            .geojson_geometries
+            .get(loc)
+            .and_then(|g| g.outer_rings.first())
+        {
+            let step = ring.len().div_ceil(64).max(1);
+            let points: Vec<String> = ring
+                .iter()
+                .step_by(step)
+                .map(|&(lon, lat)| format!("{lat:.5},{lon:.5}"))
+                .collect();
+            d.insert(format!("{prefix}_ring"), points.join(";"));
+        }
+    }
+    let overlap = match (a.3 && b.3, a.4 && b.4) {
+        (true, true) => "both",
+        (true, false) => "pickup",
+        _ => "drop_off",
+    };
+    d.insert("overlap".to_string(), overlap.to_string());
+    d.insert("window_overlap_start".to_string(), hms(a.1.max(b.1)));
+    d.insert("window_overlap_end".to_string(), hms(a.2.min(b.2)));
+    d
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

@@ -1521,6 +1521,7 @@ const STM014_TRIP_SAMPLE: usize = 12;
 /// at pair level, exactly like STM_014 segment aggregation.
 struct Stm061Pair<'a> {
     route_label: &'a str,
+    /// Stop sequences of the example trip (see `example_trip`).
     seq_a: u32,
     seq_b: u32,
     threshold: f64,
@@ -1530,6 +1531,12 @@ struct Stm061Pair<'a> {
     speed_min: f64,
     speed_max: f64,
     trips: Vec<&'a str>,
+    /// Planner example: the fastest trip (ties → smallest trip_id), its departure at stop A,
+    /// arrival at stop B and the stops between them.
+    example_trip: &'a str,
+    example_departure: u32,
+    example_arrival: u32,
+    example_between: usize,
 }
 
 fn check_speed_and_duration<'a>(
@@ -2222,6 +2229,9 @@ fn check_speed_and_duration<'a>(
                         // Select the worst pair per trip, but DEFER EMISSION: reporting the same physical
                         // pair once per trip would scale findings with timetable frequency, not defect size.
                         if let Some((speed, dist_km, i, j)) = worst {
+                            let departure =
+                                stimes[i].departure_time().map(hms_to_secs).unwrap_or(0);
+                            let arrival = stimes[j].arrival_time().map(hms_to_secs).unwrap_or(0);
                             let pair = stm061_pairs
                                 .entry((
                                     route,
@@ -2239,7 +2249,24 @@ fn check_speed_and_duration<'a>(
                                     speed_min: speed,
                                     speed_max: speed,
                                     trips: Vec::new(),
+                                    example_trip: trip_id,
+                                    example_departure: departure,
+                                    example_arrival: arrival,
+                                    example_between: j - i - 1,
                                 });
+                            // `by_trip` order differs between native and WASM: the example is
+                            // the fastest trip, ties broken by trip_id. Its stop sequences go
+                            // with its times, so the card never mixes two trips' rows.
+                            if speed > pair.speed_max
+                                || (speed == pair.speed_max && trip_id < pair.example_trip)
+                            {
+                                pair.seq_a = stimes[i].stop_sequence().unwrap_or(0);
+                                pair.seq_b = stimes[j].stop_sequence().unwrap_or(0);
+                                pair.example_trip = trip_id;
+                                pair.example_departure = departure;
+                                pair.example_arrival = arrival;
+                                pair.example_between = j - i - 1;
+                            }
                             pair.speed_min = pair.speed_min.min(speed);
                             pair.speed_max = pair.speed_max.max(speed);
                             pair.line = pair.line.min(stimes[j].line as u64);
@@ -3120,6 +3147,22 @@ fn check_speed_and_duration<'a>(
             d.insert("dist_km".to_string(), format!("{dist_km:.1}"));
             d.insert("speed_min".to_string(), format!("{speed_min:.0}"));
             d.insert("speed_max".to_string(), format!("{speed_max:.0}"));
+            d.insert("stop_a_sequence".to_string(), seq_a.to_string());
+            d.insert("stop_b_sequence".to_string(), seq_b.to_string());
+            d.insert("threshold_kmh".to_string(), format!("{threshold:.0}"));
+            d.insert("example_trip_id".to_string(), pair.example_trip.to_string());
+            d.insert(
+                "stop_a_departure".to_string(),
+                format_hms(pair.example_departure),
+            );
+            d.insert(
+                "stop_b_arrival".to_string(),
+                format_hms(pair.example_arrival),
+            );
+            d.insert(
+                "between_stops".to_string(),
+                pair.example_between.to_string(),
+            );
             d.insert(
                 "trips".to_string(),
                 trips
