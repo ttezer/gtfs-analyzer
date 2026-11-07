@@ -737,6 +737,48 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('<tr class="bad"><td>2</td><td>Okul</td><td>08:10:00</td><td>25:61:00</td></tr>');
   });
 
+  it('STM_050 özeti boş satır sayısını, saatli/saatsiz dağılımı, ilk satırları ve örnek seferi gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı' },
+      routes: { R1: '10' }, trips: { T1: 'Merkez' }, trip_routes: { T1: 'R1' }, trip_first_dep: { T1: '08:00' },
+      trip_stops: { T1: ['S1', 'S2', 'S3'] }, trip_stop_sequences: { T1: [1, 2, 3] },
+      stop_coords: { S1: [41, 29], S2: [41.01, 29.01], S3: [41.02, 29.02] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+    const examples = {
+      example_0_trip_id: 'T1', example_0_stop_id: 'S2', example_0_stop_sequence: '2',
+      example_1_trip_id: 'T1', example_1_stop_id: 'S3', example_1_stop_sequence: '3', example_1_arrival: '08:10:00', example_1_departure: '08:10:00',
+      // Another trip's row: listed, but not red on T1's line.
+      example_2_trip_id: 'T9', example_2_stop_id: 'S1', example_2_stop_sequence: '1',
+    };
+    let out = render(notice('a', 'STM_050', 'LOW', { entity_type: 'Feed', observed_value: '3', details: {
+      empty_rows: '3', empty_rows_with_time: '1', total_rows: '1200', ...examples,
+    } }));
+    expect(out.html).toContain('3 durak saati satırında (toplam 1.200 satırdan) kesin/yaklaşık işareti boş');
+    expect(out.html).toContain('Bunların 1 tanesinde saat yazılı, 2 tanesinde saat yok.');
+    expect(out.html).toContain('<li>Saatsiz 2 satıra timepoint=0 yazın; bu durakların saati iki yandaki kesin saatlerden tahmin edilir.</li>');
+    expect(out.html).toContain('<li>Saatli 1 satırdan tarifede gerçekten söz verilen saatlere timepoint=1, tahmini olanlara timepoint=0 yazın.</li>');
+    expect(out.html).toContain('<th>Sefer kodu</th><th>Durak (sıra)</th>');
+    expect(out.html).toContain('<tr><td>T1</td><td>Okul (2)</td><td>—</td><td>—</td></tr>');
+    expect(out.html).toContain('<tr><td>T1</td><td>Çarşı (3)</td><td>08:10</td><td>08:10</td></tr>');
+    const red = out.map.opts?.pins.filter(p => p.primary).map(p => p.label) ?? [];
+    expect(red).toEqual([expect.stringContaining('durak sırası 2'), expect.stringContaining('durak sırası 3')]);
+    expect(out.map.opts?.pins).toHaveLength(3);
+
+    // Every empty row has a time: only the timed step, as a single paragraph.
+    out = render(notice('a', 'STM_050', 'LOW', { entity_type: 'Feed', observed_value: '1', details: {
+      empty_rows: '1', empty_rows_with_time: '1', total_rows: '10', example_0_trip_id: 'T1', example_0_stop_id: 'S3', example_0_stop_sequence: '3',
+    } }));
+    expect(out.html).not.toContain('Saatsiz');
+    expect(out.html).toContain('Saatli 1 satırdan');
+  });
+
   it('STM_051–055 kartları Flex bölgesini, pencereyi, yazılan değeri ve aynı saatli durak serisini gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,

@@ -7228,6 +7228,41 @@ continuous_pickup,continuous_drop_off\n\
 }
 
 #[test]
+fn empty_timepoint_summary_carries_counts_and_first_rows() {
+    // STM_050 stays one feed summary; it now names how many empty rows have a time, the file's
+    // row count and the first empty rows in file order. The count is unchanged.
+    static ROWS: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,timepoint\n\
+          T1,08:00:00,08:00:00,S1,1,1\nT1,,,S2,2,\nT1,08:10:00,08:10:00,S1,3,\n";
+    let mut files = base_files();
+    files[4] = ("stop_times.txt", ROWS);
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("ValidateResult::Ok beklendi")
+    };
+    let hits: Vec<_> = vr
+        .notices
+        .iter()
+        .filter(|n| n.rule_id == "STM_050")
+        .collect();
+    assert_eq!(hits.len(), 1, "tek feed özeti");
+    assert_eq!(hits[0].observed_value.as_deref(), Some("2"));
+    let d = hits[0]
+        .details
+        .clone()
+        .expect("STM_050 ayrıntısı bekleniyor");
+    let get = |key: &str| d.get(key).map(|v| v.to_string());
+    assert_eq!(get("empty_rows").as_deref(), Some("2"));
+    assert_eq!(get("empty_rows_with_time").as_deref(), Some("1"));
+    assert_eq!(get("total_rows").as_deref(), Some("3"));
+    assert_eq!(get("example_0_trip_id").as_deref(), Some("T1"));
+    assert_eq!(get("example_0_stop_id").as_deref(), Some("S2"));
+    assert_eq!(get("example_0_stop_sequence").as_deref(), Some("2"));
+    assert_eq!(get("example_0_arrival"), None);
+    assert_eq!(get("example_1_stop_sequence").as_deref(), Some("3"));
+    assert_eq!(get("example_1_departure").as_deref(), Some("08:10:00"));
+    assert_eq!(get("example_2_stop_id"), None);
+}
+
+#[test]
 fn findings_058_to_061_carry_planner_context() {
     // STM_058 names the Flex row's zone and window, STM_059 the stop row and both booking sides,
     // STM_060 the two overlapping records with their zone rings, and STM_061 the stop pair's

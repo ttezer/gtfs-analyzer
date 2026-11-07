@@ -916,6 +916,27 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         action: t(`producer.card.${g.ruleId}.action`),
       };
     }
+    case 'STM_050': {
+      // Feed summary: how many rows leave the mark empty, how many of them carry a time, and a
+      // fix per kind (untimed rows are estimated, so 0; timed rows need the planner's call).
+      const d = n.details ?? {};
+      const empty = Number(d.empty_rows);
+      const timed = Number(d.empty_rows_with_time);
+      if (!(empty > 0) || !Number.isFinite(timed)) return null;
+      const untimed = empty - timed;
+      const steps = [
+        untimed > 0 ? t('producer.card.STM_050.action_untimed', { n: localizedNumber(String(untimed)) }) : '',
+        timed > 0 ? t('producer.card.STM_050.action_timed', { n: localizedNumber(String(timed)) }) : '',
+      ].filter(Boolean);
+      return {
+        title: t('producer.card.STM_050.title'),
+        what: t('producer.card.STM_050.what_detail', {
+          n: localizedNumber(String(empty)), total: localizedNumber(d.total_rows ?? String(empty)),
+          timed: localizedNumber(String(timed)), untimed: localizedNumber(String(untimed)),
+        }),
+        action: steps.join(' '),
+      };
+    }
     case 'STM_058': {
       const d = n.details ?? {};
       const place = flexPlace(d, result);
@@ -1417,6 +1438,16 @@ function timeStrip(n: Notice, result: ValidationResult): string {
     return `<table class="planner-times planner-stop-times"><thead><tr>${columns.map(([head]) => `<th>${escHtml(head)}</th>`).join('')}</tr></thead><tbody><tr class="bad">${
       columns.map(([, cell]) => `<td>${escHtml(cell)}</td>`).join('')
     }</tr></tbody></table>`;
+  }
+  if (n.rule_id === 'STM_050' && d.example_0_stop_id) {
+    // The first rows with an empty mark, in file order: trip, stop with its sequence, times.
+    const rows: string[] = [];
+    for (let i = 0; d[`example_${i}_stop_id`]; i++) {
+      const at = (key: string) => d[`example_${i}_${key}`];
+      const stop = `${name(at('stop_id'))} (${at('stop_sequence') || '—'})`;
+      rows.push(`<tr><td>${escHtml(at('trip_id') || '—')}</td><td>${escHtml(stop)}</td><td>${escHtml(plannerTime(at('arrival')) || '—')}</td><td>${escHtml(plannerTime(at('departure')) || '—')}</td></tr>`);
+    }
+    return `<p class="producer-card-label">${escHtml(t('producer.times.stm050_examples'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.col.trip_code')}</th><th>${t('producer.times.stop_with_sequence')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
   if (n.rule_id === 'STM_047' && d.example_0_stop_id) {
     // The trip's exact timepoints without a time, in stop order; the missing side reads "missing".
@@ -1951,6 +1982,10 @@ function plannerShapeId(n: Notice, result: ValidationResult): string | undefined
  *  veya bölüm kırmızı ve ona yakınlaşılmış; durak → durağın kendisi; hat → hattın çizimleri.
  *  Konuma bağlı olmayan kayıtta ağın tamamı. */
 export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
+  // STM_050 is a feed summary: its map is the first example row's trip, drawn as a trip finding.
+  if (n.rule_id === 'STM_050' && n.entity_type !== 'Trip' && n.details?.example_0_trip_id) {
+    return plannerMap({ ...n, entity_type: 'Trip', entity_id: n.details.example_0_trip_id }, result);
+  }
   const ni = result.name_index;
   const zeroStops = new Set<string>();
   const coord = (stopId?: string | null): [number, number] | null => {
@@ -2042,7 +2077,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
       || ((n.rule_id === 'STM_015' || n.rule_id === 'STM_016' || n.rule_id === 'STM_018' || n.rule_id === 'STM_019' || n.rule_id === 'STM_020' || n.rule_id === 'STM_021' || n.rule_id === 'STM_028' || n.rule_id === 'STM_029' || n.rule_id === 'STM_030' || n.rule_id === 'STM_032' || n.rule_id === 'STM_033' || n.rule_id === 'STM_034' || n.rule_id === 'STM_035'
         || n.rule_id === 'STM_041' || n.rule_id === 'STM_042' || n.rule_id === 'STM_043' || n.rule_id === 'STM_045' || n.rule_id === 'STM_047'
         || n.rule_id === 'STM_048' || n.rule_id === 'STM_049' || n.rule_id === 'STM_051' || n.rule_id === 'STM_052' || n.rule_id === 'STM_054' || n.rule_id === 'STM_055'
-        || n.rule_id === 'STM_058' || n.rule_id === 'STM_059' || n.rule_id === 'STM_060')
+        || n.rule_id === 'STM_058' || n.rule_id === 'STM_059' || n.rule_id === 'STM_060' || n.rule_id === 'STM_050')
         ? routeDirectionShapeId(ni, ni.trip_routes?.[n.entity_id], ni.trip_directions?.[n.entity_id])
         : undefined);
     const directPath = tripStops.map(id => ni.stop_coords?.[id]).filter(Boolean).length > 1;
@@ -2112,7 +2147,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
       }
       const stopSequences = ni.trip_stop_sequences?.[n.entity_id] ?? [];
       for (const [index, stopId] of tripStops.entries()) addStop(stopId, false, stopSequences[index]);
-    } else if (['STM_032', 'STM_033', 'STM_034', 'STM_035', 'STM_041', 'STM_042', 'STM_045', 'STM_047', 'STM_048', 'STM_049', 'STM_051', 'STM_052', 'STM_054', 'STM_055', 'STM_058', 'STM_059'].includes(n.rule_id)) {
+    } else if (['STM_032', 'STM_033', 'STM_034', 'STM_035', 'STM_041', 'STM_042', 'STM_045', 'STM_047', 'STM_050', 'STM_048', 'STM_049', 'STM_051', 'STM_052', 'STM_054', 'STM_055', 'STM_058', 'STM_059'].includes(n.rule_id)) {
       // STM_051/052/054/055 on a zone row have no stop to mark (zone shapes are not in the name
       // index): the route and its stops are drawn; a stop-based Flex row gets its red pin.
       // Stop-row findings: the route and direction with every stop, the faulty stop(s) in red,
@@ -2121,6 +2156,11 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
       const d = n.details ?? {};
       if (n.rule_id === 'STM_047') {
         for (let i = 0; d[`example_${i}_stop_id`]; i++) addStop(d[`example_${i}_stop_id`], true, d[`example_${i}_stop_sequence`]);
+      } else if (n.rule_id === 'STM_050') {
+        // Only this trip's example rows are red; other trips' examples are not on this line.
+        for (let i = 0; d[`example_${i}_stop_id`]; i++) {
+          if (d[`example_${i}_trip_id`] === n.entity_id) addStop(d[`example_${i}_stop_id`], true, d[`example_${i}_stop_sequence`]);
+        }
       } else if (n.rule_id === 'STM_032') {
         addStop(d.first_stop_id, true, n.observed_value);
         addStop(d.second_stop_id, true, n.observed_value);

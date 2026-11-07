@@ -1709,12 +1709,16 @@ impl<R: Read> ZipCsvReader<R> {
     }
 }
 
+/// STM_050: number of example rows carried by the feed summary.
+const STM050_EXAMPLES: usize = 50;
+
 /// ALL mutable state accumulated in `validate_stop_times`'s row loop.
 ///
 /// Chunk-parallel preparation (Step 1): today it runs with ONE instance and behavior is exactly
 /// the same. Keeping state in one place allows each chunk to fill and merge its own instance later.
 /// Merge strategies for the fields:
-/// - `total_rows`, `stm050_empty`      → sum
+/// - `total_rows`, `stm050_empty`, `stm050_with_time` → sum
+/// - `stm050_examples`                 → concatenate, keep the 50 smallest lines
 /// - `stop_first_line`                 → min-merge
 /// - `arc021_fired`                    → "once per file": the smallest row wins
 /// - `notices`/`counter`               → merge in row order + renumber (K6 pattern)
@@ -1757,6 +1761,11 @@ struct StChunk {
     /// STM_050: count of rows with an empty timepoint. NOT one notice per row (millions of notices
     /// → browser OOM on large feeds); emit ONE feed-level summary at the end of the loop.
     stm050_empty: u32,
+    /// STM_050: how many of those empty rows carry an arrival or departure time.
+    stm050_with_time: u32,
+    /// STM_050 planner examples: (line, details) of the first empty rows, at most
+    /// `STM050_EXAMPLES`, smallest lines after a chunk merge.
+    stm050_examples: Vec<(u64, std::collections::BTreeMap<String, String>)>,
     dq016: crate::k1_parse::Dq016Acc,
     /// ARC_037 accumulation—chunks combine with `merge`, one summary at loop end.
     arc037: crate::k1_parse::Arc037Acc,
@@ -2113,6 +2122,10 @@ impl StChunk {
         self.total_rows += other.total_rows;
         self.unsorted_seq_trips.extend(other.unsorted_seq_trips);
         self.stm050_empty += other.stm050_empty;
+        self.stm050_with_time += other.stm050_with_time;
+        self.stm050_examples.extend(other.stm050_examples);
+        self.stm050_examples.sort_by_key(|(line, _)| *line);
+        self.stm050_examples.truncate(STM050_EXAMPLES);
         self.dq016.merge(other.dq016);
         self.arc037.merge(other.arc037);
         self.arc032.merge(other.arc032);
@@ -2673,6 +2686,19 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             // loop end (large-feed OOM prevention).
             if cols.timepoint.is_some() && tp_raw.trim().is_empty() {
                 st.stm050_empty += 1;
+                let has_time = !get_col(row, cols.arrival_time).is_empty()
+                    || !get_col(row, cols.departure_time).is_empty();
+                if has_time {
+                    st.stm050_with_time += 1;
+                }
+                // Rows arrive in line order within a chunk: the first ones are the smallest.
+                if st.stm050_examples.len() < STM050_EXAMPLES {
+                    let mut details = stop_time_details();
+                    if !trip_id.is_empty() {
+                        details.insert("trip_id".to_string(), trip_id.to_string());
+                    }
+                    st.stm050_examples.push((line, details));
+                }
             }
             let timepoint =
                 match parse_u32_raw(tp_raw, "timepoint") {
@@ -3758,6 +3784,20 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
 
     // STM_050: ONE feed-level summary (not per row—large-feed OOM prevention).
     if st.stm050_empty > 0 {
+        // Planner context: how many empty rows have a time, the file's row count and the first
+        // rows (trip, stop, sequence, times) so the card can name where to start.
+        let mut details = std::collections::BTreeMap::new();
+        details.insert("empty_rows".to_string(), st.stm050_empty.to_string());
+        details.insert(
+            "empty_rows_with_time".to_string(),
+            st.stm050_with_time.to_string(),
+        );
+        details.insert("total_rows".to_string(), st.total_rows.to_string());
+        for (i, (_, example)) in st.stm050_examples.iter().enumerate() {
+            for (key, value) in example {
+                details.insert(format!("example_{i}_{key}"), value.clone());
+            }
+        }
         st.notices.push(make_k2_notice(
             &mut st.counter, "STM_050", EntityType::Feed, None,
             None, &file.name, None, Some("timepoint"),
@@ -3765,6 +3805,9 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             format!("{} stop_times satırında timepoint sütunu var ama değer boş; bu satırlar örtük olarak 1 (kesin zaman) sayılır.", st.stm050_empty),
             "Yaklaşık zamanlı duraklarda timepoint=0, kesin zamanlı duraklarda timepoint=1 olarak açıkça girin.",
         ));
+        if let Some(notice) = st.notices.last_mut() {
+            notice.details = Some(details.into());
+        }
     }
 
     // STM_018/019 aggregation (#151): because the same enum violation often spans all stop_times rows
