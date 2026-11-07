@@ -3174,12 +3174,21 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 "Standart stop için yalnızca stop_id, Flex stop için yalnızca location_id veya location_group_id kullanın.",
             ));
                 }
-                // Planner context for the Flex row findings (STM_037–041): the stop row, the zone
-                // and its window, the booking rules and the fixed times written next to the window.
+                // Planner context for the Flex row findings (STM_037–041, STM_051/052/054/055): the
+                // stop row, the zone and its window, the booking rules and the fixed times written
+                // next to the window.
                 for notice in &mut st.notices[flex_notice_start..] {
                     if !matches!(
                         notice.rule_id.as_str(),
-                        "STM_037" | "STM_038" | "STM_039" | "STM_040" | "STM_041"
+                        "STM_037"
+                            | "STM_038"
+                            | "STM_039"
+                            | "STM_040"
+                            | "STM_041"
+                            | "STM_051"
+                            | "STM_052"
+                            | "STM_054"
+                            | "STM_055"
                     ) {
                         continue;
                     }

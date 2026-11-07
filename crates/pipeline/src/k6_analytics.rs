@@ -37,6 +37,50 @@ struct ZeroTravelSegment {
     intermediate_stop_count: usize,
 }
 
+/// STM_053 planner context: the example trip's longest same-time run (`run` rows, at most 50)
+/// and one row either side (`before` / `after`), as `example_<i>_{stop_id,stop_sequence,arrival,
+/// departure,role}` in stop order.
+fn stm053_run_details(
+    idx: &StopTimesIndex<'_>,
+    stimes: &[CompactStopTime],
+    trip_id: &str,
+    start: usize,
+    len: usize,
+) -> BTreeMap<String, String> {
+    const MAX_RUN_ROWS: usize = 50;
+    let mut d = BTreeMap::new();
+    d.insert("example_trip_id".to_string(), trip_id.to_string());
+    d.insert("run_length".to_string(), len.to_string());
+    let mut rows: Vec<(usize, &str)> = Vec::new();
+    if let Some(before) = start.checked_sub(1) {
+        rows.push((before, "before"));
+    }
+    rows.extend((start..start + len.min(MAX_RUN_ROWS)).map(|i| (i, "run")));
+    if len <= MAX_RUN_ROWS && start + len < stimes.len() {
+        rows.push((start + len, "after"));
+    }
+    for (k, (i, role)) in rows.into_iter().enumerate() {
+        let Some(row) = stimes.get(i) else {
+            continue;
+        };
+        d.insert(
+            format!("example_{k}_stop_id"),
+            idx.stop_id_of(row).to_string(),
+        );
+        d.insert(format!("example_{k}_role"), role.to_string());
+        if let Some(seq) = row.stop_sequence() {
+            d.insert(format!("example_{k}_stop_sequence"), seq.to_string());
+        }
+        if let Some(t) = row.arrival_time() {
+            d.insert(format!("example_{k}_arrival"), format_hms(hms_to_secs(t)));
+        }
+        if let Some(t) = row.departure_time() {
+            d.insert(format!("example_{k}_departure"), format_hms(hms_to_secs(t)));
+        }
+    }
+    d
+}
+
 /// Planner context for a finding on the segment `stimes[i]` → `stimes[i + 1]` (STM_021/025/026):
 /// the pair's positions in the trip and times (`stop_a_sequence`, `stop_a_arrival` … — the STM_020
 /// key names) and the neighbouring rows (`prev_*` / `next_*`), so the card can list the stops.
@@ -1765,7 +1809,12 @@ fn check_speed_and_duration<'a>(
         FxHashMap::default();
     // STM_053: collect affected trips within one route into one route-level notice.
     // Detection and threshold are unchanged; only per-trip Quality noise moves into the Analytics summary.
-    let mut stm053_routes: FxHashMap<&str, (usize, usize, &str, u64)> = FxHashMap::default();
+    // The last field is the representative trip's planner context (`stm053_run_details`).
+    #[allow(clippy::type_complexity)]
+    let mut stm053_routes: FxHashMap<
+        &str,
+        (usize, usize, &str, u64, BTreeMap<String, String>),
+    > = FxHashMap::default();
 
     {
         let _t = Timer::start("K6::sd::loop");
@@ -1975,15 +2024,20 @@ fn check_speed_and_duration<'a>(
 
             let mut same_run = 1usize;
             let mut max_same_run = 1usize;
+            // Index of the last row of the first longest run (planner context only).
+            let mut max_run_end = 0usize;
             let mut previous_time: Option<u32> = None;
-            for st in stimes.iter() {
+            for (i, st) in stimes.iter().enumerate() {
                 let event_time = st
                     .arrival_time()
                     .or_else(|| st.departure_time())
                     .map(hms_to_secs);
                 if event_time.is_some() && event_time == previous_time {
                     same_run += 1;
-                    max_same_run = max_same_run.max(same_run);
+                    if same_run > max_same_run {
+                        max_same_run = same_run;
+                        max_run_end = i;
+                    }
                 } else {
                     same_run = 1;
                 }
@@ -1991,15 +2045,26 @@ fn check_speed_and_duration<'a>(
             }
             if max_same_run >= 3 {
                 let first_line = stimes.first().map(|s| s.line as u64).unwrap_or(0);
-                let entry = stm053_routes.entry(route).or_insert((0, 0, trip_id, first_line));
+                let entry = stm053_routes
+                    .entry(route)
+                    .or_insert_with(|| (0, 0, trip_id, first_line, BTreeMap::new()));
                 entry.0 = entry.0.max(max_same_run);
                 entry.1 += 1;
                 // Representative = trip with the fewest rows. `by_trip` is an FxHashMap and FxHash
                 // depends on `usize` width: the "first seen" trip differed between 64-bit native and
                 // 32-bit WASM (same feed, different line/example_trip).
-                if (first_line == 0, first_line, trip_id) < (entry.3 == 0, entry.3, entry.2) {
+                if entry.4.is_empty()
+                    || (first_line == 0, first_line, trip_id) < (entry.3 == 0, entry.3, entry.2)
+                {
                     entry.2 = trip_id;
                     entry.3 = first_line;
+                    entry.4 = stm053_run_details(
+                        idx,
+                        stimes,
+                        trip_id,
+                        max_run_end + 1 - max_same_run,
+                        max_same_run,
+                    );
                 }
             }
 
@@ -2821,8 +2886,8 @@ fn check_speed_and_duration<'a>(
     let mut stm053_keys: Vec<&str> = stm053_routes.keys().copied().collect();
     stm053_keys.sort_unstable();
     for route in stm053_keys {
-        let &(max_same_run, affected_trips, example_trip, line) = &stm053_routes[route];
-        notices.push(k6_notice(
+        let (max_same_run, affected_trips, example_trip, line, ref details) = stm053_routes[route];
+        let mut n = k6_notice(
             ctr,
             "STM_053",
             EntityType::Route,
@@ -2842,7 +2907,9 @@ fn check_speed_and_duration<'a>(
                 "route_id '{route}' içinde {affected_trips} seferde ardışık duraklar aynı zaman değerini kullanıyor (en uzun seri: {max_same_run}; örnek: '{example_trip}')."
             ),
             "Ardışık stop_times zamanlarını doğrulayın; gerçek bekleme ise zamanları açıklayıcı biçimde düzenleyin.",
-        ));
+        );
+        n.details = Some(details.clone().into());
+        notices.push(n);
     }
 
     // ── STM_014: emit accumulated segments individually ─────────────────────

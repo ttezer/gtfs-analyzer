@@ -7166,6 +7166,68 @@ start_pickup_drop_off_window,end_pickup_drop_off_window\n\
 }
 
 #[test]
+fn flex_and_repeated_time_findings_051_to_055_carry_planner_context() {
+    // STM_051/052/054/055 name the Flex row's zone, window and sequence; STM_053 names the example
+    // trip's longest same-time run with one row either side. Counts are unchanged.
+    let details = |files: &[(&str, &[u8])], rule: &str| match run(files) {
+        ValidateResult::Ok(vr) => vr
+            .notices
+            .iter()
+            .find(|n| n.rule_id == rule)
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor")),
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+    let mut files = base_files();
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+
+    static FLEX: &[u8] = b"trip_id,stop_id,location_id,stop_sequence,arrival_time,departure_time,\
+start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type,\
+continuous_pickup,continuous_drop_off\n\
+          T1,,Z1,1,,,08:00:00,12:00:00,0,0,0,3\n";
+    files[4] = ("stop_times.txt", FLEX);
+    for rule in ["STM_051", "STM_052", "STM_054", "STM_055"] {
+        let d = details(&files, rule);
+        assert_eq!(get(&d, "location_id").as_deref(), Some("Z1"), "{rule}");
+        assert_eq!(
+            get(&d, "window_start").as_deref(),
+            Some("08:00:00"),
+            "{rule}"
+        );
+        assert_eq!(get(&d, "window_end").as_deref(), Some("12:00:00"), "{rule}");
+        assert_eq!(get(&d, "stop_sequence").as_deref(), Some("1"), "{rule}");
+    }
+
+    static SAME: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT1,08:10:00,08:10:00,S3,3\n\
+          T1,08:10:00,08:10:00,S1,4\nT1,08:20:00,08:20:00,S2,5\nT1,08:30:00,08:30:00,S3,6\n";
+    files[4] = ("stop_times.txt", SAME);
+    let d = details(&files, "STM_053");
+    assert_eq!(get(&d, "example_trip_id").as_deref(), Some("T1"));
+    assert_eq!(get(&d, "run_length").as_deref(), Some("3"));
+    // One row before the run, the three run rows, one row after; nothing further.
+    let roles: Vec<_> = (0..6)
+        .map(|i| get(&d, &format!("example_{i}_role")))
+        .collect();
+    assert_eq!(
+        roles,
+        [
+            Some("before"),
+            Some("run"),
+            Some("run"),
+            Some("run"),
+            Some("after"),
+            None
+        ]
+        .map(|r| r.map(str::to_string))
+    );
+    assert_eq!(get(&d, "example_0_stop_sequence").as_deref(), Some("1"));
+    assert_eq!(get(&d, "example_1_stop_id").as_deref(), Some("S2"));
+    assert_eq!(get(&d, "example_3_arrival").as_deref(), Some("08:10:00"));
+    assert_eq!(get(&d, "example_4_stop_sequence").as_deref(), Some("5"));
+}
+
+#[test]
 fn midnight_and_service_day_findings_carry_neighbour_rows() {
     // STM_045, STM_048 and STM_049 name the faulty row's sequence and times and the previous
     // and next row, so the planner card can show previous / faulty / next. Counts unchanged.

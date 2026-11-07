@@ -737,6 +737,77 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('<tr class="bad"><td>2</td><td>Okul</td><td>08:10:00</td><td>25:61:00</td></tr>');
   });
 
+  it('STM_051–055 kartları Flex bölgesini, pencereyi, yazılan değeri ve aynı saatli durak serisini gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı', S4: 'Liman' },
+      routes: { R1: '10' }, trips: { T1: 'Merkez' }, trip_routes: { T1: 'R1' }, trip_first_dep: { T1: '08:00' },
+      trip_stops: { T1: ['S1', 'S2', 'S3', 'S4'] }, trip_stop_sequences: { T1: [1, 2, 3, 4] },
+      stop_coords: { S1: [41, 29], S2: [41.01, 29.01], S3: [41.02, 29.02], S4: [41.03, 29.03] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+    const flex = { location_id: 'Z1', stop_sequence: '1', window_start: '08:00:00', window_end: '12:00:00' };
+    const trip = (rule: string, extra: Partial<Notice>) => notice('a', rule, 'HIGH', { entity_type: 'Trip', entity_id: 'T1', details: flex, ...extra });
+
+    let out = render(trip('STM_051', { field: 'pickup_type', observed_value: '3' }));
+    expect(out.html).toContain('Bölge Z1 için talebe bağlı hizmet penceresi 08:00–12:00, ama biniş türü 3 (sürücüyle ayarlanır).');
+    expect(out.html).toContain('<tr class="bad"><td>Z1</td><td>1</td><td>08:00–12:00</td><td>3 (sürücüyle ayarlanır)</td></tr>');
+    expect(out.html).toContain('<th>Biniş türü</th>');
+    expect(out.html).toContain('Bölge Z1 · 08:00–12:00');
+    // A zone row has no stop to mark: the trip's stops are drawn grey.
+    expect(out.map.opts?.pins.length).toBe(4);
+    expect(out.map.opts?.pins.filter(p => p.primary)).toHaveLength(0);
+
+    // The empty cell the spec counts as 0.
+    out = render(trip('STM_052', { field: 'drop_off_type', observed_value: 'value=0; source=implicit_default' }));
+    expect(out.html).toContain('ama iniş türü boş (0 sayılır, yani normal).');
+
+    // A stop-based Flex row names and marks the stop.
+    out = render(trip('STM_054', { field: 'continuous_pickup', observed_value: '0', details: { stop_id: 'S2', stop_sequence: '2', window_start: '08:00:00' } }));
+    expect(out.html).toContain('Okul durağı için talebe bağlı hizmet penceresi 08:00–—, ama hat boyunca biniş ayarı 0 (duraklar arasında serbest).');
+    expect(out.html).toContain('<tr class="bad"><td>Okul</td><td>2</td><td>08:00–—</td><td>0 (duraklar arasında serbest)</td></tr>');
+    expect(out.map.opts?.pins.filter(p => p.primary)).toHaveLength(1);
+
+    out = render(trip('STM_055', { field: 'continuous_drop_off', observed_value: '2' }));
+    expect(out.html).toContain('hat boyunca iniş ayarı 2 (telefonla ayarlanır)');
+
+    out = render(notice('a', 'STM_053', 'INFO', {
+      entity_type: 'Route', entity_id: 'R1', observed_value: '4 trips; max 3 consecutive stops', details: {
+        example_trip_id: 'T1', run_length: '3',
+        example_0_stop_id: 'S1', example_0_stop_sequence: '1', example_0_arrival: '08:00:00', example_0_departure: '08:00:00', example_0_role: 'before',
+        example_1_stop_id: 'S2', example_1_stop_sequence: '2', example_1_arrival: '08:10:00', example_1_departure: '08:10:00', example_1_role: 'run',
+        example_2_stop_id: 'S3', example_2_stop_sequence: '3', example_2_arrival: '08:10:00', example_2_departure: '08:10:00', example_2_role: 'run',
+        example_3_stop_id: 'S4', example_3_stop_sequence: '4', example_3_arrival: '08:10:00', example_3_departure: '08:10:00', example_3_role: 'run',
+      },
+    }));
+    expect(out.html).toContain('4 seferde arka arkaya birçok durağa aynı saat yazılmış. Örnek seferde Okul ile Liman arasındaki 3 durağın hepsinde saat 08:10.');
+    expect(out.html).toContain('10 hattı');
+    expect(out.html).toContain('<tr><td>1</td><td>Hastane</td><td>08:00</td><td>08:00</td></tr>');
+    expect(out.html).toContain('<tr class="bad"><td>3</td><td>Çarşı</td><td>08:10</td><td>08:10</td></tr>');
+    expect(out.html).toContain('Okul → Liman · 08:10');
+    // The run ends the example trip: no next stop to bound the times.
+    expect(out.html).toContain('<li>Okul ile Liman arasındaki 3 durağın saatlerini gerçek geçiş süresine göre birbirinden ayırın; şu an hepsinde 08:10 yazıyor.</li>');
+    expect(out.html).toContain('<li>Duraklar gerçekten bu kadar yakınsa ve aynı dakikaya düşüyorsa değişiklik gerekmez.</li>');
+    expect(out.map.opts?.pins.filter(p => p.primary)).toHaveLength(3);
+    expect(out.map.opts?.pins.length).toBe(4);
+
+    out = render(notice('a', 'STM_053', 'INFO', {
+      entity_type: 'Route', entity_id: 'R1', observed_value: '1 trips; max 2 consecutive stops', details: {
+        example_trip_id: 'T1', run_length: '2',
+        example_0_stop_id: 'S2', example_0_stop_sequence: '2', example_0_arrival: '08:10:00', example_0_role: 'run',
+        example_1_stop_id: 'S3', example_1_stop_sequence: '3', example_1_arrival: '08:10:00', example_1_role: 'run',
+        example_2_stop_id: 'S4', example_2_stop_sequence: '4', example_2_arrival: '08:20:00', example_2_role: 'after',
+      },
+    }));
+    expect(out.html).toContain('<li>Okul ile Çarşı arasındaki 2 durağın saatlerini, 08:10 ile sonraki durağın saati 08:20 arasında gerçek geçiş süresine göre dağıtın.</li>');
+    expect(out.html).toContain('<li>Süre bilinmiyorsa bu durakları yaklaşık olarak işaretleyin (timepoint=0).</li>');
+  });
+
   it('STM_022 özeti örnek satırlara açılır; kart durağı, yazılan değeri ve ölçülen deseni gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,

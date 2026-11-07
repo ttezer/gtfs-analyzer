@@ -42,7 +42,7 @@
 //! | OPR_010 | ✅ The title names both: *"accessibility OR bicycle policy conflicts"* |
 //! | SHP_009 · SHP_020 | ✅ **Heuristic noise:** the detected literals are not fields but `details` map keys (`affected_shapes`, `repeated_shapes`) |
 //! | STM_021 | ✅ **Heuristic noise (2026-11-04):** the `lib.rs` row is `aggregate_stm021`, which groups the K6 findings by the `details` keys `stop_a` / `stop_b` (one finding per stop pair); it emits no new fact |
-//! | STM_037 · STM_038 | ✅ **Heuristic noise (2026-11-05):** the second row is the Flex planner-context loop in `stop_times.rs`, which matches the rule ids to add `details` keys (`location_id`, `window_start` …) to findings already emitted; it emits no new fact |
+//! | STM_055 | ✅ **Heuristic noise (2026-11-05, moved 2026-11-07):** the second row is the Flex planner-context loop in `stop_times.rs`, which matches the rule ids (STM_037–041, STM_051/052/054/055) to add `details` keys (`location_id`, `window_start` …) to findings already emitted; it emits no new fact. The row lands on the last literal of that list (STM_037/038 before it grew) |
 //! | TRF_017 | ✅ One fact, the two ends of a transfer: `from_route_id` / `to_route_id` |
 //! | XFL_021 | ✅ The title already names the pair: *"(from_trip_id/to_trip_id, stop_id) pair"* |
 
