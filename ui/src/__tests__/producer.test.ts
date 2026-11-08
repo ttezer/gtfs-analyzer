@@ -883,9 +883,17 @@ describe('Üretici kartı görünümü', () => {
 
     out = render(notice('a', 'DQ_016', 'INFO', { entity_type: 'File', entity_id: 'stops.txt', file: 'stops.txt', details: {
       affected_rows: '12', sample_0_field: 'stop_name', sample_0_value: ' Okul ',
+      sample_1_field: 'wheelchair_note', sample_1_value: 'x ', identity_whitespace_fields: 'stop_id, parent_station',
     } }));
-    expect(out.html).toContain('stops.txt dosyasında 12 satırdaki değerlerin');
-    expect(out.html).toContain('<tr class="bad"><td>stop_name</td><td>␠Okul␠</td></tr>');
+    // The list and the columns in the planner's words; an unnamed column keeps its own name.
+    expect(out.html).toContain('Durak listesi içinde 12 satırda bazı değerlerin başında ya da sonunda gereksiz boşluk var');
+    expect(out.html).toContain('Boşluk kod alanlarında da var (Durak kodu, Bağlı istasyon)');
+    expect(out.html).not.toContain('stops.txt dosyasında');
+    expect(out.html).toContain('<tr class="bad"><td>Durak adı</td><td>␠Okul␠</td></tr>');
+    expect(out.html).toContain('<td>wheelchair_note</td>');
+    expect(out.html).toContain('<td>Durak listesi</td>');
+    out = render(notice('a', 'DQ_016', 'INFO', { entity_type: 'File', entity_id: 'x.txt', file: 'x.txt', details: { affected_rows: '2' } }));
+    expect(out.html).toContain('Bazı ad, kod veya değerlerin başında ya da sonunda gereksiz boşluk var');
 
     out = render(notice('a', 'DQ_017', 'INFO', { entity_type: 'Feed', observed_value: '1', details: {
       example_0_stop_id: 'S9', example_0_stop_name: 'Yeni', example_0_stop_lat: '0.1', example_0_stop_lon: '0.2',

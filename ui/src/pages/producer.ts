@@ -291,8 +291,22 @@ const DQ021_KIND: Record<string, string> = {
   'location_group_stops.txt': 'group_member', 'stop_areas.txt': 'stop_area', 'fare_rules.txt': 'fare',
   'fare_leg_rules.txt': 'fare', 'fare_leg_join_rules.txt': 'fare', 'fare_transfer_rules.txt': 'fare',
 };
-/** DQ_021 names its file in the planner's words ("Stop list"), not as a file name. */
-function dq021ListLabel(n: Notice): string | null {
+/** Planner names for GTFS files ("Stop list") and columns ("Stop name"), so cards need not
+ *  show file and column names. A column without a name keeps its own (the planner still has to
+ *  find it); a file without one leaves the card to its general text. */
+const PLANNER_LISTS = new Set(['agency', 'stops', 'routes', 'trips', 'stop_times', 'calendar', 'calendar_dates', 'shapes', 'frequencies', 'transfers', 'feed_info', 'fare_attributes', 'fare_rules', 'translations', 'attributions', 'pathways', 'levels']);
+const PLANNER_FIELDS = new Set(['stop_id', 'stop_code', 'stop_name', 'stop_desc', 'stop_lat', 'stop_lon', 'zone_id', 'stop_url', 'parent_station', 'platform_code', 'tts_stop_name', 'route_id', 'route_short_name', 'route_long_name', 'route_desc', 'route_url', 'route_color', 'route_text_color', 'agency_id', 'agency_name', 'agency_url', 'agency_timezone', 'agency_phone', 'agency_lang', 'trip_id', 'service_id', 'trip_headsign', 'trip_short_name', 'block_id', 'shape_id', 'stop_headsign', 'arrival_time', 'departure_time', 'date', 'feed_publisher_name', 'feed_publisher_url', 'feed_lang', 'fare_id']);
+function plannerListName(file?: string | null): string | null {
+  const stem = file?.replace(/\.txt$/, '');
+  return stem && PLANNER_LISTS.has(stem) ? t(`producer.list.${stem}`) : null;
+}
+function plannerFieldName(field: string): string {
+  return PLANNER_FIELDS.has(field) ? t(`producer.field.${field}`) : field;
+}
+
+/** File-level DQ cards (DQ_016, DQ_021) name their file in the planner's words, not as a file name. */
+function dqListLabel(n: Notice): string | null {
+  if (n.rule_id === 'DQ_016') return plannerListName(n.file);
   const kind = n.rule_id === 'DQ_021' && n.file ? DQ021_KIND[n.file] : undefined;
   return kind ? t(`producer.card.DQ_021.list_${kind}`) : null;
 }
@@ -1239,7 +1253,15 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       if (!d.affected_rows || !n.file) return null;
       return {
         title: t('producer.card.DQ_016.title'),
-        what: t('producer.card.DQ_016.what_detail', { file: n.file, n: localizedNumber(d.affected_rows) }),
+        // The list in the planner's words; spaces in code fields break links to other lists.
+        what: [
+          plannerListName(n.file)
+            ? t('producer.card.DQ_016.what_list', { list: plannerListName(n.file)!, n: localizedNumber(d.affected_rows) })
+            : t('producer.card.DQ_016.what'),
+          d.identity_whitespace_fields
+            ? t('producer.card.DQ_016.what_identity', { fields: listOf(d.identity_whitespace_fields).map(plannerFieldName).join(', ') })
+            : '',
+        ].filter(Boolean).join(' '),
         action: t('producer.card.DQ_016.action'),
       };
     }
@@ -1760,7 +1782,7 @@ function timeStripBody(n: Notice, result: ValidationResult): string {
     // One raw value per column, with the spaces made visible.
     const rows: string[] = [];
     for (let i = 0; d[`sample_${i}_field`]; i++) {
-      rows.push(`<tr class="bad"><td>${escHtml(d[`sample_${i}_field`]!)}</td><td>${escHtml(visibleValue(d[`sample_${i}_value`] ?? '') || '—')}</td></tr>`);
+      rows.push(`<tr class="bad"><td>${escHtml(plannerFieldName(d[`sample_${i}_field`]!))}</td><td>${escHtml(visibleValue(d[`sample_${i}_value`] ?? '') || '—')}</td></tr>`);
     }
     return `<p class="producer-card-label">${escHtml(t('producer.times.dq016_samples'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.times.field')}</th><th>${t('producer.times.value')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
@@ -2475,7 +2497,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   const tripLabel = n.rule_id === 'STM_006' && n.entity_id
     ? [routeIdForNotice ? ni.routes?.[routeIdForNotice] : '', ni.trips?.[n.entity_id], ni.trip_first_dep?.[n.entity_id]].filter(Boolean).join(' · ')
     : '';
-  const label = tripLabel || dq021ListLabel(n) || entityLabel(n, ni) || n.entity_id || '';
+  const label = tripLabel || dqListLabel(n) || entityLabel(n, ni) || n.entity_id || '';
   const shown = label ? t('producer.map.shown', { record: label }) : '';
   const zeroCaption = () => zeroStops.size
     ? t('producer.map.null_island', { stops: [...zeroStops].slice(0, 3).map(id => ni.stops?.[id] || id).join(', ') })
@@ -3039,7 +3061,7 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
       return days(
         [t('producer.col.record'), ...(withLine ? [t('producer.col.row')] : []), ...(withServices ? [t('producer.col.service_code')] : [])],
         n => [
-          dq021ListLabel(n) || entityLabel(n, ni) || n.observed_value || t('producer.map.unknown_context'),
+          dqListLabel(n) || entityLabel(n, ni) || n.observed_value || t('producer.map.unknown_context'),
           ...(withLine ? [n.line != null ? String(n.line) : '—'] : []),
           ...(withServices ? [servicesText(n)] : []),
         ],
