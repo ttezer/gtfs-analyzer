@@ -828,6 +828,8 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('<tr><td>10</td><td>9 / 10</td><td>T1</td></tr>');
     expect(out.map.opts?.extraPolylines?.[0]?.coords).toEqual([[41, 29], [41.01, 29.01], [41.02, 29.02]]);
     expect(out.map.opts?.pins).toHaveLength(3);
+    expect(out.html).toContain('Haritada örnek sefer T1: Hastane → Çarşı (3 durak).');
+    expect(out.html).toContain('<tr><td>1</td><td>Hastane (S1)</td></tr>');
 
     out = render(notice('a', 'DQ_010', 'INFO', { entity_type: 'Agency', entity_id: 'A2', details: {
       agency_name: 'Yedek', route_count: '5', used_0_agency_id: 'A1', used_0_routes: '5',
@@ -844,6 +846,10 @@ describe('Üretici kartı görünümü', () => {
     out = render(notice('a', 'DQ_003', 'INFO', { entity_type: 'Route', entity_id: 'R2', field: 'route_desc' }));
     expect(out.map.opts?.extraPolylines?.[0]?.coords).toEqual([[41.02, 29.02], [41, 29]]);
     expect(out.map.opts?.pins).toHaveLength(2);
+    // The route named, the example trip on the map from its first to its last stop, listed in order.
+    expect(out.html).toContain('20 hattında yolcuya ek bilgi veren açıklama (route_desc) boş. Haritada örnek sefer T2: Çarşı → Hastane (2 durak).');
+    expect(out.html).toContain('<tr><td>1</td><td>Çarşı (S3)</td></tr><tr><td>2</td><td>Hastane (S1)</td></tr>');
+    expect(out.html).not.toContain('<td>R2</td></tr>');
   });
 
   it('DQ_012–022 kartları işletmecileri, seferleri, boşlukları, kodları, adları ve haritayı gösterir', () => {
@@ -896,19 +902,37 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('Örneğin T1 seferi Çarşı durağında bitiyor; yön adı olarak &quot;Çarşı&quot; yazılabilir.</li>');
     expect(out.html).toContain('<tr><td>10</td><td>5 / 8</td><td>T1</td></tr>');
     expect(red(out)).toEqual([expect.stringContaining('Çarşı')]);
+    expect(out.map.opts?.focus).toBeUndefined();
+    expect(out.html).toContain('<tr class="bad"><td>3</td><td>Çarşı (S3)</td></tr>');
 
     // DQ_018 on a stop_headsign row: that row's trip, its stop in red.
     out = render(notice('a', 'DQ_018', 'INFO', { entity_type: 'Row', file: 'stop_times.txt', field: 'stop_headsign',
       observed_value: 'MERKEZ', details: { trip_id: 'T1', stop_id: 'S2', stop_sequence: '2' } }));
     expect(red(out)).toEqual([expect.stringContaining('Okul')]);
     expect(out.map.opts?.pins).toHaveLength(3);
+    expect(out.html).toContain('T1 seferinin Okul (S2) durağındaki yön adı (stop_headsign) tamamen BÜYÜK HARFLE yazılmış: &quot;MERKEZ&quot;.');
+    expect(out.html).toContain('<tr class="bad"><td>2</td><td>Okul (S2)</td></tr>');
+
+    // DQ_018/019 on a route or stop name: which name, whose, and the route's example trip on the map.
+    out = render(notice('a', 'DQ_018', 'INFO', { entity_type: 'Route', entity_id: 'R1', file: 'routes.txt', field: 'route_long_name', observed_value: 'MERKEZ - LIMAN' }));
+    expect(out.html).toContain('10 hattının uzun adı tamamen BÜYÜK HARFLE yazılmış: &quot;MERKEZ - LIMAN&quot;. Haritada örnek sefer T1');
+    expect(out.html).toContain('<td>MERKEZ - LIMAN</td>');
+    expect(out.html).toContain('<th>Ad türü</th>');
+    expect(out.html).toContain('<td>Hat uzun adı</td><td>MERKEZ - LIMAN</td>');
+    expect(out.map.opts?.pins).toHaveLength(3);
+    out = render(notice('a', 'DQ_019', 'INFO', { entity_type: 'Stop', entity_id: 'S2', file: 'stops.txt', field: 'stop_name', observed_value: 'okul' }));
+    expect(out.html).toContain('S2 kodlu durağın adı tamamen küçük harfle yazılmış: &quot;okul&quot;.');
 
     out = render(notice('a', 'DQ_021', 'HIGH', { entity_type: 'File', entity_id: 'stops.txt', file: 'stops.txt', details: {
       affected_duplicates: '1', example_keys: 'S1', example_0_key: 'S1', example_0_lines: '2, 3',
     } }));
-    expect(out.html).toContain('stops.txt dosyasında 1 kod birden fazla kayıtta kullanılmış');
+    expect(out.html).toContain('stops.txt dosyasında 1 stop_id değeri birden fazla satırda geçiyor');
     expect(out.html).toContain('<tr class="bad"><td>S1</td><td>2, 3</td></tr>');
     expect(red(out)).toEqual([expect.stringContaining('Hastane')]);
+    out = render(notice('a', 'DQ_021', 'HIGH', { entity_type: 'File', entity_id: 'calendar_dates.txt', file: 'calendar_dates.txt', details: { affected_duplicates: '2' } }));
+    expect(out.html).toContain('calendar_dates.txt dosyasında 2 takvimde aynı tarih birden fazla satıra yazılmış');
+    out = render(notice('a', 'DQ_021', 'HIGH', { entity_type: 'File', entity_id: 'fare_rules.txt', file: 'fare_rules.txt', details: { affected_duplicates: '3' } }));
+    expect(out.html).toContain('fare_rules.txt dosyasında 3 anahtar değeri birden fazla satırda tekrar ediyor');
 
     out = render(notice('a', 'DQ_022', 'MEDIUM', { entity_type: 'Feed', details: {
       common_name: 'Durak', common_count: '5', named_count: '6', example_0_stop_id: 'S1', example_1_stop_id: 'S3',

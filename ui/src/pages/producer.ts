@@ -283,6 +283,12 @@ function evidenceFacts(copy: PlannerCardCopy | null, n: Notice): Pick<PlannerCar
   return observed ? { observed } : null;
 }
 
+/** DQ_021: the one column that is the key of each single-key file it checks. */
+const DQ021_KEY_COLUMN: Record<string, string> = {
+  'stops.txt': 'stop_id', 'routes.txt': 'route_id', 'trips.txt': 'trip_id', 'attributions.txt': 'attribution_id',
+  'route_networks.txt': 'route_id', 'location_groups.txt': 'location_group_id',
+};
+
 function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCopy | null {
   const n = g.notices[0];
   switch (g.ruleId) {
@@ -1129,14 +1135,53 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         action: t('producer.card.DQ_005c.action'),
       };
     }
+    case 'DQ_003':
+    case 'DQ_004': {
+      // The route by name, and the example trip the map draws (first and last stop).
+      const routeId = routeIdOfNotice(n);
+      if (!routeId) return null;
+      return {
+        title: t(`producer.card.${g.ruleId}.title`),
+        what: [
+          t(`producer.card.${g.ruleId}.what_detail`, { route: result.name_index.routes?.[routeId] || routeId }),
+          dqTripMapText(dqExampleTrip(n, result.name_index), result),
+        ].filter(Boolean).join(' '),
+        action: t(`producer.card.${g.ruleId}.action`),
+      };
+    }
+    case 'DQ_018':
+    case 'DQ_019': {
+      // Which name it is (stop, route, route description, trip or stop headsign), whose, and the value.
+      const field = n.field ?? '';
+      if (!['stop_name', 'route_long_name', 'route_desc', 'trip_headsign', 'stop_headsign'].includes(field) || n.observed_value == null) return null;
+      const ni = result.name_index;
+      const d = n.details ?? {};
+      const routeId = routeIdOfNotice(n);
+      const stopId = n.entity_type === 'Stop' ? n.entity_id : d.stop_id;
+      const what = t(`producer.card.${g.ruleId}.what_${field}`, {
+        value: n.observed_value,
+        stop_id: stopId || '—',
+        stop: stopId ? (ni.stops?.[stopId] ? `${ni.stops[stopId]} (${stopId})` : stopId) : '—',
+        route: routeId ? ni.routes?.[routeId] || routeId : '—',
+        trip: (n.entity_type === 'Trip' ? n.entity_id : d.trip_id) || '—',
+      });
+      return {
+        title: t(`producer.card.${g.ruleId}.title`),
+        what: [what, n.entity_type === 'Route' ? dqTripMapText(dqExampleTrip(n, ni), result) : ''].filter(Boolean).join(' '),
+        action: t(`producer.card.${g.ruleId}.action`),
+      };
+    }
     case 'DQ_006': {
       const d = n.details ?? {};
       if (!d.shapeless_trips || !d.fixed_trips) return null;
       return {
         title: t('producer.card.DQ_006.title'),
-        what: t('producer.card.DQ_006.what_detail', {
-          n: localizedNumber(d.shapeless_trips), total: localizedNumber(d.fixed_trips), routes: localizedNumber(d.route_count || '0'),
-        }),
+        what: [
+          t('producer.card.DQ_006.what_detail', {
+            n: localizedNumber(d.shapeless_trips), total: localizedNumber(d.fixed_trips), routes: localizedNumber(d.route_count || '0'),
+          }),
+          dqTripMapText(d.example_trip_id, result),
+        ].filter(Boolean).join(' '),
         action: t('producer.card.DQ_006.action'),
       };
     }
@@ -1206,9 +1251,12 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       const last = lastStop ? result.name_index.stops?.[lastStop] : undefined;
       return {
         title: t('producer.card.DQ_020.title'),
-        what: t('producer.card.DQ_020.what_detail', {
-          n: localizedNumber(d.missing_trips), total: localizedNumber(d.trip_count), routes: localizedNumber(d.route_count || '0'),
-        }),
+        what: [
+          t('producer.card.DQ_020.what_detail', {
+            n: localizedNumber(d.missing_trips), total: localizedNumber(d.trip_count), routes: localizedNumber(d.route_count || '0'),
+          }),
+          dqTripMapText(d.example_trip_id, result),
+        ].filter(Boolean).join(' '),
         action: last
           ? t('producer.card.DQ_020.action_detail', { trip: d.example_trip_id!, stop: last })
           : t('producer.card.DQ_020.action'),
@@ -1219,7 +1267,13 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       if (!d.affected_duplicates || !n.file) return null;
       return {
         title: t('producer.card.DQ_021.title'),
-        what: t('producer.card.DQ_021.what_detail', { file: n.file, n: localizedNumber(d.affected_duplicates) }),
+        // One-column keys name the column; calendar_dates repeats a date per calendar; the
+        // fare and area tables have a key of several columns.
+        what: n.file === 'calendar_dates.txt'
+          ? t('producer.card.DQ_021.what_dates', { n: localizedNumber(d.affected_duplicates) })
+          : DQ021_KEY_COLUMN[n.file]
+            ? t('producer.card.DQ_021.what_key', { file: n.file, n: localizedNumber(d.affected_duplicates), key: DQ021_KEY_COLUMN[n.file] })
+            : t('producer.card.DQ_021.what_detail', { file: n.file, n: localizedNumber(d.affected_duplicates) }),
         action: t('producer.card.DQ_021.action'),
       };
     }
@@ -1318,6 +1372,81 @@ function plannerServiceText(serviceId: string | null | undefined, result: Valida
   return serviceId && text === serviceId ? t('producer.days.check') : text;
 }
 
+/** A route's example trip for the planner: the first trip (by trip code) with a drawn line, else
+ *  the first with two or more stops. Undefined when the name index carries no trip of the route
+ *  (large feeds keep only the trips a finding names). */
+function routeExampleTrip(ni: ValidationResult['name_index'], routeId?: string | null): string | undefined {
+  if (!routeId) return undefined;
+  let fallback: string | undefined;
+  for (const [tripId, tripRoute] of Object.entries(ni.trip_routes ?? {})) {
+    if (tripRoute !== routeId || (ni.trip_stops?.[tripId]?.length ?? 0) < 2) continue;
+    if (ni.trip_shapes?.[tripId]) return tripId;
+    fallback ??= tripId;
+  }
+  return fallback;
+}
+
+/** The trip a DQ card draws on its map and lists stop by stop: the route's example trip for a route
+ *  record, the record's own trip for a headsign row, the example trip of a feed summary. */
+function dqExampleTrip(n: Notice, ni: ValidationResult['name_index']): string | undefined {
+  const d = n.details ?? {};
+  switch (n.rule_id) {
+    case 'DQ_003':
+    case 'DQ_004':
+      return n.entity_type === 'Route' ? routeExampleTrip(ni, routeIdOfNotice(n)) : undefined;
+    case 'DQ_018':
+    case 'DQ_019':
+      if (n.entity_type === 'Route') return routeExampleTrip(ni, routeIdOfNotice(n));
+      if (n.entity_type === 'Trip') return n.entity_id ?? undefined;
+      return n.entity_type === 'Row' ? d.trip_id : undefined;
+    case 'DQ_021':
+      if (n.file === 'routes.txt') return routeExampleTrip(ni, d.example_0_key);
+      return n.file === 'trips.txt' ? d.example_0_key : undefined;
+    case 'DQ_006':
+    case 'DQ_020':
+      return n.entity_type !== 'Trip' ? d.example_trip_id : undefined;
+    case 'DQ_013':
+      return n.entity_type !== 'Trip' ? d.example_0_trip_id : undefined;
+    default:
+      return undefined;
+  }
+}
+
+/** One sentence naming the trip the map draws, its first and last stop and how many stops it has;
+ *  empty when fewer than two of its stops have a position (nothing to draw). */
+function dqTripMapText(tripId: string | undefined, result: ValidationResult): string {
+  const ni = result.name_index;
+  const stops = tripId ? ni.trip_stops?.[tripId] ?? [] : [];
+  if (!tripId || stops.filter(id => ni.stop_coords?.[id]).length < 2) return '';
+  const stopName = (id: string) => ni.stops?.[id] || id;
+  return t('producer.card.dq_trip_map', {
+    trip: tripId, from: stopName(stops[0]), to: stopName(stops[stops.length - 1]), n: localizedNumber(String(stops.length)),
+  });
+}
+
+const ITINERARY_ROWS = 60;
+
+/** The trip's stops in order (sequence and stop), the marked stop in red. */
+function tripItineraryTable(tripId: string, result: ValidationResult, markStop?: string, markSequence?: string): string {
+  const ni = result.name_index;
+  const stops = ni.trip_stops?.[tripId] ?? [];
+  if (stops.length < 2) return '';
+  const sequences = ni.trip_stop_sequences?.[tripId] ?? [];
+  const routeId = ni.trip_routes?.[tripId];
+  const rows = stops.slice(0, ITINERARY_ROWS).map((stopId, index) => {
+    const sequence = sequences[index];
+    const shown = sequence == null || sequence === 4294967295 ? '—' : String(sequence);
+    const bad = markStop === stopId && (!markSequence || markSequence === shown);
+    const stop = ni.stops?.[stopId] ? `${ni.stops[stopId]} (${stopId})` : stopId;
+    return `<tr${bad ? ' class="bad"' : ''}><td>${escHtml(shown)}</td><td>${escHtml(stop)}</td></tr>`;
+  });
+  if (stops.length > ITINERARY_ROWS) {
+    rows.push(`<tr><td></td><td>${escHtml(t('producer.times.more_stops', { n: localizedNumber(String(stops.length - ITINERARY_ROWS)) }))}</td></tr>`);
+  }
+  const caption = t('producer.times.trip_itinerary', { trip: tripId, route: routeId ? ni.routes?.[routeId] || routeId : '—' });
+  return `<p class="producer-card-label">${escHtml(caption)}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.times.sequence')}</th><th>${t('producer.col.stop')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+}
+
 /** The trips behind a finding grouped across trips (STM_021, STM_035): route, first departure,
  *  where the finding sits in each trip, service days and the calendar's validity range. Trip copies
  *  often differ only in that range (one per month), so it is a column of its own. Empty for one trip. */
@@ -1369,6 +1498,17 @@ function segmentCoordTable(rows: SegmentStopRow[], cls: string): string {
 
 /** Saat kurallarında seçili seferin ilgili durakları sırayla, saatleriyle; hatalı satır işaretli. */
 function timeStrip(n: Notice, result: ValidationResult): string {
+  const body = timeStripBody(n, result);
+  // DQ cards: the stops of the trip on the map, in order (the headsign row's stop, or the
+  // last stop a missing headsign could name, in red).
+  const tripId = n.rule_id.startsWith('DQ_') ? dqExampleTrip(n, result.name_index) : undefined;
+  if (!tripId) return body;
+  const stops = result.name_index.trip_stops?.[tripId] ?? [];
+  const mark = n.rule_id === 'DQ_020' ? stops[stops.length - 1] : n.details?.stop_id;
+  return body + tripItineraryTable(tripId, result, mark, n.rule_id === 'DQ_020' ? undefined : n.details?.stop_sequence);
+}
+
+function timeStripBody(n: Notice, result: ValidationResult): string {
   const d = n.details;
   if (!d) return '';
   const name = (id?: string, fallback?: string) => (id ? result.name_index.stops?.[id] : undefined) || fallback || id || '—';
@@ -2113,6 +2253,8 @@ function unitOf(g: RuleGroup): string {
   if (n.entity_type === 'Trip' && new Set(trips).size < trips.length) {
     return t(n.file === 'stop_times.txt' ? 'producer.unit.stop_time' : 'producer.card.affected_short');
   }
+  // A group mixing routes, stops and rows (DQ_018/019 names) counts records, not the first one's kind.
+  if (new Set(g.notices.map(item => item.entity_type)).size > 1) return t('producer.card.affected_short');
   const unit = n.entity_id ? ({ Trip: 'trip', Stop: 'stop', Route: 'route', Shape: 'shape', Service: 'service' } as Record<string, string>)[n.entity_type] : undefined;
   return t(unit ? `producer.unit.${unit}` : 'producer.card.affected_short');
 }
@@ -2213,6 +2355,8 @@ function stm014SampleTripId(n: Notice, result: ValidationResult): string | undef
 
 function plannerShapeId(n: Notice, result: ValidationResult): string | undefined {
   const ni = result.name_index;
+  const dqTrip = n.rule_id.startsWith('DQ_') && n.entity_type !== 'Trip' ? dqExampleTrip(n, ni) : undefined;
+  if (dqTrip) return ni.trip_shapes?.[dqTrip];
   if (n.entity_type === 'Trip' && n.entity_id) {
     return ni.trip_shapes?.[n.entity_id]
       || ((n.rule_id === 'STM_015' || n.rule_id === 'STM_016' || n.rule_id === 'STM_018' || n.rule_id === 'STM_019' || n.rule_id === 'STM_020')
@@ -2235,29 +2379,18 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   if (n.rule_id === 'STM_050' && n.entity_type !== 'Trip' && n.details?.example_0_trip_id) {
     return plannerMap({ ...n, entity_type: 'Trip', entity_id: n.details.example_0_trip_id }, result);
   }
-  // DQ_013: the feed's first trip. DQ_020: the example trip without a headsign, its last stop
-  // (the headsign candidate) in red. DQ_018/019 on a stop_headsign row: that row's trip and stop.
-  if (n.rule_id === 'DQ_013' && n.entity_type !== 'Trip' && n.details?.example_0_trip_id) {
-    return plannerMap({ ...n, entity_type: 'Trip', entity_id: n.details.example_0_trip_id }, result);
-  }
-  if (n.rule_id === 'DQ_020' && n.entity_type !== 'Trip' && n.details?.example_trip_id) {
-    const tripStops = result.name_index.trip_stops?.[n.details.example_trip_id] ?? [];
+  // DQ cards draw one trip with its stops in order: a route record's example trip (DQ_003/004/
+  // 018/019/021), a headsign row's own trip (its stop red), a summary's example trip (DQ_006
+  // straight between its stops when it has no line; DQ_013; DQ_020 with its last stop — the
+  // headsign candidate — red). A route whose trips the index lacks keeps the route view below.
+  const dqTrip = n.rule_id.startsWith('DQ_') && n.entity_type !== 'Trip' ? dqExampleTrip(n, result.name_index) : undefined;
+  if (dqTrip) {
+    const tripStops = result.name_index.trip_stops?.[dqTrip] ?? [];
     const last = tripStops[tripStops.length - 1];
-    return plannerMap({
-      ...n, entity_type: 'Trip', entity_id: n.details.example_trip_id,
-      details: { ...n.details, ...(last ? { stop_id: last } : {}) },
-    }, result);
-  }
-  if ((n.rule_id === 'DQ_018' || n.rule_id === 'DQ_019') && n.entity_type === 'Row' && n.details?.trip_id) {
-    return plannerMap({ ...n, entity_type: 'Trip', entity_id: n.details.trip_id }, result);
-  }
-  // DQ_021 on trips.txt / routes.txt: the first repeated trip or route.
-  if (n.rule_id === 'DQ_021' && n.details?.example_0_key && (n.file === 'trips.txt' || n.file === 'routes.txt')) {
-    return plannerMap({ ...n, entity_type: n.file === 'trips.txt' ? 'Trip' : 'Route', entity_id: n.details.example_0_key, details: {} }, result);
-  }
-  // DQ_006: an example trip without a line, drawn the way apps show it — straight between its stops.
-  if (n.rule_id === 'DQ_006' && n.entity_type !== 'Trip' && n.details?.example_trip_id) {
-    return plannerMap({ ...n, entity_type: 'Trip', entity_id: n.details.example_trip_id }, result);
+    const details = n.rule_id === 'DQ_021' || n.entity_type === 'Route' ? {}
+      : n.rule_id === 'DQ_020' ? { ...n.details, ...(last ? { stop_id: last } : {}) }
+        : n.details;
+    return plannerMap({ ...n, entity_type: 'Trip', entity_id: dqTrip, details }, result);
   }
   const ni = result.name_index;
   const zeroStops = new Set<string>();
@@ -2548,7 +2681,9 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
         addStop(idA, true);
         addStop(idB, true);
       }
-      for (const stopId of tripStops) addStop(stopId, false);
+      // DQ cards list the trip stop by stop, so its pins carry the stop sequence too.
+      const dqSequences = n.rule_id.startsWith('DQ_') ? ni.trip_stop_sequences?.[n.entity_id] ?? [] : [];
+      for (const [index, stopId] of tripStops.entries()) addStop(stopId, false, dqSequences[index]);
     }
   } else if (n.entity_type === 'Stop' && n.entity_id) {
     addStop(n.entity_id, true);
@@ -2624,6 +2759,8 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     addShape(n.entity_id, routeColor(ni.shape_routes?.[n.entity_id]?.[0]?.[0]));
   }
   if (n.rule_id !== 'STM_018' && n.rule_id !== 'STM_019') addStop(n.details?.stop_id, true);
+  // DQ_020: the whole example trip stays in view; its red last stop is only the headsign candidate.
+  if (n.rule_id === 'DQ_020') focus = undefined;
   // DQ_022: the stops sharing one name; DQ_021 on stops.txt: the repeated stop codes.
   if (n.rule_id === 'DQ_022') {
     for (let i = 0; n.details?.[`example_${i}_stop_id`]; i++) addStop(n.details[`example_${i}_stop_id`], true);
@@ -2710,16 +2847,22 @@ type Cell = string | { html: string };
 function affectedColumns(g: RuleGroup, result: ValidationResult): { head: string[]; row: (n: Notice) => Cell[] } {
   const base = entityColumns(g, result);
   // For rules that do not provide their own evidence, each row carries its own observed value.
+  // DQ_018/019 describe the selected name only; the table keeps each row's name.
   const copy = plannerCardCopy(g, result);
-  if ((copy && !copy.generic) || !g.notices.some(n => observedValue(n))) return base;
+  const ownEvidence = copy && !copy.generic && g.ruleId !== 'DQ_018' && g.ruleId !== 'DQ_019';
+  if (ownEvidence || !g.notices.some(n => observedValue(n))) return base;
+  // DQ_018/019 mix stop names, route names and headsigns in one list: each row says which it is.
+  const nameKind = g.ruleId === 'DQ_018' || g.ruleId === 'DQ_019';
   return {
-    head: [...base.head, t('producer.card.observed')],
+    head: [...base.head, ...(nameKind ? [t('producer.times.name_kind')] : []), t('producer.card.observed')],
     row: n => {
       const o = observedValue(n);
       const cell: Cell = o
         ? { html: `${escHtml(o.value)}${o.expected ? ` <span class="planner-expected">${escHtml(t('producer.card.expected_inline', { value: o.expected }))}</span>` : ''}` }
         : '—';
-      return [...base.row(n), cell];
+      const kindKey = `producer.times.name_kind_${n.field ?? ''}`;
+      const kind = t(kindKey);
+      return [...base.row(n), ...(nameKind ? [kind === kindKey ? n.field || '—' : kind] : []), cell];
     },
   };
 }
