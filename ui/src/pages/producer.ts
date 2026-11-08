@@ -283,11 +283,21 @@ function evidenceFacts(copy: PlannerCardCopy | null, n: Notice): Pick<PlannerCar
   return observed ? { observed } : null;
 }
 
-/** DQ_021: the one column that is the key of each single-key file it checks. */
-const DQ021_KEY_COLUMN: Record<string, string> = {
-  'stops.txt': 'stop_id', 'routes.txt': 'route_id', 'trips.txt': 'trip_id', 'attributions.txt': 'attribution_id',
-  'route_networks.txt': 'route_id', 'location_groups.txt': 'location_group_id',
+/** DQ_021: what kind of record repeats in each file it checks, so the card speaks of stops,
+ *  routes, calendar dates or fare rules rather than file and column names. */
+const DQ021_KIND: Record<string, string> = {
+  'stops.txt': 'stop', 'routes.txt': 'route', 'trips.txt': 'trip', 'calendar_dates.txt': 'dates',
+  'attributions.txt': 'attribution', 'location_groups.txt': 'location_group', 'route_networks.txt': 'route_network',
+  'location_group_stops.txt': 'group_member', 'stop_areas.txt': 'stop_area', 'fare_rules.txt': 'fare',
+  'fare_leg_rules.txt': 'fare', 'fare_leg_join_rules.txt': 'fare', 'fare_transfer_rules.txt': 'fare',
 };
+/** DQ_021 names its file in the planner's words ("Stop list"), not as a file name. */
+function dq021ListLabel(n: Notice): string | null {
+  const kind = n.rule_id === 'DQ_021' && n.file ? DQ021_KIND[n.file] : undefined;
+  return kind ? t(`producer.card.DQ_021.list_${kind}`) : null;
+}
+/** Kinds whose repeats are one code on several records (the rest repeat a whole row's meaning). */
+const DQ021_CODE_KINDS = new Set(['stop', 'route', 'trip', 'attribution', 'location_group']);
 
 function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCopy | null {
   const n = g.notices[0];
@@ -1267,14 +1277,12 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       if (!d.affected_duplicates || !n.file) return null;
       return {
         title: t('producer.card.DQ_021.title'),
-        // One-column keys name the column; calendar_dates repeats a date per calendar; the
-        // fare and area tables have a key of several columns.
-        what: n.file === 'calendar_dates.txt'
-          ? t('producer.card.DQ_021.what_dates', { n: localizedNumber(d.affected_duplicates) })
-          : DQ021_KEY_COLUMN[n.file]
-            ? t('producer.card.DQ_021.what_key', { file: n.file, n: localizedNumber(d.affected_duplicates), key: DQ021_KEY_COLUMN[n.file] })
-            : t('producer.card.DQ_021.what_detail', { file: n.file, n: localizedNumber(d.affected_duplicates) }),
-        action: t('producer.card.DQ_021.action'),
+        // Said in the planner's words per kind of record; an unknown file keeps the general text.
+        what: DQ021_KIND[n.file]
+          ? t(`producer.card.DQ_021.what_${DQ021_KIND[n.file]}`, { n: localizedNumber(d.affected_duplicates) })
+          : t('producer.card.DQ_021.what'),
+        action: !DQ021_KIND[n.file] ? t('producer.card.DQ_021.action')
+          : t(DQ021_CODE_KINDS.has(DQ021_KIND[n.file]) ? 'producer.card.DQ_021.action_code' : 'producer.card.DQ_021.action_repeat'),
       };
     }
     case 'DQ_022': {
@@ -1780,12 +1788,20 @@ function timeStripBody(n: Notice, result: ValidationResult): string {
     return `<p class="producer-card-label">${escHtml(t('producer.times.dq020_routes'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.col.route')}</th><th>${t('producer.times.headsign_missing')}</th><th>${t('producer.times.example_trip')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
   if (n.rule_id === 'DQ_021' && d.example_0_key) {
-    // Each repeated key with the file lines that carry it (when the engine knows them).
+    // Each repeated code and the row numbers in the file where it is written, when the engine
+    // knows them. No name column: the name index keeps one name per code, which would hide that
+    // the repeated records may carry different names.
+    const kind = DQ021_KIND[n.file ?? ''] ?? 'other';
+    const codeHead = ['stop', 'route', 'trip', 'dates'].includes(kind) ? `producer.times.dq021_code_${kind}` : 'producer.times.dq021_code_other';
+    const hasLines = Object.keys(d).some(key => /^example_\d+_lines$/.test(key));
     const rows: string[] = [];
     for (let i = 0; d[`example_${i}_key`]; i++) {
-      rows.push(`<tr class="bad"><td>${escHtml(d[`example_${i}_key`]!)}</td><td>${escHtml(d[`example_${i}_lines`] || '—')}</td></tr>`);
+      const key = d[`example_${i}_key`]!;
+      const cells = [key, ...(hasLines ? [d[`example_${i}_lines`] || '—'] : [])];
+      rows.push(`<tr class="bad">${cells.map(c => `<td>${escHtml(c)}</td>`).join('')}</tr>`);
     }
-    return `<p class="producer-card-label">${escHtml(t('producer.times.dq021_keys'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.times.key')}</th><th>${t('producer.times.lines')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+    const head = [t(codeHead), ...(hasLines ? [t('producer.times.lines')] : [])];
+    return `<p class="producer-card-label">${escHtml(t('producer.times.dq021_keys'))}</p><table class="planner-times planner-stop-times"><thead><tr>${head.map(h => `<th>${escHtml(h)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
   if ((n.rule_id === 'DQ_005b' || n.rule_id === 'DQ_009' || n.rule_id === 'DQ_013') && d.example_0_trip_id) {
     // The first trips in file order: trip, route and calendar, none of which has a stop time.
@@ -2459,7 +2475,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   const tripLabel = n.rule_id === 'STM_006' && n.entity_id
     ? [routeIdForNotice ? ni.routes?.[routeIdForNotice] : '', ni.trips?.[n.entity_id], ni.trip_first_dep?.[n.entity_id]].filter(Boolean).join(' · ')
     : '';
-  const label = tripLabel || entityLabel(n, ni) || n.entity_id || '';
+  const label = tripLabel || dq021ListLabel(n) || entityLabel(n, ni) || n.entity_id || '';
   const shown = label ? t('producer.map.shown', { record: label }) : '';
   const zeroCaption = () => zeroStops.size
     ? t('producer.map.null_island', { stops: [...zeroStops].slice(0, 3).map(id => ni.stops?.[id] || id).join(', ') })
@@ -3023,7 +3039,7 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
       return days(
         [t('producer.col.record'), ...(withLine ? [t('producer.col.row')] : []), ...(withServices ? [t('producer.col.service_code')] : [])],
         n => [
-          entityLabel(n, ni) || n.observed_value || t('producer.map.unknown_context'),
+          dq021ListLabel(n) || entityLabel(n, ni) || n.observed_value || t('producer.map.unknown_context'),
           ...(withLine ? [n.line != null ? String(n.line) : '—'] : []),
           ...(withServices ? [servicesText(n)] : []),
         ],
