@@ -12651,7 +12651,10 @@
             "cross_file_analysis": "unreliable — lookups keyed on these values cannot match across files",
             "identity_whitespace_fields": "route_id",
             "raw_samples": "route_id=\" R1\"",
+            "record_field": "trip_id",
             "sample_0_field": "route_id",
+            "sample_0_line": "2",
+            "sample_0_record": "T1",
             "sample_0_value": " R1",
             "suppressed_derivative_count": "2",
             "suppressed_derivative_rules": "TRP_002, TRP_011"

@@ -862,18 +862,39 @@ pub(crate) struct Dq016Acc {
     pub rows: u64,
     pub cols: std::collections::BTreeSet<String>,
     pub samples: std::collections::BTreeMap<String, String>,
+    /// Planner context per sampled column: the sample's line and the record it belongs to (the
+    /// value of the file's key column on that row, raw), so the card can name and map it.
+    sample_records: std::collections::BTreeMap<String, (u64, String)>,
+    /// The key column (name, index), chosen once from the headers; `Some(None)` when none.
+    key: Option<Option<(String, usize)>>,
     pub first_line: Option<u64>,
     last_line: u64,
 }
+
+/// DQ_016 record column: the column naming the row's record, in this order (stop_times and
+/// frequencies by trip, trips by trip, stops by stop, routes by route…); otherwise the first
+/// `*_id` column.
+const DQ016_KEY_COLUMNS: [&str; 9] = [
+    "trip_id",
+    "stop_id",
+    "route_id",
+    "shape_id",
+    "service_id",
+    "agency_id",
+    "fare_id",
+    "pathway_id",
+    "level_id",
+];
 
 impl Dq016Acc {
     /// Processes one row. `values`/`headers` must have the same order.
     pub fn observe<'a>(
         &mut self,
         line: u64,
-        values: impl Iterator<Item = &'a str>,
+        values: impl Iterator<Item = &'a str> + Clone,
         headers: &[String],
     ) {
+        let record_values = values.clone();
         for (i, s) in values.enumerate() {
             if s == s.trim() {
                 continue;
@@ -889,9 +910,21 @@ impl Dq016Acc {
                 }
             }
             self.cols.insert(name.to_string());
-            self.samples
-                .entry(name.to_string())
-                .or_insert_with(|| s.to_string());
+            if !self.samples.contains_key(name) {
+                self.samples.insert(name.to_string(), s.to_string());
+                // Once per column: the record this first sample sits on.
+                let key = self.key.get_or_insert_with(|| {
+                    DQ016_KEY_COLUMNS
+                        .iter()
+                        .find_map(|k| headers.iter().position(|h| h == k))
+                        .or_else(|| headers.iter().position(|h| h.ends_with("_id")))
+                        .map(|idx| (headers[idx].clone(), idx))
+                });
+                if let Some((_, idx)) = key {
+                    let record = record_values.clone().nth(*idx).unwrap_or("").to_string();
+                    self.sample_records.insert(name.to_string(), (line, record));
+                }
+            }
         }
     }
 
@@ -905,6 +938,12 @@ impl Dq016Acc {
         self.cols.extend(other.cols);
         for (field, sample) in other.samples {
             self.samples.entry(field).or_insert(sample);
+        }
+        for (field, record) in other.sample_records {
+            self.sample_records.entry(field).or_insert(record);
+        }
+        if self.key.is_none() {
+            self.key = other.key;
         }
         self.first_line = match (self.first_line, other.first_line) {
             (Some(a), Some(b)) => Some(a.min(b)),
@@ -965,9 +1004,19 @@ impl Dq016Acc {
         .collect();
         // Planner context: the same samples one per column (sorted), value kept raw so the card
         // can show where the whitespace sits.
+        // Each sample also carries its line and the record it sits on (the key column's value).
         for (i, (field, value)) in self.samples.iter().enumerate() {
             details.insert(format!("sample_{i}_field"), field.clone());
             details.insert(format!("sample_{i}_value"), value.clone());
+            if let Some((line, record)) = self.sample_records.get(field) {
+                details.insert(format!("sample_{i}_line"), line.to_string());
+                if !record.is_empty() {
+                    details.insert(format!("sample_{i}_record"), record.clone());
+                }
+            }
+        }
+        if let Some(Some((column, _))) = &self.key {
+            details.insert("record_field".to_string(), column.clone());
         }
 
         // If the raw form cannot be read but the trimmed form can, whitespace alone hides a typed
@@ -4857,6 +4906,63 @@ mod tests {
         assert!(
             routes_root.contains_key("cross_file_analysis"),
             "dosyalar arası analizin güvenilmezliği beyan edilmeli: {routes_root:?}"
+        );
+        // Planner context: the sample's line and the record (raw key) it sits on.
+        assert_eq!(
+            routes_root.get("record_field").map(String::as_str),
+            Some("route_id")
+        );
+        assert_eq!(
+            routes_root.get("sample_0_field").map(String::as_str),
+            Some("route_id")
+        );
+        assert_eq!(
+            routes_root.get("sample_0_line").map(String::as_str),
+            Some("2")
+        );
+        assert_eq!(
+            routes_root.get("sample_0_record").map(String::as_str),
+            Some("R1  ")
+        );
+    }
+
+    #[test]
+    fn dq016_samples_name_the_record_and_line_they_sit_on() {
+        // A stop name with spaces on the second stop: the sample names stop S2 on line 3.
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      b"stop_name,stop_id,stop_lat,stop_lon\nStop1,S1,41.0,29.0\n Liman ,S2,41.1,29.1\nPark ,S3,41.2,29.2\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,101,Main,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        let stops_root = k1
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "DQ_016" && n.file.as_deref() == Some("stops.txt"))
+            .and_then(|n| n.details.clone())
+            .expect("stops.txt için DQ_016 kökü bekleniyor");
+        assert_eq!(
+            stops_root.get("affected_rows").map(String::as_str),
+            Some("2")
+        );
+        assert_eq!(
+            stops_root.get("record_field").map(String::as_str),
+            Some("stop_id")
+        );
+        assert_eq!(
+            stops_root.get("sample_0_field").map(String::as_str),
+            Some("stop_name")
+        );
+        assert_eq!(
+            stops_root.get("sample_0_line").map(String::as_str),
+            Some("3")
+        );
+        assert_eq!(
+            stops_root.get("sample_0_record").map(String::as_str),
+            Some("S2")
         );
     }
 

@@ -882,15 +882,19 @@ describe('Üretici kartı görünümü', () => {
     expect(out.map.opts?.pins).toHaveLength(3);
 
     out = render(notice('a', 'DQ_016', 'INFO', { entity_type: 'File', entity_id: 'stops.txt', file: 'stops.txt', details: {
-      affected_rows: '12', sample_0_field: 'stop_name', sample_0_value: ' Okul ',
-      sample_1_field: 'wheelchair_note', sample_1_value: 'x ', identity_whitespace_fields: 'stop_id, parent_station',
+      affected_rows: '12', sample_0_field: 'stop_name', sample_0_value: ' Okul ', sample_0_line: '3', sample_0_record: 'S2',
+      sample_1_field: 'wheelchair_note', sample_1_value: 'x ', sample_1_line: '4', sample_1_record: 'S3 ', record_field: 'stop_id',
+      identity_whitespace_fields: 'stop_id, parent_station',
     } }));
     // The list and the columns in the planner's words; an unnamed column keeps its own name.
     expect(out.html).toContain('Durak listesi içinde 12 satırda bazı değerlerin başında ya da sonunda gereksiz boşluk var');
     expect(out.html).toContain('Boşluk kod alanlarında da var (Durak kodu, Bağlı istasyon)');
     expect(out.html).not.toContain('stops.txt dosyasında');
-    expect(out.html).toContain('<tr class="bad"><td>Durak adı</td><td>␠Okul␠</td></tr>');
-    expect(out.html).toContain('<td>wheelchair_note</td>');
+    // Each sample names its stop (a code with spaces is matched trimmed) and its row; the stops are pinned red.
+    expect(out.html).toContain('<th>Alan</th><th>Değer</th><th>Durak kodu</th><th>Satır</th>');
+    expect(out.html).toContain('<tr class="bad"><td>Durak adı</td><td>␠Okul␠</td><td>Okul (S2)</td><td>3</td></tr>');
+    expect(out.html).toContain('<td>wheelchair_note</td><td>x␠</td><td>Çarşı (S3␠)</td><td>4</td>');
+    expect(red(out)).toEqual([expect.stringContaining('Okul'), expect.stringContaining('Çarşı')]);
     expect(out.html).toContain('<td>Durak listesi</td>');
     out = render(notice('a', 'DQ_016', 'INFO', { entity_type: 'File', entity_id: 'x.txt', file: 'x.txt', details: { affected_rows: '2' } }));
     expect(out.html).toContain('Bazı ad, kod veya değerlerin başında ya da sonunda gereksiz boşluk var');

@@ -1416,6 +1416,20 @@ function routeExampleTrip(ni: ValidationResult['name_index'], routeId?: string |
   return fallback;
 }
 
+/** DQ_016 samples: the column, the raw value, its line and the record it sits on (the file's
+ *  key column value, raw — a key with spaces is looked up trimmed too). */
+function dq016Samples(d: Record<string, string>): Array<{ field: string; value: string; line?: string; record?: string }> {
+  const out = [];
+  for (let i = 0; d[`sample_${i}_field`]; i++) {
+    out.push({ field: d[`sample_${i}_field`]!, value: d[`sample_${i}_value`] ?? '', line: d[`sample_${i}_line`], record: d[`sample_${i}_record`] });
+  }
+  return out;
+}
+function dqIndexKey<T>(map: Record<string, T> | undefined, key?: string): string | undefined {
+  if (!key || !map) return undefined;
+  return key in map ? key : key.trim() in map ? key.trim() : undefined;
+}
+
 /** The trip a DQ card draws on its map and lists stop by stop: the route's example trip for a route
  *  record, the record's own trip for a headsign row, the example trip of a feed summary. */
 function dqExampleTrip(n: Notice, ni: ValidationResult['name_index']): string | undefined {
@@ -1437,6 +1451,16 @@ function dqExampleTrip(n: Notice, ni: ValidationResult['name_index']): string | 
       return n.entity_type !== 'Trip' ? d.example_trip_id : undefined;
     case 'DQ_013':
       return n.entity_type !== 'Trip' ? d.example_0_trip_id : undefined;
+    case 'DQ_016': {
+      // A trip-keyed list (trips, stop times, frequencies): the first sample's trip; a route list:
+      // that route's example trip. Stop lists are pinned stop by stop instead.
+      const records = dq016Samples(d).map(sample => sample.record);
+      if (d.record_field === 'trip_id') return records.map(r => dqIndexKey(ni.trip_stops, r)).find(Boolean);
+      if (d.record_field === 'route_id') {
+        return records.map(r => routeExampleTrip(ni, r) || routeExampleTrip(ni, r?.trim())).find(Boolean);
+      }
+      return undefined;
+    }
     default:
       return undefined;
   }
@@ -1779,12 +1803,25 @@ function timeStripBody(n: Notice, result: ValidationResult): string {
     return `<p class="producer-card-label">${escHtml(t('producer.times.dq012_agencies'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.times.agency')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
   if (n.rule_id === 'DQ_016' && d.sample_0_field) {
-    // One raw value per column, with the spaces made visible.
-    const rows: string[] = [];
-    for (let i = 0; d[`sample_${i}_field`]; i++) {
-      rows.push(`<tr class="bad"><td>${escHtml(plannerFieldName(d[`sample_${i}_field`]!))}</td><td>${escHtml(visibleValue(d[`sample_${i}_value`] ?? '') || '—')}</td></tr>`);
-    }
-    return `<p class="producer-card-label">${escHtml(t('producer.times.dq016_samples'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.times.field')}</th><th>${t('producer.times.value')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+    // One raw value per column, with the spaces made visible, the record it sits on (named when
+    // the list is stops, routes or trips) and its row number in the file.
+    const ni = result.name_index;
+    const recordText = (record?: string): string => {
+      if (!record) return '—';
+      const stop = d.record_field === 'stop_id' ? dqIndexKey(ni.stops, record) : undefined;
+      if (stop) return `${ni.stops[stop]} (${visibleValue(record)})`;
+      const route = d.record_field === 'route_id' ? dqIndexKey(ni.routes, record) : undefined;
+      if (route) return `${ni.routes[route]} (${visibleValue(record)})`;
+      return visibleValue(record);
+    };
+    const samples = dq016Samples(d);
+    const withRecord = samples.some(sample => sample.record);
+    const withLine = samples.some(sample => sample.line);
+    const rows = samples.map(sample => `<tr class="bad"><td>${escHtml(plannerFieldName(sample.field))}</td><td>${escHtml(visibleValue(sample.value) || '—')}</td>${
+      withRecord ? `<td>${escHtml(recordText(sample.record))}</td>` : ''}${withLine ? `<td>${escHtml(sample.line || '—')}</td>` : ''}</tr>`);
+    const recordHead = d.record_field && PLANNER_FIELDS.has(d.record_field) ? plannerFieldName(d.record_field) : t('producer.col.record');
+    return `<p class="producer-card-label">${escHtml(t('producer.times.dq016_samples'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.times.field')}</th><th>${t('producer.times.value')}</th>${
+      withRecord ? `<th>${escHtml(recordHead)}</th>` : ''}${withLine ? `<th>${t('producer.col.row')}</th>` : ''}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
   if (n.rule_id === 'DQ_017' && d.example_0_stop_id) {
     // The stops near (0, 0) with the position as written.
@@ -2802,6 +2839,10 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   // DQ_022: the stops sharing one name; DQ_021 on stops.txt: the repeated stop codes.
   if (n.rule_id === 'DQ_022') {
     for (let i = 0; n.details?.[`example_${i}_stop_id`]; i++) addStop(n.details[`example_${i}_stop_id`], true);
+  }
+  // DQ_016 on the stop list: the stops whose values carry the spaces.
+  if (n.rule_id === 'DQ_016' && n.details?.record_field === 'stop_id') {
+    for (const sample of dq016Samples(n.details)) addStop(dqIndexKey(ni.stops, sample.record), true);
   }
   if (n.rule_id === 'DQ_021' && n.file === 'stops.txt') {
     for (let i = 0; n.details?.[`example_${i}_key`]; i++) addStop(n.details[`example_${i}_key`], true);
