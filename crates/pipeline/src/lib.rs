@@ -431,6 +431,14 @@ fn aggregate_dq021(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolv
     let mut aggregates = Vec::with_capacity(grouped.len());
     for (file, mut matches) in grouped {
         let mut aggregate = take_representative(&mut matches, resolver);
+        // Key → file lines (from the per-key notices), read before the aggregate is rewritten.
+        let key_lines: BTreeMap<String, String> = std::iter::once(&aggregate)
+            .chain(matches.iter())
+            .filter_map(|n| {
+                let lines = n.details.as_ref()?.get("lines")?.clone();
+                Some((n.observed_value.clone()?, lines))
+            })
+            .collect();
         let affected_duplicates = matches.len() + 1;
     let mut examples: Vec<String> = aggregate.observed_value.clone().into_iter()
             .chain(matches.iter().filter_map(|notice| notice.observed_value.clone()))
@@ -458,6 +466,13 @@ fn aggregate_dq021(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolv
             );
             if !examples.is_empty() {
                 details.insert("example_keys".to_string(), examples.join(" | "));
+            }
+            // Planner context: each example key with the file lines that carry it (when known).
+            for (i, key) in examples.iter().enumerate() {
+                details.insert(format!("example_{i}_key"), key.clone());
+                if let Some(lines) = key_lines.get(key) {
+                    details.insert(format!("example_{i}_lines"), lines.clone());
+                }
             }
             details.into()
         });

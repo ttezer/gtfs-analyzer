@@ -518,42 +518,6 @@
         "details": null,
         "entity_id": null,
         "entity_type": "Feed",
-        "expected_value": "≥ 3",
-        "field": null,
-        "file": "trips.txt",
-        "line": null,
-        "message": "Feed has too few trips (1).",
-        "observed_value": "1",
-        "remediation": "Add more trips to trips.txt.",
-        "rule_class": "ANALYTICS",
-        "rule_id": "DQ_013",
-        "scope_key": null,
-        "service_id": null,
-        "severity": "INFO",
-        "title": "Too few trips"
-      },
-      {
-        "details": null,
-        "entity_id": null,
-        "entity_type": "Feed",
-        "expected_value": null,
-        "field": "trip_headsign",
-        "file": "trips.txt",
-        "line": null,
-        "message": "Recommended field 'trip_headsign' is missing or empty in 'trips.txt' (1/1 rows).",
-        "observed_value": "1/1",
-        "remediation": "Add a trip_headsign column to trips.txt.",
-        "rule_class": "QUALITY",
-        "rule_id": "DQ_020",
-        "scope_key": null,
-        "service_id": null,
-        "severity": "LOW",
-        "title": "Recommended field missing or empty"
-      },
-      {
-        "details": null,
-        "entity_id": null,
-        "entity_type": "Feed",
         "expected_value": null,
         "field": null,
         "file": "shapes.txt/feed_info.txt",
@@ -627,6 +591,29 @@
       },
       {
         "details": {
+          "example_0_route_id": "R1",
+          "example_0_service_id": "SVC1",
+          "example_0_trip_id": "T1",
+          "trip_count": "1"
+        },
+        "entity_id": null,
+        "entity_type": "Feed",
+        "expected_value": "≥ 3",
+        "field": null,
+        "file": "trips.txt",
+        "line": null,
+        "message": "Feed has too few trips (1).",
+        "observed_value": "1",
+        "remediation": "Add more trips to trips.txt.",
+        "rule_class": "ANALYTICS",
+        "rule_id": "DQ_013",
+        "scope_key": null,
+        "service_id": null,
+        "severity": "INFO",
+        "title": "Too few trips"
+      },
+      {
+        "details": {
           "example_trip_id": "T1",
           "fixed_trips": "1",
           "route_0_example_trip_id": "T1",
@@ -651,6 +638,33 @@
         "service_id": null,
         "severity": "HIGH",
         "title": "High proportion of trips without shapes"
+      },
+      {
+        "details": {
+          "example_trip_id": "T1",
+          "missing_trips": "1",
+          "route_0_example_trip_id": "T1",
+          "route_0_missing": "1",
+          "route_0_route_id": "R1",
+          "route_0_trips": "1",
+          "route_count": "1",
+          "trip_count": "1"
+        },
+        "entity_id": null,
+        "entity_type": "Feed",
+        "expected_value": null,
+        "field": "trip_headsign",
+        "file": "trips.txt",
+        "line": null,
+        "message": "Recommended field 'trip_headsign' is missing or empty in 'trips.txt' (1/1 rows).",
+        "observed_value": "1/1",
+        "remediation": "Add a trip_headsign column to trips.txt.",
+        "rule_class": "QUALITY",
+        "rule_id": "DQ_020",
+        "scope_key": null,
+        "service_id": null,
+        "severity": "LOW",
+        "title": "Recommended field missing or empty"
       },
       {
         "details": {
@@ -3157,6 +3171,7 @@
         {
           "details": {
             "affected_duplicates": "1",
+            "example_0_key": "A1",
             "example_keys": "A1"
           },
           "entity_id": "attributions.txt",
@@ -3178,6 +3193,8 @@
         {
           "details": {
             "affected_duplicates": "1",
+            "example_0_key": "S1",
+            "example_0_lines": "2, 3",
             "example_keys": "S1"
           },
           "entity_id": "stops.txt",
@@ -6960,42 +6977,6 @@
         {
           "details": null,
           "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": "≥ 3",
-          "field": null,
-          "file": "trips.txt",
-          "line": null,
-          "message": "Feed has too few trips (2).",
-          "observed_value": "2",
-          "remediation": "Add more trips to trips.txt.",
-          "rule_class": "ANALYTICS",
-          "rule_id": "DQ_013",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Too few trips"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": null,
-          "field": "trip_headsign",
-          "file": "trips.txt",
-          "line": null,
-          "message": "Recommended field 'trip_headsign' is missing or empty in 'trips.txt' (2/2 rows).",
-          "observed_value": "2/2",
-          "remediation": "Add a trip_headsign column to trips.txt.",
-          "rule_class": "QUALITY",
-          "rule_id": "DQ_020",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "LOW",
-          "title": "Recommended field missing or empty"
-        },
-        {
-          "details": null,
-          "entity_id": null,
           "entity_type": "Trip",
           "expected_value": "1|2",
           "field": "bikes_allowed",
@@ -7116,6 +7097,32 @@
         },
         {
           "details": {
+            "example_0_route_id": "R1",
+            "example_0_service_id": "SVC1",
+            "example_0_trip_id": "T1",
+            "example_1_route_id": "R1",
+            "example_1_service_id": "SVC1",
+            "example_1_trip_id": "T2",
+            "trip_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "≥ 3",
+          "field": null,
+          "file": "trips.txt",
+          "line": null,
+          "message": "Feed has too few trips (2).",
+          "observed_value": "2",
+          "remediation": "Add more trips to trips.txt.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "DQ_013",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Too few trips"
+        },
+        {
+          "details": {
             "example_trip_id": "T1",
             "fixed_trips": "2",
             "route_0_example_trip_id": "T1",
@@ -7140,6 +7147,33 @@
           "service_id": null,
           "severity": "HIGH",
           "title": "High proportion of trips without shapes"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "missing_trips": "2",
+            "route_0_example_trip_id": "T1",
+            "route_0_missing": "2",
+            "route_0_route_id": "R1",
+            "route_0_trips": "2",
+            "route_count": "1",
+            "trip_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": null,
+          "field": "trip_headsign",
+          "file": "trips.txt",
+          "line": null,
+          "message": "Recommended field 'trip_headsign' is missing or empty in 'trips.txt' (2/2 rows).",
+          "observed_value": "2/2",
+          "remediation": "Add a trip_headsign column to trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_020",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "LOW",
+          "title": "Recommended field missing or empty"
         }
       ],
       "agency_breakdown": {
@@ -7481,42 +7515,6 @@
         {
           "details": null,
           "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": "≥ 3",
-          "field": null,
-          "file": "trips.txt",
-          "line": null,
-          "message": "Feed has too few trips (1).",
-          "observed_value": "1",
-          "remediation": "Add more trips to trips.txt.",
-          "rule_class": "ANALYTICS",
-          "rule_id": "DQ_013",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Too few trips"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": null,
-          "field": "trip_headsign",
-          "file": "trips.txt",
-          "line": null,
-          "message": "Recommended field 'trip_headsign' is missing or empty in 'trips.txt' (1/1 rows).",
-          "observed_value": "1/1",
-          "remediation": "Add a trip_headsign column to trips.txt.",
-          "rule_class": "QUALITY",
-          "rule_id": "DQ_020",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "LOW",
-          "title": "Recommended field missing or empty"
-        },
-        {
-          "details": null,
-          "entity_id": null,
           "entity_type": "Trip",
           "expected_value": "1|2",
           "field": "bikes_allowed",
@@ -7531,6 +7529,29 @@
           "service_id": null,
           "severity": "INFO",
           "title": "Bicycle allowance (bikes_allowed) not specified"
+        },
+        {
+          "details": {
+            "example_0_route_id": "R1",
+            "example_0_service_id": "SVC1",
+            "example_0_trip_id": "T1",
+            "trip_count": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "≥ 3",
+          "field": null,
+          "file": "trips.txt",
+          "line": null,
+          "message": "Feed has too few trips (1).",
+          "observed_value": "1",
+          "remediation": "Add more trips to trips.txt.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "DQ_013",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Too few trips"
         },
         {
           "details": {
@@ -7558,6 +7579,33 @@
           "service_id": null,
           "severity": "HIGH",
           "title": "High proportion of trips without shapes"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "missing_trips": "1",
+            "route_0_example_trip_id": "T1",
+            "route_0_missing": "1",
+            "route_0_route_id": "R1",
+            "route_0_trips": "1",
+            "route_count": "1",
+            "trip_count": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": null,
+          "field": "trip_headsign",
+          "file": "trips.txt",
+          "line": null,
+          "message": "Recommended field 'trip_headsign' is missing or empty in 'trips.txt' (1/1 rows).",
+          "observed_value": "1/1",
+          "remediation": "Add a trip_headsign column to trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_020",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "LOW",
+          "title": "Recommended field missing or empty"
         }
       ],
       "score": 96.3
@@ -10055,42 +10103,6 @@
         {
           "details": null,
           "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": "≥ 3",
-          "field": null,
-          "file": "trips.txt",
-          "line": null,
-          "message": "Feed has too few trips (2).",
-          "observed_value": "2",
-          "remediation": "Add more trips to trips.txt.",
-          "rule_class": "ANALYTICS",
-          "rule_id": "DQ_013",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Too few trips"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": null,
-          "field": "trip_headsign",
-          "file": "trips.txt",
-          "line": null,
-          "message": "Recommended field 'trip_headsign' is missing or empty in 'trips.txt' (2/2 rows).",
-          "observed_value": "2/2",
-          "remediation": "Add a trip_headsign column to trips.txt.",
-          "rule_class": "QUALITY",
-          "rule_id": "DQ_020",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "LOW",
-          "title": "Recommended field missing or empty"
-        },
-        {
-          "details": null,
-          "entity_id": null,
           "entity_type": "Transfer",
           "expected_value": null,
           "field": "to_stop_id",
@@ -10186,6 +10198,32 @@
         },
         {
           "details": {
+            "example_0_route_id": "R1",
+            "example_0_service_id": "SVC1",
+            "example_0_trip_id": "T1",
+            "example_1_route_id": "R2",
+            "example_1_service_id": "SVC1",
+            "example_1_trip_id": "T2",
+            "trip_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "≥ 3",
+          "field": null,
+          "file": "trips.txt",
+          "line": null,
+          "message": "Feed has too few trips (2).",
+          "observed_value": "2",
+          "remediation": "Add more trips to trips.txt.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "DQ_013",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Too few trips"
+        },
+        {
+          "details": {
             "example_trip_id": "T1",
             "fixed_trips": "2",
             "route_0_example_trip_id": "T1",
@@ -10214,6 +10252,37 @@
           "service_id": null,
           "severity": "HIGH",
           "title": "High proportion of trips without shapes"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "missing_trips": "2",
+            "route_0_example_trip_id": "T1",
+            "route_0_missing": "1",
+            "route_0_route_id": "R1",
+            "route_0_trips": "1",
+            "route_1_example_trip_id": "T2",
+            "route_1_missing": "1",
+            "route_1_route_id": "R2",
+            "route_1_trips": "1",
+            "route_count": "2",
+            "trip_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": null,
+          "field": "trip_headsign",
+          "file": "trips.txt",
+          "line": null,
+          "message": "Recommended field 'trip_headsign' is missing or empty in 'trips.txt' (2/2 rows).",
+          "observed_value": "2/2",
+          "remediation": "Add a trip_headsign column to trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_020",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "LOW",
+          "title": "Recommended field missing or empty"
         },
         {
           "details": {
@@ -10624,42 +10693,6 @@
         {
           "details": null,
           "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": "≥ 3",
-          "field": null,
-          "file": "trips.txt",
-          "line": null,
-          "message": "Feed has too few trips (1).",
-          "observed_value": "1",
-          "remediation": "Add more trips to trips.txt.",
-          "rule_class": "ANALYTICS",
-          "rule_id": "DQ_013",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Too few trips"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": null,
-          "field": "trip_headsign",
-          "file": "trips.txt",
-          "line": null,
-          "message": "Recommended field 'trip_headsign' is missing or empty in 'trips.txt' (1/1 rows).",
-          "observed_value": "1/1",
-          "remediation": "Add a trip_headsign column to trips.txt.",
-          "rule_class": "QUALITY",
-          "rule_id": "DQ_020",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "LOW",
-          "title": "Recommended field missing or empty"
-        },
-        {
-          "details": null,
-          "entity_id": null,
           "entity_type": "Trip",
           "expected_value": "1|2",
           "field": "bikes_allowed",
@@ -10674,6 +10707,29 @@
           "service_id": null,
           "severity": "INFO",
           "title": "Bicycle allowance (bikes_allowed) not specified"
+        },
+        {
+          "details": {
+            "example_0_route_id": "R1",
+            "example_0_service_id": "SVC1",
+            "example_0_trip_id": "T1",
+            "trip_count": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "≥ 3",
+          "field": null,
+          "file": "trips.txt",
+          "line": null,
+          "message": "Feed has too few trips (1).",
+          "observed_value": "1",
+          "remediation": "Add more trips to trips.txt.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "DQ_013",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Too few trips"
         },
         {
           "details": {
@@ -10701,6 +10757,33 @@
           "service_id": null,
           "severity": "HIGH",
           "title": "High proportion of trips without shapes"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "missing_trips": "1",
+            "route_0_example_trip_id": "T1",
+            "route_0_missing": "1",
+            "route_0_route_id": "R1",
+            "route_0_trips": "1",
+            "route_count": "1",
+            "trip_count": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": null,
+          "field": "trip_headsign",
+          "file": "trips.txt",
+          "line": null,
+          "message": "Recommended field 'trip_headsign' is missing or empty in 'trips.txt' (1/1 rows).",
+          "observed_value": "1/1",
+          "remediation": "Add a trip_headsign column to trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_020",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "LOW",
+          "title": "Recommended field missing or empty"
         }
       ],
       "score": 90.7
@@ -11251,42 +11334,6 @@
         {
           "details": null,
           "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": "≥ 3",
-          "field": null,
-          "file": "trips.txt",
-          "line": null,
-          "message": "Feed has too few trips (2).",
-          "observed_value": "2",
-          "remediation": "Add more trips to trips.txt.",
-          "rule_class": "ANALYTICS",
-          "rule_id": "DQ_013",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Too few trips"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": null,
-          "field": "trip_headsign",
-          "file": "trips.txt",
-          "line": null,
-          "message": "Recommended field 'trip_headsign' is missing or empty in 'trips.txt' (2/2 rows).",
-          "observed_value": "2/2",
-          "remediation": "Add a trip_headsign column to trips.txt.",
-          "rule_class": "QUALITY",
-          "rule_id": "DQ_020",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "LOW",
-          "title": "Recommended field missing or empty"
-        },
-        {
-          "details": null,
-          "entity_id": null,
           "entity_type": "Trip",
           "expected_value": "1|2",
           "field": "bikes_allowed",
@@ -11326,6 +11373,32 @@
         },
         {
           "details": {
+            "example_0_route_id": "R1",
+            "example_0_service_id": "SVCX",
+            "example_0_trip_id": "T1",
+            "example_1_route_id": "R1",
+            "example_1_service_id": "SVCY",
+            "example_1_trip_id": "T2",
+            "trip_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "≥ 3",
+          "field": null,
+          "file": "trips.txt",
+          "line": null,
+          "message": "Feed has too few trips (2).",
+          "observed_value": "2",
+          "remediation": "Add more trips to trips.txt.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "DQ_013",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Too few trips"
+        },
+        {
+          "details": {
             "example_trip_id": "T1",
             "fixed_trips": "2",
             "route_0_example_trip_id": "T1",
@@ -11350,6 +11423,33 @@
           "service_id": null,
           "severity": "HIGH",
           "title": "High proportion of trips without shapes"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "missing_trips": "2",
+            "route_0_example_trip_id": "T1",
+            "route_0_missing": "2",
+            "route_0_route_id": "R1",
+            "route_0_trips": "2",
+            "route_count": "1",
+            "trip_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": null,
+          "field": "trip_headsign",
+          "file": "trips.txt",
+          "line": null,
+          "message": "Recommended field 'trip_headsign' is missing or empty in 'trips.txt' (2/2 rows).",
+          "observed_value": "2/2",
+          "remediation": "Add a trip_headsign column to trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_020",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "LOW",
+          "title": "Recommended field missing or empty"
         }
       ],
       "agency_breakdown": {
@@ -11765,42 +11865,6 @@
         {
           "details": null,
           "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": "≥ 3",
-          "field": null,
-          "file": "trips.txt",
-          "line": null,
-          "message": "Feed has too few trips (1).",
-          "observed_value": "1",
-          "remediation": "Add more trips to trips.txt.",
-          "rule_class": "ANALYTICS",
-          "rule_id": "DQ_013",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Too few trips"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": null,
-          "field": "trip_headsign",
-          "file": "trips.txt",
-          "line": null,
-          "message": "Recommended field 'trip_headsign' is missing or empty in 'trips.txt' (1/1 rows).",
-          "observed_value": "1/1",
-          "remediation": "Add a trip_headsign column to trips.txt.",
-          "rule_class": "QUALITY",
-          "rule_id": "DQ_020",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "LOW",
-          "title": "Recommended field missing or empty"
-        },
-        {
-          "details": null,
-          "entity_id": null,
           "entity_type": "Trip",
           "expected_value": "1|2",
           "field": "bikes_allowed",
@@ -11815,6 +11879,29 @@
           "service_id": null,
           "severity": "INFO",
           "title": "Bicycle allowance (bikes_allowed) not specified"
+        },
+        {
+          "details": {
+            "example_0_route_id": "R1",
+            "example_0_service_id": "SVC1",
+            "example_0_trip_id": "T1",
+            "trip_count": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "≥ 3",
+          "field": null,
+          "file": "trips.txt",
+          "line": null,
+          "message": "Feed has too few trips (1).",
+          "observed_value": "1",
+          "remediation": "Add more trips to trips.txt.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "DQ_013",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Too few trips"
         },
         {
           "details": {
@@ -11842,6 +11929,33 @@
           "service_id": null,
           "severity": "HIGH",
           "title": "High proportion of trips without shapes"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "missing_trips": "1",
+            "route_0_example_trip_id": "T1",
+            "route_0_missing": "1",
+            "route_0_route_id": "R1",
+            "route_0_trips": "1",
+            "route_count": "1",
+            "trip_count": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": null,
+          "field": "trip_headsign",
+          "file": "trips.txt",
+          "line": null,
+          "message": "Recommended field 'trip_headsign' is missing or empty in 'trips.txt' (1/1 rows).",
+          "observed_value": "1/1",
+          "remediation": "Add a trip_headsign column to trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_020",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "LOW",
+          "title": "Recommended field missing or empty"
         }
       ],
       "score": 92.6
@@ -11905,42 +12019,6 @@
         {
           "details": null,
           "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": "≥ 3",
-          "field": null,
-          "file": "trips.txt",
-          "line": null,
-          "message": "Feed has too few trips (2).",
-          "observed_value": "2",
-          "remediation": "Add more trips to trips.txt.",
-          "rule_class": "ANALYTICS",
-          "rule_id": "DQ_013",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Too few trips"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": null,
-          "field": "trip_headsign",
-          "file": "trips.txt",
-          "line": null,
-          "message": "Recommended field 'trip_headsign' is missing or empty in 'trips.txt' (2/2 rows).",
-          "observed_value": "2/2",
-          "remediation": "Add a trip_headsign column to trips.txt.",
-          "rule_class": "QUALITY",
-          "rule_id": "DQ_020",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "LOW",
-          "title": "Recommended field missing or empty"
-        },
-        {
-          "details": null,
-          "entity_id": null,
           "entity_type": "Trip",
           "expected_value": "1|2",
           "field": "bikes_allowed",
@@ -11979,6 +12057,32 @@
         },
         {
           "details": {
+            "example_0_route_id": "R1",
+            "example_0_service_id": "SVC1",
+            "example_0_trip_id": "T1",
+            "example_1_route_id": "R1",
+            "example_1_service_id": "SVC1",
+            "example_1_trip_id": "T2",
+            "trip_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "≥ 3",
+          "field": null,
+          "file": "trips.txt",
+          "line": null,
+          "message": "Feed has too few trips (2).",
+          "observed_value": "2",
+          "remediation": "Add more trips to trips.txt.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "DQ_013",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Too few trips"
+        },
+        {
+          "details": {
             "example_trip_id": "T1",
             "fixed_trips": "2",
             "route_0_example_trip_id": "T1",
@@ -12003,6 +12107,33 @@
           "service_id": null,
           "severity": "HIGH",
           "title": "High proportion of trips without shapes"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "missing_trips": "2",
+            "route_0_example_trip_id": "T1",
+            "route_0_missing": "2",
+            "route_0_route_id": "R1",
+            "route_0_trips": "2",
+            "route_count": "1",
+            "trip_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": null,
+          "field": "trip_headsign",
+          "file": "trips.txt",
+          "line": null,
+          "message": "Recommended field 'trip_headsign' is missing or empty in 'trips.txt' (2/2 rows).",
+          "observed_value": "2/2",
+          "remediation": "Add a trip_headsign column to trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_020",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "LOW",
+          "title": "Recommended field missing or empty"
         },
         {
           "details": {
@@ -12363,42 +12494,6 @@
         {
           "details": null,
           "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": "≥ 3",
-          "field": null,
-          "file": "trips.txt",
-          "line": null,
-          "message": "Feed has too few trips (1).",
-          "observed_value": "1",
-          "remediation": "Add more trips to trips.txt.",
-          "rule_class": "ANALYTICS",
-          "rule_id": "DQ_013",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Too few trips"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": null,
-          "field": "trip_headsign",
-          "file": "trips.txt",
-          "line": null,
-          "message": "Recommended field 'trip_headsign' is missing or empty in 'trips.txt' (1/1 rows).",
-          "observed_value": "1/1",
-          "remediation": "Add a trip_headsign column to trips.txt.",
-          "rule_class": "QUALITY",
-          "rule_id": "DQ_020",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "LOW",
-          "title": "Recommended field missing or empty"
-        },
-        {
-          "details": null,
-          "entity_id": null,
           "entity_type": "Trip",
           "expected_value": "1|2",
           "field": "bikes_allowed",
@@ -12413,6 +12508,29 @@
           "service_id": null,
           "severity": "INFO",
           "title": "Bicycle allowance (bikes_allowed) not specified"
+        },
+        {
+          "details": {
+            "example_0_route_id": "R1",
+            "example_0_service_id": "SVC1",
+            "example_0_trip_id": "T1",
+            "trip_count": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "≥ 3",
+          "field": null,
+          "file": "trips.txt",
+          "line": null,
+          "message": "Feed has too few trips (1).",
+          "observed_value": "1",
+          "remediation": "Add more trips to trips.txt.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "DQ_013",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Too few trips"
         },
         {
           "details": {
@@ -12440,6 +12558,33 @@
           "service_id": null,
           "severity": "HIGH",
           "title": "High proportion of trips without shapes"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "missing_trips": "1",
+            "route_0_example_trip_id": "T1",
+            "route_0_missing": "1",
+            "route_0_route_id": "R1",
+            "route_0_trips": "1",
+            "route_count": "1",
+            "trip_count": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": null,
+          "field": "trip_headsign",
+          "file": "trips.txt",
+          "line": null,
+          "message": "Recommended field 'trip_headsign' is missing or empty in 'trips.txt' (1/1 rows).",
+          "observed_value": "1/1",
+          "remediation": "Add a trip_headsign column to trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_020",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "LOW",
+          "title": "Recommended field missing or empty"
         }
       ],
       "score": 95.3
@@ -12506,6 +12651,8 @@
             "cross_file_analysis": "unreliable — lookups keyed on these values cannot match across files",
             "identity_whitespace_fields": "route_id",
             "raw_samples": "route_id=\" R1\"",
+            "sample_0_field": "route_id",
+            "sample_0_value": " R1",
             "suppressed_derivative_count": "2",
             "suppressed_derivative_rules": "TRP_002, TRP_011"
           },
@@ -12524,6 +12671,29 @@
           "service_id": null,
           "severity": "MEDIUM",
           "title": "Extra whitespace in field value"
+        },
+        {
+          "details": {
+            "example_0_route_id": " R1",
+            "example_0_service_id": "SVC1",
+            "example_0_trip_id": "T1",
+            "trip_count": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "≥ 3",
+          "field": null,
+          "file": "trips.txt",
+          "line": null,
+          "message": "Feed has too few trips (1).",
+          "observed_value": "1",
+          "remediation": "Add more trips to trips.txt.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "DQ_013",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Too few trips"
         },
         {
           "details": {
@@ -12551,6 +12721,33 @@
           "service_id": null,
           "severity": "HIGH",
           "title": "High proportion of trips without shapes"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "missing_trips": "1",
+            "route_0_example_trip_id": "T1",
+            "route_0_missing": "1",
+            "route_0_route_id": " R1",
+            "route_0_trips": "1",
+            "route_count": "1",
+            "trip_count": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": null,
+          "field": "trip_headsign",
+          "file": "trips.txt",
+          "line": null,
+          "message": "Recommended field 'trip_headsign' is missing or empty in 'trips.txt' (1/1 rows).",
+          "observed_value": "1/1",
+          "remediation": "Add a trip_headsign column to trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_020",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "LOW",
+          "title": "Recommended field missing or empty"
         },
         {
           "details": {
@@ -12883,6 +13080,29 @@
         },
         {
           "details": {
+            "example_0_route_id": "R1",
+            "example_0_service_id": "SVC1",
+            "example_0_trip_id": "T1",
+            "trip_count": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "≥ 3",
+          "field": null,
+          "file": "trips.txt",
+          "line": null,
+          "message": "Feed has too few trips (1).",
+          "observed_value": "1",
+          "remediation": "Add more trips to trips.txt.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "DQ_013",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Too few trips"
+        },
+        {
+          "details": {
             "example_trip_id": "T1",
             "fixed_trips": "1",
             "route_0_example_trip_id": "T1",
@@ -12907,6 +13127,33 @@
           "service_id": null,
           "severity": "HIGH",
           "title": "High proportion of trips without shapes"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "missing_trips": "1",
+            "route_0_example_trip_id": "T1",
+            "route_0_missing": "1",
+            "route_0_route_id": "R1",
+            "route_0_trips": "1",
+            "route_count": "1",
+            "trip_count": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": null,
+          "field": "trip_headsign",
+          "file": "trips.txt",
+          "line": null,
+          "message": "Recommended field 'trip_headsign' is missing or empty in 'trips.txt' (1/1 rows).",
+          "observed_value": "1/1",
+          "remediation": "Add a trip_headsign column to trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_020",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "LOW",
+          "title": "Recommended field missing or empty"
         },
         {
           "details": {

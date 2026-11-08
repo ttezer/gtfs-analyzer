@@ -754,6 +754,58 @@ const DQ_TRIP_EXAMPLES: usize = 10;
 const DQ005C_EXAMPLES: usize = 50;
 /// Agencies that routes do use, listed on a DQ_010 finding.
 const DQ010_USED: usize = 10;
+/// File lines listed per repeated key on a DQ_021 finding.
+const DQ021_LINES: usize = 10;
+/// Agencies (file order) listed on a DQ_012 finding.
+const DQ012_AGENCIES: usize = 10;
+/// Stops near (0, 0) listed on a DQ_017 finding.
+const DQ017_EXAMPLES: usize = 50;
+/// Routes shown in the DQ_020 summary.
+const DQ020_ROUTES: usize = 20;
+/// Stops sharing the common name listed on a DQ_022 finding.
+const DQ022_EXAMPLES: usize = 50;
+
+/// DQ_020 planner context: the routes with the most trips without a headsign (tie → route_id),
+/// each with its trip count and one example trip, preferring a trip with stop times so the card
+/// can name its last stop as a headsign candidate.
+fn dq020_route_details(records: &EntityRecords) -> Vec<(String, String)> {
+    let ti = &records.trip_interns;
+    let has_times = &records.stop_times_index.trip_id_set;
+    // route_id → (missing, trips, example trip, example has stop times)
+    let mut by_route: FxHashMap<&str, (usize, usize, &str, bool)> = FxHashMap::default();
+    for t in records.trips.iter().filter(|t| !t.trip_id.is_empty()) {
+        let entry = by_route.entry(ti.route_id(t)).or_insert((0, 0, "", false));
+        entry.1 += 1;
+        if !ti.headsign(t).is_none_or(|s| s.trim().is_empty()) {
+            continue;
+        }
+        entry.0 += 1;
+        let timed = has_times.contains(t.trip_id.as_str());
+        if entry.2.is_empty() || (timed && !entry.3) {
+            entry.2 = t.trip_id.as_str();
+            entry.3 = timed;
+        }
+    }
+    let mut routes: Vec<_> = by_route.into_iter().filter(|(_, v)| v.0 > 0).collect();
+    routes.sort_by(|a, b| b.1 .0.cmp(&a.1 .0).then_with(|| a.0.cmp(b.0)));
+    let mut out = vec![("route_count".to_string(), routes.len().to_string())];
+    let example = routes
+        .iter()
+        .find(|(_, v)| v.3)
+        .or(routes.first())
+        .map(|(_, v)| v.2);
+    if let Some(trip) = example {
+        out.push(("example_trip_id".to_string(), trip.to_string()));
+    }
+    for (i, (route, (missing, trips, trip, _))) in routes.into_iter().take(DQ020_ROUTES).enumerate()
+    {
+        out.push((format!("route_{i}_route_id"), route.to_string()));
+        out.push((format!("route_{i}_missing"), missing.to_string()));
+        out.push((format!("route_{i}_trips"), trips.to_string()));
+        out.push((format!("route_{i}_example_trip_id"), trip.to_string()));
+    }
+    out
+}
 
 /// DQ_006 planner context: the routes with the most trips without a shape (tie → route_id), each
 /// with its fixed-trip count and one shapeless example trip, preferring a trip that has stop
@@ -6628,6 +6680,21 @@ fn check_data_quality(
                 ),
                 "routes.txt'deki agency_id sütununu doldurun.",
             ));
+            // Planner context: the counts and the first agencies in file order.
+            if let Some(n) = notices.last_mut() {
+                let details = n.details.get_or_insert_with(Default::default);
+                details.insert("agency_count", records.agencies.len().to_string());
+                details.insert("route_count", records.routes.len().to_string());
+                let mut agencies: Vec<_> = records.agencies.iter().collect();
+                agencies.sort_by_key(|a| a.line);
+                for (i, ag) in agencies.into_iter().take(DQ012_AGENCIES).enumerate() {
+                    details.insert(
+                        format!("example_{i}_agency_id"),
+                        ag.agency_id.clone().unwrap_or_default(),
+                    );
+                    details.insert(format!("example_{i}_agency_name"), ag.agency_name.clone());
+                }
+            }
         }
     }
 
@@ -6665,6 +6732,12 @@ fn check_data_quality(
                 format!("Feed'de yalnızca {trip_count} sefer var — işlevsel transit veri için en az 3 sefer önerilir."),
                 "trips.txt'e daha fazla sefer ekleyin.",
             ));
+            if let Some(n) = notices.last_mut() {
+                let details = n.details.get_or_insert_with(Default::default);
+                for (key, value) in trip_example_details(records) {
+                    details.insert(key, value);
+                }
+            }
         }
     }
 
@@ -6755,6 +6828,30 @@ fn check_data_quality(
                 format!("{suspicious} durağın koordinatı (0°, 0°) civarında — bu Afrika kıyısı açıklarıdır; muhtemelen yanlış değer."),
                 "Durak koordinatlarını gerçek konuma göre düzeltin.",
             ));
+            // Planner context: the first such stops in file order with the written position.
+            if let Some(n) = notices.last_mut() {
+                let details = n.details.get_or_insert_with(Default::default);
+                let mut stops: Vec<_> = records
+                    .stops
+                    .iter()
+                    .filter(|s| !s.stop_id.is_empty())
+                    .filter(|s| {
+                        matches!((s.stop_lat, s.stop_lon), (Some(lat), Some(lon))
+                            if lat.abs() < 1.0 && lon.abs() < 1.0)
+                    })
+                    .collect();
+                stops.sort_by_key(|s| s.line);
+                for (i, stop) in stops.into_iter().take(DQ017_EXAMPLES).enumerate() {
+                    details.insert(format!("example_{i}_stop_id"), stop.stop_id.clone());
+                    if let Some(name) = stop.stop_name.as_deref().filter(|v| !v.is_empty()) {
+                        details.insert(format!("example_{i}_stop_name"), name);
+                    }
+                    if let (Some(lat), Some(lon)) = (stop.stop_lat, stop.stop_lon) {
+                        details.insert(format!("example_{i}_stop_lat"), lat.to_string());
+                        details.insert(format!("example_{i}_stop_lon"), lon.to_string());
+                    }
+                }
+            }
         }
     }
 
@@ -6943,6 +7040,22 @@ fn check_data_quality(
                         format!("Durakların {most_count}/{total_named} tanesinin adı '{most_common_name}' — yer tutucu veya test verisi olabilir."),
                         "Her durağa gerçek konumunu yansıtan benzersiz bir stop_name verin.",
                     ));
+                    // Planner context: the shared name, the counts and the first stops carrying it.
+                    if let Some(n) = notices.last_mut() {
+                        let details = n.details.get_or_insert_with(Default::default);
+                        details.insert("common_name", most_common_name);
+                        details.insert("common_count", most_count.to_string());
+                        details.insert("named_count", total_named.to_string());
+                        let mut stops: Vec<_> = records
+                            .stops
+                            .iter()
+                            .filter(|s| s.stop_name.as_deref() == Some(most_common_name))
+                            .collect();
+                        stops.sort_by_key(|s| s.line);
+                        for (i, stop) in stops.into_iter().take(DQ022_EXAMPLES).enumerate() {
+                            details.insert(format!("example_{i}_stop_id"), stop.stop_id.clone());
+                        }
+                    }
                 }
             }
         }
@@ -6963,7 +7076,44 @@ fn check_data_quality(
             }
             dups
         }
+        // Planner context for a repeated key: the file lines of every row carrying it. One scan
+        // per file, only for the repeated keys (usually none), so large feeds pay nothing extra.
+        fn dup_lines<'a>(
+            notices: &mut [Notice],
+            rule_start: usize,
+            rows: impl Iterator<Item = (&'a str, u64)>,
+        ) {
+            let added = &mut notices[rule_start..];
+            if added.is_empty() {
+                return;
+            }
+            let mut lines: HashMap<String, Vec<u64>> = added
+                .iter()
+                .filter_map(|n| n.entity_id.clone())
+                .map(|id| (id, Vec::new()))
+                .collect();
+            for (id, line) in rows {
+                if let Some(v) = lines.get_mut(id) {
+                    v.push(line);
+                }
+            }
+            for n in added.iter_mut() {
+                let Some(found) = n.entity_id.as_deref().and_then(|id| lines.get(id)) else {
+                    continue;
+                };
+                let text = found
+                    .iter()
+                    .take(DQ021_LINES)
+                    .map(u64::to_string)
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                n.details
+                    .get_or_insert_with(Default::default)
+                    .insert("lines", text);
+            }
+        }
 
+        let start = notices.len();
         for dup_id in find_dups(
             records
                 .stops
@@ -6987,6 +7137,14 @@ fn check_data_quality(
                 "stops.txt'de benzersiz stop_id değerleri kullanın.",
             ));
         }
+        if stops_usable {
+            dup_lines(
+                notices,
+                start,
+                records.stops.iter().map(|x| (x.stop_id.as_str(), x.line)),
+            );
+        }
+        let start = notices.len();
         for dup_id in find_dups(
             records
                 .routes
@@ -7010,6 +7168,14 @@ fn check_data_quality(
                 "routes.txt'de benzersiz route_id değerleri kullanın.",
             ));
         }
+        if routes_usable {
+            dup_lines(
+                notices,
+                start,
+                records.routes.iter().map(|x| (x.route_id.as_str(), x.line)),
+            );
+        }
+        let start = notices.len();
         for dup_id in find_dups(
             records
                 .trips
@@ -7032,6 +7198,13 @@ fn check_data_quality(
                 format!("trip_id '{dup_id}' trips.txt'de birden fazla kez tanımlanmış."),
                 "trips.txt'de benzersiz trip_id değerleri kullanın.",
             ));
+        }
+        if trips_usable {
+            dup_lines(
+                notices,
+                start,
+                records.trips.iter().map(|x| (x.trip_id.as_str(), x.line)),
+            );
         }
         // attributions.txt (attribution_id) — spec type `Unique ID`, the file's primary key.
         // Because the field is Optional, ATR_001 (missing) is Quality; UNIQUENESS is normative
@@ -9652,28 +9825,51 @@ fn check_remaining_analytics<'a>(
     // B4: scan stop_headsign's 36 MB once for DQ_018+DQ_019 (previously twice).
     // Collect raw (line, value); mint notices below at their original block locations →
     // emission order, ctr, id, and content remain identical (only scans change 2→1).
-    type HeadSignSamples = (Vec<(u64, String)>, Vec<(u64, String)>);
+    // Each sample also keeps its row's trip, stop and sequence for the planner (`iter_trips`
+    // walks the same map in the same order as `iter_stops`, so the first-seen rows are unchanged).
+    type HeadSignSample = (u64, String, String, String, Option<u32>);
+    type HeadSignSamples = (Vec<HeadSignSample>, Vec<HeadSignSample>);
     let (dq_caps_hs, dq_lower_hs): HeadSignSamples = {
-        let mut caps: Vec<(u64, String)> = Vec::new();
-        let mut lower: Vec<(u64, String)> = Vec::new();
+        let index = &records.stop_times_index;
+        let mut caps: Vec<HeadSignSample> = Vec::new();
+        let mut lower: Vec<HeadSignSample> = Vec::new();
         let mut seen_caps: std::collections::HashSet<&str> = std::collections::HashSet::new();
         let mut seen_lower: std::collections::HashSet<&str> = std::collections::HashSet::new();
-        for stops in records.stop_times_index.iter_stops() {
+        for (trip_id, stops) in index.iter_trips() {
             for st in stops {
-                if let Some(hs) = records.stop_times_index.stop_headsign_of(st) {
+                if let Some(hs) = index.stop_headsign_of(st) {
                     let s = hs.as_str();
+                    let sample = || {
+                        (
+                            st.line as u64,
+                            s.to_string(),
+                            trip_id.to_string(),
+                            index.stop_id_of(st).to_string(),
+                            st.stop_sequence(),
+                        )
+                    };
                     if !seen_caps.contains(s) && is_all_caps(s) {
                         seen_caps.insert(s);
-                        caps.push((st.line as u64, s.to_string()));
+                        caps.push(sample());
                     }
                     if !seen_lower.contains(s) && is_all_lower(s) {
                         seen_lower.insert(s);
-                        lower.push((st.line as u64, s.to_string()));
+                        lower.push(sample());
                     }
                 }
             }
         }
         (caps, lower)
+    };
+    let headsign_row_details = |n: &mut Notice, sample: &HeadSignSample| {
+        let details = n.details.get_or_insert_with(Default::default);
+        details.insert("trip_id", sample.2.clone());
+        if !sample.3.is_empty() {
+            details.insert("stop_id", sample.3.clone());
+        }
+        if let Some(seq) = sample.4 {
+            details.insert("stop_sequence", seq.to_string());
+        }
     };
 
     // ── DQ_018: recommended text fields are all uppercase (mixed_case_recommended_field) ─
@@ -9795,21 +9991,24 @@ fn check_remaining_analytics<'a>(
         }
 
         // stop_headsign (B4: caps values collected by the single scan — same order/content/ctr).
-        for (line, s) in &dq_caps_hs {
-            notices.push(k6_notice(
+        for sample in &dq_caps_hs {
+            let s = &sample.1;
+            let mut n = k6_notice(
                 ctr,
                 "DQ_018",
                 EntityType::Row,
                 None,
                 None,
                 "stop_times.txt",
-                Some(*line),
+                Some(sample.0),
                 Some("stop_headsign"),
                 Some(s.clone()),
                 None,
                 format!("stop_headsign değeri tamamen büyük harf: '{s}'."),
                 "Yön adını düzgün harf kuralıyla yazın.",
-            ));
+            );
+            headsign_row_details(&mut n, sample);
+            notices.push(n);
         }
 
     }
@@ -9915,21 +10114,24 @@ fn check_remaining_analytics<'a>(
         }
 
         // stop_headsign (B4: lowercase values collected by the single scan — same order/content/ctr).
-        for (line, s) in &dq_lower_hs {
-            notices.push(k6_notice(
+        for sample in &dq_lower_hs {
+            let s = &sample.1;
+            let mut n = k6_notice(
                 ctr,
                 "DQ_019",
                 EntityType::Row,
                 None,
                 None,
                 "stop_times.txt",
-                Some(*line),
+                Some(sample.0),
                 Some("stop_headsign"),
                 Some(s.clone()),
                 None,
                 format!("stop_headsign değeri tamamen küçük harf: '{s}'."),
                 "Yön adını başlık harfiyle yazın.",
-            ));
+            );
+            headsign_row_details(&mut n, sample);
+            notices.push(n);
         }
 
     }
@@ -9964,6 +10166,14 @@ fn check_remaining_analytics<'a>(
                 format!("trips.txt'te önerilen trip_headsign alanı {missing}/{total} satırda boş — yolcu bilgi sistemleri için doldurulması önerilir."),
                 "trips.txt'teki trip_headsign sütununu doldurun.",
             ));
+            if let Some(n) = notices.last_mut() {
+                let details = n.details.get_or_insert_with(Default::default);
+                details.insert("missing_trips", missing.to_string());
+                details.insert("trip_count", total.to_string());
+                for (key, value) in dq020_route_details(records) {
+                    details.insert(key, value);
+                }
+            }
         }
     }
 

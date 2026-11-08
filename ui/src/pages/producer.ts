@@ -1161,6 +1161,79 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         action: t('producer.card.DQ_011.action'),
       };
     }
+    case 'DQ_012': {
+      const d = n.details ?? {};
+      if (!d.agency_count) return null;
+      return {
+        title: t('producer.card.DQ_012.title'),
+        what: t('producer.card.DQ_012.what_detail', { agencies: localizedNumber(d.agency_count), routes: localizedNumber(d.route_count || '0') }),
+        action: t('producer.card.DQ_012.action'),
+      };
+    }
+    case 'DQ_013': {
+      const d = n.details ?? {};
+      if (!d.trip_count) return null;
+      return {
+        title: t('producer.card.DQ_013.title'),
+        what: t('producer.card.DQ_013.what_detail', { n: localizedNumber(d.trip_count) }),
+        action: t('producer.card.DQ_013.action'),
+      };
+    }
+    case 'DQ_016': {
+      const d = n.details ?? {};
+      if (!d.affected_rows || !n.file) return null;
+      return {
+        title: t('producer.card.DQ_016.title'),
+        what: t('producer.card.DQ_016.what_detail', { file: n.file, n: localizedNumber(d.affected_rows) }),
+        action: t('producer.card.DQ_016.action'),
+      };
+    }
+    case 'DQ_017': {
+      const count = n.observed_value;
+      if (!count || !n.details?.example_0_stop_id) return null;
+      return {
+        title: t('producer.card.DQ_017.title'),
+        what: t('producer.card.DQ_017.what_detail', { n: localizedNumber(count) }),
+        action: t('producer.card.DQ_017.action'),
+      };
+    }
+    case 'DQ_020': {
+      // The counts, and the example trip's last stop as a headsign the planner can start from.
+      const d = n.details ?? {};
+      if (!d.missing_trips || !d.trip_count) return null;
+      const tripStops = d.example_trip_id ? result.name_index.trip_stops?.[d.example_trip_id] ?? [] : [];
+      const lastStop = tripStops[tripStops.length - 1];
+      const last = lastStop ? result.name_index.stops?.[lastStop] : undefined;
+      return {
+        title: t('producer.card.DQ_020.title'),
+        what: t('producer.card.DQ_020.what_detail', {
+          n: localizedNumber(d.missing_trips), total: localizedNumber(d.trip_count), routes: localizedNumber(d.route_count || '0'),
+        }),
+        action: last
+          ? t('producer.card.DQ_020.action_detail', { trip: d.example_trip_id!, stop: last })
+          : t('producer.card.DQ_020.action'),
+      };
+    }
+    case 'DQ_021': {
+      const d = n.details ?? {};
+      if (!d.affected_duplicates || !n.file) return null;
+      return {
+        title: t('producer.card.DQ_021.title'),
+        what: t('producer.card.DQ_021.what_detail', { file: n.file, n: localizedNumber(d.affected_duplicates) }),
+        action: t('producer.card.DQ_021.action'),
+      };
+    }
+    case 'DQ_022': {
+      const d = n.details ?? {};
+      if (!d.common_name || !d.common_count || !d.named_count) return null;
+      return {
+        title: t('producer.card.DQ_022.title'),
+        what: t('producer.card.DQ_022.what_detail', {
+          n: localizedNumber(d.common_count), total: localizedNumber(d.named_count), name: d.common_name,
+        }),
+        action: t('producer.card.DQ_022.action'),
+      };
+    }
     default: {
   // Rules that need no special context: from producer.card.<RULE>.* keys in the text dictionary.
       const base = `producer.card.${g.ruleId}`;
@@ -1524,16 +1597,66 @@ function timeStrip(n: Notice, result: ValidationResult): string {
     }
     return `<p class="producer-card-label">${escHtml(t('producer.times.stm050_examples'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.col.trip_code')}</th><th>${t('producer.times.stop_with_sequence')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
-  if ((n.rule_id === 'DQ_005b' || n.rule_id === 'DQ_009') && d.example_0_trip_id) {
+  if (n.rule_id === 'DQ_012' && d.example_0_agency_id != null) {
+    // The first agencies in file order: none of them is named on a route.
+    const rows: string[] = [];
+    for (let i = 0; d[`example_${i}_agency_id`] != null; i++) {
+      const id = d[`example_${i}_agency_id`];
+      const agencyName = d[`example_${i}_agency_name`];
+      const label = agencyName ? (id ? `${agencyName} (${id})` : agencyName) : id || '—';
+      rows.push(`<tr><td>${escHtml(label)}</td></tr>`);
+    }
+    return `<p class="producer-card-label">${escHtml(t('producer.times.dq012_agencies'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.times.agency')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  }
+  if (n.rule_id === 'DQ_016' && d.sample_0_field) {
+    // One raw value per column, with the spaces made visible.
+    const rows: string[] = [];
+    for (let i = 0; d[`sample_${i}_field`]; i++) {
+      rows.push(`<tr class="bad"><td>${escHtml(d[`sample_${i}_field`]!)}</td><td>${escHtml(visibleValue(d[`sample_${i}_value`] ?? '') || '—')}</td></tr>`);
+    }
+    return `<p class="producer-card-label">${escHtml(t('producer.times.dq016_samples'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.times.field')}</th><th>${t('producer.times.value')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  }
+  if (n.rule_id === 'DQ_017' && d.example_0_stop_id) {
+    // The stops near (0, 0) with the position as written.
+    const rows: string[] = [];
+    for (let i = 0; d[`example_${i}_stop_id`]; i++) {
+      const at = (key: string) => d[`example_${i}_${key}`];
+      const id = at('stop_id')!;
+      const stop = at('stop_name') ? `${at('stop_name')} (${id})` : id;
+      rows.push(`<tr class="bad"><td>${escHtml(stop)}</td><td>${escHtml(at('stop_lat') || '—')}</td><td>${escHtml(at('stop_lon') || '—')}</td></tr>`);
+    }
+    return `<p class="producer-card-label">${escHtml(t('producer.times.dq017_examples'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.col.stop')}</th><th>${t('producer.times.latitude')}</th><th>${t('producer.times.longitude')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  }
+  if (n.rule_id === 'DQ_020' && d.route_0_route_id) {
+    // The routes with the most trips without a headsign: missing / all trips, one example trip.
+    const rows: string[] = [];
+    for (let i = 0; d[`route_${i}_route_id`]; i++) {
+      const at = (key: string) => d[`route_${i}_${key}`];
+      const routeId = at('route_id') || '';
+      const route = result.name_index.routes?.[routeId] || routeId;
+      const share = `${localizedNumber(at('missing') || '0')} / ${localizedNumber(at('trips') || '0')}`;
+      rows.push(`<tr><td>${escHtml(route)}</td><td>${escHtml(share)}</td><td>${escHtml(at('example_trip_id') || '—')}</td></tr>`);
+    }
+    return `<p class="producer-card-label">${escHtml(t('producer.times.dq020_routes'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.col.route')}</th><th>${t('producer.times.headsign_missing')}</th><th>${t('producer.times.example_trip')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  }
+  if (n.rule_id === 'DQ_021' && d.example_0_key) {
+    // Each repeated key with the file lines that carry it (when the engine knows them).
+    const rows: string[] = [];
+    for (let i = 0; d[`example_${i}_key`]; i++) {
+      rows.push(`<tr class="bad"><td>${escHtml(d[`example_${i}_key`]!)}</td><td>${escHtml(d[`example_${i}_lines`] || '—')}</td></tr>`);
+    }
+    return `<p class="producer-card-label">${escHtml(t('producer.times.dq021_keys'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.times.key')}</th><th>${t('producer.times.lines')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  }
+  if ((n.rule_id === 'DQ_005b' || n.rule_id === 'DQ_009' || n.rule_id === 'DQ_013') && d.example_0_trip_id) {
     // The first trips in file order: trip, route and calendar, none of which has a stop time.
     const rows: string[] = [];
     for (let i = 0; d[`example_${i}_trip_id`]; i++) {
       const at = (key: string) => d[`example_${i}_${key}`];
       const routeId = at('route_id');
       const route = routeId ? result.name_index.routes?.[routeId] || routeId : '—';
-      rows.push(`<tr class="bad"><td>${escHtml(at('trip_id') || '—')}</td><td>${escHtml(route)}</td><td>${escHtml(at('service_id') || '—')}</td></tr>`);
+      rows.push(`<tr${n.rule_id === 'DQ_013' ? '' : ' class="bad"'}><td>${escHtml(at('trip_id') || '—')}</td><td>${escHtml(route)}</td><td>${escHtml(at('service_id') || '—')}</td></tr>`);
     }
-    return `<p class="producer-card-label">${escHtml(t('producer.times.dq_trip_examples'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.col.trip_code')}</th><th>${t('producer.col.route')}</th><th>${t('producer.col.service_code')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+    return `<p class="producer-card-label">${escHtml(t(n.rule_id === 'DQ_013' ? 'producer.times.dq013_trips' : 'producer.times.dq_trip_examples'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.col.trip_code')}</th><th>${t('producer.col.route')}</th><th>${t('producer.col.service_code')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
   if (n.rule_id === 'DQ_005c' && d.example_0_stop_id) {
     // The first stops without a position: name and code, type, and the station they belong to.
@@ -2112,6 +2235,26 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   if (n.rule_id === 'STM_050' && n.entity_type !== 'Trip' && n.details?.example_0_trip_id) {
     return plannerMap({ ...n, entity_type: 'Trip', entity_id: n.details.example_0_trip_id }, result);
   }
+  // DQ_013: the feed's first trip. DQ_020: the example trip without a headsign, its last stop
+  // (the headsign candidate) in red. DQ_018/019 on a stop_headsign row: that row's trip and stop.
+  if (n.rule_id === 'DQ_013' && n.entity_type !== 'Trip' && n.details?.example_0_trip_id) {
+    return plannerMap({ ...n, entity_type: 'Trip', entity_id: n.details.example_0_trip_id }, result);
+  }
+  if (n.rule_id === 'DQ_020' && n.entity_type !== 'Trip' && n.details?.example_trip_id) {
+    const tripStops = result.name_index.trip_stops?.[n.details.example_trip_id] ?? [];
+    const last = tripStops[tripStops.length - 1];
+    return plannerMap({
+      ...n, entity_type: 'Trip', entity_id: n.details.example_trip_id,
+      details: { ...n.details, ...(last ? { stop_id: last } : {}) },
+    }, result);
+  }
+  if ((n.rule_id === 'DQ_018' || n.rule_id === 'DQ_019') && n.entity_type === 'Row' && n.details?.trip_id) {
+    return plannerMap({ ...n, entity_type: 'Trip', entity_id: n.details.trip_id }, result);
+  }
+  // DQ_021 on trips.txt / routes.txt: the first repeated trip or route.
+  if (n.rule_id === 'DQ_021' && n.details?.example_0_key && (n.file === 'trips.txt' || n.file === 'routes.txt')) {
+    return plannerMap({ ...n, entity_type: n.file === 'trips.txt' ? 'Trip' : 'Route', entity_id: n.details.example_0_key, details: {} }, result);
+  }
   // DQ_006: an example trip without a line, drawn the way apps show it — straight between its stops.
   if (n.rule_id === 'DQ_006' && n.entity_type !== 'Trip' && n.details?.example_trip_id) {
     return plannerMap({ ...n, entity_type: 'Trip', entity_id: n.details.example_trip_id }, result);
@@ -2481,6 +2624,13 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     addShape(n.entity_id, routeColor(ni.shape_routes?.[n.entity_id]?.[0]?.[0]));
   }
   if (n.rule_id !== 'STM_018' && n.rule_id !== 'STM_019') addStop(n.details?.stop_id, true);
+  // DQ_022: the stops sharing one name; DQ_021 on stops.txt: the repeated stop codes.
+  if (n.rule_id === 'DQ_022') {
+    for (let i = 0; n.details?.[`example_${i}_stop_id`]; i++) addStop(n.details[`example_${i}_stop_id`], true);
+  }
+  if (n.rule_id === 'DQ_021' && n.file === 'stops.txt') {
+    for (let i = 0; n.details?.[`example_${i}_key`]; i++) addStop(n.details[`example_${i}_key`], true);
+  }
 
   if (lines.length || segments.length || pins.length) {
     return {

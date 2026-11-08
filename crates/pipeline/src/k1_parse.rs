@@ -963,6 +963,12 @@ impl Dq016Acc {
         ]
         .into_iter()
         .collect();
+        // Planner context: the same samples one per column (sorted), value kept raw so the card
+        // can show where the whitespace sits.
+        for (i, (field, value)) in self.samples.iter().enumerate() {
+            details.insert(format!("sample_{i}_field"), field.clone());
+            details.insert(format!("sample_{i}_value"), value.clone());
+        }
 
         // If the raw form cannot be read but the trimmed form can, whitespace alone hides a typed
         // value. Text fields (" Durak Adı ") are not numbers in either form, so they are omitted.

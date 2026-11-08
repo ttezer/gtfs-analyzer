@@ -846,6 +846,77 @@ describe('Üretici kartı görünümü', () => {
     expect(out.map.opts?.pins).toHaveLength(2);
   });
 
+  it('DQ_012–022 kartları işletmecileri, seferleri, boşlukları, kodları, adları ve haritayı gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı' },
+      routes: { R1: '10' }, trips: { T1: 'Merkez' }, trip_routes: { T1: 'R1' },
+      trip_stops: { T1: ['S1', 'S2', 'S3'] }, trip_stop_sequences: { T1: [1, 2, 3] },
+      stop_coords: { S1: [41, 29], S2: [41.01, 29.01], S3: [41.02, 29.02] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+    const red = (out: ReturnType<typeof render>) => out.map.opts?.pins.filter(p => p.primary).map(p => p.label) ?? [];
+
+    let out = render(notice('a', 'DQ_012', 'LOW', { entity_type: 'Feed', details: {
+      agency_count: '6', route_count: '40', example_0_agency_id: 'A1', example_0_agency_name: 'Bir',
+    } }));
+    expect(out.html).toContain('Veri setinde 6 işletmeci var ama 40 hattın hiçbirinde');
+    expect(out.html).toContain('<tr><td>Bir (A1)</td></tr>');
+
+    out = render(notice('a', 'DQ_013', 'INFO', { entity_type: 'Feed', details: {
+      trip_count: '1', example_0_trip_id: 'T1', example_0_route_id: 'R1', example_0_service_id: 'HER',
+    } }));
+    expect(out.html).toContain('Veri setinde yalnızca 1 sefer var.');
+    expect(out.html).toContain('<tr><td>T1</td><td>10</td><td>HER</td></tr>');
+    expect(out.map.opts?.pins).toHaveLength(3);
+
+    out = render(notice('a', 'DQ_016', 'INFO', { entity_type: 'File', entity_id: 'stops.txt', file: 'stops.txt', details: {
+      affected_rows: '12', sample_0_field: 'stop_name', sample_0_value: ' Okul ',
+    } }));
+    expect(out.html).toContain('stops.txt dosyasında 12 satırdaki değerlerin');
+    expect(out.html).toContain('<tr class="bad"><td>stop_name</td><td>␠Okul␠</td></tr>');
+
+    out = render(notice('a', 'DQ_017', 'INFO', { entity_type: 'Feed', observed_value: '1', details: {
+      example_0_stop_id: 'S9', example_0_stop_name: 'Yeni', example_0_stop_lat: '0.1', example_0_stop_lon: '0.2',
+    } }));
+    expect(out.html).toContain('1 durağın konumu 0,0 noktasının');
+    expect(out.html).toContain('<tr class="bad"><td>Yeni (S9)</td><td>0.1</td><td>0.2</td></tr>');
+
+    // DQ_020: the route table, the last stop named as a headsign and drawn red on the trip.
+    out = render(notice('a', 'DQ_020', 'INFO', { entity_type: 'Feed', details: {
+      missing_trips: '5', trip_count: '8', route_count: '1', example_trip_id: 'T1',
+      route_0_route_id: 'R1', route_0_missing: '5', route_0_trips: '8', route_0_example_trip_id: 'T1',
+    } }));
+    expect(out.html).toContain('8 seferden 5 tanesinde yolcuya gösterilen yön adı boş (1 hat).');
+    expect(out.html).toContain('Örneğin T1 seferi Çarşı durağında bitiyor; yön adı olarak &quot;Çarşı&quot; yazılabilir.</li>');
+    expect(out.html).toContain('<tr><td>10</td><td>5 / 8</td><td>T1</td></tr>');
+    expect(red(out)).toEqual([expect.stringContaining('Çarşı')]);
+
+    // DQ_018 on a stop_headsign row: that row's trip, its stop in red.
+    out = render(notice('a', 'DQ_018', 'INFO', { entity_type: 'Row', file: 'stop_times.txt', field: 'stop_headsign',
+      observed_value: 'MERKEZ', details: { trip_id: 'T1', stop_id: 'S2', stop_sequence: '2' } }));
+    expect(red(out)).toEqual([expect.stringContaining('Okul')]);
+    expect(out.map.opts?.pins).toHaveLength(3);
+
+    out = render(notice('a', 'DQ_021', 'HIGH', { entity_type: 'File', entity_id: 'stops.txt', file: 'stops.txt', details: {
+      affected_duplicates: '1', example_keys: 'S1', example_0_key: 'S1', example_0_lines: '2, 3',
+    } }));
+    expect(out.html).toContain('stops.txt dosyasında 1 kod birden fazla kayıtta kullanılmış');
+    expect(out.html).toContain('<tr class="bad"><td>S1</td><td>2, 3</td></tr>');
+    expect(red(out)).toEqual([expect.stringContaining('Hastane')]);
+
+    out = render(notice('a', 'DQ_022', 'MEDIUM', { entity_type: 'Feed', details: {
+      common_name: 'Durak', common_count: '5', named_count: '6', example_0_stop_id: 'S1', example_1_stop_id: 'S3',
+    } }));
+    expect(out.html).toContain('Adı girilmiş 6 duraktan 5 tanesi &quot;Durak&quot; adını taşıyor');
+    expect(red(out)).toHaveLength(2);
+  });
+
   it('STM_051–055 kartları Flex bölgesini, pencereyi, yazılan değeri ve aynı saatli durak serisini gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,

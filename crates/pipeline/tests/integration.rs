@@ -7518,3 +7518,111 @@ fn data_quality_findings_003_to_011_carry_planner_context() {
     assert_eq!(get(&d, "stop_lat").as_deref(), Some("41"));
     assert_eq!(get(&d, "stop_lon").as_deref(), Some("29"));
 }
+
+#[test]
+fn data_quality_findings_012_to_022_carry_planner_context() {
+    // DQ_012 lists the agencies, DQ_013 the trips, DQ_016 one raw sample per column, DQ_017 the
+    // stops near (0, 0), DQ_018/019 a stop_headsign row's trip and stop, DQ_020 the routes without
+    // headsigns, DQ_021 each repeated key's lines, DQ_022 the shared name and its stops.
+    // Counts are unchanged.
+    let run_ok = |files: &[(&str, &[u8])]| match run(files) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+    let details = |files: &[(&str, &[u8])], rule: &str| {
+        let vr = run_ok(files);
+        let hits: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == rule).collect();
+        assert_eq!(hits.len(), 1, "{rule} tek bulgu");
+        hits[0]
+            .details
+            .clone()
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor"))
+    };
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+
+    // DQ_013 and DQ_020: the base feed has one trip without a headsign.
+    let d = details(&base_files(), "DQ_013");
+    assert_eq!(get(&d, "trip_count").as_deref(), Some("1"));
+    assert_eq!(get(&d, "example_0_trip_id").as_deref(), Some("T1"));
+    let d = details(&base_files(), "DQ_020");
+    assert_eq!(get(&d, "missing_trips").as_deref(), Some("1"));
+    assert_eq!(get(&d, "trip_count").as_deref(), Some("1"));
+    assert_eq!(get(&d, "route_0_route_id").as_deref(), Some("R1"));
+    assert_eq!(get(&d, "route_0_missing").as_deref(), Some("1"));
+    assert_eq!(get(&d, "example_trip_id").as_deref(), Some("T1"));
+
+    // DQ_012: six agencies, no route names one.
+    static SIX_AGENCIES: &[u8] = b"agency_id,agency_name,agency_url,agency_timezone\n\
+          A1,Bir,http://a.example,UTC\nA2,Iki,http://a.example,UTC\nA3,Uc,http://a.example,UTC\n\
+          A4,Dort,http://a.example,UTC\nA5,Bes,http://a.example,UTC\nA6,Alti,http://a.example,UTC\n";
+    static NO_AGENCY_ROUTES: &[u8] = b"route_id,route_short_name,route_type\nR1,101,3\n";
+    let mut files = base_files();
+    files[0] = ("agency.txt", SIX_AGENCIES);
+    files[2] = ("routes.txt", NO_AGENCY_ROUTES);
+    let d = details(&files, "DQ_012");
+    assert_eq!(get(&d, "agency_count").as_deref(), Some("6"));
+    assert_eq!(get(&d, "route_count").as_deref(), Some("1"));
+    assert_eq!(get(&d, "example_0_agency_id").as_deref(), Some("A1"));
+    assert_eq!(get(&d, "example_5_agency_name").as_deref(), Some("Alti"));
+
+    // DQ_016: a stop name with a leading space.
+    static SPACED: &[u8] =
+        b"stop_id,stop_name,stop_lat,stop_lon\nS1, Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\n";
+    let mut files = base_files();
+    files[1] = ("stops.txt", SPACED);
+    let d = details(&files, "DQ_016");
+    assert_eq!(get(&d, "sample_0_field").as_deref(), Some("stop_name"));
+    assert_eq!(get(&d, "sample_0_value").as_deref(), Some(" Stop1"));
+
+    // DQ_017: one stop near (0, 0).
+    static ZERO: &[u8] =
+        b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,0.1,0.2\n";
+    let mut files = base_files();
+    files[1] = ("stops.txt", ZERO);
+    let d = details(&files, "DQ_017");
+    assert_eq!(get(&d, "example_0_stop_id").as_deref(), Some("S2"));
+    assert_eq!(get(&d, "example_0_stop_name").as_deref(), Some("Stop2"));
+    assert_eq!(get(&d, "example_0_stop_lat").as_deref(), Some("0.1"));
+    assert_eq!(get(&d, "example_0_stop_lon").as_deref(), Some("0.2"));
+
+    // DQ_018 / DQ_019: a stop_headsign row names its trip and stop.
+    static HEADSIGNS: &[u8] =
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\n\
+          T1,08:00:00,08:00:00,S1,1,MERKEZ ISTASYON\nT1,08:10:00,08:10:00,S2,2,liman meydani\n";
+    let mut files = base_files();
+    files[4] = ("stop_times.txt", HEADSIGNS);
+    let vr = run_ok(&files);
+    for (rule, stop, seq) in [("DQ_018", "S1", "1"), ("DQ_019", "S2", "2")] {
+        let n = vr
+            .notices
+            .iter()
+            .find(|n| n.rule_id == rule && n.field.as_deref() == Some("stop_headsign"))
+            .unwrap_or_else(|| panic!("{rule} stop_headsign bulgusu bekleniyor"));
+        let d = n.details.clone().expect("ayrıntı bekleniyor");
+        assert_eq!(get(&d, "trip_id").as_deref(), Some("T1"), "{rule}");
+        assert_eq!(get(&d, "stop_id").as_deref(), Some(stop), "{rule}");
+        assert_eq!(get(&d, "stop_sequence").as_deref(), Some(seq), "{rule}");
+    }
+
+    // DQ_021: S1 written on lines 2 and 3.
+    static DUP_STOPS: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
+          S1,Stop1,41.0,29.0\nS1,Stop1b,41.0,29.0\nS2,Stop2,41.1,29.1\n";
+    let mut files = base_files();
+    files[1] = ("stops.txt", DUP_STOPS);
+    let d = details(&files, "DQ_021");
+    assert_eq!(get(&d, "example_0_key").as_deref(), Some("S1"));
+    assert_eq!(get(&d, "example_0_lines").as_deref(), Some("2, 3"));
+
+    // DQ_022: five stops share one name.
+    static SAME_NAME: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
+          S1,Durak,41.0,29.0\nS2,Durak,41.1,29.1\nS3,Durak,41.2,29.2\nS4,Durak,41.3,29.3\n\
+          S5,Durak,41.4,29.4\n";
+    let mut files = base_files();
+    files[1] = ("stops.txt", SAME_NAME);
+    let d = details(&files, "DQ_022");
+    assert_eq!(get(&d, "common_name").as_deref(), Some("Durak"));
+    assert_eq!(get(&d, "common_count").as_deref(), Some("5"));
+    assert_eq!(get(&d, "named_count").as_deref(), Some("5"));
+    assert_eq!(get(&d, "example_0_stop_id").as_deref(), Some("S1"));
+    assert_eq!(get(&d, "example_4_stop_id").as_deref(), Some("S5"));
+}
