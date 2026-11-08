@@ -147,6 +147,15 @@ function hmsSeconds(value?: string | null): number {
 }
 
 /** A straight-line distance in metres as "350 m" or "8,4 km". */
+/** A GTFS date (YYYYMMDD) in the reader's format; anything else as written. */
+function ymdText(value?: string): string {
+  if (!value) return '—';
+  return /^\d{8}$/.test(value)
+    ? new Intl.DateTimeFormat(intlLocale(), { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })
+      .format(new Date(Date.UTC(Number(value.slice(0, 4)), Number(value.slice(4, 6)) - 1, Number(value.slice(6, 8)))))
+    : value;
+}
+
 function metersText(value?: string): string {
   const v = Number(value);
   if (!Number.isFinite(v)) return '—';
@@ -1086,6 +1095,72 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         action: t(reversed ? 'producer.card.STM_056.action_reversed' : 'producer.card.STM_056.action_detail'),
       };
     }
+    case 'DQ_005': {
+      // The last day any calendar runs and the calendar it belongs to; none when no calendar has a day.
+      const d = n.details ?? {};
+      if (!d.service_count) return null;
+      const services = localizedNumber(d.service_count);
+      return {
+        title: t('producer.card.DQ_005.title'),
+        what: d.last_active_date
+          ? t('producer.card.DQ_005.what_detail', {
+            services, date: ymdText(d.last_active_date), service: d.last_service_id || '—', today: ymdText(d.today),
+          })
+          : t('producer.card.DQ_005.what_none', { services }),
+        action: t('producer.card.DQ_005.action'),
+      };
+    }
+    case 'DQ_005b':
+    case 'DQ_009': {
+      const d = n.details ?? {};
+      if (!d.trip_count) return null;
+      return {
+        title: t(`producer.card.${g.ruleId}.title`),
+        what: t(`producer.card.${g.ruleId}.what_detail`, { n: localizedNumber(d.trip_count) }),
+        action: t(`producer.card.${g.ruleId}.action`),
+      };
+    }
+    case 'DQ_005c': {
+      const d = n.details ?? {};
+      if (!d.missing_count || !d.stop_count) return null;
+      return {
+        title: t('producer.card.DQ_005c.title'),
+        what: t('producer.card.DQ_005c.what_detail', { n: localizedNumber(d.missing_count), total: localizedNumber(d.stop_count) }),
+        action: t('producer.card.DQ_005c.action'),
+      };
+    }
+    case 'DQ_006': {
+      const d = n.details ?? {};
+      if (!d.shapeless_trips || !d.fixed_trips) return null;
+      return {
+        title: t('producer.card.DQ_006.title'),
+        what: t('producer.card.DQ_006.what_detail', {
+          n: localizedNumber(d.shapeless_trips), total: localizedNumber(d.fixed_trips), routes: localizedNumber(d.route_count || '0'),
+        }),
+        action: t('producer.card.DQ_006.action'),
+      };
+    }
+    case 'DQ_010': {
+      const d = n.details ?? {};
+      if (!d.route_count) return null;
+      return {
+        title: t('producer.card.DQ_010.title'),
+        what: t('producer.card.DQ_010.what_detail', {
+          agency: d.agency_name || n.entity_id || '—', routes: localizedNumber(d.route_count),
+        }),
+        action: t('producer.card.DQ_010.action'),
+      };
+    }
+    case 'DQ_011': {
+      const d = n.details ?? {};
+      if (!d.stop_id) return null;
+      const name = d.stop_name || result.name_index.stops?.[d.stop_id];
+      return {
+        title: t('producer.card.DQ_011.title'),
+        what: t('producer.card.DQ_011.what_detail', { stop: name ? `${name} (${d.stop_id})` : d.stop_id }),
+        action: t('producer.card.DQ_011.action'),
+      };
+    }
     default: {
   // Rules that need no special context: from producer.card.<RULE>.* keys in the text dictionary.
       const base = `producer.card.${g.ruleId}`;
@@ -1448,6 +1523,57 @@ function timeStrip(n: Notice, result: ValidationResult): string {
       rows.push(`<tr><td>${escHtml(at('trip_id') || '—')}</td><td>${escHtml(stop)}</td><td>${escHtml(plannerTime(at('arrival')) || '—')}</td><td>${escHtml(plannerTime(at('departure')) || '—')}</td></tr>`);
     }
     return `<p class="producer-card-label">${escHtml(t('producer.times.stm050_examples'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.col.trip_code')}</th><th>${t('producer.times.stop_with_sequence')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  }
+  if ((n.rule_id === 'DQ_005b' || n.rule_id === 'DQ_009') && d.example_0_trip_id) {
+    // The first trips in file order: trip, route and calendar, none of which has a stop time.
+    const rows: string[] = [];
+    for (let i = 0; d[`example_${i}_trip_id`]; i++) {
+      const at = (key: string) => d[`example_${i}_${key}`];
+      const routeId = at('route_id');
+      const route = routeId ? result.name_index.routes?.[routeId] || routeId : '—';
+      rows.push(`<tr class="bad"><td>${escHtml(at('trip_id') || '—')}</td><td>${escHtml(route)}</td><td>${escHtml(at('service_id') || '—')}</td></tr>`);
+    }
+    return `<p class="producer-card-label">${escHtml(t('producer.times.dq_trip_examples'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.col.trip_code')}</th><th>${t('producer.col.route')}</th><th>${t('producer.col.service_code')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  }
+  if (n.rule_id === 'DQ_005c' && d.example_0_stop_id) {
+    // The first stops without a position: name and code, type, and the station they belong to.
+    const kind = (v?: string) => {
+      const key = `producer.times.location_type_${v || '0'}`;
+      const text = t(key);
+      return text === key ? v || '—' : text;
+    };
+    const rows: string[] = [];
+    for (let i = 0; d[`example_${i}_stop_id`]; i++) {
+      const at = (key: string) => d[`example_${i}_${key}`];
+      const id = at('stop_id') || '—';
+      const stop = at('stop_name') ? `${at('stop_name')} (${id})` : id;
+      const parent = at('parent_station') ? name(at('parent_station')) : '—';
+      rows.push(`<tr class="bad"><td>${escHtml(stop)}</td><td>${escHtml(kind(at('location_type')))}</td><td>${escHtml(parent)}</td></tr>`);
+    }
+    return `<p class="producer-card-label">${escHtml(t('producer.times.dq005c_examples'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.col.stop')}</th><th>${t('producer.times.location_type')}</th><th>${t('producer.times.parent_station')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  }
+  if (n.rule_id === 'DQ_006' && d.route_0_route_id) {
+    // The routes with the most trips without a line: shapeless / all fixed trips, one example trip.
+    const rows: string[] = [];
+    for (let i = 0; d[`route_${i}_route_id`]; i++) {
+      const at = (key: string) => d[`route_${i}_${key}`];
+      const routeId = at('route_id') || '';
+      const route = result.name_index.routes?.[routeId] || routeId;
+      const share = `${localizedNumber(at('shapeless') || '0')} / ${localizedNumber(at('trips') || '0')}`;
+      rows.push(`<tr><td>${escHtml(route)}</td><td>${escHtml(share)}</td><td>${escHtml(at('example_trip_id') || '—')}</td></tr>`);
+    }
+    return `<p class="producer-card-label">${escHtml(t('producer.times.dq006_routes'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.col.route')}</th><th>${t('producer.times.shapeless_trips')}</th><th>${t('producer.times.example_trip')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  }
+  if (n.rule_id === 'DQ_010' && d.used_0_agency_id) {
+    // The agencies the routes do point at, most routes first.
+    const rows: string[] = [];
+    for (let i = 0; d[`used_${i}_agency_id`]; i++) {
+      const id = d[`used_${i}_agency_id`];
+      const agencyName = result.feed_summary?.agencies?.find(a => a.agency_id === id)?.agency_name;
+      const label = agencyName ? `${agencyName} (${id})` : id;
+      rows.push(`<tr><td>${escHtml(label)}</td><td>${escHtml(localizedNumber(d[`used_${i}_routes`] || '0'))}</td></tr>`);
+    }
+    return `<p class="producer-card-label">${escHtml(t('producer.times.dq010_used'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.times.agency')}</th><th>${t('producer.times.route_count')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
   if (n.rule_id === 'STM_047' && d.example_0_stop_id) {
     // The trip's exact timepoints without a time, in stop order; the missing side reads "missing".
@@ -1986,6 +2112,10 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   if (n.rule_id === 'STM_050' && n.entity_type !== 'Trip' && n.details?.example_0_trip_id) {
     return plannerMap({ ...n, entity_type: 'Trip', entity_id: n.details.example_0_trip_id }, result);
   }
+  // DQ_006: an example trip without a line, drawn the way apps show it — straight between its stops.
+  if (n.rule_id === 'DQ_006' && n.entity_type !== 'Trip' && n.details?.example_trip_id) {
+    return plannerMap({ ...n, entity_type: 'Trip', entity_id: n.details.example_trip_id }, result);
+  }
   const ni = result.name_index;
   const zeroStops = new Set<string>();
   const coord = (stopId?: string | null): [number, number] | null => {
@@ -2326,6 +2456,14 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
       for (const [index, stopId] of tripStops.entries()) addStop(stopId, false, stopSequences[index]);
     } else {
       for (const shapeId of (ni.route_shapes?.[routeId] ?? []).slice(0, 4)) addShape(shapeId, color);
+      if (!lines.length && (n.rule_id === 'DQ_003' || n.rule_id === 'DQ_004')) {
+        // A route without a line: its first trip's stops, so the map still shows which route it is.
+        const tripId = Object.keys(ni.trip_routes ?? {}).find(id => ni.trip_routes?.[id] === routeId && (ni.trip_stops?.[id]?.length ?? 0) > 1);
+        const tripStops = tripId ? ni.trip_stops?.[tripId] ?? [] : [];
+        const coords = tripStops.map(id => coord(id)).filter((p): p is [number, number] => p !== null);
+        if (coords.length > 1) lines.push({ coords, color, weight: 4, arrows: true });
+        for (const stopId of tripStops) addStop(stopId, false);
+      }
     }
   // Route-level speed findings (STM_014, STM_061) carry the faulty stop pair.
     const a = coord(n.details?.stop_a);

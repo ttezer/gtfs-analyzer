@@ -7414,3 +7414,107 @@ fn midnight_and_service_day_findings_carry_neighbour_rows() {
     assert_eq!(get(&d, "prev_stop_sequence").as_deref(), Some("1"));
     assert_eq!(get(&d, "next_stop_sequence").as_deref(), Some("3"));
 }
+
+#[test]
+fn data_quality_findings_003_to_011_carry_planner_context() {
+    // DQ_005 names the last day any calendar runs, DQ_005b/009 the trip count and first trips,
+    // DQ_005c the stops without a position, DQ_006 the routes without shapes and an example trip,
+    // DQ_010 the agencies routes do use, DQ_011 the one stop. Counts are unchanged.
+    let details = |files: &[(&str, &[u8])], rule: &str| match run(files) {
+        ValidateResult::Ok(vr) => {
+            let hits: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == rule).collect();
+            assert_eq!(hits.len(), 1, "{rule} tek bulgu");
+            hits[0]
+                .details
+                .clone()
+                .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor"))
+        }
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+
+    // DQ_006: the base trip has no shape.
+    let d = details(&base_files(), "DQ_006");
+    assert_eq!(get(&d, "shapeless_trips").as_deref(), Some("1"));
+    assert_eq!(get(&d, "fixed_trips").as_deref(), Some("1"));
+    assert_eq!(get(&d, "route_count").as_deref(), Some("1"));
+    assert_eq!(get(&d, "route_0_route_id").as_deref(), Some("R1"));
+    assert_eq!(get(&d, "route_0_trips").as_deref(), Some("1"));
+    assert_eq!(get(&d, "example_trip_id").as_deref(), Some("T1"));
+
+    // DQ_005: both calendars ended; the later one is shown.
+    static OLD_CALENDAR: &[u8] =
+        b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
+          SVC1,1,1,1,1,1,0,0,20250101,20250630\nSVC2,1,1,1,1,1,0,0,20250101,20250331\n";
+    let mut files = base_files();
+    files[5] = ("calendar.txt", OLD_CALENDAR);
+    let d = details(&files, "DQ_005");
+    assert_eq!(get(&d, "service_count").as_deref(), Some("2"));
+    assert_eq!(get(&d, "last_active_date").as_deref(), Some("20250630"));
+    assert_eq!(get(&d, "last_service_id").as_deref(), Some("SVC1"));
+    assert_eq!(get(&d, "today").as_deref(), Some("20260515"));
+
+    // DQ_005b / DQ_009: stop_times.txt has only its header.
+    static NO_TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n";
+    let mut files = base_files();
+    files[4] = ("stop_times.txt", NO_TIMES);
+    for rule in ["DQ_005b", "DQ_009"] {
+        let d = details(&files, rule);
+        assert_eq!(get(&d, "trip_count").as_deref(), Some("1"), "{rule}");
+        assert_eq!(
+            get(&d, "example_0_trip_id").as_deref(),
+            Some("T1"),
+            "{rule}"
+        );
+        assert_eq!(
+            get(&d, "example_0_route_id").as_deref(),
+            Some("R1"),
+            "{rule}"
+        );
+        assert_eq!(
+            get(&d, "example_0_service_id").as_deref(),
+            Some("SVC1"),
+            "{rule}"
+        );
+    }
+
+    // DQ_005c: two of three stops have no position.
+    static NO_COORDS: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n\
+          S1,Stop1,41.0,29.0,1,\nS2,Stop2,,,0,S1\nS3,Stop3,,,,\n";
+    let mut files = base_files();
+    files[1] = ("stops.txt", NO_COORDS);
+    let d = details(&files, "DQ_005c");
+    assert_eq!(get(&d, "missing_count").as_deref(), Some("2"));
+    assert_eq!(get(&d, "stop_count").as_deref(), Some("3"));
+    assert_eq!(get(&d, "example_0_stop_id").as_deref(), Some("S2"));
+    assert_eq!(get(&d, "example_0_stop_name").as_deref(), Some("Stop2"));
+    assert_eq!(get(&d, "example_0_location_type").as_deref(), Some("0"));
+    assert_eq!(get(&d, "example_0_parent_station").as_deref(), Some("S1"));
+    assert_eq!(get(&d, "example_1_stop_id").as_deref(), Some("S3"));
+    assert_eq!(get(&d, "example_1_parent_station"), None);
+
+    // DQ_010: agency 2 has no route; routes point at agency 1.
+    static TWO_AGENCIES: &[u8] = b"agency_id,agency_name,agency_url,agency_timezone\n\
+          1,Test,http://test.example,UTC\n2,Spare,http://spare.example,UTC\n";
+    let mut files = base_files();
+    files[0] = ("agency.txt", TWO_AGENCIES);
+    let d = details(&files, "DQ_010");
+    assert_eq!(get(&d, "agency_name").as_deref(), Some("Spare"));
+    assert_eq!(
+        get(&d, "agency_url").as_deref(),
+        Some("http://spare.example")
+    );
+    assert_eq!(get(&d, "route_count").as_deref(), Some("1"));
+    assert_eq!(get(&d, "used_0_agency_id").as_deref(), Some("1"));
+    assert_eq!(get(&d, "used_0_routes").as_deref(), Some("1"));
+
+    // DQ_011: the feed has one stop.
+    static ONE_STOP: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n";
+    let mut files = base_files();
+    files[1] = ("stops.txt", ONE_STOP);
+    let d = details(&files, "DQ_011");
+    assert_eq!(get(&d, "stop_id").as_deref(), Some("S1"));
+    assert_eq!(get(&d, "stop_name").as_deref(), Some("Stop1"));
+    assert_eq!(get(&d, "stop_lat").as_deref(), Some("41"));
+    assert_eq!(get(&d, "stop_lon").as_deref(), Some("29"));
+}

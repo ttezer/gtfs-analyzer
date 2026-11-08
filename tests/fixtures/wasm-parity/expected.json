@@ -518,24 +518,6 @@
         "details": null,
         "entity_id": null,
         "entity_type": "Feed",
-        "expected_value": "≤ %80",
-        "field": null,
-        "file": "trips.txt",
-        "line": null,
-        "message": "High proportion of trips have no shape (100%).",
-        "observed_value": "100%",
-        "remediation": "Create shapes.txt and populate the shape_id fields in trips.txt.",
-        "rule_class": "QUALITY",
-        "rule_id": "DQ_006",
-        "scope_key": null,
-        "service_id": null,
-        "severity": "HIGH",
-        "title": "High proportion of trips without shapes"
-      },
-      {
-        "details": null,
-        "entity_id": null,
-        "entity_type": "Feed",
         "expected_value": "≥ 3",
         "field": null,
         "file": "trips.txt",
@@ -645,6 +627,33 @@
       },
       {
         "details": {
+          "example_trip_id": "T1",
+          "fixed_trips": "1",
+          "route_0_example_trip_id": "T1",
+          "route_0_route_id": "R1",
+          "route_0_shapeless": "1",
+          "route_0_trips": "1",
+          "route_count": "1",
+          "shapeless_trips": "1"
+        },
+        "entity_id": null,
+        "entity_type": "Feed",
+        "expected_value": "≤ %80",
+        "field": null,
+        "file": "trips.txt",
+        "line": null,
+        "message": "High proportion of trips have no shape (100%).",
+        "observed_value": "100%",
+        "remediation": "Create shapes.txt and populate the shape_id fields in trips.txt.",
+        "rule_class": "QUALITY",
+        "rule_id": "DQ_006",
+        "scope_key": null,
+        "service_id": null,
+        "severity": "HIGH",
+        "title": "High proportion of trips without shapes"
+      },
+      {
+        "details": {
           "route_label": "101"
         },
         "entity_id": "R1",
@@ -726,24 +735,6 @@
         },
         {
           "details": null,
-          "entity_id": "A2",
-          "entity_type": "Agency",
-          "expected_value": null,
-          "field": "agency_id",
-          "file": "agency.txt",
-          "line": 3,
-          "message": "Agency 'A2' is not used by any route.",
-          "observed_value": "A2",
-          "remediation": "Remove the unused agency record or assign agency_id in routes.txt.",
-          "rule_class": "QUALITY",
-          "rule_id": "DQ_010",
-          "scope_key": "A2",
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Agency not used by any route"
-        },
-        {
-          "details": null,
           "entity_id": "A3",
           "entity_type": "Agency",
           "expected_value": "de",
@@ -777,24 +768,6 @@
           "service_id": null,
           "severity": "INFO",
           "title": "agency_url uses insecure http"
-        },
-        {
-          "details": null,
-          "entity_id": "A3",
-          "entity_type": "Agency",
-          "expected_value": null,
-          "field": "agency_id",
-          "file": "agency.txt",
-          "line": 4,
-          "message": "Agency 'A3' is not used by any route.",
-          "observed_value": "A3",
-          "remediation": "Remove the unused agency record or assign agency_id in routes.txt.",
-          "rule_class": "QUALITY",
-          "rule_id": "DQ_010",
-          "scope_key": "A3",
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Agency not used by any route"
         },
         {
           "details": null,
@@ -939,6 +912,54 @@
           "service_id": null,
           "severity": "LOW",
           "title": "Recommended GTFS file missing (shapes.txt or feed_info.txt)"
+        },
+        {
+          "details": {
+            "agency_name": "Three",
+            "agency_url": "http://three.example",
+            "route_count": "1",
+            "used_0_agency_id": "1",
+            "used_0_routes": "1"
+          },
+          "entity_id": "A3",
+          "entity_type": "Agency",
+          "expected_value": null,
+          "field": "agency_id",
+          "file": "agency.txt",
+          "line": 4,
+          "message": "Agency 'A3' is not used by any route.",
+          "observed_value": "A3",
+          "remediation": "Remove the unused agency record or assign agency_id in routes.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_010",
+          "scope_key": "A3",
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Agency not used by any route"
+        },
+        {
+          "details": {
+            "agency_name": "Two",
+            "agency_url": "http://two.example",
+            "route_count": "1",
+            "used_0_agency_id": "1",
+            "used_0_routes": "1"
+          },
+          "entity_id": "A2",
+          "entity_type": "Agency",
+          "expected_value": null,
+          "field": "agency_id",
+          "file": "agency.txt",
+          "line": 3,
+          "message": "Agency 'A2' is not used by any route.",
+          "observed_value": "A2",
+          "remediation": "Remove the unused agency record or assign agency_id in routes.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_010",
+          "scope_key": "A2",
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Agency not used by any route"
         }
       ],
       "agency_breakdown": {
@@ -1451,24 +1472,6 @@
           "details": null,
           "entity_id": null,
           "entity_type": "Feed",
-          "expected_value": "≤ %50",
-          "field": null,
-          "file": "stops.txt",
-          "line": null,
-          "message": "High proportion of stops have no coordinates.",
-          "observed_value": "67%",
-          "remediation": "Add stop_lat and stop_lon coordinates to all stops in stops.txt.",
-          "rule_class": "QUALITY",
-          "rule_id": "DQ_005c",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "HIGH",
-          "title": "High proportion of stops without coordinates"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Feed",
           "expected_value": null,
           "field": null,
           "file": "stops.txt",
@@ -1524,6 +1527,31 @@
           "service_id": null,
           "severity": "MEDIUM",
           "title": "stop_code missing"
+        },
+        {
+          "details": {
+            "example_0_stop_id": "S1",
+            "example_0_stop_name": "Stop1",
+            "example_1_stop_id": "S3",
+            "example_1_stop_name": "Stop3",
+            "missing_count": "2",
+            "stop_count": "3"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "≤ %50",
+          "field": null,
+          "file": "stops.txt",
+          "line": null,
+          "message": "High proportion of stops have no coordinates.",
+          "observed_value": "67%",
+          "remediation": "Add stop_lat and stop_lon coordinates to all stops in stops.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_005c",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "HIGH",
+          "title": "High proportion of stops without coordinates"
         }
       ],
       "agency_breakdown": {
@@ -2615,24 +2643,6 @@
         },
         {
           "details": null,
-          "entity_id": "A2",
-          "entity_type": "Agency",
-          "expected_value": null,
-          "field": "agency_id",
-          "file": "agency.txt",
-          "line": 3,
-          "message": "Agency 'A2' is not used by any route.",
-          "observed_value": "A2",
-          "remediation": "Remove the unused agency record or assign agency_id in routes.txt.",
-          "rule_class": "QUALITY",
-          "rule_id": "DQ_010",
-          "scope_key": "A2",
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Agency not used by any route"
-        },
-        {
-          "details": null,
           "entity_id": "A3",
           "entity_type": "Agency",
           "expected_value": "https://",
@@ -2651,6 +2661,30 @@
         },
         {
           "details": null,
+          "entity_id": "agency.txt",
+          "entity_type": "File",
+          "expected_value": null,
+          "field": null,
+          "file": "agency.txt",
+          "line": null,
+          "message": "File 'agency.txt': 144 bytes.",
+          "observed_value": "144 bytes",
+          "remediation": "Informational notice; no action required.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "ARC_011",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "File size (info)"
+        },
+        {
+          "details": {
+            "agency_name": "Three",
+            "agency_url": "http://three.example",
+            "route_count": "1",
+            "used_0_agency_id": "1",
+            "used_0_routes": "1"
+          },
           "entity_id": "A3",
           "entity_type": "Agency",
           "expected_value": null,
@@ -2668,22 +2702,28 @@
           "title": "Agency not used by any route"
         },
         {
-          "details": null,
-          "entity_id": "agency.txt",
-          "entity_type": "File",
+          "details": {
+            "agency_name": "Two",
+            "agency_url": "http://two.example",
+            "route_count": "1",
+            "used_0_agency_id": "1",
+            "used_0_routes": "1"
+          },
+          "entity_id": "A2",
+          "entity_type": "Agency",
           "expected_value": null,
-          "field": null,
+          "field": "agency_id",
           "file": "agency.txt",
-          "line": null,
-          "message": "File 'agency.txt': 144 bytes.",
-          "observed_value": "144 bytes",
-          "remediation": "Informational notice; no action required.",
-          "rule_class": "ANALYTICS",
-          "rule_id": "ARC_011",
-          "scope_key": null,
+          "line": 3,
+          "message": "Agency 'A2' is not used by any route.",
+          "observed_value": "A2",
+          "remediation": "Remove the unused agency record or assign agency_id in routes.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_010",
+          "scope_key": "A2",
           "service_id": null,
           "severity": "INFO",
-          "title": "File size (info)"
+          "title": "Agency not used by any route"
         }
       ],
       "agency_breakdown": {
@@ -7073,6 +7113,33 @@
           "service_id": null,
           "severity": "INFO",
           "title": "stop_times not sorted by trip_id + stop_sequence (unsorted_stop_times)"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "fixed_trips": "2",
+            "route_0_example_trip_id": "T1",
+            "route_0_route_id": "R1",
+            "route_0_shapeless": "2",
+            "route_0_trips": "2",
+            "route_count": "1",
+            "shapeless_trips": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "≤ %80",
+          "field": null,
+          "file": "trips.txt",
+          "line": null,
+          "message": "High proportion of trips have no shape (100%).",
+          "observed_value": "100%",
+          "remediation": "Create shapes.txt and populate the shape_id fields in trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_006",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "HIGH",
+          "title": "High proportion of trips without shapes"
         }
       ],
       "agency_breakdown": {
@@ -7464,6 +7531,33 @@
           "service_id": null,
           "severity": "INFO",
           "title": "Bicycle allowance (bikes_allowed) not specified"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "fixed_trips": "1",
+            "route_0_example_trip_id": "T1",
+            "route_0_route_id": "R1",
+            "route_0_shapeless": "1",
+            "route_0_trips": "1",
+            "route_count": "1",
+            "shapeless_trips": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "≤ %80",
+          "field": null,
+          "file": "trips.txt",
+          "line": null,
+          "message": "High proportion of trips have no shape (100%).",
+          "observed_value": "100%",
+          "remediation": "Create shapes.txt and populate the shape_id fields in trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_006",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "HIGH",
+          "title": "High proportion of trips without shapes"
         }
       ],
       "score": 96.3
@@ -7864,24 +7958,6 @@
           "title": "File size (info)"
         },
         {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": "≤ %50",
-          "field": null,
-          "file": "stops.txt",
-          "line": null,
-          "message": "High proportion of stops have no coordinates.",
-          "observed_value": "100%",
-          "remediation": "Add stop_lat and stop_lon coordinates to all stops in stops.txt.",
-          "rule_class": "QUALITY",
-          "rule_id": "DQ_005c",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "HIGH",
-          "title": "High proportion of stops without coordinates"
-        },
-        {
           "details": {
             "affected_stops": "2",
             "example_stop_ids": "S1, S2"
@@ -7901,6 +7977,31 @@
           "service_id": null,
           "severity": "CRITICAL",
           "title": "stop_lat is not numeric"
+        },
+        {
+          "details": {
+            "example_0_stop_id": "S1",
+            "example_0_stop_name": "Stop1",
+            "example_1_stop_id": "S2",
+            "example_1_stop_name": "Stop2",
+            "missing_count": "2",
+            "stop_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "≤ %50",
+          "field": null,
+          "file": "stops.txt",
+          "line": null,
+          "message": "High proportion of stops have no coordinates.",
+          "observed_value": "100%",
+          "remediation": "Add stop_lat and stop_lon coordinates to all stops in stops.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_005c",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "HIGH",
+          "title": "High proportion of stops without coordinates"
         }
       ],
       "agency_breakdown": {
@@ -10085,6 +10186,37 @@
         },
         {
           "details": {
+            "example_trip_id": "T1",
+            "fixed_trips": "2",
+            "route_0_example_trip_id": "T1",
+            "route_0_route_id": "R1",
+            "route_0_shapeless": "1",
+            "route_0_trips": "1",
+            "route_1_example_trip_id": "T2",
+            "route_1_route_id": "R2",
+            "route_1_shapeless": "1",
+            "route_1_trips": "1",
+            "route_count": "2",
+            "shapeless_trips": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "≤ %80",
+          "field": null,
+          "file": "trips.txt",
+          "line": null,
+          "message": "High proportion of trips have no shape (100%).",
+          "observed_value": "100%",
+          "remediation": "Create shapes.txt and populate the shape_id fields in trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_006",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "HIGH",
+          "title": "High proportion of trips without shapes"
+        },
+        {
+          "details": {
             "route_label": "102"
           },
           "entity_id": "R2",
@@ -10542,6 +10674,33 @@
           "service_id": null,
           "severity": "INFO",
           "title": "Bicycle allowance (bikes_allowed) not specified"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "fixed_trips": "1",
+            "route_0_example_trip_id": "T1",
+            "route_0_route_id": "R1",
+            "route_0_shapeless": "1",
+            "route_0_trips": "1",
+            "route_count": "1",
+            "shapeless_trips": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "≤ %80",
+          "field": null,
+          "file": "trips.txt",
+          "line": null,
+          "message": "High proportion of trips have no shape (100%).",
+          "observed_value": "100%",
+          "remediation": "Create shapes.txt and populate the shape_id fields in trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_006",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "HIGH",
+          "title": "High proportion of trips without shapes"
         }
       ],
       "score": 90.7
@@ -11164,6 +11323,33 @@
           "service_id": null,
           "severity": "CRITICAL",
           "title": "service_id not found"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "fixed_trips": "2",
+            "route_0_example_trip_id": "T1",
+            "route_0_route_id": "R1",
+            "route_0_shapeless": "2",
+            "route_0_trips": "2",
+            "route_count": "1",
+            "shapeless_trips": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "≤ %80",
+          "field": null,
+          "file": "trips.txt",
+          "line": null,
+          "message": "High proportion of trips have no shape (100%).",
+          "observed_value": "100%",
+          "remediation": "Create shapes.txt and populate the shape_id fields in trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_006",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "HIGH",
+          "title": "High proportion of trips without shapes"
         }
       ],
       "agency_breakdown": {
@@ -11629,6 +11815,33 @@
           "service_id": null,
           "severity": "INFO",
           "title": "Bicycle allowance (bikes_allowed) not specified"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "fixed_trips": "1",
+            "route_0_example_trip_id": "T1",
+            "route_0_route_id": "R1",
+            "route_0_shapeless": "1",
+            "route_0_trips": "1",
+            "route_count": "1",
+            "shapeless_trips": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "≤ %80",
+          "field": null,
+          "file": "trips.txt",
+          "line": null,
+          "message": "High proportion of trips have no shape (100%).",
+          "observed_value": "100%",
+          "remediation": "Create shapes.txt and populate the shape_id fields in trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_006",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "HIGH",
+          "title": "High proportion of trips without shapes"
         }
       ],
       "score": 92.6
@@ -11763,6 +11976,33 @@
           "service_id": null,
           "severity": "MEDIUM",
           "title": "direction_id invalid"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "fixed_trips": "2",
+            "route_0_example_trip_id": "T1",
+            "route_0_route_id": "R1",
+            "route_0_shapeless": "2",
+            "route_0_trips": "2",
+            "route_count": "1",
+            "shapeless_trips": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "≤ %80",
+          "field": null,
+          "file": "trips.txt",
+          "line": null,
+          "message": "High proportion of trips have no shape (100%).",
+          "observed_value": "100%",
+          "remediation": "Create shapes.txt and populate the shape_id fields in trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_006",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "HIGH",
+          "title": "High proportion of trips without shapes"
         },
         {
           "details": {
@@ -12173,6 +12413,33 @@
           "service_id": null,
           "severity": "INFO",
           "title": "Bicycle allowance (bikes_allowed) not specified"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "fixed_trips": "1",
+            "route_0_example_trip_id": "T1",
+            "route_0_route_id": "R1",
+            "route_0_shapeless": "1",
+            "route_0_trips": "1",
+            "route_count": "1",
+            "shapeless_trips": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "≤ %80",
+          "field": null,
+          "file": "trips.txt",
+          "line": null,
+          "message": "High proportion of trips have no shape (100%).",
+          "observed_value": "100%",
+          "remediation": "Create shapes.txt and populate the shape_id fields in trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_006",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "HIGH",
+          "title": "High proportion of trips without shapes"
         }
       ],
       "score": 95.3
@@ -12257,6 +12524,33 @@
           "service_id": null,
           "severity": "MEDIUM",
           "title": "Extra whitespace in field value"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "fixed_trips": "1",
+            "route_0_example_trip_id": "T1",
+            "route_0_route_id": " R1",
+            "route_0_shapeless": "1",
+            "route_0_trips": "1",
+            "route_count": "1",
+            "shapeless_trips": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "≤ %80",
+          "field": null,
+          "file": "trips.txt",
+          "line": null,
+          "message": "High proportion of trips have no shape (100%).",
+          "observed_value": "100%",
+          "remediation": "Create shapes.txt and populate the shape_id fields in trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_006",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "HIGH",
+          "title": "High proportion of trips without shapes"
         },
         {
           "details": {
@@ -12586,6 +12880,33 @@
           "service_id": null,
           "severity": "INFO",
           "title": "File size (info)"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "fixed_trips": "1",
+            "route_0_example_trip_id": "T1",
+            "route_0_route_id": "R1",
+            "route_0_shapeless": "1",
+            "route_0_trips": "1",
+            "route_count": "1",
+            "shapeless_trips": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "≤ %80",
+          "field": null,
+          "file": "trips.txt",
+          "line": null,
+          "message": "High proportion of trips have no shape (100%).",
+          "observed_value": "100%",
+          "remediation": "Create shapes.txt and populate the shape_id fields in trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "DQ_006",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "HIGH",
+          "title": "High proportion of trips without shapes"
         },
         {
           "details": {

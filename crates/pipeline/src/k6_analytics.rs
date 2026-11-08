@@ -746,6 +746,82 @@ fn zone_only_trip_ids(records: &EntityRecords) -> HashSet<&str> {
         .collect()
 }
 
+/// Routes shown to the planner in the DQ_006 summary.
+const DQ006_ROUTES: usize = 20;
+/// Trips (file order) shown to the planner in the DQ_005b / DQ_009 summaries.
+const DQ_TRIP_EXAMPLES: usize = 10;
+/// Stops (file order) shown to the planner in the DQ_005c summary.
+const DQ005C_EXAMPLES: usize = 50;
+/// Agencies that routes do use, listed on a DQ_010 finding.
+const DQ010_USED: usize = 10;
+
+/// DQ_006 planner context: the routes with the most trips without a shape (tie → route_id), each
+/// with its fixed-trip count and one shapeless example trip, preferring a trip that has stop
+/// times so the map can draw the straight-line path apps fall back to.
+fn dq006_route_details(
+    records: &EntityRecords,
+    zone_only: &HashSet<&str>,
+) -> Vec<(String, String)> {
+    let ti = &records.trip_interns;
+    let has_times = &records.stop_times_index.trip_id_set;
+    // route_id → (shapeless, fixed trips, example trip, example has stop times)
+    let mut by_route: FxHashMap<&str, (usize, usize, &str, bool)> = FxHashMap::default();
+    for t in &records.trips {
+        if zone_only.contains(t.trip_id.as_str()) {
+            continue;
+        }
+        let entry = by_route.entry(ti.route_id(t)).or_insert((0, 0, "", false));
+        entry.1 += 1;
+        if t.shape_idx != 0 {
+            continue;
+        }
+        entry.0 += 1;
+        let timed = has_times.contains(t.trip_id.as_str());
+        if entry.2.is_empty() || (timed && !entry.3) {
+            entry.2 = t.trip_id.as_str();
+            entry.3 = timed;
+        }
+    }
+    let mut routes: Vec<_> = by_route.into_iter().filter(|(_, v)| v.0 > 0).collect();
+    routes.sort_by(|a, b| b.1 .0.cmp(&a.1 .0).then_with(|| a.0.cmp(b.0)));
+    let mut out = vec![("route_count".to_string(), routes.len().to_string())];
+    // The map draws the first timed example; fall back to the first example at all.
+    let example = routes
+        .iter()
+        .find(|(_, v)| v.3)
+        .or(routes.first())
+        .map(|(_, v)| v.2);
+    if let Some(trip) = example {
+        out.push(("example_trip_id".to_string(), trip.to_string()));
+    }
+    for (i, (route, (shapeless, trips, trip, _))) in
+        routes.into_iter().take(DQ006_ROUTES).enumerate()
+    {
+        out.push((format!("route_{i}_route_id"), route.to_string()));
+        out.push((format!("route_{i}_shapeless"), shapeless.to_string()));
+        out.push((format!("route_{i}_trips"), trips.to_string()));
+        out.push((format!("route_{i}_example_trip_id"), trip.to_string()));
+    }
+    out
+}
+
+/// DQ_005b / DQ_009 planner context: the trip count and the first trips in file order.
+fn trip_example_details(records: &EntityRecords) -> Vec<(String, String)> {
+    let ti = &records.trip_interns;
+    let mut out = vec![("trip_count".to_string(), records.trips.len().to_string())];
+    let mut trips: Vec<_> = records.trips.iter().collect();
+    trips.sort_by_key(|t| t.line);
+    for (i, t) in trips.into_iter().take(DQ_TRIP_EXAMPLES).enumerate() {
+        out.push((format!("example_{i}_trip_id"), t.trip_id.to_string()));
+        out.push((format!("example_{i}_route_id"), ti.route_id(t).to_string()));
+        out.push((
+            format!("example_{i}_service_id"),
+            ti.service_id(t).to_string(),
+        ));
+    }
+    out
+}
+
 /// Number of example rows (from different trips) exposed to the planner in the STM_007 summary.
 const STM007_EXAMPLE_ROWS: usize = 20;
 /// Row detail → the `example_<i>_<ad>` key in the summary.
@@ -6399,6 +6475,28 @@ fn check_data_quality(
             "Feed'de bugün itibarıyla aktif seferi olan servis bulunamadı.".to_string(),
             "calendar.txt veya calendar_dates.txt verilerini güncelleyin.",
         ));
+        // Planner context: how many calendars exist and the last day any of them runs (tie → the
+        // smallest service_id, so native and WASM agree on the shown calendar).
+        let last = derived
+            .calendar_bitmap
+            .active_dates
+            .iter()
+            .filter_map(|(service, dates)| dates.iter().max().map(|&d| (d, service.as_str())))
+            .max_by(|a, b| a.0.cmp(&b.0).then_with(|| b.1.cmp(a.1)));
+        if let Some(n) = notices.last_mut() {
+            let details = n.details.get_or_insert_with(Default::default);
+            details.insert(
+                "service_count".to_string(),
+                derived.calendar_bitmap.active_dates.len().to_string(),
+            );
+            if today_yyyymmdd > 0 {
+                details.insert("today".to_string(), today_yyyymmdd.to_string());
+            }
+            if let Some((date, service)) = last {
+                details.insert("last_active_date".to_string(), date.to_string());
+                details.insert("last_service_id".to_string(), service.to_string());
+            }
+        }
     }
 
     // DQ_006: ratio of trips without a shape is too high (>80%).
@@ -6433,6 +6531,14 @@ fn check_data_quality(
                     ratio * 100.0),
                 "shapes.txt dosyasını oluşturun ve trips.txt'deki shape_id alanlarını doldurun.",
             ));
+            if let Some(n) = notices.last_mut() {
+                let details = n.details.get_or_insert_with(Default::default);
+                details.insert("shapeless_trips".to_string(), shapeless.to_string());
+                details.insert("fixed_trips".to_string(), fixed_trips.to_string());
+                for (key, value) in dq006_route_details(records, &zone_only) {
+                    details.insert(key, value);
+                }
+            }
         }
     }
 
@@ -6456,6 +6562,12 @@ fn check_data_quality(
             "Feed'de sefer var ancak hiç stop_times kaydı yok.".to_string(),
             "stop_times.txt dosyasını oluşturun ve doldurun.",
         ));
+        if let Some(n) = notices.last_mut() {
+            let details = n.details.get_or_insert_with(Default::default);
+            for (key, value) in trip_example_details(records) {
+                details.insert(key, value);
+            }
+        }
     }
 
     // DQ_011: too few stops in the feed (< 2) — not functional transit data.
@@ -6474,6 +6586,21 @@ fn check_data_quality(
             "Feed'de yalnızca 1 durak var — işlevsel transit verisi oluşturulamaz.".to_string(),
             "stops.txt'e en az 2 durak ekleyin.",
         ));
+        // The one stop, so the planner sees which record it is and where it sits on the map.
+        if let (Some(n), Some(stop)) = (notices.last_mut(), records.stops.first()) {
+            let details = n.details.get_or_insert_with(Default::default);
+            details.insert("stop_id".to_string(), stop.stop_id.clone());
+            for (key, value) in [
+                ("stop_name", stop.stop_name.clone()),
+                ("stop_lat", stop.stop_lat.map(|v| v.to_string())),
+                ("stop_lon", stop.stop_lon.map(|v| v.to_string())),
+                ("location_type", stop.location_type.map(|v| v.to_string())),
+            ] {
+                if let Some(value) = value.filter(|v| !v.is_empty()) {
+                    details.insert(key.to_string(), value);
+                }
+            }
+        }
     }
 
     // DQ_012: too many agencies in the feed and agency_id is not used.
@@ -8566,6 +8693,12 @@ fn check_remaining_analytics<'a>(
                     "Feed'deki hiçbir sefer için stop_times kaydı bulunamadı.".to_string(),
                     "stop_times.txt dosyasını oluşturun.",
                 ));
+                if let Some(n) = notices.last_mut() {
+                    let details = n.details.get_or_insert_with(Default::default);
+                    for (key, value) in trip_example_details(records) {
+                        details.insert(key, value);
+                    }
+                }
             }
         }
     }
@@ -8597,6 +8730,32 @@ fn check_remaining_analytics<'a>(
                     ),
                     "stop_lat ve stop_lon alanlarını tüm duraklara ekleyin.",
                 ));
+                // Planner context: the counts and the first stops without a position in file
+                // order, with the type and parent station that tell where the stop belongs.
+                if let Some(n) = notices.last_mut() {
+                    let details = n.details.get_or_insert_with(Default::default);
+                    details.insert("missing_count", without_coords.to_string());
+                    details.insert("stop_count", records.stops.len().to_string());
+                    let mut missing: Vec<_> = records
+                        .stops
+                        .iter()
+                        .filter(|s| s.stop_lat.is_none() || s.stop_lon.is_none())
+                        .collect();
+                    missing.sort_by_key(|s| s.line);
+                    for (i, stop) in missing.into_iter().take(DQ005C_EXAMPLES).enumerate() {
+                        details.insert(format!("example_{i}_stop_id"), stop.stop_id.clone());
+                        if let Some(name) = stop.stop_name.as_deref().filter(|v| !v.is_empty()) {
+                            details.insert(format!("example_{i}_stop_name"), name);
+                        }
+                        if let Some(kind) = stop.location_type {
+                            details.insert(format!("example_{i}_location_type"), kind.to_string());
+                        }
+                        let parent = row_field_local(&stop.row, "parent_station");
+                        if !parent.is_empty() {
+                            details.insert(format!("example_{i}_parent_station"), parent);
+                        }
+                    }
+                }
             }
         }
     }
@@ -8613,6 +8772,14 @@ fn check_remaining_analytics<'a>(
                 .routes
                 .iter()
                 .any(|r| r.agency_id.as_deref().is_none_or(|id| id.trim().is_empty()));
+        let mut route_counts: FxHashMap<&str, usize> = FxHashMap::default();
+        for r in &records.routes {
+            if let Some(id) = r.agency_id.as_deref().filter(|id| !id.trim().is_empty()) {
+                *route_counts.entry(id).or_default() += 1;
+            }
+        }
+        let mut dq010_used: Vec<(&str, usize)> = route_counts.into_iter().collect();
+        dq010_used.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(b.0)));
         for ag in &records.agencies {
             let Some(ref aid) = ag.agency_id else {
                 continue;
@@ -8641,6 +8808,22 @@ fn check_remaining_analytics<'a>(
                     ),
                     "Kullanılmayan agency kaydını kaldırın ya da routes.txt'de agency_id atayın.",
                 ));
+                // Planner context: the agency's own name and site, and which agencies the
+                // routes do point at (most routes first, tie → agency_id).
+                if let Some(n) = notices.last_mut() {
+                    let details = n.details.get_or_insert_with(Default::default);
+                    if !ag.agency_name.is_empty() {
+                        details.insert("agency_name", ag.agency_name.clone());
+                    }
+                    if !ag.agency_url.is_empty() {
+                        details.insert("agency_url", ag.agency_url.clone());
+                    }
+                    details.insert("route_count", records.routes.len().to_string());
+                    for (i, (agency, routes)) in dq010_used.iter().take(DQ010_USED).enumerate() {
+                        details.insert(format!("used_{i}_agency_id"), *agency);
+                        details.insert(format!("used_{i}_routes"), routes.to_string());
+                    }
+                }
             }
         }
     }

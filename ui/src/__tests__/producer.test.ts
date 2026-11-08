@@ -779,6 +779,73 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('Saatli 1 satırdan');
   });
 
+  it('DQ_003–011 kartları takvimi, seferleri, durakları, hatları, işletmecileri ve haritayı gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı' },
+      routes: { R1: '10', R2: '20' }, trips: { T1: 'Merkez', T2: 'Liman' }, trip_routes: { T1: 'R1', T2: 'R2' },
+      trip_stops: { T1: ['S1', 'S2', 'S3'], T2: ['S3', 'S1'] }, trip_stop_sequences: { T1: [1, 2, 3], T2: [1, 2] },
+      stop_coords: { S1: [41, 29], S2: [41.01, 29.01], S3: [41.02, 29.02] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+
+    let out = render(notice('a', 'DQ_005', 'HIGH', { entity_type: 'Feed', details: {
+      service_count: '2', today: '20260515', last_active_date: '20250630', last_service_id: 'KIS',
+    } }));
+    expect(out.html).toContain('Veri setindeki 2 takvimin son çalışma günü 30.06.2025 (KIS takvimi); bugünden (15.05.2026) sonra çalışan takvim yok.');
+    out = render(notice('a', 'DQ_005', 'HIGH', { entity_type: 'Feed', details: { service_count: '3' } }));
+    expect(out.html).toContain('Veri setindeki 3 takvimin hiçbirinde çalışma günü yok');
+
+    for (const rule of ['DQ_005b', 'DQ_009']) {
+      out = render(notice('a', rule, 'HIGH', { entity_type: 'Feed', details: {
+        trip_count: '1200', example_0_trip_id: 'T1', example_0_route_id: 'R1', example_0_service_id: 'HAFTAICI',
+      } }));
+      expect(out.html).toContain('1.200 sefer tanımlı');
+      expect(out.html).toContain('<th>Sefer kodu</th><th>Hat</th><th>Takvim kodu</th>');
+      expect(out.html).toContain('<tr class="bad"><td>T1</td><td>10</td><td>HAFTAICI</td></tr>');
+    }
+
+    out = render(notice('a', 'DQ_005c', 'HIGH', { entity_type: 'Feed', details: {
+      missing_count: '2', stop_count: '3',
+      example_0_stop_id: 'P1', example_0_stop_name: 'Peron 1', example_0_location_type: '0', example_0_parent_station: 'S1',
+      example_1_stop_id: 'G1', example_1_location_type: '3',
+    } }));
+    expect(out.html).toContain('3 duraktan 2 tanesinin konumu girilmemiş');
+    expect(out.html).toContain('<tr class="bad"><td>Peron 1 (P1)</td><td>Durak</td><td>Hastane</td></tr>');
+    expect(out.html).toContain('<tr class="bad"><td>G1</td><td>Bağlantı noktası</td><td>—</td></tr>');
+
+    // DQ_006: the route table and the example trip drawn straight between its stops.
+    out = render(notice('a', 'DQ_006', 'HIGH', { entity_type: 'Feed', details: {
+      shapeless_trips: '9', fixed_trips: '10', route_count: '1', example_trip_id: 'T1',
+      route_0_route_id: 'R1', route_0_shapeless: '9', route_0_trips: '10', route_0_example_trip_id: 'T1',
+    } }));
+    expect(out.html).toContain('10 seferden 9 tanesi bir güzergâh çizimine bağlı değil (1 hat)');
+    expect(out.html).toContain('<tr><td>10</td><td>9 / 10</td><td>T1</td></tr>');
+    expect(out.map.opts?.extraPolylines?.[0]?.coords).toEqual([[41, 29], [41.01, 29.01], [41.02, 29.02]]);
+    expect(out.map.opts?.pins).toHaveLength(3);
+
+    out = render(notice('a', 'DQ_010', 'INFO', { entity_type: 'Agency', entity_id: 'A2', details: {
+      agency_name: 'Yedek', route_count: '5', used_0_agency_id: 'A1', used_0_routes: '5',
+    } }));
+    expect(out.html).toContain('Yedek işletmecisine hiçbir hat bağlı değil; veri setindeki 5 hattın tamamı başka işletmecilere bağlı.');
+    expect(out.html).toContain('<tr><td>A1</td><td>5</td></tr>');
+
+    // DQ_011: the one stop named and pinned red.
+    out = render(notice('a', 'DQ_011', 'LOW', { entity_type: 'Feed', details: { stop_id: 'S2', stop_name: 'Okul' } }));
+    expect(out.html).toContain('Veri setindeki tek durak Okul (S2)');
+    expect(out.map.opts?.pins.filter(p => p.primary).map(p => p.label)).toEqual([expect.stringContaining('Okul')]);
+
+    // DQ_003 on a route without a shape: its first trip's stops instead of the whole network.
+    out = render(notice('a', 'DQ_003', 'INFO', { entity_type: 'Route', entity_id: 'R2', field: 'route_desc' }));
+    expect(out.map.opts?.extraPolylines?.[0]?.coords).toEqual([[41.02, 29.02], [41, 29]]);
+    expect(out.map.opts?.pins).toHaveLength(2);
+  });
+
   it('STM_051–055 kartları Flex bölgesini, pencereyi, yazılan değeri ve aynı saatli durak serisini gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,
