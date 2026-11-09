@@ -8503,3 +8503,79 @@ fn shape_findings_carry_planner_context() {
     let m: f64 = get(&d, "far_stop_m").unwrap().parse().unwrap();
     assert!(m > 30_000.0, "{m}");
 }
+
+#[test]
+fn more_shape_findings_carry_planner_context() {
+    // SHP_014–023: the shape's routes and example trip; SHP_015 points and length, SHP_019 the
+    // trips without stop times, SHP_020/023 the repeated point, SHP_021 the rows around it.
+    // Counts are unchanged.
+    let find = |vr: &gtfs_pipeline::ValidationResult, rule: &str| {
+        vr.notices
+            .iter()
+            .find(|n| n.rule_id == rule)
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor"))
+    };
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+
+    static STOPS: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
+          S1,One,41.0,29.0\nS2,Two,41.01,29.0\nS3,Three,41.02,29.0\nS4,Four,41.2,29.0\n";
+    static ROUTES5: &[u8] = b"route_id,agency_id,route_short_name,route_type\n\
+          R1,1,10,3\nR2,1,20,3\nR3,1,30,3\nR4,1,40,3\nR5,1,50,3\n";
+    static TRIPS5: &[u8] = b"route_id,service_id,trip_id,shape_id\n\
+          R1,SVC1,T1,SE\nR2,SVC1,T2,SF\nR3,SVC1,T3,SG\nR4,SVC1,T4,SW\nR5,SVC1,T5,SV\n";
+    static TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:05:00,08:05:00,S2,2\nT1,08:10:00,08:10:00,S3,3\n\
+          T2,08:00:00,08:00:00,S1,1\nT2,08:30:00,08:30:00,S4,2\n\
+          T3,08:00:00,08:00:00,S1,1\nT3,08:05:00,08:05:00,S2,2\nT3,08:10:00,08:10:00,S3,3\n\
+          T4,08:00:00,08:00:00,S1,1\nT4,08:05:00,08:05:00,S2,2\n";
+    static SHAPES: &[u8] =
+        b"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
+          SE,40.99,29.0,1,0\nSE,41.0,29.0,2,1100\nSE,41.0,29.0,3,1100\nSE,41.01,29.0,4,2200\nSE,41.02,29.0,5,3300\n\
+          SF,41.0,29.0,1,\nSF,41.2,29.0,2,\n\
+          SG,41.02,29.0,1,\nSG,41.01,29.0,2,\nSG,41.0,29.0,3,\n\
+          SW,41.0,29.0,1,\nSW,41.01,29.0,2,\nSW,41.01,29.01,3,\nSW,41.0,29.0,4,\nSW,40.99,29.0,5,\n\
+          SU,41.5,29.5,1,\nSU,41.6,29.5,2,\n\
+          SV,41.0,29.0,1,0\nSV,41.01,29.0,2,-5\nSV,41.02,29.0,3,2000\n";
+    let mut files = base_files();
+    files[1] = ("stops.txt", STOPS);
+    files[2] = ("routes.txt", ROUTES5);
+    files[3] = ("trips.txt", TRIPS5);
+    files[4] = ("stop_times.txt", TIMES);
+    files.push(("shapes.txt", SHAPES));
+    let vr = match run(&files) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+
+    let d = find(&vr, "SHP_014");
+    assert_eq!(get(&d, "routes").as_deref(), Some("R1"));
+    assert_eq!(get(&d, "problem_stop").as_deref(), Some("S1"));
+    let d = find(&vr, "SHP_015");
+    assert_eq!(get(&d, "point_count").as_deref(), Some("2"));
+    assert_eq!(get(&d, "routes").as_deref(), Some("R2"));
+    let d = find(&vr, "SHP_016");
+    assert_eq!(get(&d, "routes").as_deref(), Some("R3"));
+    // An unused shape has no trips, so nothing is added.
+    let n018 = vr
+        .notices
+        .iter()
+        .find(|n| n.rule_id == "SHP_018")
+        .expect("SHP_018");
+    assert!(n018
+        .details
+        .as_ref()
+        .is_none_or(|d| d.get("routes").is_none()));
+    let d = find(&vr, "SHP_019");
+    assert_eq!(get(&d, "trip_ids").as_deref(), Some("T5"));
+    assert_eq!(get(&d, "routes").as_deref(), Some("R5"));
+    let d = find(&vr, "SHP_020");
+    assert_eq!(get(&d, "lat").as_deref(), Some("41.000000"));
+    assert_eq!(get(&d, "routes").as_deref(), Some("R4"));
+    let d = find(&vr, "SHP_021");
+    assert_eq!(get(&d, "prev_lat").as_deref(), Some("41"));
+    assert_eq!(get(&d, "next_lat").as_deref(), Some("41.02"));
+    let d = find(&vr, "SHP_023");
+    assert_eq!(get(&d, "lat").as_deref(), Some("41.000000"));
+    assert_eq!(get(&d, "routes").as_deref(), Some("R1"));
+}

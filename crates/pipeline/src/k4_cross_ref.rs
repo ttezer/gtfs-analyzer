@@ -1737,6 +1737,8 @@ const PTH014_WALK_MAX_M: f64 = 300.0;
 const STP009_STATION_KM: f64 = 1.0;
 /// STP_012/015 planner context sizes: a station's platforms named, the levels listed.
 const STP_CONTEXT_LIST: usize = 10;
+/// SHP_019 planner context: the trips without stop times named per shape.
+const SHP019_TRIPS: usize = 5;
 
 /// The nearest station (location_type 1) within `STP009_STATION_KM` of a stop: (km, stop_id).
 fn nearest_station<'a>(
@@ -7066,7 +7068,7 @@ fn check_xfl(
 
         for (shape_id, trip_count) in orphan_shapes {
             let line = first_line.get(shape_id).copied();
-            notices.push(notice(
+            let mut n019 = notice(
                 ctr,
                 "SHP_019",
                 EntityType::Shape,
@@ -7082,7 +7084,17 @@ fn check_xfl(
                     shape_id, trip_count
                 ),
                 "Seferlere stop_times ekleyin veya ilgili sefer ve güzergah şekli kayıtlarını kaldırın.",
-            ));
+            );
+            // Planner context: the trips without stop times (first few, sorted).
+            if let Some(trip_ids) = shape_to_trips.get(shape_id) {
+                let mut ids: Vec<&str> = trip_ids.to_vec();
+                ids.sort_unstable();
+                ids.truncate(SHP019_TRIPS);
+                n019.details
+                    .get_or_insert_with(Default::default)
+                    .insert("trip_ids".to_string(), ids.join(","));
+            }
+            notices.push(n019);
         }
     }
 

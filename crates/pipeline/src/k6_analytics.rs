@@ -8246,14 +8246,20 @@ fn check_remaining_analytics<'a>(
                                         .map(|v| v.as_slice())
                                         .unwrap_or(&[]),
                                 );
-                                notices.push(k6_notice(
+                                let mut n023 = k6_notice(
                                     ctr, "SHP_023", EntityType::Shape,
                                     Some(shape_id.to_string()), Some(shape_id.to_string()),
                                     "shapes.txt", None, Some("shape_dist_traveled"),
                                     Some(format!("dist={da_v:.4}, ({la:.6},{loa:.6})")), None,
                                     format!("{prefix}'{shape_id}' şeklinde art arda iki noktanın shape_dist_traveled ({da_v:.4}) ve koordinatları aynı — tekrar eden nokta."),
                                     "Yinelenen shape noktasını kaldırın.",
-                                ));
+                                );
+                                // Planner context: where the repeated point is and its distance.
+                                let d = n023.details.get_or_insert_with(Default::default);
+                                d.insert("lat".to_string(), format!("{la:.6}"));
+                                d.insert("lon".to_string(), format!("{loa:.6}"));
+                                d.insert("dist".to_string(), format!("{da_v}"));
+                                notices.push(n023);
                             }
                         } else {
                             // Same distance but different coordinates → position changed without increasing distance.
@@ -10991,7 +10997,7 @@ fn check_remaining_analytics<'a>(
             if total_km > 1.0 {
                 let density = pts.len() as f64 / (total_km / 10.0);
                 if density < MIN_POINTS_PER_10KM {
-                    notices.push(k6_notice(
+                    let mut n015 = k6_notice(
                         ctr, "SHP_015", EntityType::Shape,
                         Some(shape_id.to_string()), Some(shape_id.to_string()),
                         "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
@@ -11002,7 +11008,12 @@ fn check_remaining_analytics<'a>(
                             pts.len()
                         ),
                         "Güzergah şekline ara noktalar ekleyin; düşük nokta yoğunluğu harita gösterimini bozar.",
-                    ));
+                    );
+                    // Planner context: how many points carry how long a line.
+                    let d = n015.details.get_or_insert_with(Default::default);
+                    d.insert("point_count".to_string(), pts.len().to_string());
+                    d.insert("length_km".to_string(), format!("{total_km:.1}"));
+                    notices.push(n015);
                 }
             }
         }
@@ -11081,6 +11092,14 @@ fn check_remaining_analytics<'a>(
                 ),
                 "Güzergah şeklindeki tekrarlayan noktaları temizleyin.",
             );
+            // Planner context: where the point repeats and its two positions in the order.
+            {
+                let d = n.details.get_or_insert_with(Default::default);
+                d.insert("lat".to_string(), format!("{lat:.6}"));
+                d.insert("lon".to_string(), format!("{lon:.6}"));
+                d.insert("first_point".to_string(), (i + 1).to_string());
+                d.insert("second_point".to_string(), (j + 1).to_string());
+            }
             // The feed-summary branch writes `affected_shapes`/`example_shapes`; the single-item branch
             // carries the same keys so one template is populated in both branches.
             {
@@ -11630,6 +11649,10 @@ fn check_shp022<'a>(
                 );
                 let mut det = std::collections::BTreeMap::new();
                 det.insert("shape_id".to_string(), shape_id.to_string());
+                // Planner context: how many separate parts of the line the stop is near, and the
+                // trip it was found on.
+                det.insert("parts".to_string(), clusters.to_string());
+                det.insert("trip_id".to_string(), trip_id.to_string());
                 notice.details = Some(det.into());
                 shp022_best.insert(stop_id, (best_key, notice));
             }

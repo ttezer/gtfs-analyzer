@@ -5904,24 +5904,6 @@
           "details": null,
           "entity_id": "SH1",
           "entity_type": "Shape",
-          "expected_value": "≥ 2/10km",
-          "field": "shape_pt_lat|shape_pt_lon",
-          "file": "shapes.txt",
-          "line": null,
-          "message": "Shape 'SH1' has statistically too few points.",
-          "observed_value": "2 / 13.9km",
-          "remediation": "Add more points to the route shape.",
-          "rule_class": "QUALITY",
-          "rule_id": "SHP_015",
-          "scope_key": "SH1",
-          "service_id": null,
-          "severity": "MEDIUM",
-          "title": "Shape has statistically too few points"
-        },
-        {
-          "details": null,
-          "entity_id": "SH1",
-          "entity_type": "Shape",
           "expected_value": null,
           "field": "shape_id",
           "file": "shapes.txt",
@@ -5953,24 +5935,6 @@
           "service_id": null,
           "severity": "HIGH",
           "title": "Large jump in shape"
-        },
-        {
-          "details": null,
-          "entity_id": "SH2",
-          "entity_type": "Shape",
-          "expected_value": "≥ 2/10km",
-          "field": "shape_pt_lat|shape_pt_lon",
-          "file": "shapes.txt",
-          "line": null,
-          "message": "Shape 'SH2' has statistically too few points.",
-          "observed_value": "2 / 13.9km",
-          "remediation": "Add more points to the route shape.",
-          "rule_class": "QUALITY",
-          "rule_id": "SHP_015",
-          "scope_key": "SH2",
-          "service_id": null,
-          "severity": "MEDIUM",
-          "title": "Shape has statistically too few points"
         },
         {
           "details": null,
@@ -6080,6 +6044,48 @@
           "service_id": null,
           "severity": "CRITICAL",
           "title": "shape_dist_traveled decreases"
+        },
+        {
+          "details": {
+            "length_km": "13.9",
+            "point_count": "2"
+          },
+          "entity_id": "SH1",
+          "entity_type": "Shape",
+          "expected_value": "≥ 2/10km",
+          "field": "shape_pt_lat|shape_pt_lon",
+          "file": "shapes.txt",
+          "line": null,
+          "message": "Shape 'SH1' has statistically too few points.",
+          "observed_value": "2 / 13.9km",
+          "remediation": "Add more points to the route shape.",
+          "rule_class": "QUALITY",
+          "rule_id": "SHP_015",
+          "scope_key": "SH1",
+          "service_id": null,
+          "severity": "MEDIUM",
+          "title": "Shape has statistically too few points"
+        },
+        {
+          "details": {
+            "length_km": "13.9",
+            "point_count": "2"
+          },
+          "entity_id": "SH2",
+          "entity_type": "Shape",
+          "expected_value": "≥ 2/10km",
+          "field": "shape_pt_lat|shape_pt_lon",
+          "file": "shapes.txt",
+          "line": null,
+          "message": "Shape 'SH2' has statistically too few points.",
+          "observed_value": "2 / 13.9km",
+          "remediation": "Add more points to the route shape.",
+          "rule_class": "QUALITY",
+          "rule_id": "SHP_015",
+          "scope_key": "SH2",
+          "service_id": null,
+          "severity": "MEDIUM",
+          "title": "Shape has statistically too few points"
         }
       ],
       "agency_breakdown": {

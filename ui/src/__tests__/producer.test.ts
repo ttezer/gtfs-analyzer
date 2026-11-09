@@ -1572,6 +1572,58 @@ describe('Üretici kartı görünümü', () => {
     expect(out.map.opts?.pins.filter(p => p.primary)).toHaveLength(1);
   });
 
+  it('SHP_014–023 kartları çizimin uçlarını, yönünü, noktalarını ve kullanımını haritada gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı' },
+      routes: { R1: '10' }, trips: { T1: 'Çarşı' }, trip_routes: { T1: 'R1' }, trip_first_dep: { T1: '06:00' },
+      trip_stops: { T1: ['S1', 'S2', 'S3'] }, trip_stop_sequences: { T1: [1, 2, 3] },
+      stop_coords: { S1: [41, 29], S2: [41.01, 29], S3: [41.02, 29] },
+      shape_coords: { SE: [[40.99, 29], [41.01, 29], [41.02, 29]] }, shape_routes: { SE: [['R1', '0']] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+    const ctx = { trip_count: '3', route_count: '1', routes: 'R1', example_trip_id: 'T1' };
+
+    // SHP_014: the line's start and the first stop, linked in red.
+    let out = render(notice('a', 'SHP_014', 'INFO', { entity_type: 'Shape', entity_id: 'SE', observed_value: '1112m',
+      details: { ...ctx, problem_stop: 'S1', endpoint: 'start', trip_id: 'T1' } }));
+    expect(out.html).toContain('10 hattının „SE“ güzergâh çizimi: çizginin başladığı nokta, seferin ilk durağı „Hastane“ konumundan 1,1 km uzakta');
+    expect(out.map.opts?.pins.some(p => p.label === 'Çizginin başı')).toBe(true);
+    expect(out.html).toContain('<tr class="bad"><td>1</td><td>Hastane (S1)</td></tr>');
+
+    // SHP_016: drawn backwards, the first stop named.
+    out = render(notice('a', 'SHP_016', 'MEDIUM', { entity_type: 'Shape', entity_id: 'SE', details: { ...ctx, first_stop: 'S1', trip_id: 'T1' } }));
+    expect(out.html).toContain('10 hattının „SE“ güzergâh çizimi ters yönde çizilmiş: seferler „Hastane“ durağından başlıyor');
+
+    // SHP_017: the trip and the stop out of order, red in its stop list.
+    out = render(notice('a', 'SHP_017', 'HIGH', { entity_type: 'Trip', entity_id: 'T1', details: { shape_id: 'SE', bad_stop: 'S2', ...ctx } }));
+    expect(out.html).toContain('10 hattının „Çarşı“ yönündeki 06:00 kalkışlı seferi „Okul“ durağına, çizgi boyunca önceki durağın gerisinde');
+    expect(out.html).toContain('<tr class="bad"><td>2</td><td>Okul (S2)</td></tr>');
+
+    // SHP_018: the unused shape's size from its points.
+    out = render(notice('a', 'SHP_018', 'LOW', { entity_type: 'Shape', entity_id: 'SE' }));
+    expect(out.html).toContain('„SE“ güzergâh çizimi hiçbir sefer tarafından kullanılmıyor. Çizimin 3 noktası var');
+
+    // SHP_019: the trips without stop times.
+    out = render(notice('a', 'SHP_019', 'MEDIUM', { entity_type: 'Shape', entity_id: 'SE', observed_value: '1', details: { ...ctx, trip_ids: 'T9' } }));
+    expect(out.html).toContain('1 sefere atanmış ama bu seferlerin hiçbirinin durak saati yok');
+    expect(out.html).toContain('<tr class="bad"><td>T9</td><td>T9</td></tr>');
+
+    // SHP_020: the two points at one place, circled.
+    out = render(notice('a', 'SHP_020', 'INFO', { entity_type: 'Shape', entity_id: 'SE', details: { ...ctx, lat: '41.01', lon: '29', first_point: '2', second_point: '5' } }));
+    expect(out.html).toContain('çizgi 2. ve 5. noktada aynı yerden geçiyor');
+    expect(out.map.opts?.highlights).toHaveLength(1);
+
+    // SHP_022: the stop near two parts of the line.
+    out = render(notice('a', 'SHP_022', 'LOW', { entity_type: 'Stop', entity_id: 'S2', details: { shape_id: 'SE', parts: '2', trip_id: 'T1', ...ctx } }));
+    expect(out.html).toContain('„Okul“ durağı şu çizimin 2 ayrı bölümüne yakın: 10 hattının „SE“ güzergâh çizimi');
+  });
+
   it('STM_051–055 kartları Flex bölgesini, pencereyi, yazılan değeri ve aynı saatli durak serisini gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,

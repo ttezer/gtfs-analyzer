@@ -2439,12 +2439,15 @@ pub fn aggregate_feed_level_notices(
 }
 
 /// Shape findings whose planner card names the routes drawn with the shape and an example trip.
-const SHAPE_CONTEXT_RULES: [&str; 10] = [
+const SHAPE_CONTEXT_RULES: [&str; 20] = [
     "SHP_001", "SHP_002", "SHP_003", "SHP_004", "SHP_005", "SHP_006", "SHP_008", "SHP_009",
-    "SHP_010", "SHP_012",
+    "SHP_010", "SHP_012", "SHP_014", "SHP_015", "SHP_016", "SHP_017", "SHP_018", "SHP_019",
+    "SHP_020", "SHP_021", "SHP_022", "SHP_023",
 ];
 /// Shape point findings (one row of the point list): the row's neighbours in the file.
-const SHAPE_POINT_RULES: [&str; 5] = ["SHP_001", "SHP_002", "SHP_003", "SHP_004", "SHP_008"];
+const SHAPE_POINT_RULES: [&str; 6] = [
+    "SHP_001", "SHP_002", "SHP_003", "SHP_004", "SHP_008", "SHP_021",
+];
 /// How far up and down the file a point's neighbours with a position are looked for.
 const SHAPE_NEIGHBOUR_SCAN: usize = 50;
 
@@ -2541,7 +2544,16 @@ fn annotate_shape_context(all: &mut [gtfs_core::Notice], records: &EntityRecords
             continue;
         }
         let mut adds: Vec<(String, String)> = Vec::new();
-        match n.entity_id.as_deref() {
+        // A trip or stop finding about a shape (SHP_017/022) names it in `details.shape_id`.
+        let shape_id: Option<String> = if n.entity_type == gtfs_core::EntityType::Shape {
+            n.entity_id.clone()
+        } else {
+            n.details
+                .as_ref()
+                .and_then(|d| d.get("shape_id"))
+                .map(|v| v.to_string())
+        };
+        match shape_id.as_deref() {
             Some(shape) => adds.extend(describe(shape, "")),
             None => {
                 let examples: Vec<String> = n
