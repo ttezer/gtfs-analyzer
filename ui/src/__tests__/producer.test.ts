@@ -1031,8 +1031,18 @@ describe('Üretici kartı görünümü', () => {
       details: { first_service_date: '20260601', days_until: '17', message_variant: 'future_only_jp' } }));
     expect(out.html).toContain('Japonya (GTFS-JP) veri setindeki bütün takvimler 01.06.2026 tarihinde başlıyor');
     // CAL_020: the dataset window, no calendar trips; CAL_022: the row; CAL_025: the empty day.
-    out = render(notice('a', 'CAL_020', 'LOW', { entity_type: 'Feed', file: 'feed_info.txt', observed_value: '9 years', details: { feed_start_date: '20200101', feed_end_date: '20290101', span_days: '3288' } }));
-    expect(out.html).toContain('geçerlilik dönemi 01.01.2020 – 01.01.2029, yani yaklaşık 9 yıl');
+    out = render(notice('a', 'CAL_020', 'LOW', { entity_type: 'Feed', file: 'feed_info.txt', observed_value: '9 years', details: { feed_start_date: '20200101', feed_end_date: '20290101', span_days: '3288',
+      service_first: '20260101', service_last: '20261231', service_first_calendar: 'EXP', service_last_calendar: 'SOON' } }));
+    expect(out.html).toContain('geçerlilik dönemi 01.01.2020 – 01.01.2029, yani yaklaşık 9 yıl; bu kadar uzun bir tarife dönemi gerçekçi değil. Takvimler ise yalnız 01.01.2026 – 31.12.2026 arasında çalışıyor.');
+    expect(out.html).toContain('Geçerlilik dönemini takvimlerin çalıştığı döneme göre ayarlayın: başlangıç 01.01.2026, bitiş 31.12.2026.');
+    expect(out.html).toContain('<tr class="bad"><td>Veri seti bilgilerinde yazan</td><td>01.01.2020</td><td>01.01.2029</td><td>3.289</td></tr>');
+    expect(out.html).toContain('<tr><td>Takvimlerin çalıştığı</td><td>01.01.2026 (EXP takvimi)</td><td>31.12.2026 (SOON takvimi)</td><td>365</td></tr>');
+    // Calendars as long as the window: the calendar setting the far end is fixed first.
+    out = render(notice('a', 'CAL_020', 'LOW', { entity_type: 'Feed', file: 'feed_info.txt', observed_value: '9 years', details: {
+      feed_start_date: '20200101', feed_end_date: '20290101', span_days: '3288',
+      service_first: '20250101', service_last: '20990101', service_first_calendar: 'EXP', service_last_calendar: 'FAR' } }));
+    expect(out.html).toContain('Takvimler de 01.01.2025 – 01.01.2099 arasında çalışıyor; bu da gerçekçi değil, en uzak tarihi FAR takvimi belirliyor.');
+    expect(out.html).toContain('Önce FAR takviminin bitiş tarihini tarifenin gerçek sonuna çekin');
     expect(out.html).toContain('<td>Veri seti bilgileri</td>');
     out = render(notice('a', 'CAL_022', 'HIGH', { entity_type: 'Service', line: 4 }));
     expect(out.html).toContain('Takvim listesinin 4. satırında takvim kodu boş');

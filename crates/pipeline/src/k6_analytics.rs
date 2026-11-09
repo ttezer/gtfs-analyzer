@@ -7076,6 +7076,29 @@ fn check_data_quality(
                     details.insert("feed_start_date", (sy * 10000 + sm * 100 + sd).to_string());
                     details.insert("feed_end_date", (ey * 10000 + em * 100 + ed).to_string());
                     details.insert("span_days", span_days.to_string());
+                    // The period the calendars really run: the first and last active day of any
+                    // calendar, and the calendar that sets each (smallest code on a tie).
+                    let mut first: Option<(u32, &str)> = None;
+                    let mut last: Option<(u32, &str)> = None;
+                    for (service, dates) in &derived.calendar_bitmap.active_dates {
+                        let (Some(&lo), Some(&hi)) = (dates.iter().min(), dates.iter().max())
+                        else {
+                            continue;
+                        };
+                        let service = service.as_str();
+                        if first.is_none_or(|(d, s)| lo < d || (lo == d && service < s)) {
+                            first = Some((lo, service));
+                        }
+                        if last.is_none_or(|(d, s)| hi > d || (hi == d && service < s)) {
+                            last = Some((hi, service));
+                        }
+                    }
+                    if let (Some((lo, lo_service)), Some((hi, hi_service))) = (first, last) {
+                        details.insert("service_first", lo.to_string());
+                        details.insert("service_first_calendar", lo_service.to_string());
+                        details.insert("service_last", hi.to_string());
+                        details.insert("service_last_calendar", hi_service.to_string());
+                    }
                     notices.push(notice);
                 }
             }

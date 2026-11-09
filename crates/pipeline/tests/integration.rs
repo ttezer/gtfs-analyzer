@@ -7796,6 +7796,9 @@ fn calendar_findings_014_to_025_carry_planner_context() {
     assert_eq!(get(&d, "feed_start_date").as_deref(), Some("20200101"));
     assert_eq!(get(&d, "feed_end_date").as_deref(), Some("20290101"));
     assert_eq!(get(&d, "span_days").as_deref(), Some("3288"));
+    assert_eq!(get(&d, "service_first").as_deref(), Some("20250101"));
+    assert_eq!(get(&d, "service_last").as_deref(), Some("20290101"));
+    assert_eq!(get(&d, "service_last_calendar").as_deref(), Some("SVC1"));
     assert_eq!(get(&d, "trip_count"), None);
 
     // A calendar covering today with no service until 1 July.

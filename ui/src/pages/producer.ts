@@ -314,6 +314,12 @@ function dqListLabel(n: Notice): string | null {
 /** Kinds whose repeats are one code on several records (the rest repeat a whole row's meaning). */
 const DQ021_CODE_KINDS = new Set(['stop', 'route', 'trip', 'attribution', 'location_group']);
 
+/** CAL_020: do the calendars themselves run longer than the five-year limit the rule uses? */
+function cal020LongCalendars(d: Record<string, string>): boolean {
+  const ms = (v?: string) => (v && /^\d{8}$/.test(v) ? Date.UTC(Number(v.slice(0, 4)), Number(v.slice(4, 6)) - 1, Number(v.slice(6, 8))) : NaN);
+  return (ms(d.service_last) - ms(d.service_first)) / 86_400_000 > 1825;
+}
+
 /** Each calendar rule's own sentence, in the planner's words; null when the finding lacks what
  *  the sentence needs (the card then keeps its general text). */
 function calRuleText(n: Notice, result: ValidationResult): string | null {
@@ -404,12 +410,18 @@ function calRuleText(n: Notice, result: ValidationResult): string | null {
       return svc && n.observed_value ? t('producer.card.CAL_017.what_detail', { svc, date: ymdText(n.observed_value) }) : null;
     case 'CAL_018':
       return svc ? t('producer.card.CAL_018.what_detail', { svc }) : null;
-    case 'CAL_020':
-      return d.feed_start_date && d.feed_end_date && d.span_days
-        ? t('producer.card.CAL_020.what_detail', {
-          start: ymdText(d.feed_start_date), end: ymdText(d.feed_end_date), years: localizedNumber(String(Math.floor(Number(d.span_days) / 365))),
-        })
-        : null;
+    case 'CAL_020': {
+      if (!d.feed_start_date || !d.feed_end_date || !d.span_days) return null;
+      const written = t('producer.card.CAL_020.what_detail', {
+        start: ymdText(d.feed_start_date), end: ymdText(d.feed_end_date), years: localizedNumber(String(Math.floor(Number(d.span_days) / 365))),
+      });
+      // The period the calendars really run, to set the window against — unless the calendars
+      // themselves run as long (then the calendar setting the far end is the thing to fix first).
+      if (!d.service_first || !d.service_last) return written;
+      return `${written} ${t(cal020LongCalendars(d) ? 'producer.card.CAL_020.what_service_long' : 'producer.card.CAL_020.what_service', {
+        first: ymdText(d.service_first), last: ymdText(d.service_last), svc: d.service_last_calendar || '—',
+      })}`;
+    }
     case 'CAL_021':
       return svc && d.window_days && d.next_active
         ? t('producer.card.CAL_021.what_detail', { svc, n: localizedNumber(d.window_days), next: ymdText(d.next_active) })
@@ -1286,7 +1298,12 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         title: t(`producer.card.${g.ruleId}.title`),
         // CAL_011 has no trips; CAL_020/022 concern no calendar's trips.
         what: ['CAL_011', 'CAL_020', 'CAL_022'].includes(g.ruleId) ? what : calWhat(n, result, what),
-        action: t(`producer.card.${g.ruleId}.action`),
+        // CAL_020: set the window to the period the calendars run.
+        action: g.ruleId === 'CAL_020' && n.details?.service_first && n.details?.service_last
+          ? t(cal020LongCalendars(n.details) ? 'producer.card.CAL_020.action_long' : 'producer.card.CAL_020.action_detail', {
+            first: ymdText(n.details.service_first), last: ymdText(n.details.service_last), svc: n.details.service_last_calendar || '—',
+          })
+          : t(`producer.card.${g.ruleId}.action`),
       };
     }
     case 'DQ_003':
@@ -1956,6 +1973,20 @@ function timeStripBody(n: Notice, result: ValidationResult): string {
       rows.push(`<tr><td>${escHtml(at('trip_id') || '—')}</td><td>${escHtml(stop)}</td><td>${escHtml(plannerTime(at('arrival')) || '—')}</td><td>${escHtml(plannerTime(at('departure')) || '—')}</td></tr>`);
     }
     return `<p class="producer-card-label">${escHtml(t('producer.times.stm050_examples'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.col.trip_code')}</th><th>${t('producer.times.stop_with_sequence')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  }
+  if (n.rule_id === 'CAL_020' && d.feed_start_date && d.feed_end_date) {
+    // The window as written next to the period the calendars run (and the calendar setting each end).
+    const by = (date?: string, svc?: string) => (date ? (svc ? t('producer.times.cal020_by', { date: ymdText(date), svc }) : ymdText(date)) : '—');
+    const days = (a?: string, b?: string) => {
+      if (!a || !b || !/^\d{8}$/.test(a) || !/^\d{8}$/.test(b)) return '—';
+      const ms = (v: string) => Date.UTC(Number(v.slice(0, 4)), Number(v.slice(4, 6)) - 1, Number(v.slice(6, 8)));
+      return localizedNumber(String(Math.round((ms(b) - ms(a)) / 86_400_000) + 1));
+    };
+    const rows = [
+      `<tr class="bad"><td>${escHtml(t('producer.times.cal020_written'))}</td><td>${escHtml(ymdText(d.feed_start_date))}</td><td>${escHtml(ymdText(d.feed_end_date))}</td><td>${escHtml(days(d.feed_start_date, d.feed_end_date))}</td></tr>`,
+      ...(d.service_first && d.service_last ? [`<tr><td>${escHtml(t('producer.times.cal020_calendars'))}</td><td>${escHtml(by(d.service_first, d.service_first_calendar))}</td><td>${escHtml(by(d.service_last, d.service_last_calendar))}</td><td>${escHtml(days(d.service_first, d.service_last))}</td></tr>`] : []),
+    ];
+    return `<p class="producer-card-label">${escHtml(t('producer.times.cal020_periods'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.times.period')}</th><th>${t('producer.field.start_date')}</th><th>${t('producer.field.end_date')}</th><th>${t('producer.times.days')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
   if (CAL_USAGE_RULES.has(n.rule_id)) {
     // The calendars of a summary (days and validity), then the routes running on them with
