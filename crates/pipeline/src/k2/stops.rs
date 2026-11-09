@@ -54,7 +54,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
 
         // STP_002: stop_id required (if the column is absent, ARC_025 takes over → skip)
         if get_raw_field(&row_map, "stop_id").map(str::trim) == Some("") {
-            notices.push(make_k2_notice(
+            let mut notice = make_k2_notice(
                 &mut counter,
                 "STP_002",
                 EntityType::Stop,
@@ -67,7 +67,15 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                 None,
                 "stop_id zorunludur.".to_string(),
                 "stop_id alanını doldurun.",
-            ));
+            );
+            // Planner context: the code-less row's name, code and position.
+            let details = notice.details.get_or_insert_with(Default::default);
+            for field in ["stop_name", "stop_code", "stop_lat", "stop_lon"] {
+                if let Some(value) = get_trimmed_field(&row_map, field).filter(|v| !v.is_empty()) {
+                    details.insert(field.to_string(), value.to_string());
+                }
+            }
+            notices.push(notice);
         }
 
         let stop_code = get_trimmed_field(&row_map, "stop_code")

@@ -8148,3 +8148,74 @@ fn analytics_findings_carry_planner_context() {
     assert_eq!(get(&d, "routes").as_deref(), Some("R3,R4,R5"));
     assert_eq!(get(&d, "total_routes").as_deref(), Some("6"));
 }
+
+#[test]
+fn stop_findings_carry_planner_context() {
+    // STP_001 both rows' names and positions, STP_002 the code-less row, STP_009 the nearest
+    // station, STP_010 the stop it is attached to, and for stop findings the trips, routes and
+    // the stops before and after the stop on an example trip (STP_004/005 per example stop).
+    // Counts are unchanged.
+    let find = |vr: &gtfs_pipeline::ValidationResult, rule: &str| {
+        vr.notices
+            .iter()
+            .find(|n| n.rule_id == rule)
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor"))
+    };
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+
+    static STOPS: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n\
+          S1,First,41.0,29.0,,\nS1,Second,41.5,29.5,,\n,Nameless,41.2,29.2,,\n\
+          X3,,41.03,29.0,,\nX6,Six,,29.0,,\nX7,Seven,41.07,,,\nX4,Four,abc,29.0,,\n\
+          X5,Five,41.05,xyz,,\nX8,Eight,41.08,29.0,9,\nX9,Nine,41.09,29.0,,PX\n\
+          ST,Station,41.091,29.0,1,\nS2,Two,41.1,29.0,,\nX10,Ten,41.11,29.0,,S2\n";
+    static TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:01:00,08:01:00,X3,2\nT1,08:02:00,08:02:00,X6,3\n\
+          T1,08:03:00,08:03:00,X7,4\nT1,08:04:00,08:04:00,X4,5\nT1,08:05:00,08:05:00,X5,6\n\
+          T1,08:06:00,08:06:00,X8,7\nT1,08:07:00,08:07:00,X9,8\nT1,08:08:00,08:08:00,X10,9\n\
+          T1,08:09:00,08:09:00,S2,10\n";
+    let mut files = base_files();
+    files[1] = ("stops.txt", STOPS);
+    files[4] = ("stop_times.txt", TIMES);
+    let vr = match run(&files) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+
+    let d = find(&vr, "STP_001");
+    assert_eq!(get(&d, "first_name").as_deref(), Some("First"));
+    assert_eq!(get(&d, "name").as_deref(), Some("Second"));
+    assert_eq!(get(&d, "lat").as_deref(), Some("41.5"));
+    assert_eq!(get(&d, "trip_count").as_deref(), Some("1"));
+    assert_eq!(get(&d, "next_stop_id").as_deref(), Some("X3"));
+    let d = find(&vr, "STP_002");
+    assert_eq!(get(&d, "stop_name").as_deref(), Some("Nameless"));
+    assert_eq!(get(&d, "stop_lat").as_deref(), Some("41.2"));
+    for (rule, prev, next) in [
+        ("STP_003", "S1", "X6"),
+        ("STP_006", "X3", "X7"),
+        ("STP_007", "X6", "X4"),
+        ("STP_008", "X5", "X9"),
+    ] {
+        let d = find(&vr, rule);
+        assert_eq!(get(&d, "example_trip_id").as_deref(), Some("T1"), "{rule}");
+        assert_eq!(get(&d, "prev_stop_id").as_deref(), Some(prev), "{rule}");
+        assert_eq!(get(&d, "next_stop_id").as_deref(), Some(next), "{rule}");
+        assert_eq!(get(&d, "routes").as_deref(), Some("R1"), "{rule}");
+    }
+    let d = find(&vr, "STP_004");
+    assert_eq!(get(&d, "example_0_stop_id").as_deref(), Some("X4"));
+    assert_eq!(get(&d, "example_0_prev_stop_id").as_deref(), Some("X7"));
+    assert_eq!(get(&d, "example_0_next_stop_id").as_deref(), Some("X5"));
+    let d = find(&vr, "STP_005");
+    assert_eq!(get(&d, "example_0_stop_id").as_deref(), Some("X5"));
+    assert_eq!(get(&d, "example_0_stop_sequence").as_deref(), Some("6"));
+    let d = find(&vr, "STP_009");
+    assert_eq!(get(&d, "nearest_station_id").as_deref(), Some("ST"));
+    assert_eq!(get(&d, "prev_stop_id").as_deref(), Some("X8"));
+    let m: f64 = get(&d, "nearest_station_m").unwrap().parse().unwrap();
+    assert!((100.0..120.0).contains(&m), "{m}");
+    let d = find(&vr, "STP_010");
+    assert_eq!(get(&d, "parent_station").as_deref(), Some("S2"));
+    assert_eq!(get(&d, "next_stop_id").as_deref(), Some("S2"));
+}

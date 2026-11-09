@@ -1025,7 +1025,7 @@ fn check_stops(
 
         // STP_009: parent_station references a valid stop_id.
         if !parent.trim().is_empty() && !map.stops.contains_key(parent) {
-            notices.push(notice(
+            let mut n009 = notice(
                 ctr,
                 "STP_009",
                 EntityType::Stop,
@@ -1038,7 +1038,32 @@ fn check_stops(
                 None,
                 format!("parent_station '{parent}' stops.txt'te tanımlı değil."),
                 "Geçerli bir stop_id'yi parent_station olarak kullanın.",
-            ));
+            );
+            // Planner context: the nearest station within 1 km, a likely intended parent.
+            if let (Some(lat), Some(lon)) = (rec.stop_lat, rec.stop_lon) {
+                let nearest = records
+                    .stops
+                    .iter()
+                    .filter(|s| s.location_type == Some(1) && s.stop_id != rec.stop_id)
+                    .filter_map(|s| {
+                        let (slat, slon) = (s.stop_lat?, s.stop_lon?);
+                        Some((
+                            crate::k5_derived::haversine_km(lat, lon, slat, slon),
+                            s.stop_id.as_str(),
+                        ))
+                    })
+                    .filter(|(km, _)| *km <= STP009_STATION_KM)
+                    .min_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(b.1)));
+                if let Some((km, id)) = nearest {
+                    let d = n009.details.get_or_insert_with(Default::default);
+                    d.insert("nearest_station_id".to_string(), id.to_string());
+                    d.insert(
+                        "nearest_station_m".to_string(),
+                        format!("{:.0}", km * 1000.0),
+                    );
+                }
+            }
+            notices.push(n009);
         } else if !parent.trim().is_empty() {
             // STP_010: parent_station must have location_type = 1 (station).
             // Exception: a location_type=4 (Boarding Area) parent must be a PLATFORM
@@ -1046,7 +1071,7 @@ fn check_stops(
             if let Some(&pidx) = map.stops.get(parent) {
                 let ptype = records.stops[pidx].location_type;
                 if ptype != Some(1) && loc_type != Some(4) {
-                    notices.push(notice(
+                    let mut n010 = notice(
                         ctr,
                         "STP_010",
                         EntityType::Stop,
@@ -1059,7 +1084,12 @@ fn check_stops(
                         Some("1".to_string()),
                         format!("'{parent}' istasyonunun location_type'ı 1 (station) olmalı."),
                         "parent_station olarak yalnızca location_type=1 olan duraklarla referans verin.",
-                    ));
+                    );
+                    // Planner context: the stop it is attached to (its type is the observed value).
+                    n010.details
+                        .get_or_insert_with(Default::default)
+                        .insert("parent_station".to_string(), parent.to_string());
+                    notices.push(n010);
                 }
             }
         }
@@ -1658,6 +1688,8 @@ fn check_trips(
 /// between neighboring stops and are suppressed (VBB Potsdam "Platz der Einheit" child stops,
 /// ~150 m). Above this distance, treat the pathway as a possible wrong stop_id reference and fire.
 const PTH014_WALK_MAX_M: f64 = 300.0;
+/// STP_009 planner context: a station this close is named as the likely intended parent.
+const STP009_STATION_KM: f64 = 1.0;
 
 /// PTH_014 walking-distance evidence (m). The guard asks "is the WALK short between the
 /// endpoints?", so the source order is (#187):

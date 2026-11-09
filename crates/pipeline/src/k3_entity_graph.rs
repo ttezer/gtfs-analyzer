@@ -194,7 +194,7 @@ fn build_stops(
         }
         if let Some(&prev_idx) = map.stops.get(sid.as_str()) {
             let prev_line = records.stops[prev_idx].line;
-            notices.push(make_notice(
+            let mut n = make_notice(
                 ctr,
                 "STP_001",
                 EntityType::Stop,
@@ -209,7 +209,23 @@ fn build_stops(
                     sid
                 ),
                 "Her durağa benzersiz bir stop_id atayın.",
-            ));
+            );
+            // Planner context: both rows' names and positions, so the card can show and map
+            // the two places one code points to.
+            let first = &records.stops[prev_idx];
+            let mut d = std::collections::BTreeMap::new();
+            d.insert("first_line".to_string(), prev_line.to_string());
+            for (prefix, stop) in [("first_", first), ("", rec)] {
+                if let Some(name) = stop.stop_name.as_deref().filter(|v| !v.trim().is_empty()) {
+                    d.insert(format!("{prefix}name"), name.to_string());
+                }
+                if let (Some(lat), Some(lon)) = (stop.stop_lat, stop.stop_lon) {
+                    d.insert(format!("{prefix}lat"), lat.to_string());
+                    d.insert(format!("{prefix}lon"), lon.to_string());
+                }
+            }
+            n.details = Some(d.into());
+            notices.push(n);
         } else {
             map.stops.insert(sid.clone(), idx);
         }

@@ -1294,6 +1294,67 @@ describe('Üretici kartı görünümü', () => {
     expect(out.map.opts?.extraPolylines).toHaveLength(2);
   });
 
+  it('STP_001–010 kartları durağı adıyla, seferdeki yeriyle anlatır; konumu olmayan durağın aralığını haritada gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı', X6: 'Pazar', ST: 'Gar', P1: 'Peron' },
+      routes: { R1: '10' }, trips: { T1: 'Çarşı' }, trip_routes: { T1: 'R1' }, trip_first_dep: { T1: '06:00' },
+      trip_stops: { T1: ['S1', 'X6', 'S2', 'S3'] }, trip_stop_sequences: { T1: [1, 2, 3, 4] },
+      stop_coords: { S1: [41, 29], S2: [41.02, 29.02], S3: [41.03, 29.03], ST: [41.021, 29.02], P1: [41.0201, 29.02] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+    const ctx = { trip_count: '12', route_count: '1', routes: 'R1', example_trip_id: 'T1', prev_stop_id: 'S1', next_stop_id: 'S2', stop_sequence: '2' };
+
+    // STP_006: no latitude — named, placed on its trip between two stops, the stretch red and circled.
+    let out = render(notice('a', 'STP_006', 'CRITICAL', { entity_type: 'Stop', entity_id: 'X6', field: 'stop_lat', details: ctx }));
+    expect(out.html).toContain('„Pazar“ durağının enlemi boş; durak haritada gösterilemiyor. Bu durağa 12 sefer uğruyor (10). Örneğin 10 hattının „Çarşı“ yönündeki 06:00 kalkışlı seferi Hastane ile Okul arasında bu durağa uğruyor. Durak haritada bu iki durak arasında olmalı');
+    expect(out.html).toContain('<tr class="bad"><td>2</td><td>Pazar (X6)</td></tr>');
+    expect(out.map.opts?.extraPolylines?.some(l => l.zoomTo)).toBe(true);
+    expect(out.map.opts?.highlights).toHaveLength(1);
+    // A neighbour without a position: no stretch can be drawn, so the card does not claim one.
+    out = render(notice('a', 'STP_007', 'CRITICAL', { entity_type: 'Stop', entity_id: 'X6', field: 'stop_lon', details: { ...ctx, next_stop_id: 'X9' } }));
+    expect(out.html).toContain('„Pazar“ durağının boylamı boş');
+    expect(out.html).not.toContain('Durak haritada bu iki durak arasında olmalı');
+
+    // STP_001: both rows with names and positions, both pinned.
+    out = render(notice('a', 'STP_001', 'CRITICAL', { entity_type: 'Stop', entity_id: 'S1', line: 9,
+      details: { first_line: '2', first_name: 'Hastane', first_lat: '41', first_lon: '29', name: 'Hastane B', lat: '41.01', lon: '29', ...ctx } }));
+    expect(out.html).toContain('„S1“ durak kodu durak listesinde iki kez yazılmış: 2. satırda „Hastane“, 9. satırda „Hastane B“ (iki konum arası 1');
+    expect(out.html).toContain('<tr class="bad"><td>9</td><td>Hastane B</td><td>41.01, 29</td></tr>');
+    expect(out.map.opts?.pins.filter(p => p.primary).length).toBeGreaterThanOrEqual(2);
+
+    // STP_002: the code-less row by its name and position.
+    out = render(notice('a', 'STP_002', 'CRITICAL', { entity_type: 'Stop', line: 5, details: { stop_name: 'Yeni', stop_code: '77', stop_lat: '41.04', stop_lon: '29.04' } }));
+    expect(out.html).toContain('Durak listesinin 5. satırındaki durağın kodu boş („Yeni“, durak numarası 77); seferler bu durağa bağlanamaz.');
+    expect(out.map.opts?.pins.some(p => p.lat === 41.04 && p.primary)).toBe(true);
+
+    // STP_004: the summary opens into its stops; each row reads its own stop's trip context.
+    out = render(notice('a', 'STP_004', 'HIGH', { entity_type: 'Feed', observed_value: '1',
+      details: { affected_stops: '1', example_stop_ids: 'X6', example_0_stop_id: 'X6', example_0_trip_count: '12', example_0_routes: 'R1',
+        example_0_example_trip_id: 'T1', example_0_prev_stop_id: 'S1', example_0_next_stop_id: 'S2', example_0_stop_sequence: '2' } }));
+    expect(out.html).toContain('1 durağın enlemi sayı olarak okunamıyor; bu duraklar haritada gösterilemiyor. Örneğin „Pazar“ durağı.');
+    expect(out.html).toContain('<tr class="bad"><td>Pazar</td><td>10</td><td>Hastane → Okul</td></tr>');
+
+    // STP_008: the value and, as trips call at it, the likely type.
+    out = render(notice('a', 'STP_008', 'MEDIUM', { entity_type: 'Stop', entity_id: 'S2', observed_value: '9', details: ctx }));
+    expect(out.html).toContain('„Okul“ kaydının türü „9“');
+    expect(out.html).toContain('Seferler bu kayda uğradığına göre türü büyük olasılıkla durak/peron.');
+
+    // STP_009: the missing station and the nearest one, linked on the map.
+    out = render(notice('a', 'STP_009', 'CRITICAL', { entity_type: 'Stop', entity_id: 'S2', observed_value: 'PX', details: { nearest_station_id: 'ST', nearest_station_m: '111', ...ctx } }));
+    expect(out.html).toContain('„Okul“ durağı „PX“ kodlu istasyona bağlı gösterilmiş ama durak listesinde böyle bir kayıt yok. 111 m ötedeki „Gar“ istasyonu kastedilmiş olabilir.');
+    expect(out.map.opts?.pins.filter(p => p.primary)).toHaveLength(2);
+
+    // STP_010: the parent and its type by name.
+    out = render(notice('a', 'STP_010', 'HIGH', { entity_type: 'Stop', entity_id: 'S2', observed_value: '0', details: { parent_station: 'P1', ...ctx } }));
+    expect(out.html).toContain('„Okul“ durağı „Peron“ kaydına bağlı gösterilmiş ama o kayıt bir istasyon değil, durak/peron.');
+  });
+
   it('STM_051–055 kartları Flex bölgesini, pencereyi, yazılan değeri ve aynı saatli durak serisini gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,

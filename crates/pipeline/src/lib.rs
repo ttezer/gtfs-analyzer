@@ -2369,6 +2369,161 @@ pub fn aggregate_feed_level_notices(
         let _t = crate::timing::Timer::start("aggregate::calendar_usage");
         annotate_calendar_usage(all, records);
     }
+    {
+        let _t = crate::timing::Timer::start("aggregate::stop_context");
+        annotate_stop_context(all, records);
+    }
+}
+
+/// Stop findings whose planner card names the trips, routes and neighbouring stops of the stop.
+const STOP_CONTEXT_RULES: [&str; 7] = [
+    "STP_001", "STP_003", "STP_006", "STP_007", "STP_008", "STP_009", "STP_010",
+];
+/// Feed summaries (one per feed) whose example stops get the same context, per example.
+const STOP_CONTEXT_SUMMARIES: [&str; 2] = ["STP_004", "STP_005"];
+/// Routes listed per stop (most trips first).
+const STOP_CONTEXT_ROUTES: usize = 5;
+
+/// Planner context for stop findings: how many trips and routes call at the stop (`trip_count`,
+/// `route_count`, `routes` most trips first) and one trip through it with the stops before and
+/// after (`example_trip_id`, `prev_stop_id`, `next_stop_id`, `stop_sequence`) — where a stop
+/// without a usable position belongs on the map. STP_004/005 summaries carry the same keys per
+/// example stop (`example_<i>_stop_id`, `example_<i>_*`). The example trip is the smallest trip
+/// code calling at the stop. Shared native/WASM step; details only, counts are unchanged.
+fn annotate_stop_context(all: &mut [gtfs_core::Notice], records: &EntityRecords) {
+    use rustc_hash::{FxHashMap, FxHashSet};
+    let summary_stops = |n: &gtfs_core::Notice| -> Vec<String> {
+        n.details
+            .as_ref()
+            .and_then(|d| d.get("example_stop_ids"))
+            .map(|v| {
+                v.as_str()
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    let mut wanted: FxHashSet<String> = FxHashSet::default();
+    for n in all.iter() {
+        if STOP_CONTEXT_RULES.contains(&n.rule_id.as_str()) {
+            if let Some(id) = n.entity_id.as_deref().filter(|v| !v.is_empty()) {
+                wanted.insert(id.to_string());
+            }
+        } else if STOP_CONTEXT_SUMMARIES.contains(&n.rule_id.as_str()) {
+            wanted.extend(summary_stops(n));
+        }
+    }
+    if wanted.is_empty() {
+        return;
+    }
+    let idx = &records.stop_times_index;
+    let wanted_idx: FxHashMap<u32, &str> = wanted
+        .iter()
+        .filter_map(|s| idx.stop_id_to_idx.get(s.as_str()).map(|&i| (i, s.as_str())))
+        .collect();
+    if wanted_idx.is_empty() {
+        return;
+    }
+    let ti = &records.trip_interns;
+    let trip_route: FxHashMap<&str, &str> = records
+        .trips
+        .iter()
+        .map(|t| (t.trip_id.as_str(), ti.route_id(t)))
+        .collect();
+    // stop → (trips, routes → trips, example (trip, prev, next, sequence)).
+    type Example<'a> = (&'a str, &'a str, &'a str, u32);
+    type StopContext<'a> = (usize, FxHashMap<&'a str, usize>, Option<Example<'a>>);
+    let mut ctx: FxHashMap<&str, StopContext<'_>> = FxHashMap::default();
+    for (trip, &(start, end)) in &idx.trip_ranges {
+        let rows = &idx.rows[start as usize..end as usize];
+        for (k, st) in rows.iter().enumerate() {
+            let Some(&sid) = wanted_idx.get(&st.stop_idx) else {
+                continue;
+            };
+            // A stop repeated within one trip counts that trip once.
+            if rows[..k].iter().any(|r| r.stop_idx == st.stop_idx) {
+                continue;
+            }
+            let entry = ctx.entry(sid).or_default();
+            entry.0 += 1;
+            if let Some(&route) = trip_route.get(trip.as_str()) {
+                *entry.1.entry(route).or_insert(0) += 1;
+            }
+            if entry.2.is_none_or(|e| trip.as_str() < e.0) {
+                let prev = k
+                    .checked_sub(1)
+                    .map(|p| idx.stop_id_of_idx(rows[p].stop_idx))
+                    .unwrap_or("");
+                let next = rows
+                    .get(k + 1)
+                    .map(|r| idx.stop_id_of_idx(r.stop_idx))
+                    .unwrap_or("");
+                entry.2 = Some((trip.as_str(), prev, next, st.sequence));
+            }
+        }
+    }
+    let describe = |sid: &str, prefix: &str| -> Vec<(String, String)> {
+        let Some((trips, routes, example)) = ctx.get(sid) else {
+            return Vec::new();
+        };
+        let mut out = vec![
+            (format!("{prefix}trip_count"), trips.to_string()),
+            (format!("{prefix}route_count"), routes.len().to_string()),
+        ];
+        let mut ranked: Vec<(&str, usize)> = routes.iter().map(|(&r, &c)| (r, c)).collect();
+        ranked.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(b.0)));
+        let top: Vec<&str> = ranked
+            .iter()
+            .take(STOP_CONTEXT_ROUTES)
+            .map(|(r, _)| *r)
+            .filter(|r| !r.is_empty())
+            .collect();
+        if !top.is_empty() {
+            out.push((format!("{prefix}routes"), top.join(",")));
+        }
+        if let Some((trip, prev, next, seq)) = example {
+            out.push((format!("{prefix}example_trip_id"), trip.to_string()));
+            if !prev.is_empty() {
+                out.push((format!("{prefix}prev_stop_id"), prev.to_string()));
+            }
+            if !next.is_empty() {
+                out.push((format!("{prefix}next_stop_id"), next.to_string()));
+            }
+            if *seq != u32::MAX {
+                out.push((format!("{prefix}stop_sequence"), seq.to_string()));
+            }
+        }
+        out
+    };
+    for n in all.iter_mut() {
+        let adds: Vec<(String, String)> = if STOP_CONTEXT_RULES.contains(&n.rule_id.as_str()) {
+            match n.entity_id.as_deref() {
+                Some(id) => describe(id, ""),
+                None => continue,
+            }
+        } else if STOP_CONTEXT_SUMMARIES.contains(&n.rule_id.as_str()) {
+            summary_stops(n)
+                .iter()
+                .enumerate()
+                .flat_map(|(i, sid)| {
+                    let mut v = vec![(format!("example_{i}_stop_id"), sid.clone())];
+                    v.extend(describe(sid, &format!("example_{i}_")));
+                    v
+                })
+                .collect()
+        } else {
+            continue;
+        };
+        if adds.is_empty() {
+            continue;
+        }
+        let d = n.details.get_or_insert_with(Default::default);
+        for (k, v) in adds {
+            d.insert(k, v);
+        }
+    }
 }
 
 /// Calendar findings whose planner card names the trips and routes running on the calendar(s).

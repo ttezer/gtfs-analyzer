@@ -1405,24 +1405,6 @@
       "added": [
         {
           "details": null,
-          "entity_id": "S1",
-          "entity_type": "Stop",
-          "expected_value": "[-180, 180]",
-          "field": "stop_lon",
-          "file": "stops.txt",
-          "line": 2,
-          "message": "Stop 'S1': stop_lon is missing.",
-          "observed_value": "",
-          "remediation": "Fill in stop_lon with a decimal longitude value.",
-          "rule_class": "SPEC",
-          "rule_id": "STP_007",
-          "scope_key": "S1",
-          "service_id": null,
-          "severity": "CRITICAL",
-          "title": "stop_lon missing"
-        },
-        {
-          "details": null,
           "entity_id": "S3",
           "entity_type": "Stop",
           "expected_value": "[-180, 180]",
@@ -1577,6 +1559,31 @@
           "service_id": null,
           "severity": "HIGH",
           "title": "High proportion of stops without coordinates"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "next_stop_id": "S2",
+            "route_count": "1",
+            "routes": "R1",
+            "stop_sequence": "1",
+            "trip_count": "1"
+          },
+          "entity_id": "S1",
+          "entity_type": "Stop",
+          "expected_value": "[-180, 180]",
+          "field": "stop_lon",
+          "file": "stops.txt",
+          "line": 2,
+          "message": "Stop 'S1': stop_lon is missing.",
+          "observed_value": "",
+          "remediation": "Fill in stop_lon with a decimal longitude value.",
+          "rule_class": "SPEC",
+          "rule_id": "STP_007",
+          "scope_key": "S1",
+          "service_id": null,
+          "severity": "CRITICAL",
+          "title": "stop_lon missing"
         }
       ],
       "agency_breakdown": {
@@ -3087,24 +3094,6 @@
           "details": null,
           "entity_id": "S1",
           "entity_type": "Stop",
-          "expected_value": "unique",
-          "field": "stop_id",
-          "file": "stops.txt",
-          "line": 3,
-          "message": "Duplicate stop_id: 'S1'.",
-          "observed_value": "S1",
-          "remediation": "Assign a unique stop_id to each stop.",
-          "rule_class": "SPEC",
-          "rule_id": "STP_001",
-          "scope_key": "S1",
-          "service_id": null,
-          "severity": "CRITICAL",
-          "title": "Duplicate stop_id"
-        },
-        {
-          "details": null,
-          "entity_id": "S1",
-          "entity_type": "Stop",
           "expected_value": null,
           "field": "stop_lat|stop_lon",
           "file": "stops.txt",
@@ -3280,6 +3269,38 @@
           "service_id": null,
           "severity": "CRITICAL",
           "title": "stop_id not found"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "first_lat": "40",
+            "first_line": "2",
+            "first_lon": "40",
+            "first_name": "A",
+            "lat": "41.1",
+            "lon": "29.1",
+            "name": "B",
+            "next_stop_id": "S2",
+            "route_count": "1",
+            "routes": "R1",
+            "stop_sequence": "1",
+            "trip_count": "1"
+          },
+          "entity_id": "S1",
+          "entity_type": "Stop",
+          "expected_value": "unique",
+          "field": "stop_id",
+          "file": "stops.txt",
+          "line": 3,
+          "message": "Duplicate stop_id: 'S1'.",
+          "observed_value": "S1",
+          "remediation": "Assign a unique stop_id to each stop.",
+          "rule_class": "SPEC",
+          "rule_id": "STP_001",
+          "scope_key": "S1",
+          "service_id": null,
+          "severity": "CRITICAL",
+          "title": "Duplicate stop_id"
         }
       ],
       "agency_breakdown": {
@@ -8049,6 +8070,20 @@
         {
           "details": {
             "affected_stops": "2",
+            "example_0_example_trip_id": "T1",
+            "example_0_next_stop_id": "S2",
+            "example_0_route_count": "1",
+            "example_0_routes": "R1",
+            "example_0_stop_id": "S1",
+            "example_0_stop_sequence": "1",
+            "example_0_trip_count": "1",
+            "example_1_example_trip_id": "T1",
+            "example_1_prev_stop_id": "S1",
+            "example_1_route_count": "1",
+            "example_1_routes": "R1",
+            "example_1_stop_id": "S2",
+            "example_1_stop_sequence": "2",
+            "example_1_trip_count": "1",
             "example_stop_ids": "S1, S2"
           },
           "entity_id": null,
@@ -8454,6 +8489,13 @@
         {
           "details": {
             "affected_stops": "1",
+            "example_0_example_trip_id": "T1",
+            "example_0_next_stop_id": "S2",
+            "example_0_route_count": "1",
+            "example_0_routes": "R1",
+            "example_0_stop_id": "S1",
+            "example_0_stop_sequence": "1",
+            "example_0_trip_count": "1",
             "example_stop_ids": "S1"
           },
           "entity_id": null,
