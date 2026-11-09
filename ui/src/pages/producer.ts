@@ -137,7 +137,8 @@ function durationText(seconds: number): string {
   if (seconds < 60) return t('producer.times.seconds', { n: Math.round(seconds) });
   const h = Math.floor(seconds / 3600);
   const m = Math.round((seconds % 3600) / 60);
-  return h > 0 ? t('producer.times.duration_hm', { h, m }) : t('producer.times.duration_m', { m });
+  if (h > 0) return m === 0 ? t('producer.times.duration_h', { h }) : t('producer.times.duration_hm', { h, m });
+  return t('producer.times.duration_m', { m });
 }
 
 /** "26:26:00" → seconds; NaN when the text is not h:mm:ss. */
@@ -306,13 +307,203 @@ function plannerFieldName(field: string): string {
 
 /** File-level cards (DQ_016, DQ_021, CAL_020) name their file in the planner's words, not as a file name. */
 function dqListLabel(n: Notice): string | null {
-  // CAL_020 is about the dataset details' window: name that list, not the engine's "11 years".
-  if (n.rule_id === 'DQ_016' || n.rule_id === 'CAL_020') return plannerListName(n.file);
+  // CAL_020 / OPR_014 / OPR_016 / OPR_025 are about a whole list: name it, not the engine's summary ("11 years").
+  if (['DQ_016', 'CAL_020', 'OPR_014', 'OPR_016', 'OPR_025'].includes(n.rule_id)) return plannerListName(n.file);
   const kind = n.rule_id === 'DQ_021' && n.file ? DQ021_KIND[n.file] : undefined;
   return kind ? t(`producer.card.DQ_021.list_${kind}`) : null;
 }
 /** Kinds whose repeats are one code on several records (the rest repeat a whole row's meaning). */
 const DQ021_CODE_KINDS = new Set(['stop', 'route', 'trip', 'attribution', 'location_group']);
+
+/** The direction as a planner reads it: the trip's headsign, else "outbound (0)"/"inbound (1)". */
+function oprDirectionName(d: Record<string, string>, result: ValidationResult, tripId?: string): string {
+  const headsign = tripId ? result.name_index.trips?.[tripId] : undefined;
+  if (headsign) return headsign;
+  return d.direction_id ? t(`producer.card.opr_dir_name_${d.direction_id === '1' ? '1' : '0'}`) : '';
+}
+
+/** " „Merkez“ yönünde" for a sentence; empty when the direction is unknown. */
+function oprDirection(d: Record<string, string>, result: ValidationResult, tripId?: string): string {
+  const name = oprDirectionName(d, result, tripId);
+  return name ? t('producer.card.opr_dir', { dir: name }) : '';
+}
+
+/** "1 hattının" — the route's planner name, or its code. */
+function oprRoute(n: Notice, result: ValidationResult, routeId?: string | null): string {
+  const id = routeId ?? routeIdOfNotice(n) ?? (n.entity_id ? result.name_index.trip_routes?.[n.entity_id] : undefined);
+  return id ? result.name_index.routes?.[id] || id : '—';
+}
+
+/** Each OPR rule's own sentence in the planner's words; null keeps the card's general text. */
+function oprRuleText(n: Notice, result: ValidationResult): string | null {
+  const ni = result.name_index;
+  const d = n.details ?? {};
+  const route = oprRoute(n, result);
+  const days = n.service_id ? plannerServiceText(n.service_id, result) : '';
+  const stopName = (id?: string) => (id ? ni.stops?.[id] || id : '—');
+  const tripStops = n.entity_type === 'Trip' && n.entity_id ? ni.trip_stops?.[n.entity_id] ?? [] : [];
+  switch (n.rule_id) {
+    case 'OPR_001':
+      if (!d.gap_from || !d.gap_to || !n.observed_value) return null;
+      return t('producer.card.OPR_001.what_detail', {
+        route, dir: oprDirection(d, result, d.trip_before), days: days || '—', from: d.gap_from, to: d.gap_to,
+        gap: durationText(Number(n.observed_value) * 60), limit: durationText(Number(/\d+/.exec(n.expected_value ?? '')?.[0]) * 60),
+      });
+    case 'OPR_003':
+      if (!d.gap_from || !d.gap_to || !n.observed_value) return null;
+      return t('producer.card.OPR_003.what_detail', {
+        route, dir: oprDirection(d, result, d.trip_before), days: days || '—', stop: stopName(d.stop_id),
+        from: d.gap_from, to: d.gap_to, gap: durationText(Math.max(60, Number(n.observed_value) * 60)),
+      });
+    case 'OPR_004':
+      return t('producer.card.OPR_004.what_detail', { route });
+    case 'OPR_005':
+      if (!d.median_min || !n.observed_value) return null;
+      return t(d.kind === 'dense' ? 'producer.card.OPR_005.what_dense' : 'producer.card.OPR_005.what_sparse', {
+        route, dir: oprDirection(d, result), days: days || '—', hw: localizedNumber(n.observed_value), median: localizedNumber(d.median_min),
+        first: d.first_departure || '—', last: d.last_departure || '—', n: localizedNumber(d.departures || '—'),
+      });
+    case 'OPR_006':
+      return n.entity_id ? t('producer.card.OPR_006.what_detail', { route, trip: n.entity_id, stop: stopName(tripStops[0]) }) : null;
+    case 'OPR_007': {
+      const times = /^(\d+)×/.exec(n.observed_value ?? '')?.[1];
+      return n.entity_id && d.dup_stop && times
+        ? t('producer.card.OPR_007.what_detail', { route, trip: n.entity_id, dep: ni.trip_first_dep?.[n.entity_id] || '—', stop: stopName(d.dup_stop), n: times })
+        : null;
+    }
+    case 'OPR_008': {
+      const max = /[\d.]+/.exec(n.observed_value ?? '')?.[0];
+      const limit = /[\d.]+/.exec(n.expected_value ?? '')?.[0];
+      return n.entity_id && max && limit
+        ? t('producer.card.OPR_008.what_detail', {
+          route, trip: n.entity_id, dep: ni.trip_first_dep?.[n.entity_id] || '—', n: localizedNumber(String(badSegments(d).length)),
+          max: localizedNumber(String(Math.round(Number(max)))), limit: localizedNumber(limit),
+        })
+        : null;
+    }
+    case 'OPR_009':
+      return d.night_trips
+        ? t(d.first_departure === d.last_departure ? 'producer.card.OPR_009.what_one' : 'producer.card.OPR_009.what_detail', {
+          route, n: localizedNumber(d.night_trips), first: d.first_departure || '—', last: d.last_departure || '—' })
+        : null;
+    case 'OPR_010':
+      if (!d.yes_trips || !d.no_trips) return null;
+      return t(n.field === 'bikes_allowed' ? 'producer.card.OPR_010.what_bikes' : 'producer.card.OPR_010.what_wheelchair', {
+        route, yes: localizedNumber(d.yes_trips), no: localizedNumber(d.no_trips),
+      });
+    case 'OPR_011':
+      return n.entity_id ? t('producer.card.OPR_011.what_detail', { svc: n.entity_id }) : null;
+    case 'OPR_012':
+      return n.entity_id && d.gap_start && d.gap_end
+        ? t('producer.card.OPR_012.what_detail', { svc: n.entity_id, from: ymdText(d.gap_start), to: ymdText(d.gap_end), gap: localizedNumber(n.observed_value ?? '—') })
+        : null;
+    case 'OPR_013': {
+      const dir = /direction_id=(\d)/.exec(n.observed_value ?? '')?.[1];
+      return dir ? t('producer.card.OPR_013.what_detail', { route, dir: t(`producer.card.opr_dir_name_${dir === '1' ? '1' : '0'}`) }) : null;
+    }
+    case 'OPR_014':
+      return d.transfer_count && d.average_seconds
+        ? t('producer.card.OPR_014.what_detail', { n: localizedNumber(d.transfer_count), avg: durationText(Number(d.average_seconds)) })
+        : null;
+    case 'OPR_015':
+      return d.shape_id ? t('producer.card.OPR_015.what_detail', { route, shape: d.shape_id }) : null;
+    case 'OPR_016':
+      return t('producer.card.OPR_016.what_detail');
+    case 'OPR_017': {
+      const metres = /\d+/.exec(n.observed_value ?? '')?.[0];
+      return n.entity_id && metres
+        ? t('producer.card.OPR_017.what_detail', {
+          route, trip: n.entity_id, m: localizedNumber(metres), from: stopName(tripStops[0]), to: stopName(tripStops[tripStops.length - 1]),
+          n: localizedNumber(String(tripStops.length)),
+        })
+        : null;
+    }
+    case 'OPR_019':
+    case 'OPR_020': {
+      const dates = listOf(d.sample_dates?.replace(/,/g, ', ')).slice(0, 3).map(ymdText).join(', ');
+      return d.conflict_day_count && dates
+        ? t(`producer.card.${n.rule_id}.what_detail`, { route, n: localizedNumber(d.conflict_day_count), dates })
+        : null;
+    }
+    case 'OPR_021':
+    case 'OPR_022':
+    case 'OPR_023': {
+      const first = listOf(d.sample_dates)[0];
+      return d.conflict_day_count && first
+        ? t(`producer.card.${n.rule_id}.what_detail`, {
+          route, n: localizedNumber(d.conflict_day_count), first: ymdText(first), base: d.base_services || '—', override: d.override_services || '—',
+        })
+        : null;
+    }
+    case 'OPR_024':
+      return n.observed_value && n.service_id
+        ? t('producer.card.OPR_024.what_detail', { route, svc: n.service_id, n: localizedNumber(n.observed_value), limit: localizedNumber(/\d+/.exec(n.expected_value ?? '')?.[0] ?? '500') })
+        : null;
+    case 'OPR_025':
+      return n.observed_value ? t('producer.card.OPR_025.what_detail', { avg: localizedNumber(/\d+/.exec(n.observed_value)?.[0] ?? '—') }) : null;
+    default:
+      return null;
+  }
+}
+
+/** OPR tables: the two departures around a gap, the yes/no trips, the longest transfers, the
+ *  shortest trips, the conflicting dates, the route's calendars. */
+function oprTable(n: Notice, result: ValidationResult): string {
+  const ni = result.name_index;
+  const d = n.details ?? {};
+  const stopName = (id?: string) => (id ? (ni.stops?.[id] ? `${ni.stops[id]} (${id})` : id) : '—');
+  const table = (caption: string, head: string[], rows: string[][], bad: (i: number) => boolean = () => false) =>
+    `<p class="producer-card-label">${escHtml(caption)}</p><table class="planner-times planner-stop-times"><thead><tr>${head.map(h => `<th>${escHtml(h)}</th>`).join('')}</tr></thead><tbody>${
+      rows.map((r, i) => `<tr${bad(i) ? ' class="bad"' : ''}>${r.map(c => `<td>${escHtml(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  switch (n.rule_id) {
+    case 'OPR_001':
+    case 'OPR_003':
+      if (!d.gap_from || !d.gap_to) return '';
+      return table(t(n.rule_id === 'OPR_001' ? 'producer.times.opr_gap' : 'producer.times.opr_bunch'),
+        [t('producer.col.departure'), t('producer.col.trip_code'), t('producer.col.direction')],
+        [[d.gap_from, d.trip_before || '—', (d.trip_before && ni.trips?.[d.trip_before]) || '—'],
+          [d.gap_to, d.trip_after || '—', (d.trip_after && ni.trips?.[d.trip_after]) || '—']], () => true);
+    case 'OPR_004': {
+      const services = listOf(d.services);
+      return services.length
+        ? table(t('producer.times.opr_route_services'), [t('producer.col.service_code'), t('producer.col.service'), t('producer.times.validity')],
+          services.slice(0, CAL_SERVICE_ROWS).map(svc => [svc, plannerServiceText(svc, result), serviceRangeText(svc, result)]))
+        : '';
+    }
+    case 'OPR_010':
+      if (!d.yes_trips || !d.no_trips) return '';
+      return table(t('producer.times.opr_policy'), [t('producer.times.value'), t('producer.times.trip_count'), t('producer.times.example_trip')], [
+        [t(n.field === 'bikes_allowed' ? 'producer.times.opr_bikes_yes' : 'producer.times.opr_wheelchair_yes'), localizedNumber(d.yes_trips), d.yes_trip_id || '—'],
+        [t(n.field === 'bikes_allowed' ? 'producer.times.opr_bikes_no' : 'producer.times.opr_wheelchair_no'), localizedNumber(d.no_trips), d.no_trip_id || '—'],
+      ]);
+    case 'OPR_014': {
+      const rows: string[][] = [];
+      for (let i = 0; d[`example_${i}_seconds`]; i++) {
+        rows.push([stopName(d[`example_${i}_from_stop_id`]), stopName(d[`example_${i}_to_stop_id`]), durationText(Number(d[`example_${i}_seconds`]))]);
+      }
+      return rows.length ? table(t('producer.times.opr_transfers'), [t('producer.times.opr_from'), t('producer.times.opr_to'), t('producer.times.opr_transfer_time')], rows) : '';
+    }
+    case 'OPR_025': {
+      const rows: string[][] = [];
+      for (let i = 0; d[`example_${i}_trip_id`]; i++) {
+        const trip = d[`example_${i}_trip_id`]!;
+        const routeId = ni.trip_routes?.[trip];
+        rows.push([trip, routeId ? ni.routes?.[routeId] || routeId : '—', durationText(Number(d[`example_${i}_seconds`]))]);
+      }
+      return rows.length ? table(t('producer.times.opr_short_trips'), [t('producer.col.trip_code'), t('producer.col.route'), t('producer.times.opr_duration')], rows, () => true) : '';
+    }
+    case 'OPR_019': case 'OPR_020': case 'OPR_021': case 'OPR_022': case 'OPR_023': {
+      const dates = listOf(d.sample_dates?.replace(/,/g, ', '));
+      const weekday = new Intl.DateTimeFormat(intlLocale(), { weekday: 'long', timeZone: 'UTC' });
+      const rows = dates.map(v => [ymdText(v), /^\d{8}$/.test(v) ? weekday.format(new Date(Date.UTC(Number(v.slice(0, 4)), Number(v.slice(4, 6)) - 1, Number(v.slice(6, 8))))) : '—']);
+      const more = Number(d.conflict_day_count) - dates.length;
+      if (more > 0) rows.push([t('producer.times.more_days', { n: localizedNumber(String(more)) }), '']);
+      return rows.length ? table(t('producer.times.opr_dates'), [t('producer.times.date'), t('producer.times.weekday')], rows, i => i < dates.length) : '';
+    }
+    default:
+      return '';
+  }
+}
 
 /** CAL_020: do the calendars themselves run longer than the five-year limit the rule uses? */
 function cal020LongCalendars(d: Record<string, string>): boolean {
@@ -1306,6 +1497,22 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
           : t(`producer.card.${g.ruleId}.action`),
       };
     }
+    case 'OPR_001': case 'OPR_003': case 'OPR_004': case 'OPR_005': case 'OPR_006': case 'OPR_007': case 'OPR_008':
+    case 'OPR_009': case 'OPR_010': case 'OPR_011': case 'OPR_012': case 'OPR_013': case 'OPR_014': case 'OPR_015':
+    case 'OPR_016': case 'OPR_017': case 'OPR_019': case 'OPR_020': case 'OPR_021': case 'OPR_022': case 'OPR_023':
+    case 'OPR_024': case 'OPR_025': {
+      const what = oprRuleText(n, result);
+      if (!what) return null;
+      // Calendar findings also name their trips and routes; the others the trip the map draws.
+      const extra = CAL_USAGE_RULES.has(g.ruleId)
+        ? calWhat(n, result, '').trim()
+        : n.entity_type === 'Trip' ? '' : dqTripMapText(dqExampleTrip(n, result.name_index), result);
+      return {
+        title: t(`producer.card.${g.ruleId}.title`),
+        what: [what, extra].filter(Boolean).join(' '),
+        action: t(`producer.card.${g.ruleId}.action`),
+      };
+    }
     case 'DQ_003':
     case 'DQ_004': {
       // The route by name, and the example trip the map draws (first and last stop).
@@ -1579,13 +1786,13 @@ function dqIndexKey<T>(map: Record<string, T> | undefined, key?: string): string
 
 /** Rule groups whose cards draw one example trip with numbered stops and list it stop by stop. */
 function plannerTripRule(ruleId: string): boolean {
-  return ruleId.startsWith('DQ_') || ruleId.startsWith('CAL_');
+  return ruleId.startsWith('DQ_') || ruleId.startsWith('CAL_') || ruleId.startsWith('OPR_');
 }
 
 /** CAL findings (but CAL_020/022) carry the trips and routes on their calendar(s); the map draws the example trip. */
 const CAL_USAGE_RULES = new Set(['CAL_001', 'CAL_002', 'CAL_003', 'CAL_004', 'CAL_005', 'CAL_006', 'CAL_007',
   'CAL_008', 'CAL_009', 'CAL_010', 'CAL_011', 'CAL_012', 'CAL_013', 'CAL_014', 'CAL_015', 'CAL_016', 'CAL_017',
-  'CAL_018', 'CAL_021', 'CAL_023', 'CAL_024', 'CAL_025']);
+  'CAL_018', 'CAL_021', 'CAL_023', 'CAL_024', 'CAL_025', 'OPR_011', 'OPR_012', 'OPR_016']);
 
 /** The trip a DQ card draws on its map and lists stop by stop: the route's example trip for a route
  *  record, the record's own trip for a headsign row, the example trip of a feed summary. */
@@ -1618,6 +1825,22 @@ function dqExampleTrip(n: Notice, ni: ValidationResult['name_index']): string | 
       }
       return undefined;
     }
+    // OPR: the trip before the gap (OPR_001), the first of the close pair (OPR_003), the night or
+    // shortest trip, an accessible/inaccessible trip; route findings: the route's example trip.
+    case 'OPR_001':
+    case 'OPR_003':
+      return dqIndexKey(ni.trip_stops, d.trip_before) ?? routeExampleTrip(ni, routeIdOfNotice(n));
+    case 'OPR_006': case 'OPR_007': case 'OPR_008': case 'OPR_017':
+      // Trip findings: the trip itself (listed stop by stop; the map already draws it).
+      return n.entity_type === 'Trip' ? n.entity_id ?? undefined : undefined;
+    case 'OPR_009':
+    case 'OPR_025':
+      return dqIndexKey(ni.trip_stops, d.example_trip_id) ?? (n.entity_type === 'Route' ? routeExampleTrip(ni, routeIdOfNotice(n)) : undefined);
+    case 'OPR_010':
+      return dqIndexKey(ni.trip_stops, d.no_trip_id) ?? dqIndexKey(ni.trip_stops, d.yes_trip_id) ?? routeExampleTrip(ni, routeIdOfNotice(n));
+    case 'OPR_004': case 'OPR_005': case 'OPR_013': case 'OPR_015': case 'OPR_019': case 'OPR_020':
+    case 'OPR_021': case 'OPR_022': case 'OPR_023': case 'OPR_024':
+      return n.entity_type === 'Route' ? routeExampleTrip(ni, routeIdOfNotice(n)) : undefined;
     default:
       // Calendar findings: a trip running on the calendar(s), when the index has its stops.
       return CAL_USAGE_RULES.has(n.rule_id) && d.example_trip_id && (ni.trip_stops?.[d.example_trip_id]?.length ?? 0) > 1
@@ -1741,7 +1964,7 @@ function timeStrip(n: Notice, result: ValidationResult): string {
   const tripId = plannerTripRule(n.rule_id) ? dqExampleTrip(n, result.name_index) : undefined;
   if (!tripId) return body;
   const stops = result.name_index.trip_stops?.[tripId] ?? [];
-  const mark = n.rule_id === 'DQ_020' ? stops[stops.length - 1] : n.details?.stop_id;
+  const mark = n.rule_id === 'DQ_020' ? stops[stops.length - 1] : n.rule_id === 'OPR_007' ? n.details?.dup_stop : n.details?.stop_id;
   return body + tripItineraryTable(tripId, result, mark, n.rule_id === 'DQ_020' ? undefined : n.details?.stop_sequence);
 }
 
@@ -1973,6 +2196,10 @@ function timeStripBody(n: Notice, result: ValidationResult): string {
       rows.push(`<tr><td>${escHtml(at('trip_id') || '—')}</td><td>${escHtml(stop)}</td><td>${escHtml(plannerTime(at('arrival')) || '—')}</td><td>${escHtml(plannerTime(at('departure')) || '—')}</td></tr>`);
     }
     return `<p class="producer-card-label">${escHtml(t('producer.times.stm050_examples'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.col.trip_code')}</th><th>${t('producer.times.stop_with_sequence')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  }
+  if (n.rule_id.startsWith('OPR_')) {
+    const table = oprTable(n, result);
+    if (table) return table;
   }
   if (n.rule_id === 'CAL_020' && d.feed_start_date && d.feed_end_date) {
     // The window as written next to the period the calendars run (and the calendar setting each end).
@@ -2410,6 +2637,20 @@ function timeSpot(n: Notice, result: ValidationResult): string | null {
   // Midnight: the stop where time moves backward and the previous time (STM_048), or the arrival at the same stop (STM_049).
   if (n.rule_id === 'STM_048' && d.stop_id) return t('producer.times.spot_wrap', { stop: name(d.stop_id), prev: d.previous_time ?? '—' });
   if (n.rule_id === 'STM_049' && d.stop_id) return t('producer.times.spot_dwell', { stop: name(d.stop_id), arr: d.previous_time ?? '—', dep: d.observed_time ?? '—' });
+  if ((n.rule_id === 'OPR_001' || n.rule_id === 'OPR_003') && d.gap_from && d.gap_to) {
+    return n.rule_id === 'OPR_003' && d.stop_id ? `${name(d.stop_id)} ${d.gap_from} / ${d.gap_to}` : `${d.gap_from} → ${d.gap_to}`;
+  }
+  if (n.rule_id === 'OPR_005' && n.observed_value) return t('producer.times.spot_avg_headway', { n: n.observed_value });
+  if (n.rule_id === 'OPR_009' && d.night_trips) {
+    return d.first_departure === d.last_departure
+      ? t('producer.times.spot_night_one', { n: d.night_trips, first: d.first_departure ?? '—' })
+      : t('producer.times.spot_night', { n: d.night_trips, first: d.first_departure ?? '—', last: d.last_departure ?? '—' });
+  }
+  if (n.rule_id === 'OPR_010' && d.yes_trips && d.no_trips) return `${d.yes_trips} / ${d.no_trips}`;
+  if (n.rule_id === 'OPR_024' && n.observed_value) return t('producer.times.spot_trips', { n: n.observed_value });
+  if (['OPR_019', 'OPR_020', 'OPR_021', 'OPR_022', 'OPR_023'].includes(n.rule_id) && d.conflict_day_count) {
+    return t('producer.times.spot_days', { n: d.conflict_day_count });
+  }
   if (n.rule_id === 'OPR_008' && d.bad_seg_0_a) {
     const first = `${name(d.bad_seg_0_a)} → ${name(d.bad_seg_0_b)}`;
     const more = badSegments(d).length - 1;
@@ -3077,6 +3318,13 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   if (n.rule_id === 'DQ_022') {
     for (let i = 0; n.details?.[`example_${i}_stop_id`]; i++) addStop(n.details[`example_${i}_stop_id`], true);
   }
+  // OPR_014: the stops of the longest transfers.
+  if (n.rule_id === 'OPR_014' && n.details) {
+    for (let i = 0; n.details[`example_${i}_seconds`]; i++) {
+      addStop(n.details[`example_${i}_from_stop_id`], true);
+      addStop(n.details[`example_${i}_to_stop_id`], true);
+    }
+  }
   // DQ_016 on the stop list: the stops whose values carry the spaces.
   if (n.rule_id === 'DQ_016' && n.details?.record_field === 'stop_id') {
     for (const sample of dq016Samples(n.details)) addStop(dqIndexKey(ni.stops, sample.record), true);
@@ -3313,12 +3561,17 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
           },
         };
       }
+      // OPR route findings per direction and calendar: name both on each row.
+      const perService = g.ruleId.startsWith('OPR_') && g.notices.some(n => n.service_id);
       return {
-        head: [t('producer.col.route'), t('producer.col.route_name'), t('producer.col.route_code'), ...(withSpot ? [t('producer.col.spot')] : [])],
+        head: [t('producer.col.route'), t('producer.col.route_name'), t('producer.col.route_code'),
+          ...(perService ? [t('producer.col.direction'), t('producer.col.service')] : []), ...(withSpot ? [t('producer.col.spot')] : [])],
         row: n => {
           const routeId = routeIdOfNotice(n);
+          const d = n.details ?? {};
           return [
             badge(routeId), dash(routeId ? ni.route_long_names?.[routeId] : null), dash(routeId),
+            ...(perService ? [dash(oprDirectionName(d, result, d.trip_before) || null), plannerServiceText(n.service_id, result)] : []),
             ...(withSpot ? [dash(timeSpot(n, result))] : []),
           ];
         },

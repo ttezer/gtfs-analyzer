@@ -437,7 +437,7 @@ describe('Üretici kartı görünümü', () => {
       },
     });
     let out = render(long);
-    expect(out.html).toContain('Ankara 08:00 → Kars 34:26: 4 duraklı sefer 26 sa 26 dk sürüyor; bu hat türü için üst sınır 24 sa 0 dk');
+    expect(out.html).toContain('Ankara 08:00 → Kars 34:26: 4 duraklı sefer 26 sa 26 dk sürüyor; bu hat türü için üst sınır 24 sa');
     expect(out.html).toContain('En uzun ara Sivas 14:10 → Erzincan 38:05 (23 sa 55 dk)');
     expect(out.html).toContain('<tr class="bad"><td>Sivas</td><td>2</td><td>—</td><td>14:10</td></tr>');
     expect(out.html).toContain('Sivas 14:10 → Erzincan 38:05 · 23 sa 55 dk');
@@ -985,9 +985,9 @@ describe('Üretici kartı görünümü', () => {
     let out = render(notice('a', 'CAL_013', 'INFO', { entity_type: 'Feed', entity_id: '20250301', observed_value: '20250301',
       details: { services: 'EXP', ...usage } }));
     expect(out.html).toContain('1 takvimin son çalışma günü 01.03.2025 geçti');
-    expect(out.html).toContain('Bu takvimle 2 hattın 3 seferi çalışıyor. Haritada örnek sefer T1: Hastane → Çarşı (3 durak).');
+    expect(out.html).toContain('Bu takvimi 2 hattın 3 seferi kullanıyor. Haritada örnek sefer T1: Hastane → Çarşı (3 durak).');
     expect(out.html).toContain('<td>EXP</td><td>Her gün</td><td>01.01.2025 – 01.03.2025</td>');
-    expect(out.html).toContain('Bu takvimlerle çalışan hatlar (2 hat, 3 sefer)');
+    expect(out.html).toContain('Bu takvimleri kullanan hatlar (2 hat, 3 sefer)');
     expect(out.html).toContain('<tr><td>1</td><td>Hastane (S1)</td></tr>');
     expect(out.map.opts?.extraPolylines).toHaveLength(2);
     // The affected record names the routes on its calendar, comma-separated.
@@ -1011,12 +1011,12 @@ describe('Üretici kartı görünümü', () => {
     out = render(notice('a', 'CAL_008', 'MEDIUM', { entity_type: 'Service', entity_id: 'SOON', observed_value: null,
       details: { affected_services: '2', services: 'SOON,X', days_left: '11', ...usage } }));
     expect(out.html).toContain('2 takvim 20.11.2026 tarihinde bitiyor (11 gün kaldı)');
-    expect(out.html).toContain('Bu takvimlerle 2 hattın 3 seferi çalışıyor.');
+    expect(out.html).toContain('Bu takvimleri 2 hattın 3 seferi kullanıyor.');
 
     // CAL_011: no trip, so no route table and no example trip.
     out = render(notice('a', 'CAL_011', 'LOW', { entity_type: 'Service', entity_id: 'UNUSED', details: { trip_count: '0', route_count: '0' } }));
     expect(out.html).toContain('UNUSED takvimini hiçbir sefer kullanmıyor (Hafta içi, 01.01.2025 – 31.12.2027)');
-    expect(out.html).not.toContain('Bu takvimlerle çalışan hatlar');
+    expect(out.html).not.toContain('Bu takvimleri kullanan hatlar');
 
     // CAL_014: the calendar's days against the dataset window and how far it reaches past it.
     out = render(notice('a', 'CAL_014', 'INFO', { entity_type: 'Service', entity_id: 'EXP', observed_value: '20250101..20250301',
@@ -1026,7 +1026,7 @@ describe('Üretici kartı görünümü', () => {
     out = render(notice('a', 'CAL_015', 'HIGH', { entity_type: 'Feed', observed_value: '20260601',
       details: { first_service_date: '20260601', days_until: '17', ...usage } }));
     expect(out.html).toContain('Veri setindeki ilk çalışma günü 01.06.2026 (17 gün sonra)');
-    expect(out.html).toContain('Bu takvimlerle 2 hattın 3 seferi çalışıyor.');
+    expect(out.html).toContain('Bu takvimleri 2 hattın 3 seferi kullanıyor.');
     out = render(notice('a', 'CAL_015', 'INFO', { entity_type: 'Feed', observed_value: '20260601',
       details: { first_service_date: '20260601', days_until: '17', message_variant: 'future_only_jp' } }));
     expect(out.html).toContain('Japonya (GTFS-JP) veri setindeki bütün takvimler 01.06.2026 tarihinde başlıyor');
@@ -1053,6 +1053,68 @@ describe('Üretici kartı görünümü', () => {
     out = render(notice('a', 'CAL_024', 'LOW', { entity_type: 'Service', entity_id: 'EXP', observed_value: '3', details: { next_active: '20260701', ...usage } }));
     expect(out.html).toContain('bir sonraki çalışma günü 01.07.2026. Bu takvime bağlı 3 sefer');
     expect(out.map.opts?.extraPolylines).toHaveLength(2);
+  });
+
+  it('OPR kartları hattı, yönü, saatleri ve seferi planlamacı diliyle anlatır, haritada seferi çizer', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı' },
+      routes: { R1: '10' }, trips: { T1: 'Çarşı', T2: 'Çarşı' }, trip_routes: { T1: 'R1', T2: 'R1' },
+      trip_first_dep: { T1: '06:00', T2: '06:01' },
+      trip_stops: { T1: ['S1', 'S2', 'S3', 'S2'], T2: ['S1', 'S2', 'S3'] }, trip_stop_sequences: { T1: [1, 2, 3, 4], T2: [1, 2, 3] },
+      stop_coords: { S1: [41, 29], S2: [41.01, 29.01], S3: [41.02, 29.02] },
+      service_days: { WK: ['1111100', '20250101', '20271231', '0'] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+
+    // OPR_001: the gap's two departures in the text, a table and the affected row; the trip before it on the map.
+    let out = render(notice('a', 'OPR_001', 'MEDIUM', { entity_type: 'Route', entity_id: 'R1', service_id: 'WK', observed_value: '660', expected_value: '≤ 240',
+      details: { gap_from: '12:30', gap_to: '23:30', trip_before: 'T1', trip_after: 'T2', departures: '6', direction_id: '0' } }));
+    expect(out.html).toContain('10 hattının „Çarşı“ yönünde seferlerinde (Hafta içi) 12:30 kalkışından sonraki sefer ancak 23:30 kalkışlı; arada 11 sa boyunca sefer yok. Sınır 4 sa.');
+    expect(out.html).toContain('<tr class="bad"><td>12:30</td><td>T1</td><td>Çarşı</td></tr>');
+    expect(out.html).toContain('<td>12:30 → 23:30</td>');
+    expect(out.map.opts?.pins).toHaveLength(3);
+
+    // OPR_007: the repeated stop red in the trip's stop list.
+    out = render(notice('a', 'OPR_007', 'LOW', { entity_type: 'Trip', entity_id: 'T1', observed_value: '2× repeat', details: { dup_stop: 'S2' } }));
+    expect(out.html).toContain('10 hattının 06:00 kalkışlı T1 seferi Okul durağından 2 kez geçiyor');
+    expect(out.html).toContain('<tr class="bad"><td>2</td><td>Okul (S2)</td></tr>');
+    expect(out.html).toContain('<tr class="bad"><td>4</td><td>Okul (S2)</td></tr>');
+
+    // OPR_010: how many trips say yes and no.
+    out = render(notice('a', 'OPR_010', 'LOW', { entity_type: 'Route', entity_id: 'R1', field: 'wheelchair_accessible',
+      details: { yes_trips: '3', yes_trip_id: 'T1', no_trips: '1', no_trip_id: 'T2' } }));
+    expect(out.html).toContain('10 hattının 3 seferi tekerlekli sandalyeyle erişilebilir, 1 seferi erişilemez olarak işaretlenmiş');
+    expect(out.html).toContain('<tr><td>Erişilemez (2)</td><td>1</td><td>T2</td></tr>');
+
+    // OPR_011: the calendar's trips "use" it — it never runs.
+    out = render(notice('a', 'OPR_011', 'HIGH', { entity_type: 'Service', entity_id: 'WK', details: { trip_count: '2', route_count: '1', example_trip_id: 'T2' } }));
+    expect(out.html).toContain('WK takviminin hiç çalışma günü yok; bu takvimi kullanan seferler hiç çalışmaz. Bu takvimi 1 hattın 2 seferi kullanıyor.');
+
+    // OPR_014: the longest transfers in a table, their stops pinned, the record named as the list.
+    out = render(notice('a', 'OPR_014', 'LOW', { entity_type: 'Feed', file: 'transfers.txt', observed_value: '1050s (2)',
+      details: { transfer_count: '2', average_seconds: '1050', example_0_from_stop_id: 'S2', example_0_to_stop_id: 'S3', example_0_seconds: '1200' } }));
+    expect(out.html).toContain('Aktarma kurallarındaki 2 zamanlı aktarmanın ortalama süresi 18 dk');
+    expect(out.html).toContain('<tr><td>Okul (S2)</td><td>Çarşı (S3)</td><td>20 dk</td></tr>');
+    expect(out.html).toContain('<td>Aktarma kuralları</td>');
+    expect(out.map.opts?.pins.filter(p => p.primary)).toHaveLength(2);
+
+    // OPR_021: the special day's calendars and the dates.
+    out = render(notice('a', 'OPR_021', 'MEDIUM', { entity_type: 'Route', entity_id: 'R1',
+      details: { conflict_day_count: '2', sample_dates: '20261229,20261230', base_services: 'WK', override_services: 'HOL' } }));
+    expect(out.html).toContain('10 hattında 2 özel günde hem özel gün takvimi (HOL) hem normal takvim (WK) çalışıyor (ilk gün 29.12.2026)');
+    expect(out.html).toContain('<tr class="bad"><td>29.12.2026</td><td>Salı</td></tr>');
+
+    // OPR_025: the shortest trips.
+    out = render(notice('a', 'OPR_025', 'MEDIUM', { entity_type: 'Feed', file: 'stop_times.txt', observed_value: '45s',
+      details: { trip_count: '5', example_0_trip_id: 'T2', example_0_seconds: '20', example_trip_id: 'T2' } }));
+    expect(out.html).toContain('Seferlerin ortalama süresi 45 saniye');
+    expect(out.html).toContain('<tr class="bad"><td>T2</td><td>10</td><td>20 sn</td></tr>');
   });
 
   it('STM_051–055 kartları Flex bölgesini, pencereyi, yazılan değeri ve aynı saatli durak serisini gösterir', () => {

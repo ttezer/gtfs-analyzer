@@ -7816,3 +7816,98 @@ fn calendar_findings_014_to_025_carry_planner_context() {
     assert_eq!(get(&d, "next_active").as_deref(), Some("20260701"));
     assert_eq!(get(&d, "route_0_route_id").as_deref(), Some("R1"));
 }
+
+#[test]
+fn operational_findings_carry_planner_context() {
+    // OPR_001/003 the trips around the gap, OPR_004 the route's calendars, OPR_009 the night trips,
+    // OPR_010 the yes/no trips, OPR_014 the longest transfers, OPR_025 the shortest trips.
+    // Counts are unchanged.
+    let run_ok = |files: &[(&str, &[u8])]| match run(files) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+    let one = |vr: &gtfs_pipeline::ValidationResult, rule: &str| {
+        let hits: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == rule).collect();
+        assert_eq!(hits.len(), 1, "{rule} tek bulgu");
+        hits[0]
+            .details
+            .clone()
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor"))
+    };
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+
+    static OPR_TRIPS: &[u8] = b"route_id,service_id,trip_id,direction_id,wheelchair_accessible\n\
+          R1,WK,T1,0,1\nR1,WK,T2,0,2\nR1,WK,T3,0,\nR1,WK,T4,0,\nR1,WK,T5,0,\nR1,WK,T6,0,\n";
+    static OPR_STOP_TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,06:00:00,06:00:00,S1,1\nT1,06:10:00,06:10:00,S2,2\n\
+          T2,06:01:00,06:01:00,S1,1\nT2,06:11:00,06:11:00,S2,2\n\
+          T3,06:30:00,06:30:00,S1,1\nT3,06:40:00,06:40:00,S2,2\n\
+          T4,12:00:00,12:00:00,S1,1\nT4,12:10:00,12:10:00,S2,2\n\
+          T5,12:30:00,12:30:00,S1,1\nT5,12:40:00,12:40:00,S2,2\n\
+          T6,23:30:00,23:30:00,S1,1\nT6,23:40:00,23:40:00,S2,2\n";
+    static OPR_CALENDAR: &[u8] =
+        b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
+          WK,1,1,1,1,1,0,0,20250101,20271231\n";
+    static OPR_TRANSFERS: &[u8] = b"from_stop_id,to_stop_id,transfer_type,min_transfer_time\n\
+          S1,S2,2,900\nS2,S1,2,1200\n";
+    let files: Vec<(&str, &[u8])> = vec![
+        ("agency.txt", AGENCY),
+        ("stops.txt", STOPS),
+        ("routes.txt", ROUTES),
+        ("trips.txt", OPR_TRIPS),
+        ("stop_times.txt", OPR_STOP_TIMES),
+        ("calendar.txt", OPR_CALENDAR),
+        ("transfers.txt", OPR_TRANSFERS),
+    ];
+    let vr = run_ok(&files);
+
+    // OPR_001: the largest gap is 12:30 → 23:30, between T5 and T6.
+    let d = one(&vr, "OPR_001");
+    assert_eq!(get(&d, "gap_from").as_deref(), Some("12:30"));
+    assert_eq!(get(&d, "gap_to").as_deref(), Some("23:30"));
+    assert_eq!(get(&d, "trip_before").as_deref(), Some("T5"));
+    assert_eq!(get(&d, "trip_after").as_deref(), Some("T6"));
+    assert_eq!(get(&d, "departures").as_deref(), Some("6"));
+    assert_eq!(get(&d, "direction_id").as_deref(), Some("0"));
+    // OPR_003: T1 and T2 leave S1 a minute apart.
+    let d = one(&vr, "OPR_003");
+    assert_eq!(get(&d, "gap_from").as_deref(), Some("06:00"));
+    assert_eq!(get(&d, "trip_before").as_deref(), Some("T1"));
+    assert_eq!(get(&d, "trip_after").as_deref(), Some("T2"));
+    assert_eq!(get(&d, "stop_id").as_deref(), Some("S1"));
+    // OPR_004: weekday-only calendar; OPR_009: the 23:30 night trip.
+    let d = one(&vr, "OPR_004");
+    assert_eq!(get(&d, "services").as_deref(), Some("WK"));
+    let d = one(&vr, "OPR_009");
+    assert_eq!(get(&d, "night_trips").as_deref(), Some("1"));
+    assert_eq!(get(&d, "example_trip_id").as_deref(), Some("T6"));
+    // OPR_010: one accessible and one not.
+    let d = one(&vr, "OPR_010");
+    assert_eq!(get(&d, "yes_trips").as_deref(), Some("1"));
+    assert_eq!(get(&d, "yes_trip_id").as_deref(), Some("T1"));
+    assert_eq!(get(&d, "no_trip_id").as_deref(), Some("T2"));
+    // OPR_014: the 20-minute transfer first.
+    let d = one(&vr, "OPR_014");
+    assert_eq!(get(&d, "transfer_count").as_deref(), Some("2"));
+    assert_eq!(get(&d, "example_0_from_stop_id").as_deref(), Some("S2"));
+    assert_eq!(get(&d, "example_0_seconds").as_deref(), Some("1200"));
+
+    // OPR_025: five trips of 30 seconds.
+    static SHORT_TRIPS: &[u8] =
+        b"route_id,service_id,trip_id\nR1,SVC1,A1\nR1,SVC1,A2\nR1,SVC1,A3\nR1,SVC1,A4\nR1,SVC1,A5\n";
+    static SHORT_TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          A1,08:00:00,08:00:00,S1,1\nA1,08:00:30,08:00:30,S2,2\n\
+          A2,09:00:00,09:00:00,S1,1\nA2,09:00:20,09:00:20,S2,2\n\
+          A3,10:00:00,10:00:00,S1,1\nA3,10:00:30,10:00:30,S2,2\n\
+          A4,11:00:00,11:00:00,S1,1\nA4,11:00:30,11:00:30,S2,2\n\
+          A5,12:00:00,12:00:00,S1,1\nA5,12:00:30,12:00:30,S2,2\n";
+    let mut files = base_files();
+    files[3] = ("trips.txt", SHORT_TRIPS);
+    files[4] = ("stop_times.txt", SHORT_TIMES);
+    let vr = run_ok(&files);
+    let d = one(&vr, "OPR_025");
+    assert_eq!(get(&d, "trip_count").as_deref(), Some("5"));
+    assert_eq!(get(&d, "example_0_trip_id").as_deref(), Some("A2"));
+    assert_eq!(get(&d, "example_0_seconds").as_deref(), Some("20"));
+    assert_eq!(get(&d, "example_trip_id").as_deref(), Some("A2"));
+}

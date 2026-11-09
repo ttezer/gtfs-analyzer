@@ -668,7 +668,8 @@
       },
       {
         "details": {
-          "route_label": "101"
+          "route_label": "101",
+          "services": "SVC1"
         },
         "entity_id": "R1",
         "entity_type": "Route",
@@ -2300,7 +2301,8 @@
         },
         {
           "details": {
-            "route_label": "101"
+            "route_label": "101",
+            "services": "SVC1"
           },
           "entity_id": "R1",
           "entity_type": "Route",
@@ -10297,7 +10299,8 @@
         },
         {
           "details": {
-            "route_label": "102"
+            "route_label": "102",
+            "services": "SVC1"
           },
           "entity_id": "R2",
           "entity_type": "Route",
@@ -11164,42 +11167,6 @@
         },
         {
           "details": null,
-          "entity_id": "SVCX",
-          "entity_type": "Service",
-          "expected_value": "≥ 1",
-          "field": "service_id",
-          "file": "calendar.txt",
-          "line": null,
-          "message": "Service 'SVCX' has no active days.",
-          "observed_value": "0",
-          "remediation": "Define active service dates in calendar.txt or calendar_dates.txt.",
-          "rule_class": "ANALYTICS",
-          "rule_id": "OPR_011",
-          "scope_key": "SVCX",
-          "service_id": null,
-          "severity": "HIGH",
-          "title": "Service has no active days"
-        },
-        {
-          "details": null,
-          "entity_id": "SVCY",
-          "entity_type": "Service",
-          "expected_value": "≥ 1",
-          "field": "service_id",
-          "file": "calendar.txt",
-          "line": null,
-          "message": "Service 'SVCY' has no active days.",
-          "observed_value": "0",
-          "remediation": "Define active service dates in calendar.txt or calendar_dates.txt.",
-          "rule_class": "ANALYTICS",
-          "rule_id": "OPR_011",
-          "scope_key": "SVCY",
-          "service_id": null,
-          "severity": "HIGH",
-          "title": "Service has no active days"
-        },
-        {
-          "details": null,
           "entity_id": "T1",
           "entity_type": "Trip",
           "expected_value": null,
@@ -11419,6 +11386,31 @@
           },
           "entity_id": "SVCX",
           "entity_type": "Service",
+          "expected_value": "≥ 1",
+          "field": "service_id",
+          "file": "calendar.txt",
+          "line": null,
+          "message": "Service 'SVCX' has no active days.",
+          "observed_value": "0",
+          "remediation": "Define active service dates in calendar.txt or calendar_dates.txt.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "OPR_011",
+          "scope_key": "SVCX",
+          "service_id": null,
+          "severity": "HIGH",
+          "title": "Service has no active days"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "route_0_example_trip_id": "T1",
+            "route_0_route_id": "R1",
+            "route_0_trips": "1",
+            "route_count": "1",
+            "trip_count": "1"
+          },
+          "entity_id": "SVCX",
+          "entity_type": "Service",
           "expected_value": null,
           "field": "service_id",
           "file": "trips.txt",
@@ -11432,6 +11424,31 @@
           "service_id": null,
           "severity": "INFO",
           "title": "Calendar inactive in the next 7 days"
+        },
+        {
+          "details": {
+            "example_trip_id": "T2",
+            "route_0_example_trip_id": "T2",
+            "route_0_route_id": "R1",
+            "route_0_trips": "1",
+            "route_count": "1",
+            "trip_count": "1"
+          },
+          "entity_id": "SVCY",
+          "entity_type": "Service",
+          "expected_value": "≥ 1",
+          "field": "service_id",
+          "file": "calendar.txt",
+          "line": null,
+          "message": "Service 'SVCY' has no active days.",
+          "observed_value": "0",
+          "remediation": "Define active service dates in calendar.txt or calendar_dates.txt.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "OPR_011",
+          "scope_key": "SVCY",
+          "service_id": null,
+          "severity": "HIGH",
+          "title": "Service has no active days"
         },
         {
           "details": {
@@ -11478,6 +11495,27 @@
           "service_id": null,
           "severity": "LOW",
           "title": "Unused service"
+        },
+        {
+          "details": {
+            "route_label": "101",
+            "services": "SVCX,SVCY"
+          },
+          "entity_id": "R1",
+          "entity_type": "Route",
+          "expected_value": null,
+          "field": null,
+          "file": "trips.txt",
+          "line": null,
+          "message": "Route '101' has no weekend service.",
+          "observed_value": null,
+          "remediation": "Informational notice; no action required.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "OPR_004",
+          "scope_key": "R1",
+          "service_id": null,
+          "severity": "INFO",
+          "title": "No weekend service"
         }
       ],
       "agency_breakdown": {
@@ -11984,6 +12022,27 @@
           "service_id": null,
           "severity": "LOW",
           "title": "Recommended field missing or empty"
+        },
+        {
+          "details": {
+            "route_label": "101",
+            "services": "SVC1"
+          },
+          "entity_id": "R1",
+          "entity_type": "Route",
+          "expected_value": null,
+          "field": null,
+          "file": "trips.txt",
+          "line": null,
+          "message": "Route '101' has no weekend service.",
+          "observed_value": null,
+          "remediation": "Informational notice; no action required.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "OPR_004",
+          "scope_key": "R1",
+          "service_id": null,
+          "severity": "INFO",
+          "title": "No weekend service"
         }
       ],
       "score": 92.6
@@ -12782,7 +12841,8 @@
         },
         {
           "details": {
-            "route_label": " R1"
+            "route_label": " R1",
+            "services": "SVC1"
           },
           "entity_id": " R1",
           "entity_type": "Route",
@@ -13188,7 +13248,8 @@
         },
         {
           "details": {
-            "route_label": "101"
+            "route_label": "101",
+            "services": "SVC1"
           },
           "entity_id": "R1",
           "entity_type": "Route",

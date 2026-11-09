@@ -747,6 +747,9 @@ fn zone_only_trip_ids(records: &EntityRecords) -> HashSet<&str> {
 }
 
 /// Routes shown to the planner in the DQ_006 summary.
+/// OPR_014: longest timed transfers listed; OPR_025: shortest trips listed.
+const OPR014_EXAMPLES: usize = 10;
+const OPR025_EXAMPLES: usize = 10;
 const DQ006_ROUTES: usize = 20;
 /// Trips (file order) shown to the planner in the DQ_005b / DQ_009 summaries.
 const DQ_TRIP_EXAMPLES: usize = 10;
@@ -3430,8 +3433,10 @@ fn check_route_headway(
     // Splitting OPR_001 by first stop/pattern would instead incorrectly mark short-line variants
     // that start service only at certain times as "sparse".
     // direction_key: "0"/"1"/... when direction_id exists, otherwise "" (no separate bucket).
-    let mut route_departures: HashMap<(&str, &str, &str), Vec<u32>> = HashMap::new();
-    let mut route_stop_departures: HashMap<(&str, &str, &str, &str, &str), Vec<u32>> =
+    // Each departure keeps its trip so the planner card can name the trips around a gap; the
+    // headway arithmetic below reads only the (sorted, deduplicated) times, as before.
+    let mut route_departures: HashMap<(&str, &str, &str), Vec<Departure>> = HashMap::new();
+    let mut route_stop_departures: HashMap<(&str, &str, &str, &str, &str), Vec<Departure>> =
         HashMap::new();
 
     for trip in &records.trips {
@@ -3472,11 +3477,11 @@ fn check_route_headway(
         route_departures
             .entry((route_id, direction_key, service_id))
             .or_default()
-            .push(dep);
+            .push((dep, trip.trip_id.as_str()));
         route_stop_departures
             .entry((route_id, direction_key, service_id, first_stop, pattern))
             .or_default()
-            .push(dep);
+            .push((dep, trip.trip_id.as_str()));
     }
 
     let max_secs = config.max_headway_warning_min * 60;
@@ -3509,7 +3514,8 @@ fn check_route_headway(
     // among findings with the same entity_id does not depend on it.
     let mut route_departures: Vec<_> = route_departures.into_iter().collect();
     route_departures.sort_unstable_by_key(|(k, _)| *k);
-    for ((route_id, direction_key, service_id), mut deps) in route_departures {
+    for ((route_id, direction_key, service_id), trips) in route_departures {
+        let mut deps: Vec<u32> = trips.iter().map(|&(dep, _)| dep).collect();
         deps.sort_unstable();
         deps.dedup();
         if deps.len() < 2 {
@@ -3517,6 +3523,8 @@ fn check_route_headway(
         }
         let gaps: Vec<u32> = deps.windows(2).map(|w| w[1] - w[0]).collect();
         let max_hw = gaps.iter().copied().max().unwrap_or(0);
+        // Planner context: the first (earliest) largest gap and the trips on each side of it.
+        let gap_at = gaps.iter().position(|&g| g == max_hw).unwrap_or(0);
         // OPR_001 is emitted only when (a) the gap threshold is exceeded, (b) the route is NOT in
         // the manual rural list, and (c) departure intervals are irregular (a real gap). Regular-
         // sparse (low-CV) routes are treated as intentional rural service and silenced.
@@ -3551,6 +3559,14 @@ fn check_route_headway(
                 "Pik/saatdışı sefer sayısını artırın ya da büyük boşlukları kapatın.",
             );
             n001.service_id = Some(service_id.to_string());
+            headway_details(
+                &mut n001,
+                &trips,
+                deps[gap_at],
+                deps[gap_at + 1],
+                direction_key,
+                deps.len(),
+            );
             if !routes_raw_hw.contains(route_id) && max_hw <= max_secs_rail {
                 if let Some(&padded) = rail_trimmed_hw.get(route_id.trim()) {
                     let file = if padded { "routes.txt" } else { "trips.txt" };
@@ -3566,9 +3582,10 @@ fn check_route_headway(
     // HashMap iteration would make the dedup representative nondeterministic; sort by key.
     let mut route_stop_departures: Vec<_> = route_stop_departures.into_iter().collect();
     route_stop_departures.sort_unstable_by_key(|(k, _)| *k);
-    for ((route_id, direction_key, service_id, _first_stop, _pattern), mut deps) in
+    for ((route_id, direction_key, service_id, first_stop, _pattern), trips) in
         route_stop_departures
     {
+        let mut deps: Vec<u32> = trips.iter().map(|&(dep, _)| dep).collect();
         deps.sort_unstable();
         // dedup suppresses cross-day repeated departure times for the same
         // service_id; may also hide true parallel same-time trips (known tradeoff)
@@ -3578,6 +3595,12 @@ fn check_route_headway(
         }
         let min_hw = deps.windows(2).map(|w| w[1] - w[0]).min().unwrap_or(0);
         if min_hw < bunching_secs && min_hw > 0 {
+            // Planner context: the first (earliest) pair this close and the stop they leave from.
+            let pair = deps
+                .windows(2)
+                .find(|w| w[1] - w[0] == min_hw)
+                .map(|w| (w[0], w[1]))
+                .unwrap_or((0, 0));
             let dir_display = if direction_key.is_empty() {
                 "-"
             } else {
@@ -3600,8 +3623,67 @@ fn check_route_headway(
                 "Sefer programını düzenleyin; çok sık gelen seferler sıkışmaya yol açabilir.",
             );
             n.service_id = Some(service_id.to_string());
+            headway_details(&mut n, &trips, pair.0, pair.1, direction_key, deps.len());
+            if !first_stop.is_empty() {
+                n.details
+                    .get_or_insert_with(Default::default)
+                    .insert("stop_id", first_stop.to_string());
+            }
             notices.push(n);
         }
+    }
+}
+
+/// A departure time (seconds) and the trip leaving then.
+type Departure<'a> = (u32, &'a str);
+
+/// OPR_010 planner context: for the notice's field, how many of the route's trips say yes (1) and
+/// no (2), and the first trip of each (`yes_trips`, `no_trips`, `yes_trip_id`, `no_trip_id`).
+fn policy_details(
+    n: &mut Notice,
+    policy_trips: &FxHashMap<(&str, &str, u32), (u32, &str)>,
+    route_id: &str,
+) {
+    let Some(field) = n.field.clone() else {
+        return;
+    };
+    let details = n.details.get_or_insert_with(Default::default);
+    for (value, prefix) in [(1u32, "yes"), (2u32, "no")] {
+        if let Some(&(count, trip)) = policy_trips.get(&(route_id, field.as_str(), value)) {
+            details.insert(format!("{prefix}_trips"), count.to_string());
+            details.insert(format!("{prefix}_trip_id"), trip.to_string());
+        }
+    }
+}
+
+/// OPR_001 / OPR_003 planner context: the two departures around the gap (`gap_from`, `gap_to`,
+/// HH:MM), the trips leaving then (`trip_before`, `trip_after`; the smallest code when several
+/// leave at the same time), the direction and how many departure times the group has.
+fn headway_details(
+    n: &mut Notice,
+    trips: &[Departure],
+    from: u32,
+    to: u32,
+    direction: &str,
+    departures: usize,
+) {
+    let trip_at = |dep: u32| {
+        trips
+            .iter()
+            .filter(|&&(d, _)| d == dep)
+            .map(|&(_, t)| t)
+            .min()
+            .unwrap_or("")
+    };
+    let hm = |s: u32| format!("{:02}:{:02}", s / 3600, s / 60 % 60);
+    let details = n.details.get_or_insert_with(Default::default);
+    details.insert("gap_from", hm(from));
+    details.insert("gap_to", hm(to));
+    details.insert("trip_before", trip_at(from).to_string());
+    details.insert("trip_after", trip_at(to).to_string());
+    details.insert("departures", departures.to_string());
+    if !direction.is_empty() {
+        details.insert("direction_id", direction.to_string());
     }
 }
 
@@ -8789,6 +8871,10 @@ fn check_remaining_analytics<'a>(
             svc: &'a str,
             hw: u32,
             rtype: u32,
+            /// Planner context: first and last departure and how many there are.
+            first: u32,
+            last: u32,
+            count: usize,
         }
         let mut grps: Vec<Hw> = Vec::new();
         for ((route_id, dir_key, svc_key), mut deps) in route_headways {
@@ -8809,6 +8895,9 @@ fn check_remaining_analytics<'a>(
                 svc: svc_key,
                 hw: avg_hw,
                 rtype,
+                first: deps[0],
+                last: deps[deps.len() - 1],
+                count: deps.len(),
             });
         }
 
@@ -8873,6 +8962,21 @@ fn check_remaining_analytics<'a>(
                 "Bu bilgi notu; sefer sıklığı aynı tür hatlara göre sıradışı.",
             );
             n.service_id = Some(g.svc.to_string());
+            {
+                let hm = |s: u32| format!("{:02}:{:02}", s / 3600, s / 60 % 60);
+                let details = n.details.get_or_insert_with(Default::default);
+                details.insert("median_min", format!("{med_min:.0}"));
+                details.insert(
+                    "kind",
+                    if hw > median { "sparse" } else { "dense" }.to_string(),
+                );
+                details.insert("first_departure", hm(g.first));
+                details.insert("last_departure", hm(g.last));
+                details.insert("departures", g.count.to_string());
+                if !g.dir.is_empty() {
+                    details.insert("direction_id", g.dir.to_string());
+                }
+            }
             notices.push(n);
         }
     }
@@ -10271,25 +10375,31 @@ fn check_remaining_analytics<'a>(
     // ── OPR_009: night service — one route summary instead of trip repeats ───
     {
         let _t09 = Timer::start("K6::rem::opr_009");
-        let mut by_route: FxHashMap<&str, (u32, u32, u32)> = FxHashMap::default();
+        // route → (night trips, earliest, latest departure, the latest night trip)
+        let mut by_route: FxHashMap<&str, (u32, u32, u32, &str)> = FxHashMap::default();
         let sds_sec = config.service_day_start_hour * 3600;
         for (&trip_id, stimes) in &idx.by_trip {
             if let Some(dep) = stimes.first().and_then(|s| s.departure_time()) {
                 let dep_sec = dep.0 * 3600 + dep.1 * 60 + dep.2;
                 if dep_sec >= 23 * 3600 || (sds_sec > 0 && dep_sec < sds_sec) {
                     let route = trip_to_route_rem.get(trip_id).copied().unwrap_or(trip_id);
-                    let e = by_route.entry(route).or_insert((0, dep_sec, dep_sec));
+                    let e = by_route
+                        .entry(route)
+                        .or_insert((0, dep_sec, dep_sec, trip_id));
                     e.0 += 1;
                     e.1 = e.1.min(dep_sec);
+                    if dep_sec > e.2 || (dep_sec == e.2 && trip_id < e.3) {
+                        e.3 = trip_id;
+                    }
                     e.2 = e.2.max(dep_sec);
                 }
             }
         }
         let mut routes: Vec<_> = by_route.into_iter().collect();
         routes.sort_by_key(|x| x.0);
-        for (route, (count, min, max)) in routes {
+        for (route, (count, min, max, latest_trip)) in routes {
             let hm = |s: u32| format!("{:02}:{:02}", s / 3600, s / 60 % 60);
-            notices.push(k6_notice(
+            let mut n = k6_notice(
                 ctr,
                 "OPR_009",
                 EntityType::Route,
@@ -10306,7 +10416,14 @@ fn check_remaining_analytics<'a>(
                     hm(max)
                 ),
                 "Bu bilgi notu; gece servisleri için beklenen bir durumdur.",
-            ));
+            );
+            // Planner context: the night trips' count and window, and the latest one for the map.
+            let details = n.details.get_or_insert_with(Default::default);
+            details.insert("night_trips", count.to_string());
+            details.insert("first_departure", hm(min));
+            details.insert("last_departure", hm(max));
+            details.insert("example_trip_id", latest_trip.to_string());
+            notices.push(n);
         }
     }
 
@@ -10390,9 +10507,23 @@ fn check_remaining_analytics<'a>(
         // (has_accessible=1, has_not_accessible=2)
         let mut route_wc: FxHashMap<&str, (bool, bool)> = FxHashMap::default();
         let mut route_ba: FxHashMap<&str, (bool, bool)> = FxHashMap::default();
+        // Planner context: per (route, field, value 1/2) the trip count and the first trip (file order).
+        let mut policy_trips: FxHashMap<(&str, &str, u32), (u32, &str)> = FxHashMap::default();
         for t in &records.trips {
             if ti_rem.route_id(t).is_empty() {
                 continue;
+            }
+            if let Some(wc) = t.wheelchair_accessible.filter(|v| matches!(v, 1 | 2)) {
+                let e = policy_trips
+                    .entry((ti_rem.route_id(t), "wheelchair_accessible", wc))
+                    .or_insert((0, t.trip_id.as_str()));
+                e.0 += 1;
+            }
+            if let Some(ba) = t.bikes_allowed.filter(|v| matches!(v, 1 | 2)) {
+                let e = policy_trips
+                    .entry((ti_rem.route_id(t), "bikes_allowed", ba))
+                    .or_insert((0, t.trip_id.as_str()));
+                e.0 += 1;
             }
             if let Some(wc) = t.wheelchair_accessible {
                 let e = route_wc.entry(ti_rem.route_id(t)).or_default();
@@ -10428,6 +10559,7 @@ fn check_remaining_analytics<'a>(
                     .details
                     .get_or_insert_with(Default::default)
                     .insert("route_label".to_string(), label.to_string());
+                policy_details(&mut notice, &policy_trips, route_id);
                 notices.push(notice);
             }
         }
@@ -10446,6 +10578,7 @@ fn check_remaining_analytics<'a>(
                     .details
                     .get_or_insert_with(Default::default)
                     .insert("route_label".to_string(), label.to_string());
+                policy_details(&mut notice, &policy_trips, route_id);
                 notices.push(notice);
             }
         }
@@ -10461,12 +10594,20 @@ fn check_remaining_analytics<'a>(
             .filter(|t| t.transfer_type == Some(2))
             .filter_map(|t| t.min_transfer_time)
             .collect();
+        // Planner context: the longest timed transfers (longest first, then file order).
+        let mut longest: Vec<_> = records
+            .transfers
+            .iter()
+            .filter(|t| t.transfer_type == Some(2))
+            .filter_map(|t| t.min_transfer_time.map(|time| (time, t)))
+            .collect();
+        longest.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.line.cmp(&b.1.line)));
         if !timed.is_empty() {
             let count = timed.len();
             let avg = timed.iter().map(|&x| x as u64).sum::<u64>() / count as u64;
             if avg > AVG_TRANSFER_THRESHOLD_SEC {
                 let avg_min = avg as f64 / 60.0;
-                notices.push(k6_notice(
+                let mut n = k6_notice(
                     ctr, "OPR_014", EntityType::Feed,
                     None, None,
                     "transfers.txt", None, Some("min_transfer_time"),
@@ -10474,7 +10615,16 @@ fn check_remaining_analytics<'a>(
                     Some(format!("≤ {AVG_TRANSFER_THRESHOLD_SEC}s")),
                     format!("Feed genelinde {count} zamanlı aktarmanın ortalama min_transfer_time değeri {avg}s ({avg_min:.1} dakika)."),
                     "Aktarma sürelerini gözden geçirin; uzun aktarmalar yolcu deneyimini olumsuz etkiler.",
-                ));
+                );
+                let details = n.details.get_or_insert_with(Default::default);
+                details.insert("transfer_count", count.to_string());
+                details.insert("average_seconds", avg.to_string());
+                for (i, (time, t)) in longest.iter().take(OPR014_EXAMPLES).enumerate() {
+                    details.insert(format!("example_{i}_from_stop_id"), t.from_stop_id.clone());
+                    details.insert(format!("example_{i}_to_stop_id"), t.to_stop_id.clone());
+                    details.insert(format!("example_{i}_seconds"), time.to_string());
+                }
+                notices.push(n);
             }
         }
     }
@@ -11834,6 +11984,10 @@ fn check_calendar_override_analytics(
                 // The en/ja/fr templates are filled with `{route_label}`.
                 let details = notice.details.get_or_insert_with(Default::default);
                 details.insert("route_label".to_string(), label.to_string());
+                // Planner context: the route's calendars (all weekday-only).
+                let mut services: Vec<&str> = service_ids.iter().copied().collect();
+                services.sort_unstable();
+                details.insert("services", services.join(","));
                 notices.push(notice);
             }
         }
@@ -11883,6 +12037,9 @@ fn check_calendar_override_analytics(
                     "Boşluk planlanmışsa görmezden gelin; aksi hâlde eksik günleri calendar_dates.txt ile ekleyin.",
                 );
                 n012.service_id = Some(svc_id.clone());
+                let details = n012.details.get_or_insert_with(Default::default);
+                details.insert("gap_start", gap_start.to_string());
+                details.insert("gap_end", gap_end.to_string());
                 notices.push(n012);
             }
         }
@@ -13119,7 +13276,9 @@ fn check_vat_analytics(
     // OPR_025: average trip duration is under 60 seconds (feed-wide).
     {
         let mut trip_durations: Vec<u64> = Vec::new();
-        for stops in records.stop_times_index.iter_stops() {
+        // Planner context: (duration, trip) for the shortest trips.
+        let mut timed_trips: Vec<(u64, &str)> = Vec::new();
+        for (trip_id, stops) in records.stop_times_index.iter_trips() {
             let mut min_dep: Option<u32> = None;
             let mut max_dep: Option<u32> = None;
             for st in stops {
@@ -13132,19 +13291,31 @@ fn check_vat_analytics(
             if let (Some(f), Some(l)) = (min_dep, max_dep) {
                 if l > f {
                     trip_durations.push((l - f) as u64);
+                    timed_trips.push(((l - f) as u64, trip_id.as_str()));
                 }
             }
         }
         if trip_durations.len() >= 5 {
             let avg = trip_durations.iter().sum::<u64>() / trip_durations.len() as u64;
             if avg < 60 {
-                notices.push(k6_notice(
+                let mut n = k6_notice(
                     ctr, "OPR_025", EntityType::Feed,
                     None, None, "stop_times.txt", None, None,
                     Some(format!("{avg}s")), Some("≥60s".to_string()),
                     format!("Ortalama sefer süresi {avg} saniye — bu kadar kısa süreler genellikle veri hatasını gösterir."),
                     "stop_times.txt'deki departure_time ve arrival_time değerlerini kontrol edin.",
-                ));
+                );
+                timed_trips.sort_unstable();
+                let details = n.details.get_or_insert_with(Default::default);
+                details.insert("trip_count", trip_durations.len().to_string());
+                for (i, (secs, trip)) in timed_trips.iter().take(OPR025_EXAMPLES).enumerate() {
+                    details.insert(format!("example_{i}_trip_id"), trip.to_string());
+                    details.insert(format!("example_{i}_seconds"), secs.to_string());
+                }
+                if let Some((_, trip)) = timed_trips.first() {
+                    details.insert("example_trip_id", trip.to_string());
+                }
+                notices.push(n);
             }
         }
     }
