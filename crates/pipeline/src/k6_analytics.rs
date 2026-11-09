@@ -4353,8 +4353,15 @@ fn check_geo_stop_analytics(
                     continue;
                 }
                 let dist_km = haversine_km(la_i, lo_i, la_j, lo_j);
+                // Planner context: the other stop of the pair (and their distance, STP_017).
+                let pair_details = |dist_m: f64| {
+                    let mut d = std::collections::BTreeMap::new();
+                    d.insert("other_stop_id".to_string(), sb.stop_id.clone());
+                    d.insert("distance_m".to_string(), format!("{dist_m:.1}"));
+                    d
+                };
                 if dist_km == 0.0 {
-                    notices.push(k6_notice(
+                    let mut n016 = k6_notice(
                         ctr,
                         "STP_016",
                         EntityType::Stop,
@@ -4371,10 +4378,12 @@ fn check_geo_stop_analytics(
                             sb.stop_name.as_deref().unwrap_or(sb.stop_id.as_str()), sb.stop_id,
                         ),
                         "İki durak aynı konumdaysa birleştirin; farklı duraklar ise koordinatları düzeltin.",
-                    ));
+                    );
+                    n016.details = Some(pair_details(0.0).into());
+                    notices.push(n016);
                 } else if dist_km < too_close_km {
                     let dist_m = dist_km * 1000.0;
-                    let n = k6_notice(
+                    let mut n = k6_notice(
                         ctr,
                         "STP_017",
                         EntityType::Stop,
@@ -4391,6 +4400,7 @@ fn check_geo_stop_analytics(
                             config.stop_too_close_m),
                         "Durakları birleştirin ya da konumlarını doğrulayın.",
                     );
+                    n.details = Some(pair_details(dist_m).into());
                     notices.push(n);
                 }
             }
@@ -9500,6 +9510,26 @@ fn check_remaining_analytics<'a>(
                 .map(|r| r.stop_id.as_str()),
         );
 
+        // Planner context: the nearest stop trips do call at (within STP020_NEAR_M) — often the
+        // record the trips use instead of this one. Latitude-sorted band scan.
+        let mut used_sorted: Vec<(f64, f64, &str)> = records
+            .stops
+            .iter()
+            .filter(|s| used_stops.contains(s.stop_id.as_str()))
+            .filter_map(|s| recoverable_stop_coord(s).map(|(la, lo)| (la, lo, s.stop_id.as_str())))
+            .collect();
+        used_sorted.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let nearest_used = |stop: &crate::k2::stops::StopRecord| -> Option<(f64, &str)> {
+            let (la, lo) = recoverable_stop_coord(stop)?;
+            let band = STP020_NEAR_M / 1000.0 / 111.0;
+            let start = used_sorted.partition_point(|&(l, _, _)| l < la - band);
+            used_sorted[start..]
+                .iter()
+                .take_while(|&&(l, _, _)| l <= la + band)
+                .map(|&(l2, lo2, id)| (haversine_km(la, lo, l2, lo2) * 1000.0, id))
+                .filter(|&(m, _)| m <= STP020_NEAR_M)
+                .min_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(b.1)))
+        };
         for stop in &records.stops {
             if stop.stop_id.is_empty() {
                 continue;
@@ -9509,7 +9539,7 @@ fn check_remaining_analytics<'a>(
                 continue;
             }
             if !used_stops.contains(stop.stop_id.as_str()) {
-                notices.push(k6_notice(
+                let mut n020 = k6_notice(
                     ctr,
                     "STP_020",
                     EntityType::Stop,
@@ -9528,7 +9558,14 @@ fn check_remaining_analytics<'a>(
                         )
                     },
                     "Durağı kaldırın veya ilgili bir sefere ekleyin.",
-                ));
+                );
+                if let Some((m, id)) = nearest_used(stop) {
+                    let mut d = std::collections::BTreeMap::new();
+                    d.insert("nearest_used_stop_id".to_string(), id.to_string());
+                    d.insert("nearest_used_m".to_string(), format!("{m:.0}"));
+                    n020.details = Some(d.into());
+                }
+                notices.push(n020);
             }
         }
     }
@@ -12550,6 +12587,8 @@ fn canonicalize_stop_components(mut components: Vec<Vec<&str>>) -> Vec<Vec<&str>
 /// described and stops probed for the nearest main-network stop (VAT_005), other routes
 /// listed (VAT_006) and routes named per shape (VAT_008).
 const VAT001_ONLY_EXAMPLES: usize = 10;
+/// STP_020 planner context: a used stop this close is named as the likely record trips use.
+const STP020_NEAR_M: f64 = 150.0;
 const VAT_NEARBY_ROUTES: usize = 10;
 const VAT003_EXAMPLES: usize = 5;
 const VAT005_CLUSTERS: usize = 5;

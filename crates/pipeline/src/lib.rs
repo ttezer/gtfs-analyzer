@@ -2376,8 +2376,16 @@ pub fn aggregate_feed_level_notices(
 }
 
 /// Stop findings whose planner card names the trips, routes and neighbouring stops of the stop.
-const STOP_CONTEXT_RULES: [&str; 7] = [
-    "STP_001", "STP_003", "STP_006", "STP_007", "STP_008", "STP_009", "STP_010",
+const STOP_CONTEXT_RULES: [&str; 14] = [
+    "STP_001", "STP_003", "STP_006", "STP_007", "STP_008", "STP_009", "STP_010", "STP_012",
+    "STP_013", "STP_014", "STP_015", "STP_016", "STP_017", "STP_019",
+];
+/// Stop findings about a second stop, which gets the same context under a prefix: the other stop
+/// of a close pair (`other_`), the used stop near an unused one (`nearest_`).
+const STOP_CONTEXT_OTHER: [(&str, &str, &str); 3] = [
+    ("STP_016", "other_stop_id", "other_"),
+    ("STP_017", "other_stop_id", "other_"),
+    ("STP_020", "nearest_used_stop_id", "nearest_"),
 ];
 /// Feed summaries (one per feed) whose example stops get the same context, per example.
 const STOP_CONTEXT_SUMMARIES: [&str; 2] = ["STP_004", "STP_005"];
@@ -2405,14 +2413,38 @@ fn annotate_stop_context(all: &mut [gtfs_core::Notice], records: &EntityRecords)
             })
             .unwrap_or_default()
     };
+    let other_stop = |n: &gtfs_core::Notice| -> Option<(String, &'static str)> {
+        let (_, key, prefix) = STOP_CONTEXT_OTHER
+            .iter()
+            .find(|(rule, _, _)| *rule == n.rule_id.as_str())?;
+        let id = n.details.as_ref()?.get(key)?.to_string();
+        Some((id, prefix))
+    };
     let mut wanted: FxHashSet<String> = FxHashSet::default();
     for n in all.iter() {
+        if let Some((id, _)) = other_stop(n) {
+            wanted.insert(id);
+        }
         if STOP_CONTEXT_RULES.contains(&n.rule_id.as_str()) {
             if let Some(id) = n.entity_id.as_deref().filter(|v| !v.is_empty()) {
                 wanted.insert(id.to_string());
             }
         } else if STOP_CONTEXT_SUMMARIES.contains(&n.rule_id.as_str()) {
             wanted.extend(summary_stops(n));
+        }
+    }
+    // STP_014: the feed's own timezone, the likely value for a stop.
+    let agency_timezone = records
+        .agencies
+        .iter()
+        .map(|a| a.agency_timezone.trim())
+        .find(|tz| !tz.is_empty())
+        .map(str::to_string);
+    if let Some(tz) = &agency_timezone {
+        for n in all.iter_mut().filter(|n| n.rule_id == "STP_014") {
+            n.details
+                .get_or_insert_with(Default::default)
+                .insert("agency_timezone".to_string(), tz.clone());
         }
     }
     if wanted.is_empty() {
@@ -2498,11 +2530,16 @@ fn annotate_stop_context(all: &mut [gtfs_core::Notice], records: &EntityRecords)
         out
     };
     for n in all.iter_mut() {
+        let other: Vec<(String, String)> = other_stop(n)
+            .map(|(id, prefix)| describe(&id, prefix))
+            .unwrap_or_default();
         let adds: Vec<(String, String)> = if STOP_CONTEXT_RULES.contains(&n.rule_id.as_str()) {
             match n.entity_id.as_deref() {
-                Some(id) => describe(id, ""),
+                Some(id) => describe(id, "").into_iter().chain(other).collect(),
                 None => continue,
             }
+        } else if n.rule_id == "STP_020" {
+            other
         } else if STOP_CONTEXT_SUMMARIES.contains(&n.rule_id.as_str()) {
             summary_stops(n)
                 .iter()

@@ -690,9 +690,9 @@ function trpTable(n: Notice, result: ValidationResult): string {
 
 /** STP findings: the stop a row is about and its trip context — a summary row (STP_004/005)
  *  reads the context of its own example stop (`example_<i>_*`). */
-function stpContext(n: Notice): { stop?: string; trip?: string; prev?: string; next?: string; seq?: string; routes: string[]; trips?: string } {
+function stpContext(n: Notice, side?: 'other' | 'nearest'): { stop?: string; trip?: string; prev?: string; next?: string; seq?: string; routes: string[]; trips?: string } {
   const d = n.details ?? {};
-  let prefix = '';
+  let prefix = side ? `${side}_` : '';
   if (n.rule_id === 'STP_004' || n.rule_id === 'STP_005') {
     let i = 0;
     while (d[`example_${i}_stop_id`] && d[`example_${i}_stop_id`] !== n.entity_id) i++;
@@ -700,8 +700,10 @@ function stpContext(n: Notice): { stop?: string; trip?: string; prev?: string; n
     prefix = `example_${i}_`;
   }
   const at = (key: string) => d[`${prefix}${key}`] || undefined;
+  const stop = side === 'other' ? d.other_stop_id : side === 'nearest' ? d.nearest_used_stop_id
+    : (prefix ? at('stop_id') : undefined) ?? n.entity_id ?? undefined;
   return {
-    stop: (prefix ? at('stop_id') : undefined) ?? n.entity_id ?? undefined, trip: at('example_trip_id'), prev: at('prev_stop_id'),
+    stop, trip: at('example_trip_id'), prev: at('prev_stop_id'),
     next: at('next_stop_id'), seq: at('stop_sequence'), routes: listOf(at('routes')), trips: at('trip_count'),
   };
 }
@@ -779,6 +781,48 @@ function stpRuleText(n: Notice, result: ValidationResult): string | null {
       if (!n.entity_id || !value) return null;
       return join(t('producer.card.STP_009.what_detail', { stop: stop(n.entity_id), parent: value }),
         d.nearest_station_id ? t('producer.card.STP_009.what_near', { station: stop(d.nearest_station_id), dist: metersText(d.nearest_station_m) }) : '', use);
+    case 'STP_011':
+      if (!n.entity_id || !d.location_type) return null;
+      return join(t('producer.card.STP_011.what_detail', { stop: stop(n.entity_id), type: locationTypeName(d.location_type) }),
+        d.nearest_station_id ? t('producer.card.STP_009.what_near', { station: stop(d.nearest_station_id), dist: metersText(d.nearest_station_m) }) : '');
+    case 'STP_012':
+      if (!n.entity_id) return null;
+      return join(t('producer.card.STP_012.what_detail', { stop: stop(n.entity_id), type: locationTypeName(n.observed_value) }), use,
+        d.platforms ? t('producer.card.STP_012.what_platforms', { platforms: listOf(d.platforms).map(id => `„${stop(id)}“`).join(', ') }) : '');
+    case 'STP_013':
+      return n.entity_id ? join(t('producer.card.STP_013.what_detail', { stop: stop(n.entity_id), value }), use) : null;
+    case 'STP_014':
+      return n.entity_id && value
+        ? join(t('producer.card.STP_014.what_detail', { stop: stop(n.entity_id), value }), d.agency_timezone ? t('producer.card.STP_014.what_agency', { tz: d.agency_timezone }) : '', use)
+        : null;
+    case 'STP_015': {
+      if (!n.entity_id || !value) return null;
+      const levels = (d.known_levels ?? '').split('|').filter(Boolean).map(v => { const [code, name] = v.split('='); return name ? `${name} (${code})` : code; });
+      return join(t('producer.card.STP_015.what_detail', { stop: stop(n.entity_id), value }),
+        levels.length ? t('producer.card.STP_015.what_levels', { levels: levels.join(', ') }) : t('producer.card.STP_015.what_nolevels'), use);
+    }
+    case 'STP_016':
+    case 'STP_017': {
+      if (!n.entity_id || !d.other_stop_id) return null;
+      const a = stpContext(n);
+      const b = stpContext(n, 'other');
+      return join(t(`producer.card.${n.rule_id}.what_detail`, { stop: stop(n.entity_id), other: stop(d.other_stop_id), dist: metersText(d.distance_m) }),
+        t('producer.card.stp_pair_use', {
+          stop: stop(n.entity_id), other: stop(d.other_stop_id), n: localizedNumber(a.trips || '0'), m: localizedNumber(b.trips || '0'),
+          routes: routeLabels(a.routes, result), oroutes: routeLabels(b.routes, result),
+        }));
+    }
+    case 'STP_019':
+      return n.entity_id ? join(t('producer.card.STP_019.what_detail', { stop: stop(n.entity_id), n: localizedNumber(value || '—') }), use) : null;
+    case 'STP_020': {
+      if (!n.entity_id) return null;
+      const c = stpContext(n, 'nearest');
+      return join(t('producer.card.STP_020.what_detail', { stop: stop(n.entity_id) }), d.nearest_used_stop_id
+        ? t(c.trips ? 'producer.card.STP_020.what_near' : 'producer.card.STP_020.what_near_plain', {
+          near: stop(d.nearest_used_stop_id), dist: metersText(d.nearest_used_m), n: localizedNumber(c.trips || '0'), routes: routeLabels(c.routes, result),
+        })
+        : '');
+    }
     case 'STP_010':
       if (!n.entity_id || !d.parent_station) return null;
       return join(t('producer.card.STP_010.what_detail', { stop: stop(n.entity_id), parent: stop(d.parent_station), type: locationTypeName(n.observed_value) }), use);
@@ -801,6 +845,26 @@ function stpTable(n: Notice, result: ValidationResult): string {
       { cells: [d.first_line, d.first_name || '—', pos(d.first_lat, d.first_lon)], bad: true },
       { cells: [String(n.line), d.name || '—', pos(d.lat, d.lon)], bad: true },
     ]);
+  }
+  if ((n.rule_id === 'STP_016' || n.rule_id === 'STP_017' || n.rule_id === 'STP_020') && n.entity_id) {
+    const otherId = n.rule_id === 'STP_020' ? d.nearest_used_stop_id : d.other_stop_id;
+    if (!otherId) return '';
+    const a = stpContext(n);
+    const b = stpContext(n, n.rule_id === 'STP_020' ? 'nearest' : 'other');
+    const dist = metersText(n.rule_id === 'STP_020' ? d.nearest_used_m : d.distance_m);
+    return table(t(n.rule_id === 'STP_020' ? 'producer.times.stp020_pair' : 'producer.times.stp_pair'),
+      [t('producer.col.stop'), t('producer.times.vat_distance'), t('producer.col.route'), t('producer.times.trip_count')], [
+        { cells: [stop(n.entity_id), '—', routeLabels(a.routes, result), localizedNumber(a.trips || '0')], bad: true },
+        { cells: [stop(otherId), dist, routeLabels(b.routes, result), localizedNumber(b.trips || '0')], bad: n.rule_id !== 'STP_020' },
+      ]);
+  }
+  if (n.rule_id === 'STP_012' && d.platforms) {
+    return table(t('producer.times.stp012_platforms'), [t('producer.col.stop'), t('producer.col.stop_code')],
+      listOf(d.platforms).map(id => ({ cells: [ni.stops?.[id] || '—', id] })));
+  }
+  if (n.rule_id === 'STP_015' && d.known_levels) {
+    return table(t('producer.times.stp015_levels'), [t('producer.times.stp_level_code'), t('producer.times.stp_name')],
+      d.known_levels.split('|').filter(Boolean).map(v => { const [code, name] = v.split('='); return { cells: [code, name || '—'] }; }));
   }
   if ((n.rule_id === 'STP_004' || n.rule_id === 'STP_005') && d.example_0_stop_id) {
     const rows = [];
@@ -1177,26 +1241,18 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       };
     }
     case 'STP_001': case 'STP_002': case 'STP_003': case 'STP_004': case 'STP_005':
-    case 'STP_006': case 'STP_007': case 'STP_008': case 'STP_009': case 'STP_010': {
+    case 'STP_006': case 'STP_007': case 'STP_008': case 'STP_009': case 'STP_010': case 'STP_011': case 'STP_012':
+    case 'STP_013': case 'STP_014': case 'STP_015': case 'STP_016': case 'STP_017': case 'STP_019': case 'STP_020': {
       // STP_001/009 keep their context line (the stop code; the stop and the missing station's code);
       // without planner details the cards keep their general text.
       const stopName = n.entity_id ? result.name_index.stops?.[n.entity_id] || n.entity_id : '';
-      const context = g.ruleId === 'STP_001' ? t('producer.card.STP_001.context', { stop: n.entity_id || n.observed_value || '' })
+      const context = g.ruleId === 'STP_001' || g.ruleId === 'STP_012' ? t(`producer.card.${g.ruleId}.context`, { stop: n.entity_id || n.observed_value || '' })
         : g.ruleId === 'STP_009' ? t('producer.card.STP_009.context', { stop: stopName, parent: n.observed_value || '—' }) : undefined;
       const what = stpRuleText(n, result);
       if (!what && !context) return null;
       return {
         title: t(`producer.card.${g.ruleId}.title`), ...(context ? { context } : {}),
         what: what || t(`producer.card.${g.ruleId}.what`), action: t(`producer.card.${g.ruleId}.action`),
-      };
-    }
-    case 'STP_012': {
-      const stop = n.entity_id || n.observed_value || '';
-      return {
-        title: t('producer.card.STP_012.title'),
-        context: t('producer.card.STP_012.context', { stop }),
-        what: t('producer.card.STP_012.what'),
-        action: t('producer.card.STP_012.action'),
       };
     }
     case 'STM_015':
@@ -2320,7 +2376,8 @@ function dqIndexKey<T>(map: Record<string, T> | undefined, key?: string): string
 }
 
 /** Stop findings (STP_001–010) whose cards place the stop on an example trip. */
-const STP_CONTEXT_RULES = new Set(['STP_001', 'STP_002', 'STP_003', 'STP_004', 'STP_005', 'STP_006', 'STP_007', 'STP_008', 'STP_009', 'STP_010']);
+const STP_CONTEXT_RULES = new Set(['STP_001', 'STP_002', 'STP_003', 'STP_004', 'STP_005', 'STP_006', 'STP_007', 'STP_008', 'STP_009', 'STP_010',
+  'STP_011', 'STP_012', 'STP_013', 'STP_014', 'STP_015', 'STP_016', 'STP_017', 'STP_019', 'STP_020']);
 
 /** Rule groups whose cards draw one example trip with numbered stops and list it stop by stop. */
 function plannerTripRule(ruleId: string): boolean {
@@ -2520,7 +2577,7 @@ function timeStrip(n: Notice, result: ValidationResult): string {
   // last stop a missing headsign could name, in red).
   // STP cards: the example trip through the stop, the stop red in its stop list.
   if (STP_CONTEXT_RULES.has(n.rule_id)) {
-    const c = stpContext(n);
+    const c = stpContext(n, n.rule_id === 'STP_020' ? 'nearest' : undefined);
     const trip = dqIndexKey(result.name_index.trip_stops, c.trip);
     return trip ? body + tripItineraryTable(trip, result, c.stop, c.seq) : body;
   }
@@ -3938,6 +3995,39 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
       pins.push({ lat: la, lon: lo, label: label || '—', primary: true, color: MAP_RED, stroke: '#ffffff' });
       return [la, lo] as [number, number];
     };
+    const drawTrip = (tripId?: string, mark?: string, weight = 3) => {
+      const key = dqIndexKey(ni.trip_stops, tripId);
+      if (!key) return;
+      const color = routeColor(ni.trip_routes?.[key]);
+      const coords = (ni.trip_stops?.[key] ?? []).map(id => coord(id)).filter((p): p is [number, number] => p !== null);
+      if (coords.length > 1) lines.push({ coords, color, weight, arrows: true });
+      for (const stopId of ni.trip_stops?.[key] ?? []) addStop(stopId, stopId === mark);
+    };
+    const link = (from?: string | null, to?: string | null) => {
+      const p = coord(from);
+      const q = coord(to);
+      if (p && q) segments.push({ coords: [p, q], color: MAP_RED, weight: 3 });
+    };
+    if (n.rule_id === 'STP_016' || n.rule_id === 'STP_017') {
+      // The other stop red with its own trip, both stops linked.
+      addStop(d.other_stop_id, true);
+      drawTrip(stpContext(n, 'other').trip);
+      link(n.entity_id, d.other_stop_id);
+    } else if (n.rule_id === 'STP_020') {
+      // The unused stop red; the used stop nearby red with its trip, both linked.
+      addStop(n.entity_id, true);
+      addStop(d.nearest_used_stop_id, true);
+      drawTrip(stpContext(n, 'nearest').trip, undefined, 4);
+      link(n.entity_id, d.nearest_used_stop_id);
+      focus = undefined;
+    } else if (n.rule_id === 'STP_011') {
+      addStop(n.entity_id, true);
+      addStop(d.nearest_station_id, true);
+      link(n.entity_id, d.nearest_station_id);
+    } else if (n.rule_id === 'STP_012') {
+      // The station red, its platforms grey: where the trips should call instead.
+      for (const id of listOf(d.platforms)) addStop(id, false);
+    }
     if (n.rule_id === 'STP_001') {
       const p1 = rowPin(d.first_lat, d.first_lon, `${d.first_name || n.entity_id} · ${t('producer.times.stp_row', { line: d.first_line || '—' })}`);
       const p2 = rowPin(d.lat, d.lon, `${d.name || n.entity_id} · ${t('producer.times.stp_row', { line: String(n.line ?? '—') })}`);

@@ -1355,6 +1355,60 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('„Okul“ durağı „Peron“ kaydına bağlı gösterilmiş ama o kayıt bir istasyon değil, durak/peron.');
   });
 
+  it('STP_011–020 kartları durağı, öbür durağı ve önerilen kaydı adıyla anlatır ve haritada bağlar', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı', ST: 'Gar', P1: 'Gar Peron 1', E1: 'Gar Giriş', U1: 'Eski Durak' },
+      routes: { R1: '10', R2: '20' }, trips: { T1: 'Çarşı', T2: 'Okul' }, trip_routes: { T1: 'R1', T2: 'R2' }, trip_first_dep: { T1: '06:00', T2: '07:00' },
+      trip_stops: { T1: ['S1', 'S2', 'S3'], T2: ['ST', 'S2'] }, trip_stop_sequences: { T1: [1, 2, 3], T2: [1, 2] },
+      stop_coords: { S1: [41, 29], S2: [41.01, 29.01], S3: [41.02, 29.02], ST: [41.03, 29.03], P1: [41.0301, 29.03], E1: [41.0305, 29.031], U1: [41.0102, 29.01] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+    const ctx = { trip_count: '12', route_count: '1', routes: 'R1', example_trip_id: 'T1', prev_stop_id: 'S1', next_stop_id: 'S3', stop_sequence: '2' };
+
+    // STP_011: the type by name and the nearest station, linked.
+    let out = render(notice('a', 'STP_011', 'HIGH', { entity_type: 'Stop', entity_id: 'E1', details: { location_type: '2', nearest_station_id: 'ST', nearest_station_m: '60' } }));
+    expect(out.html).toContain('„Gar Giriş“ bir giriş/çıkış ama hiçbir istasyona bağlı değil');
+    expect(out.html).toContain('60 m ötedeki „Gar“ istasyonu kastedilmiş olabilir.');
+    expect(out.map.opts?.pins.filter(p => p.primary)).toHaveLength(2);
+
+    // STP_012: the station used by trips and its platforms.
+    out = render(notice('a', 'STP_012', 'HIGH', { entity_type: 'Stop', entity_id: 'ST', observed_value: '1',
+      details: { platforms: 'P1', platform_count: '1', trip_count: '3', routes: 'R2', example_trip_id: 'T2', next_stop_id: 'S2', stop_sequence: '1' } }));
+    expect(out.html).toContain('„Gar“ bir istasyon kaydı ama seferler doğrudan ona uğruyor');
+    expect(out.html).toContain('İstasyonun içindeki peronlar: „Gar Peron 1“.');
+    expect(out.html).toContain('<tr><td>Gar Peron 1</td><td>P1</td></tr>');
+
+    // STP_014: the feed's timezone offered.
+    out = render(notice('a', 'STP_014', 'MEDIUM', { entity_type: 'Stop', entity_id: 'S2', observed_value: 'Europe/Istambul', details: { agency_timezone: 'Europe/Istanbul', ...ctx } }));
+    expect(out.html).toContain('„Okul“ durağının saat dilimi „Europe/Istambul“ tanınmıyor');
+    expect(out.html).toContain('Veri setinin saat dilimi „Europe/Istanbul“');
+
+    // STP_015: the defined levels by name.
+    out = render(notice('a', 'STP_015', 'MEDIUM', { entity_type: 'Stop', entity_id: 'S2', observed_value: 'L9', details: { known_levels: 'L0=Zemin|L1', ...ctx } }));
+    expect(out.html).toContain('Tanımlı katlar: Zemin (L0), L1.');
+    expect(out.html).toContain('<tr><td>L0</td><td>Zemin</td></tr>');
+
+    // STP_017: both stops, their distance and their trips; both red and linked.
+    out = render(notice('a', 'STP_017', 'LOW', { entity_type: 'Stop', entity_id: 'S2', details: { other_stop_id: 'U1', distance_m: '3.2', ...ctx,
+      other_trip_count: '0' } }));
+    expect(out.html).toContain('„Okul“ ile „Eski Durak“ arası yalnız 3 m.');
+    expect(out.html).toContain('„Okul“ durağına 12 sefer (10), „Eski Durak“ durağına 0 sefer (—) uğruyor.');
+    expect(out.map.opts?.pins.filter(p => p.primary).length).toBeGreaterThanOrEqual(2);
+
+    // STP_020: the used stop nearby and its trips; its trip drawn, both linked.
+    out = render(notice('a', 'STP_020', 'LOW', { entity_type: 'Stop', entity_id: 'U1', details: { nearest_used_stop_id: 'S2', nearest_used_m: '22',
+      nearest_trip_count: '12', nearest_routes: 'R1', nearest_example_trip_id: 'T1', nearest_prev_stop_id: 'S1', nearest_next_stop_id: 'S3', nearest_stop_sequence: '2' } }));
+    expect(out.html).toContain('„Eski Durak“ durağına hiçbir sefer uğramıyor. 22 m ötedeki „Okul“ durağına ise 12 sefer uğruyor (10)');
+    expect(out.html).toContain('<tr class="bad"><td>2</td><td>Okul (S2)</td></tr>');
+    expect(out.map.opts?.extraPolylines?.length).toBeGreaterThanOrEqual(2);
+  });
+
   it('STM_051–055 kartları Flex bölgesini, pencereyi, yazılan değeri ve aynı saatli durak serisini gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,

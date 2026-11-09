@@ -8219,3 +8219,70 @@ fn stop_findings_carry_planner_context() {
     assert_eq!(get(&d, "parent_station").as_deref(), Some("S2"));
     assert_eq!(get(&d, "next_stop_id").as_deref(), Some("S2"));
 }
+
+#[test]
+fn more_stop_findings_carry_planner_context() {
+    // STP_011 the record's type and the nearest station, STP_012 the station's platforms, STP_013
+    // and STP_019 the trips using the stop, STP_014 the feed's timezone, STP_015 the defined
+    // levels, STP_016/017 the other stop (with its own trips), STP_020 the used stop nearby.
+    // Counts are unchanged.
+    let find = |vr: &gtfs_pipeline::ValidationResult, rule: &str| {
+        vr.notices
+            .iter()
+            .find(|n| n.rule_id == rule)
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor"))
+    };
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+
+    static STOPS: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station,wheelchair_boarding,stop_timezone,level_id\n\
+          ST,Gar,41.0,29.0,1,,,,\nP1,Gar Peron 1,41.0001,29.0,0,ST,,,\nE1,Gar Giris,41.0003,29.0003,2,,,,\n\
+          S1,Okul,41.01,29.0,,,5,Europe/Istambul,L9\nS2,Okul B,41.01,29.0,,,,,\nS3,Park,41.0201,29.0,,,,,\n\
+          S4,Parkx,41.02013,29.0,,,,,\nU1,Eski Durak,41.0301,29.0,,,,,\nS5,Liman,41.03,29.0,,,,,\n";
+    static LEVELS: &[u8] = b"level_id,level_index,level_name\nL0,0,Zemin\nL1,1,Ust\n";
+    static TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,ST,1\nT1,08:05:00,08:05:00,S1,2\nT1,08:10:00,08:10:00,S3,3\n\
+          T1,08:15:00,08:15:00,S5,4\nT1,08:20:00,08:20:00,S2,5\nT1,08:25:00,08:25:00,S4,6\n";
+    static AGENCY_TZ: &[u8] =
+        b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://test.example,Europe/Istanbul\n";
+    let mut files = base_files();
+    files[0] = ("agency.txt", AGENCY_TZ);
+    files[1] = ("stops.txt", STOPS);
+    files[4] = ("stop_times.txt", TIMES);
+    files.push(("levels.txt", LEVELS));
+    let vr = match run(&files) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+
+    let d = find(&vr, "STP_011");
+    assert_eq!(get(&d, "location_type").as_deref(), Some("2"));
+    assert_eq!(get(&d, "nearest_station_id").as_deref(), Some("ST"));
+    let d = find(&vr, "STP_012");
+    assert_eq!(get(&d, "platforms").as_deref(), Some("P1"));
+    assert_eq!(get(&d, "next_stop_id").as_deref(), Some("S1"));
+    let d = find(&vr, "STP_013");
+    assert_eq!(get(&d, "prev_stop_id").as_deref(), Some("ST"));
+    let d = find(&vr, "STP_014");
+    assert_eq!(
+        get(&d, "agency_timezone").as_deref(),
+        Some("Europe/Istanbul")
+    );
+    let d = find(&vr, "STP_015");
+    assert_eq!(get(&d, "known_levels").as_deref(), Some("L0=Zemin|L1=Ust"));
+    let d = find(&vr, "STP_016");
+    assert_eq!(get(&d, "other_stop_id").as_deref(), Some("S2"));
+    assert_eq!(get(&d, "other_prev_stop_id").as_deref(), Some("S5"));
+    let d = find(&vr, "STP_017");
+    assert_eq!(get(&d, "other_stop_id").as_deref(), Some("S4"));
+    let m: f64 = get(&d, "distance_m").unwrap().parse().unwrap();
+    assert!((1.0..5.0).contains(&m), "{m}");
+    let d = vr
+        .notices
+        .iter()
+        .find(|n| n.rule_id == "STP_020" && n.entity_id.as_deref() == Some("U1"))
+        .and_then(|n| n.details.clone())
+        .expect("STP_020 for U1");
+    assert_eq!(get(&d, "nearest_used_stop_id").as_deref(), Some("S5"));
+    assert_eq!(get(&d, "nearest_trip_count").as_deref(), Some("1"));
+}
