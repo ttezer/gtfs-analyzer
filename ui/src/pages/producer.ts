@@ -3410,7 +3410,8 @@ function technicalDetails(n: Notice): string {
 type Cell = string | { html: string };
 function affectedColumns(g: RuleGroup, result: ValidationResult): { head: string[]; row: (n: Notice) => Cell[] } {
   const entity = entityColumns(g, result);
-  // CAL cards: each row also names the routes running on its calendar(s), comma-separated
+  // CAL cards: each row also names the routes running on its calendar(s) by the number riders
+  // know (route_short_name, as the route badges; the code only when there is none), comma-separated
   // (the engine lists up to ten, most trips first; "+N" for the rest).
   const base = CAL_USAGE_RULES.has(g.ruleId)
     ? {
@@ -3418,7 +3419,7 @@ function affectedColumns(g: RuleGroup, result: ValidationResult): { head: string
       row: (n: Notice): Cell[] => {
         const d = n.details ?? {};
         const routes: string[] = [];
-        for (let i = 0; d[`route_${i}_route_id`]; i++) routes.push(d[`route_${i}_route_id`]!);
+        for (let i = 0; d[`route_${i}_route_id`]; i++) routes.push(routeBadge(d[`route_${i}_route_id`]!, result.name_index).label);
         const more = Number(d.route_count) - routes.length;
         return [...entity.row(n), routes.length ? routes.join(', ') + (more > 0 ? ` +${localizedNumber(String(more))}` : '') : '—'];
       },

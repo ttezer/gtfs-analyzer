@@ -992,7 +992,7 @@ describe('Üretici kartı görünümü', () => {
     expect(out.map.opts?.extraPolylines).toHaveLength(2);
     // The affected record names the routes on its calendar, comma-separated.
     expect(out.html).toContain('<th>Hat kodu</th>');
-    expect(out.html).toContain('<td>R1, R2</td>');
+    expect(out.html).toContain('<td>10, 20</td>');
     expect(out.map.opts?.extraPolylines?.[1]?.coords).toEqual([[41.02, 29.02], [41, 29]]);
 
     // CAL_002: the day and the value; CAL_005: both dates.
@@ -1048,7 +1048,7 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('Takvim listesinin 4. satırında takvim kodu boş');
     out = render(notice('a', 'CAL_025', 'HIGH', { entity_type: 'Row', entity_id: 'EXP', field: 'sunday', details: usage }));
     expect(out.html).toContain('EXP takviminin Pazar alanı boş');
-    expect(out.html).toContain('<td>R1, R2</td>');
+    expect(out.html).toContain('<td>10, 20</td>');
     // CAL_024: the next service day, or none.
     out = render(notice('a', 'CAL_024', 'LOW', { entity_type: 'Service', entity_id: 'EXP', observed_value: '3', details: { next_active: '20260701', ...usage } }));
     expect(out.html).toContain('bir sonraki çalışma günü 01.07.2026. Bu takvime bağlı 3 sefer');
