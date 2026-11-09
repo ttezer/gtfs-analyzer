@@ -413,6 +413,18 @@ pub fn validate_trips_with_limits(
             // None, `blocks` suppresses ALL STM_001/FRQ_001/XFL_002/OPR_006/OPR_007 findings in
             // the feed. A duplicate trip_id variant (K3) remains the broad root.
             n.blocks.clear();
+            // Planner context: the row's route, calendar and headsign name the code-less trip.
+            let details = n.details.get_or_insert_with(Default::default);
+            for (key, col) in [
+                ("route_id", cols.route_id),
+                ("service_id", cols.service_id),
+                ("trip_headsign", cols.trip_headsign),
+            ] {
+                let value = get_col_raw(row, col).trim();
+                if !value.is_empty() {
+                    details.insert(key, value.to_string());
+                }
+            }
             notices.push(n);
         }
 
@@ -480,7 +492,7 @@ pub fn validate_trips_with_limits(
         // threshold early in multibyte alphabets (Turkish, Japanese).
         let short_name_chars = short_name_raw.chars().count();
         if !short_name_raw.is_empty() && short_name_chars > 20 {
-            notices.push(make_k2_notice(
+            let mut n = make_k2_notice(
                 &mut counter,
                 "TRP_014",
                 EntityType::Trip,
@@ -496,7 +508,12 @@ pub fn validate_trips_with_limits(
                     short_name_chars
                 ),
                 "trip_short_name'i kısaltın.",
-            ));
+            );
+            // Planner context: the trip number as written.
+            n.details
+                .get_or_insert_with(Default::default)
+                .insert("trip_short_name", short_name_raw.to_string());
+            notices.push(n);
         }
 
         let headsign_idx = intern_idx(headsign_raw, &mut interns.headsigns, &mut headsign_map);

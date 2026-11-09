@@ -7911,3 +7911,62 @@ fn operational_findings_carry_planner_context() {
     assert_eq!(get(&d, "example_0_seconds").as_deref(), Some("20"));
     assert_eq!(get(&d, "example_trip_id").as_deref(), Some("A2"));
 }
+
+#[test]
+fn trip_findings_carry_planner_context() {
+    // TRP_001 the first line of a repeated code and the row of a code-less trip, TRP_005 the
+    // invalid values, TRP_012 the trips without a direction, TRP_013 the one trip, TRP_014 the
+    // trip number, TRP_015 the block examples. Counts are unchanged.
+    let run_ok = |files: &[(&str, &[u8])]| match run(files) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+    let find = |vr: &gtfs_pipeline::ValidationResult, rule: &str, entity: Option<&str>| {
+        vr.notices
+            .iter()
+            .find(|n| n.rule_id == rule && n.entity_id.as_deref() == entity)
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} {entity:?} ayrıntısı bekleniyor"))
+    };
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+
+    static TRIPS: &[u8] =
+        b"route_id,service_id,trip_id,direction_id,trip_headsign,trip_short_name,block_id\n\
+          R1,SVC1,T1,0,Merkez,,B1\nR1,SVC1,T2,1,Liman,ABCDEFGHIJKLMNOPQRSTUVWXYZ,B2\n\
+          R1,SVC1,T3,,Merkez,,B3\nR1,SVC1,T4,7,Merkez,,\nR1,SVC1,T1,0,Merkez,,\nR1,SVC1,,0,Park,,\n\
+          R2,SVC1,T6,0,Park,,\n";
+    static ROUTES2: &[u8] =
+        b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,202,3\n";
+    static TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n\
+          T2,09:00:00,09:00:00,S2,1\nT2,09:10:00,09:10:00,S1,2\n\
+          T3,10:00:00,10:00:00,S1,1\nT3,10:10:00,10:10:00,S2,2\n\
+          T4,11:00:00,11:00:00,S1,1\nT4,11:10:00,11:10:00,S2,2\n\
+          T6,12:00:00,12:00:00,S1,1\nT6,12:10:00,12:10:00,S2,2\n";
+    let mut files = base_files();
+    files[2] = ("routes.txt", ROUTES2);
+    files[3] = ("trips.txt", TRIPS);
+    files[4] = ("stop_times.txt", TIMES);
+    let vr = run_ok(&files);
+
+    let d = find(&vr, "TRP_001", Some("T1"));
+    assert_eq!(get(&d, "first_line").as_deref(), Some("2"));
+    let d = find(&vr, "TRP_001", None);
+    assert_eq!(get(&d, "route_id").as_deref(), Some("R1"));
+    assert_eq!(get(&d, "trip_headsign").as_deref(), Some("Park"));
+    let d = find(&vr, "TRP_005", None);
+    assert_eq!(get(&d, "example_values").as_deref(), Some("7"));
+    let d = find(&vr, "TRP_012", Some("R1"));
+    assert_eq!(get(&d, "example_trips").as_deref(), Some("T3"));
+    let d = find(&vr, "TRP_013", Some("R2"));
+    assert_eq!(get(&d, "example_trip_id").as_deref(), Some("T6"));
+    let d = find(&vr, "TRP_014", Some("T2"));
+    assert_eq!(
+        get(&d, "trip_short_name").as_deref(),
+        Some("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    );
+    let d = find(&vr, "TRP_015", None);
+    assert_eq!(get(&d, "trips_with_block").as_deref(), Some("3"));
+    assert_eq!(get(&d, "example_0_block").as_deref(), Some("B1"));
+    assert_eq!(get(&d, "example_0_trip_id").as_deref(), Some("T1"));
+}

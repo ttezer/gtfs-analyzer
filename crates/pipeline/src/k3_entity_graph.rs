@@ -269,7 +269,7 @@ fn build_trips(
         if let Some(&prev_idx) = map.trips.get(tid.as_str()) {
             let prev_line = records.trips[prev_idx].line;
             let tid_s = tid.to_string();
-            notices.push(make_notice(
+            let mut n = make_notice(
                 ctr,
                 "TRP_001",
                 EntityType::Trip,
@@ -284,7 +284,12 @@ fn build_trips(
                     tid
                 ),
                 "Her sefere benzersiz bir trip_id atayın.",
-            ));
+            );
+            // Planner context: the line where the trip code was first written.
+            n.details
+                .get_or_insert_with(Default::default)
+                .insert("first_line", prev_line.to_string());
+            notices.push(n);
         } else {
             map.trips.insert(tid.to_string(), idx);
         }

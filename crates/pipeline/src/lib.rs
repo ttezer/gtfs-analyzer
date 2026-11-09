@@ -1496,6 +1496,20 @@ fn aggregate_trp005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     examples.sort_unstable();
     examples.dedup();
     examples.truncate(5);
+    // Planner context: the invalid values as written (distinct, sorted, at most five).
+    let mut values: Vec<String> = aggregate
+        .observed_value
+        .clone()
+        .into_iter()
+        .chain(
+            matched
+                .iter()
+                .filter_map(|notice| notice.observed_value.clone()),
+        )
+        .collect();
+    values.sort_unstable();
+    values.dedup();
+    values.truncate(5);
     aggregate.entity_type = gtfs_core::EntityType::Feed;
     aggregate.entity_id = None;
     aggregate.scope_key = None;
@@ -1509,6 +1523,9 @@ fn aggregate_trp005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         details.insert("affected_trips".to_string(), affected_trips.to_string());
         if !examples.is_empty() {
             details.insert("example_trips".to_string(), examples.join(", "));
+        }
+        if !values.is_empty() {
+            details.insert("example_values".to_string(), values.join(" | "));
         }
         details.into()
     });

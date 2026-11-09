@@ -318,24 +318,6 @@
       },
       {
         "details": null,
-        "entity_id": "R1",
-        "entity_type": "Route",
-        "expected_value": null,
-        "field": null,
-        "file": "trips.txt",
-        "line": 2,
-        "message": "Route 'R1' has only one trip.",
-        "observed_value": "1",
-        "remediation": "Add more trips to this route or use frequency-based definitions.",
-        "rule_class": "ANALYTICS",
-        "rule_id": "TRP_013",
-        "scope_key": "R1",
-        "service_id": "SVC1",
-        "severity": "INFO",
-        "title": "Route has only one trip"
-      },
-      {
-        "details": null,
         "entity_id": "S1",
         "entity_type": "Stop",
         "expected_value": null,
@@ -665,6 +647,26 @@
         "service_id": null,
         "severity": "LOW",
         "title": "Recommended field missing or empty"
+      },
+      {
+        "details": {
+          "example_trip_id": "T1"
+        },
+        "entity_id": "R1",
+        "entity_type": "Route",
+        "expected_value": null,
+        "field": null,
+        "file": "trips.txt",
+        "line": 2,
+        "message": "Route 'R1' has only one trip.",
+        "observed_value": "1",
+        "remediation": "Add more trips to this route or use frequency-based definitions.",
+        "rule_class": "ANALYTICS",
+        "rule_id": "TRP_013",
+        "scope_key": "R1",
+        "service_id": "SVC1",
+        "severity": "INFO",
+        "title": "Route has only one trip"
       },
       {
         "details": {
@@ -7455,24 +7457,6 @@
       "removed": [
         {
           "details": null,
-          "entity_id": "R1",
-          "entity_type": "Route",
-          "expected_value": null,
-          "field": null,
-          "file": "trips.txt",
-          "line": 2,
-          "message": "Route 'R1' has only one trip.",
-          "observed_value": "1",
-          "remediation": "Add more trips to this route or use frequency-based definitions.",
-          "rule_class": "ANALYTICS",
-          "rule_id": "TRP_013",
-          "scope_key": "R1",
-          "service_id": "SVC1",
-          "severity": "INFO",
-          "title": "Route has only one trip"
-        },
-        {
-          "details": null,
           "entity_id": "stop_times.txt",
           "entity_type": "File",
           "expected_value": null,
@@ -7619,6 +7603,26 @@
           "service_id": null,
           "severity": "LOW",
           "title": "Recommended field missing or empty"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1"
+          },
+          "entity_id": "R1",
+          "entity_type": "Route",
+          "expected_value": null,
+          "field": null,
+          "file": "trips.txt",
+          "line": 2,
+          "message": "Route 'R1' has only one trip.",
+          "observed_value": "1",
+          "remediation": "Add more trips to this route or use frequency-based definitions.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "TRP_013",
+          "scope_key": "R1",
+          "service_id": "SVC1",
+          "severity": "INFO",
+          "title": "Route has only one trip"
         }
       ],
       "score": 96.3
@@ -9971,24 +9975,6 @@
         },
         {
           "details": null,
-          "entity_id": "R2",
-          "entity_type": "Route",
-          "expected_value": null,
-          "field": null,
-          "file": "trips.txt",
-          "line": 3,
-          "message": "Route 'R2' has only one trip.",
-          "observed_value": "1",
-          "remediation": "Add more trips to this route or use frequency-based definitions.",
-          "rule_class": "ANALYTICS",
-          "rule_id": "TRP_013",
-          "scope_key": "R2",
-          "service_id": "SVC1",
-          "severity": "INFO",
-          "title": "Route has only one trip"
-        },
-        {
-          "details": null,
           "entity_id": "S1|S2",
           "entity_type": "Transfer",
           "expected_value": "≤ 2000m",
@@ -10296,6 +10282,26 @@
           "service_id": null,
           "severity": "LOW",
           "title": "Recommended field missing or empty"
+        },
+        {
+          "details": {
+            "example_trip_id": "T2"
+          },
+          "entity_id": "R2",
+          "entity_type": "Route",
+          "expected_value": null,
+          "field": null,
+          "file": "trips.txt",
+          "line": 3,
+          "message": "Route 'R2' has only one trip.",
+          "observed_value": "1",
+          "remediation": "Add more trips to this route or use frequency-based definitions.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "TRP_013",
+          "scope_key": "R2",
+          "service_id": "SVC1",
+          "severity": "INFO",
+          "title": "Route has only one trip"
         },
         {
           "details": {
@@ -11876,24 +11882,6 @@
       "removed": [
         {
           "details": null,
-          "entity_id": "R1",
-          "entity_type": "Route",
-          "expected_value": null,
-          "field": null,
-          "file": "trips.txt",
-          "line": 2,
-          "message": "Route 'R1' has only one trip.",
-          "observed_value": "1",
-          "remediation": "Add more trips to this route or use frequency-based definitions.",
-          "rule_class": "ANALYTICS",
-          "rule_id": "TRP_013",
-          "scope_key": "R1",
-          "service_id": "SVC1",
-          "severity": "INFO",
-          "title": "Route has only one trip"
-        },
-        {
-          "details": null,
           "entity_id": "trips.txt",
           "entity_type": "File",
           "expected_value": null,
@@ -12025,6 +12013,26 @@
         },
         {
           "details": {
+            "example_trip_id": "T1"
+          },
+          "entity_id": "R1",
+          "entity_type": "Route",
+          "expected_value": null,
+          "field": null,
+          "file": "trips.txt",
+          "line": 2,
+          "message": "Route 'R1' has only one trip.",
+          "observed_value": "1",
+          "remediation": "Add more trips to this route or use frequency-based definitions.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "TRP_013",
+          "scope_key": "R1",
+          "service_id": "SVC1",
+          "severity": "INFO",
+          "title": "Route has only one trip"
+        },
+        {
+          "details": {
             "route_label": "101",
             "services": "SVC1"
           },
@@ -12124,7 +12132,8 @@
         {
           "details": {
             "affected_trips": "2",
-            "example_trips": "T1, T2"
+            "example_trips": "T1, T2",
+            "example_values": "5 | x"
           },
           "entity_id": null,
           "entity_type": "Feed",
@@ -12526,24 +12535,6 @@
       "removed": [
         {
           "details": null,
-          "entity_id": "R1",
-          "entity_type": "Route",
-          "expected_value": null,
-          "field": null,
-          "file": "trips.txt",
-          "line": 2,
-          "message": "Route 'R1' has only one trip.",
-          "observed_value": "1",
-          "remediation": "Add more trips to this route or use frequency-based definitions.",
-          "rule_class": "ANALYTICS",
-          "rule_id": "TRP_013",
-          "scope_key": "R1",
-          "service_id": "SVC1",
-          "severity": "INFO",
-          "title": "Route has only one trip"
-        },
-        {
-          "details": null,
           "entity_id": "trips.txt",
           "entity_type": "File",
           "expected_value": null,
@@ -12672,30 +12663,32 @@
           "service_id": null,
           "severity": "LOW",
           "title": "Recommended field missing or empty"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1"
+          },
+          "entity_id": "R1",
+          "entity_type": "Route",
+          "expected_value": null,
+          "field": null,
+          "file": "trips.txt",
+          "line": 2,
+          "message": "Route 'R1' has only one trip.",
+          "observed_value": "1",
+          "remediation": "Add more trips to this route or use frequency-based definitions.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "TRP_013",
+          "scope_key": "R1",
+          "service_id": "SVC1",
+          "severity": "INFO",
+          "title": "Route has only one trip"
         }
       ],
       "score": 95.3
     },
     "WS_PADDED_REFERENCE": {
       "added": [
-        {
-          "details": null,
-          "entity_id": " R1",
-          "entity_type": "Route",
-          "expected_value": null,
-          "field": null,
-          "file": "trips.txt",
-          "line": 2,
-          "message": "Route ' R1' has only one trip.",
-          "observed_value": "1",
-          "remediation": "Add more trips to this route or use frequency-based definitions.",
-          "rule_class": "ANALYTICS",
-          "rule_id": "TRP_013",
-          "scope_key": " R1",
-          "service_id": "SVC1",
-          "severity": "INFO",
-          "title": "Route has only one trip"
-        },
         {
           "details": null,
           "entity_id": "R1",
@@ -12838,6 +12831,26 @@
           "service_id": null,
           "severity": "LOW",
           "title": "Recommended field missing or empty"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1"
+          },
+          "entity_id": " R1",
+          "entity_type": "Route",
+          "expected_value": null,
+          "field": null,
+          "file": "trips.txt",
+          "line": 2,
+          "message": "Route ' R1' has only one trip.",
+          "observed_value": "1",
+          "remediation": "Add more trips to this route or use frequency-based definitions.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "TRP_013",
+          "scope_key": " R1",
+          "service_id": "SVC1",
+          "severity": "INFO",
+          "title": "Route has only one trip"
         },
         {
           "details": {
@@ -13135,24 +13148,6 @@
         },
         {
           "details": null,
-          "entity_id": "R1",
-          "entity_type": "Route",
-          "expected_value": null,
-          "field": null,
-          "file": "trips.txt",
-          "line": 2,
-          "message": "Route 'R1' has only one trip.",
-          "observed_value": "1",
-          "remediation": "Add more trips to this route or use frequency-based definitions.",
-          "rule_class": "ANALYTICS",
-          "rule_id": "TRP_013",
-          "scope_key": "R1",
-          "service_id": "SVC1",
-          "severity": "INFO",
-          "title": "Route has only one trip"
-        },
-        {
-          "details": null,
           "entity_id": "trips.txt",
           "entity_type": "File",
           "expected_value": null,
@@ -13245,6 +13240,26 @@
           "service_id": null,
           "severity": "LOW",
           "title": "Recommended field missing or empty"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1"
+          },
+          "entity_id": "R1",
+          "entity_type": "Route",
+          "expected_value": null,
+          "field": null,
+          "file": "trips.txt",
+          "line": 2,
+          "message": "Route 'R1' has only one trip.",
+          "observed_value": "1",
+          "remediation": "Add more trips to this route or use frequency-based definitions.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "TRP_013",
+          "scope_key": "R1",
+          "service_id": "SVC1",
+          "severity": "INFO",
+          "title": "Route has only one trip"
         },
         {
           "details": {

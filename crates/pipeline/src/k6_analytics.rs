@@ -750,6 +750,9 @@ fn zone_only_trip_ids(records: &EntityRecords) -> HashSet<&str> {
 /// OPR_014: longest timed transfers listed; OPR_025: shortest trips listed.
 const OPR014_EXAMPLES: usize = 10;
 const OPR025_EXAMPLES: usize = 10;
+/// TRP_012: trips without a direction listed per route; TRP_015: block examples listed.
+const TRP012_EXAMPLES: usize = 10;
+const TRP015_EXAMPLES: usize = 5;
 const DQ006_ROUTES: usize = 20;
 /// Trips (file order) shown to the planner in the DQ_005b / DQ_009 summaries.
 const DQ_TRIP_EXAMPLES: usize = 10;
@@ -5936,6 +5939,12 @@ fn check_route_trip_quality(
                 },
                 "Bu rotaya ek seferler ekleyin ya da frekans bazlı tanım kullanın.",
             );
+            // Planner context: the route's one trip.
+            if let Some(trip) = trips.first() {
+                n013.details
+                    .get_or_insert_with(Default::default)
+                    .insert("example_trip_id", trip.trip_id.to_string());
+            }
             // The single trip's service calendar (if any) — fills R2's "Service Calendar" column.
             if let Some(svc) = trips
                 .first()
@@ -9268,12 +9277,18 @@ fn check_remaining_analytics<'a>(
         // Aggregate at route level: how many trips on a bidirectional route lack direction_id.
         // Per-trip emission produced hundreds of identical rows for one route (the message is
         // already route-centered); one notice per route + count.
+        // Planner context (missing_trips): the first trips without a direction per route, in file order.
         let mut route_missing: HashMap<&str, (u32, u64)> = HashMap::new(); // route -> (missing count, first row)
+        let mut missing_trips: HashMap<&str, Vec<(u64, &str)>> = HashMap::new();
         for t in &records.trips {
             if !routes_with_both_dirs.contains(ti_rem.route_id(t)) {
                 continue;
             }
             if t.direction_id.is_none() {
+                missing_trips
+                    .entry(ti_rem.route_id(t))
+                    .or_default()
+                    .push((t.line, t.trip_id.as_str()));
                 let e = route_missing
                     .entry(ti_rem.route_id(t))
                     .or_insert((0, t.line));
@@ -9308,6 +9323,18 @@ fn check_remaining_analytics<'a>(
                 .details
                 .get_or_insert_with(Default::default)
                 .insert("route_label".to_string(), label.to_string());
+            if let Some(trips) = missing_trips.get_mut(route_id) {
+                trips.sort_unstable();
+                let examples: Vec<&str> = trips
+                    .iter()
+                    .take(TRP012_EXAMPLES)
+                    .map(|&(_, t)| t)
+                    .collect();
+                notice
+                    .details
+                    .get_or_insert_with(Default::default)
+                    .insert("example_trips", examples.join(","));
+            }
             notices.push(notice);
         }
     }
@@ -9334,9 +9361,12 @@ fn check_remaining_analytics<'a>(
     {
         let mut block_count: HashMap<(&str, &str), u32> = HashMap::new();
         let mut trips_with_block: u64 = 0;
+        // Planner context: the first trips carrying a block code (file order).
+        let mut block_examples: Vec<(u64, &str, &str)> = Vec::new();
         for t in &records.trips {
             if let Some(bid) = ti_rem.block_id(t).filter(|b| !b.is_empty()) {
                 trips_with_block += 1;
+                block_examples.push((t.line, bid, t.trip_id.as_str()));
                 *block_count.entry((bid, ti_rem.service_id(t))).or_default() += 1;
             }
         }
@@ -9363,6 +9393,12 @@ fn check_remaining_analytics<'a>(
                 .details
                 .get_or_insert_with(Default::default)
                 .insert("trips_with_block".to_string(), trips_with_block.to_string());
+            block_examples.sort_unstable();
+            let details = notice.details.get_or_insert_with(Default::default);
+            for (i, (_, block, trip)) in block_examples.iter().take(TRP015_EXAMPLES).enumerate() {
+                details.insert(format!("example_{i}_block"), block.to_string());
+                details.insert(format!("example_{i}_trip_id"), trip.to_string());
+            }
             notices.push(notice);
         }
     }

@@ -765,9 +765,10 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('Bunların 1 tanesinde saat yazılı, 2 tanesinde saat yok.');
     expect(out.html).toContain('<li>Saatsiz 2 satıra timepoint=0 yazın; bu durakların saati iki yandaki kesin saatlerden tahmin edilir.</li>');
     expect(out.html).toContain('<li>Saatli 1 satırdan tarifede gerçekten söz verilen saatlere timepoint=1, tahmini olanlara timepoint=0 yazın.</li>');
-    expect(out.html).toContain('<th>Sefer kodu</th><th>Durak (sıra)</th>');
-    expect(out.html).toContain('<tr><td>T1</td><td>Okul (2)</td><td>—</td><td>—</td></tr>');
-    expect(out.html).toContain('<tr><td>T1</td><td>Çarşı (3)</td><td>08:10</td><td>08:10</td></tr>');
+    // The trip as planners know it (route · direction · departure), not its trip_id.
+    expect(out.html).toContain('<th>Sefer</th><th>Durak (sıra)</th>');
+    expect(out.html).toContain('<tr><td>10 · Merkez yönü · 08:00</td><td>Okul (2)</td><td>—</td><td>—</td></tr>');
+    expect(out.html).toContain('<tr><td>10 · Merkez yönü · 08:00</td><td>Çarşı (3)</td><td>08:10</td><td>08:10</td></tr>');
     const red = out.map.opts?.pins.filter(p => p.primary).map(p => p.label) ?? [];
     expect(red).toEqual([expect.stringContaining('durak sırası 2'), expect.stringContaining('durak sırası 3')]);
     expect(out.map.opts?.pins).toHaveLength(3);
@@ -807,8 +808,8 @@ describe('Üretici kartı görünümü', () => {
         trip_count: '1200', example_0_trip_id: 'T1', example_0_route_id: 'R1', example_0_service_id: 'HAFTAICI',
       } }));
       expect(out.html).toContain('1.200 sefer tanımlı');
-      expect(out.html).toContain('<th>Sefer kodu</th><th>Hat</th><th>Takvim kodu</th>');
-      expect(out.html).toContain('<tr class="bad"><td>T1</td><td>10</td><td>HAFTAICI</td></tr>');
+      expect(out.html).toContain('<th>Sefer</th><th>Hat</th><th>Takvim kodu</th>');
+      expect(out.html).toContain('<tr class="bad"><td>Merkez yönü</td><td>10</td><td>HAFTAICI</td></tr>');
     }
 
     out = render(notice('a', 'DQ_005c', 'HIGH', { entity_type: 'Feed', details: {
@@ -826,10 +827,10 @@ describe('Üretici kartı görünümü', () => {
       route_0_route_id: 'R1', route_0_shapeless: '9', route_0_trips: '10', route_0_example_trip_id: 'T1',
     } }));
     expect(out.html).toContain('10 seferden 9 tanesi bir güzergâh çizimine bağlı değil (1 hat)');
-    expect(out.html).toContain('<tr><td>10</td><td>9 / 10</td><td>T1</td></tr>');
+    expect(out.html).toContain('<tr><td>10</td><td>9 / 10</td><td>Merkez yönü</td></tr>');
     expect(out.map.opts?.extraPolylines?.[0]?.coords).toEqual([[41, 29], [41.01, 29.01], [41.02, 29.02]]);
     expect(out.map.opts?.pins).toHaveLength(3);
-    expect(out.html).toContain('Haritada örnek sefer T1: Hastane → Çarşı (3 durak).');
+    expect(out.html).toContain('Haritada: 10 · Merkez yönü (Hastane → Çarşı, 3 durak).');
     expect(out.html).toContain('<tr><td>1</td><td>Hastane (S1)</td></tr>');
 
     out = render(notice('a', 'DQ_010', 'INFO', { entity_type: 'Agency', entity_id: 'A2', details: {
@@ -848,7 +849,7 @@ describe('Üretici kartı görünümü', () => {
     expect(out.map.opts?.extraPolylines?.[0]?.coords).toEqual([[41.02, 29.02], [41, 29]]);
     expect(out.map.opts?.pins).toHaveLength(2);
     // The route named, the example trip on the map from its first to its last stop, listed in order.
-    expect(out.html).toContain('20 hattında yolcuya ek bilgi veren açıklama boş. Haritada örnek sefer T2: Çarşı → Hastane (2 durak).');
+    expect(out.html).toContain('20 hattında yolcuya ek bilgi veren açıklama boş. Haritada: 20 · Liman yönü (Çarşı → Hastane, 2 durak).');
     expect(out.html).toContain('<tr><td>1</td><td>Çarşı (S3)</td></tr><tr><td>2</td><td>Hastane (S1)</td></tr>');
     expect(out.html).not.toContain('<td>R2</td></tr>');
   });
@@ -879,7 +880,7 @@ describe('Üretici kartı görünümü', () => {
       trip_count: '1', example_0_trip_id: 'T1', example_0_route_id: 'R1', example_0_service_id: 'HER',
     } }));
     expect(out.html).toContain('Veri setinde yalnızca 1 sefer var.');
-    expect(out.html).toContain('<tr><td>T1</td><td>10</td><td>HER</td></tr>');
+    expect(out.html).toContain('<tr><td>Merkez yönü</td><td>10</td><td>HER</td></tr>');
     expect(out.map.opts?.pins).toHaveLength(3);
 
     out = render(notice('a', 'DQ_016', 'INFO', { entity_type: 'File', entity_id: 'stops.txt', file: 'stops.txt', details: {
@@ -912,8 +913,8 @@ describe('Üretici kartı görünümü', () => {
       route_0_route_id: 'R1', route_0_missing: '5', route_0_trips: '8', route_0_example_trip_id: 'T1',
     } }));
     expect(out.html).toContain('8 seferden 5 tanesinde yolcuya gösterilen yön adı boş (1 hat).');
-    expect(out.html).toContain('Örneğin T1 seferi Çarşı durağında bitiyor; yön adı olarak &quot;Çarşı&quot; yazılabilir.</li>');
-    expect(out.html).toContain('<tr><td>10</td><td>5 / 8</td><td>T1</td></tr>');
+    expect(out.html).toContain('Örneğin 10 hattının „Merkez“ yönündeki seferi Çarşı durağında bitiyor; yön adı olarak &quot;Çarşı&quot; yazılabilir.</li>');
+    expect(out.html).toContain('<tr><td>10</td><td>5 / 8</td><td>Merkez yönü</td></tr>');
     expect(red(out)).toEqual([expect.stringContaining('Çarşı')]);
     expect(out.map.opts?.focus).toBeUndefined();
     expect(out.html).toContain('<tr class="bad"><td>3</td><td>Çarşı (S3)</td></tr>');
@@ -923,12 +924,12 @@ describe('Üretici kartı görünümü', () => {
       observed_value: 'MERKEZ', details: { trip_id: 'T1', stop_id: 'S2', stop_sequence: '2' } }));
     expect(red(out)).toEqual([expect.stringContaining('Okul')]);
     expect(out.map.opts?.pins).toHaveLength(3);
-    expect(out.html).toContain('T1 seferinin Okul (S2) durağındaki yön adı tamamen BÜYÜK HARFLE yazılmış: &quot;MERKEZ&quot;.');
+    expect(out.html).toContain('10 hattının „Merkez“ yönündeki seferinin Okul (S2) durağındaki yön adı tamamen BÜYÜK HARFLE yazılmış: &quot;MERKEZ&quot;.');
     expect(out.html).toContain('<tr class="bad"><td>2</td><td>Okul (S2)</td></tr>');
 
     // DQ_018/019 on a route or stop name: which name, whose, and the route's example trip on the map.
     out = render(notice('a', 'DQ_018', 'INFO', { entity_type: 'Route', entity_id: 'R1', file: 'routes.txt', field: 'route_long_name', observed_value: 'MERKEZ - LIMAN' }));
-    expect(out.html).toContain('10 hattının uzun adı tamamen BÜYÜK HARFLE yazılmış: &quot;MERKEZ - LIMAN&quot;. Haritada örnek sefer T1');
+    expect(out.html).toContain('10 hattının uzun adı tamamen BÜYÜK HARFLE yazılmış: &quot;MERKEZ - LIMAN&quot;. Haritada: 10 · Merkez yönü');
     expect(out.html).toContain('<td>MERKEZ - LIMAN</td>');
     expect(out.html).toContain('<th>Ad türü</th>');
     expect(out.html).toContain('<td>Hat uzun adı</td><td>MERKEZ - LIMAN</td>');
@@ -986,7 +987,7 @@ describe('Üretici kartı görünümü', () => {
     let out = render(notice('a', 'CAL_013', 'INFO', { entity_type: 'Feed', entity_id: '20250301', observed_value: '20250301',
       details: { services: 'EXP', ...usage } }));
     expect(out.html).toContain('1 takvimin son çalışma günü 01.03.2025 geçti');
-    expect(out.html).toContain('Bu takvimi 2 hattın 3 seferi kullanıyor. Haritada örnek sefer T1: Hastane → Çarşı (3 durak).');
+    expect(out.html).toContain('Bu takvimi 2 hattın 3 seferi kullanıyor. Haritada: 10 · Merkez yönü (Hastane → Çarşı, 3 durak).');
     expect(out.html).toContain('<td>EXP</td><td>Her gün</td><td>01.01.2025 – 01.03.2025</td>');
     expect(out.html).toContain('Bu takvimleri kullanan hatlar (2 hat, 3 sefer)');
     expect(out.html).toContain('<tr><td>1</td><td>Hastane (S1)</td></tr>');
@@ -1077,7 +1078,7 @@ describe('Üretici kartı görünümü', () => {
     let out = render(notice('a', 'OPR_001', 'MEDIUM', { entity_type: 'Route', entity_id: 'R1', service_id: 'WK', observed_value: '660', expected_value: '≤ 240',
       details: { gap_from: '12:30', gap_to: '23:30', trip_before: 'T1', trip_after: 'T2', departures: '6', direction_id: '0' } }));
     expect(out.html).toContain('10 hattının „Çarşı“ yönünde seferlerinde (Hafta içi) 12:30 kalkışından sonraki sefer ancak 23:30 kalkışlı; arada 11 sa boyunca sefer yok. Sınır 4 sa.');
-    expect(out.html).toContain('<tr class="bad"><td>12:30</td><td>T1</td><td>Çarşı</td></tr>');
+    expect(out.html).toContain('<tr class="bad"><td>12:30</td><td>Çarşı</td></tr>');
     expect(out.html).toContain('<td>12:30 → 23:30</td>');
     // "Hat kodu" is the route's number (route_short_name), not route_id R1.
     expect(out.html).toContain('<td>—</td><td>10</td><td>Çarşı</td>');
@@ -1086,7 +1087,7 @@ describe('Üretici kartı görünümü', () => {
 
     // OPR_007: the repeated stop red in the trip's stop list.
     out = render(notice('a', 'OPR_007', 'LOW', { entity_type: 'Trip', entity_id: 'T1', observed_value: '2× repeat', details: { dup_stop: 'S2' } }));
-    expect(out.html).toContain('10 hattının 06:00 kalkışlı T1 seferi Okul durağından 2 kez geçiyor');
+    expect(out.html).toContain('10 hattının „Çarşı“ yönündeki 06:00 kalkışlı seferi Okul durağından 2 kez geçiyor');
     expect(out.html).toContain('<tr class="bad"><td>2</td><td>Okul (S2)</td></tr>');
     expect(out.html).toContain('<tr class="bad"><td>4</td><td>Okul (S2)</td></tr>');
 
@@ -1094,7 +1095,7 @@ describe('Üretici kartı görünümü', () => {
     out = render(notice('a', 'OPR_010', 'LOW', { entity_type: 'Route', entity_id: 'R1', field: 'wheelchair_accessible',
       details: { yes_trips: '3', yes_trip_id: 'T1', no_trips: '1', no_trip_id: 'T2' } }));
     expect(out.html).toContain('10 hattının 3 seferi tekerlekli sandalyeyle erişilebilir, 1 seferi erişilemez olarak işaretlenmiş');
-    expect(out.html).toContain('<tr><td>Erişilemez (2)</td><td>1</td><td>T2</td></tr>');
+    expect(out.html).toContain('<tr><td>Erişilemez (2)</td><td>1</td><td>Çarşı yönü · 06:01</td></tr>');
 
     // OPR_011: the calendar's trips "use" it — it never runs.
     out = render(notice('a', 'OPR_011', 'HIGH', { entity_type: 'Service', entity_id: 'WK', details: { trip_count: '2', route_count: '1', example_trip_id: 'T2' } }));
@@ -1118,7 +1119,57 @@ describe('Üretici kartı görünümü', () => {
     out = render(notice('a', 'OPR_025', 'MEDIUM', { entity_type: 'Feed', file: 'stop_times.txt', observed_value: '45s',
       details: { trip_count: '5', example_0_trip_id: 'T2', example_0_seconds: '20', example_trip_id: 'T2' } }));
     expect(out.html).toContain('Seferlerin ortalama süresi 45 saniye');
-    expect(out.html).toContain('<tr class="bad"><td>T2</td><td>10</td><td>20 sn</td></tr>');
+    expect(out.html).toContain('<tr class="bad"><td>10</td><td>Çarşı yönü · 06:01</td><td>20 sn</td></tr>');
+  });
+
+  it('TRP kartları seferi hat, yön ve kalkışla anlatır; trip_id yalnız hatalı değer olduğunda görünür', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı' },
+      routes: { R1: '10' }, trips: { T1: 'Çarşı', T2: '' }, trip_routes: { T1: 'R1', T2: 'R1' },
+      trip_first_dep: { T1: '06:00', T2: '07:00' },
+      trip_stops: { T1: ['S1', 'S2', 'S3'], T2: ['S1', 'S2'] }, trip_stop_sequences: { T1: [1, 2, 3], T2: [1, 2] },
+      stop_coords: { S1: [41, 29], S2: [41.01, 29.01], S3: [41.02, 29.02] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+
+    // TRP_001: a repeated code is itself the finding, so it is shown; its trip is drawn.
+    let out = render(notice('a', 'TRP_001', 'HIGH', { entity_type: 'Trip', entity_id: 'T1', line: 5, details: { first_line: '2' } }));
+    expect(out.html).toContain('Sefer listesinde &quot;T1&quot; sefer kodu iki kez yazılmış (ilk kez 2. satırda, yeniden 5. satırda)');
+    expect(out.map.opts?.pins).toHaveLength(3);
+
+    // TRP_002: the missing route code is the finding; the trip is named by direction and time.
+    out = render(notice('a', 'TRP_002', 'HIGH', { entity_type: 'Trip', entity_id: 'T1', observed_value: 'R9' }));
+    expect(out.html).toContain('„Çarşı“ yönündeki 06:00 kalkışlı sefer &quot;R9&quot; kodlu bir hatta bağlanmış');
+    expect(out.html).not.toContain('10 hattının „Çarşı“ yönündeki 06:00 kalkışlı seferi &quot;R9&quot;');
+
+    // TRP_006: the trip by route, direction and time — never "T1".
+    out = render(notice('a', 'TRP_006', 'MEDIUM', { entity_type: 'Trip', entity_id: 'T1', observed_value: '5' }));
+    expect(out.html).toContain('10 hattının „Çarşı“ yönündeki 06:00 kalkışlı seferinin tekerlekli sandalye bilgisi &quot;5&quot;');
+    expect(out.html).not.toContain('T1 seferi');
+
+    // TRP_011: no headsign; the last stop offered as one and red in the stop list.
+    out = render(notice('a', 'TRP_011', 'LOW', { entity_type: 'Trip', entity_id: 'T2' }));
+    expect(out.html).toContain('10 hattının 07:00 kalkışlı seferinin yön adı da sefer numarası da yok');
+    expect(out.html).toContain('Örneğin bu sefer Okul durağında bitiyor');
+    expect(out.html).toContain('<tr class="bad"><td>2</td><td>Okul (S2)</td></tr>');
+
+    // TRP_012: the trips without a direction with their path.
+    out = render(notice('a', 'TRP_012', 'MEDIUM', { entity_type: 'Route', entity_id: 'R1', observed_value: '1', details: { example_trips: 'T1' } }));
+    expect(out.html).toContain('10 hattı iki yönlü çalışıyor ama 1 seferinde yön bilgisi boş');
+    expect(out.html).toContain('<tr class="bad"><td>Çarşı yönü · 06:00</td><td>Hastane → Çarşı</td></tr>');
+
+    // TRP_015: block examples with their trip, the record named as the list.
+    out = render(notice('a', 'TRP_015', 'LOW', { entity_type: 'Feed', file: 'trips.txt', observed_value: '2',
+      details: { trips_with_block: '2', example_0_block: 'B1', example_0_trip_id: 'T1' } }));
+    expect(out.html).toContain('Araç bloğu kodu taşıyan 2 seferin her biri ayrı bir blokta');
+    expect(out.html).toContain('<tr class="bad"><td>B1</td><td>10 · Çarşı yönü · 06:00</td></tr>');
+    expect(out.html).toContain('<td>Sefer listesi</td>');
   });
 
   it('STM_051–055 kartları Flex bölgesini, pencereyi, yazılan değeri ve aynı saatli durak serisini gösterir', () => {

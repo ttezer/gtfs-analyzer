@@ -308,7 +308,9 @@ function plannerFieldName(field: string): string {
 /** File-level cards (DQ_016, DQ_021, CAL_020) name their file in the planner's words, not as a file name. */
 function dqListLabel(n: Notice): string | null {
   // CAL_020 / OPR_014 / OPR_016 / OPR_025 are about a whole list: name it, not the engine's summary ("11 years").
-  if (['DQ_016', 'CAL_020', 'OPR_014', 'OPR_016', 'OPR_025'].includes(n.rule_id)) return plannerListName(n.file);
+  if (['DQ_016', 'CAL_020', 'OPR_014', 'OPR_016', 'OPR_025', 'TRP_015'].includes(n.rule_id)) return plannerListName(n.file);
+  // TRP_001 on a code-less row: the row is in the trip list.
+  if (n.rule_id === 'TRP_001' && !n.entity_id) return plannerListName(n.file);
   const kind = n.rule_id === 'DQ_021' && n.file ? DQ021_KIND[n.file] : undefined;
   return kind ? t(`producer.card.DQ_021.list_${kind}`) : null;
 }
@@ -364,11 +366,11 @@ function oprRuleText(n: Notice, result: ValidationResult): string | null {
         first: d.first_departure || '—', last: d.last_departure || '—', n: localizedNumber(d.departures || '—'),
       });
     case 'OPR_006':
-      return n.entity_id ? t('producer.card.OPR_006.what_detail', { route, trip: n.entity_id, stop: stopName(tripStops[0]) }) : null;
+      return n.entity_id ? t('producer.card.OPR_006.what_detail', { trip: tripPhrase(n.entity_id, result), stop: stopName(tripStops[0]) }) : null;
     case 'OPR_007': {
       const times = /^(\d+)×/.exec(n.observed_value ?? '')?.[1];
       return n.entity_id && d.dup_stop && times
-        ? t('producer.card.OPR_007.what_detail', { route, trip: n.entity_id, dep: ni.trip_first_dep?.[n.entity_id] || '—', stop: stopName(d.dup_stop), n: times })
+        ? t('producer.card.OPR_007.what_detail', { trip: tripPhrase(n.entity_id, result), stop: stopName(d.dup_stop), n: times })
         : null;
     }
     case 'OPR_008': {
@@ -376,7 +378,7 @@ function oprRuleText(n: Notice, result: ValidationResult): string | null {
       const limit = /[\d.]+/.exec(n.expected_value ?? '')?.[0];
       return n.entity_id && max && limit
         ? t('producer.card.OPR_008.what_detail', {
-          route, trip: n.entity_id, dep: ni.trip_first_dep?.[n.entity_id] || '—', n: localizedNumber(String(badSegments(d).length)),
+          trip: tripPhrase(n.entity_id, result, 'gen'), n: localizedNumber(String(badSegments(d).length)),
           max: localizedNumber(String(Math.round(Number(max)))), limit: localizedNumber(limit),
         })
         : null;
@@ -413,7 +415,7 @@ function oprRuleText(n: Notice, result: ValidationResult): string | null {
       const metres = /\d+/.exec(n.observed_value ?? '')?.[0];
       return n.entity_id && metres
         ? t('producer.card.OPR_017.what_detail', {
-          route, trip: n.entity_id, m: localizedNumber(metres), from: stopName(tripStops[0]), to: stopName(tripStops[tripStops.length - 1]),
+          trip: tripPhrase(n.entity_id, result), m: localizedNumber(metres), from: stopName(tripStops[0]), to: stopName(tripStops[tripStops.length - 1]),
           n: localizedNumber(String(tripStops.length)),
         })
         : null;
@@ -460,9 +462,9 @@ function oprTable(n: Notice, result: ValidationResult): string {
     case 'OPR_003':
       if (!d.gap_from || !d.gap_to) return '';
       return table(t(n.rule_id === 'OPR_001' ? 'producer.times.opr_gap' : 'producer.times.opr_bunch'),
-        [t('producer.col.departure'), t('producer.col.trip_code'), t('producer.col.direction')],
-        [[d.gap_from, d.trip_before || '—', (d.trip_before && ni.trips?.[d.trip_before]) || '—'],
-          [d.gap_to, d.trip_after || '—', (d.trip_after && ni.trips?.[d.trip_after]) || '—']], () => true);
+        [t('producer.col.departure'), t('producer.col.direction')],
+        [[d.gap_from, (d.trip_before && ni.trips?.[d.trip_before]) || '—'],
+          [d.gap_to, (d.trip_after && ni.trips?.[d.trip_after]) || '—']], () => true);
     case 'OPR_004': {
       const services = listOf(d.services);
       return services.length
@@ -473,8 +475,8 @@ function oprTable(n: Notice, result: ValidationResult): string {
     case 'OPR_010':
       if (!d.yes_trips || !d.no_trips) return '';
       return table(t('producer.times.opr_policy'), [t('producer.times.value'), t('producer.times.trip_count'), t('producer.times.example_trip')], [
-        [t(n.field === 'bikes_allowed' ? 'producer.times.opr_bikes_yes' : 'producer.times.opr_wheelchair_yes'), localizedNumber(d.yes_trips), d.yes_trip_id || '—'],
-        [t(n.field === 'bikes_allowed' ? 'producer.times.opr_bikes_no' : 'producer.times.opr_wheelchair_no'), localizedNumber(d.no_trips), d.no_trip_id || '—'],
+        [t(n.field === 'bikes_allowed' ? 'producer.times.opr_bikes_yes' : 'producer.times.opr_wheelchair_yes'), localizedNumber(d.yes_trips), tripShort(d.yes_trip_id, result, false)],
+        [t(n.field === 'bikes_allowed' ? 'producer.times.opr_bikes_no' : 'producer.times.opr_wheelchair_no'), localizedNumber(d.no_trips), tripShort(d.no_trip_id, result, false)],
       ]);
     case 'OPR_014': {
       const rows: string[][] = [];
@@ -488,9 +490,9 @@ function oprTable(n: Notice, result: ValidationResult): string {
       for (let i = 0; d[`example_${i}_trip_id`]; i++) {
         const trip = d[`example_${i}_trip_id`]!;
         const routeId = ni.trip_routes?.[trip];
-        rows.push([trip, routeId ? ni.routes?.[routeId] || routeId : '—', durationText(Number(d[`example_${i}_seconds`]))]);
+        rows.push([routeId ? routeBadge(routeId, ni).label : '—', tripShort(trip, result, false), durationText(Number(d[`example_${i}_seconds`]))]);
       }
-      return rows.length ? table(t('producer.times.opr_short_trips'), [t('producer.col.trip_code'), t('producer.col.route'), t('producer.times.opr_duration')], rows, () => true) : '';
+      return rows.length ? table(t('producer.times.opr_short_trips'), [t('producer.col.route'), t('producer.col.trip'), t('producer.times.opr_duration')], rows, () => true) : '';
     }
     case 'OPR_019': case 'OPR_020': case 'OPR_021': case 'OPR_022': case 'OPR_023': {
       const dates = listOf(d.sample_dates?.replace(/,/g, ', '));
@@ -503,6 +505,96 @@ function oprTable(n: Notice, result: ValidationResult): string {
     default:
       return '';
   }
+}
+
+/** Each TRP rule's own sentence in the planner's words; trips named by route, direction and time. */
+function trpRuleText(n: Notice, result: ValidationResult): string | null {
+  const ni = result.name_index;
+  const d = n.details ?? {};
+  const trip = n.entity_type === 'Trip' ? n.entity_id ?? undefined : undefined;
+  const value = (n.observed_value ?? '').trim();
+  switch (n.rule_id) {
+    case 'TRP_001':
+      if (trip) {
+        return d.first_line && n.line != null
+          ? t('producer.card.TRP_001.what_dup', { code: trip, first: d.first_line, line: String(n.line) })
+          : null;
+      }
+      if (n.line == null) return null;
+      {
+        // The code-less row named by its route, direction and calendar (from the row itself).
+        const parts = [
+          d.route_id ? t('producer.card.trp_row_route', { route: routeBadge(d.route_id, ni).label }) : '',
+          d.trip_headsign ? t('producer.trip.dir', { headsign: d.trip_headsign }) : '',
+          d.service_id ? plannerServiceText(d.service_id, result) : '',
+        ].filter(Boolean);
+        return t('producer.card.TRP_001.what_empty', { line: String(n.line), ctx: parts.length ? ` (${parts.join(', ')})` : '' });
+      }
+    case 'TRP_002':
+      // The route is the missing thing: name the trip by direction and time only.
+      return trip && value ? t('producer.card.TRP_002.what_detail', { trip: tripPhrase(trip, result, 'subj', false), route: value }) : null;
+    case 'TRP_003':
+      return d.affected_trips
+        ? t('producer.card.TRP_003.what_detail', { n: localizedNumber(d.affected_trips), services: d.example_service_ids || '—' })
+        : null;
+    case 'TRP_004':
+      return d.affected_trips && d.example_trip
+        ? t('producer.card.TRP_004.what_detail', { shape: n.entity_id || value || '—', n: localizedNumber(d.affected_trips), trip: tripPhrase(d.example_trip, result) })
+        : null;
+    case 'TRP_005':
+      return d.affected_trips
+        ? t('producer.card.TRP_005.what_detail', { n: localizedNumber(d.affected_trips), values: (d.example_values || '—').split(' | ').map(v => `"${v}"`).join(', ') })
+        : null;
+    case 'TRP_006':
+    case 'TRP_007':
+      return trip && n.observed_value != null ? t(`producer.card.${n.rule_id}.what_detail`, { trip: tripPhrase(trip, result, 'gen'), value }) : null;
+    case 'TRP_011':
+      return trip ? t('producer.card.TRP_011.what_detail', { trip: tripPhrase(trip, result, 'gen') }) : null;
+    case 'TRP_012':
+      return n.observed_value
+        ? t('producer.card.TRP_012.what_detail', { route: oprRoute(n, result), n: localizedNumber(n.observed_value) })
+        : null;
+    case 'TRP_013': {
+      const one = d.example_trip_id || routeExampleTrip(ni, routeIdOfNotice(n));
+      return one ? t('producer.card.TRP_013.what_detail', { route: oprRoute(n, result), trip: tripShort(one, result, false) }) : null;
+    }
+    case 'TRP_014':
+      return trip && d.trip_short_name
+        ? t('producer.card.TRP_014.what_detail', { trip: tripPhrase(trip, result, 'gen'), name: d.trip_short_name, n: localizedNumber(value) })
+        : null;
+    case 'TRP_015':
+      return d.trips_with_block && n.observed_value
+        ? t('producer.card.TRP_015.what_detail', { trips: localizedNumber(d.trips_with_block), blocks: localizedNumber(n.observed_value) })
+        : null;
+    default:
+      return null;
+  }
+}
+
+/** TRP tables: the trips without a direction, the blocks with their one trip. */
+function trpTable(n: Notice, result: ValidationResult): string {
+  const ni = result.name_index;
+  const d = n.details ?? {};
+  const stopName = (id?: string) => (id ? ni.stops?.[id] || id : '—');
+  const route = (tripId: string) => {
+    const stops = ni.trip_stops?.[tripId] ?? [];
+    return stops.length ? `${stopName(stops[0])} → ${stopName(stops[stops.length - 1])}` : '—';
+  };
+  const table = (caption: string, head: string[], rows: string[][]) =>
+    `<p class="producer-card-label">${escHtml(caption)}</p><table class="planner-times planner-stop-times"><thead><tr>${head.map(h => `<th>${escHtml(h)}</th>`).join('')}</tr></thead><tbody>${
+      rows.map(r => `<tr class="bad">${r.map(c => `<td>${escHtml(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  if (n.rule_id === 'TRP_012' && n.entity_type === 'Route') {
+    const trips = listOf(d.example_trips);
+    return trips.length
+      ? table(t('producer.times.trp012_trips'), [t('producer.col.trip'), t('producer.times.trp_path')], trips.map(id => [tripShort(id, result, false), route(id)]))
+      : '';
+  }
+  if (n.rule_id === 'TRP_015') {
+    const rows: string[][] = [];
+    for (let i = 0; d[`example_${i}_block`]; i++) rows.push([d[`example_${i}_block`]!, tripShort(d[`example_${i}_trip_id`], result)]);
+    return rows.length ? table(t('producer.times.trp015_blocks'), [t('producer.times.trp_block'), t('producer.col.trip')], rows) : '';
+  }
+  return '';
 }
 
 /** CAL_020: do the calendars themselves run longer than the five-year limit the rule uses? */
@@ -1515,6 +1607,21 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         action: t(`producer.card.${g.ruleId}.action`),
       };
     }
+    case 'TRP_001': case 'TRP_002': case 'TRP_003': case 'TRP_004': case 'TRP_005': case 'TRP_006': case 'TRP_007':
+    case 'TRP_011': case 'TRP_012': case 'TRP_013': case 'TRP_014': case 'TRP_015': {
+      const what = trpRuleText(n, result);
+      if (!what) return null;
+      // Summaries and route findings also say which trip the map draws; trip findings are that trip.
+      const extra = n.entity_type === 'Trip' ? '' : dqTripMapText(dqExampleTrip(n, result.name_index), result);
+      // TRP_011: the trip's last stop as a headsign the planner can start from.
+      const stops = g.ruleId === 'TRP_011' && n.entity_id ? result.name_index.trip_stops?.[n.entity_id] ?? [] : [];
+      const last = stops.length ? result.name_index.stops?.[stops[stops.length - 1]] : undefined;
+      return {
+        title: t(`producer.card.${g.ruleId}.title`),
+        what: [what, extra].filter(Boolean).join(' '),
+        action: last ? t('producer.card.TRP_011.action_detail', { stop: last }) : t(`producer.card.${g.ruleId}.action`),
+      };
+    }
     case 'DQ_003':
     case 'DQ_004': {
       // The route by name, and the example trip the map draws (first and last stop).
@@ -1543,7 +1650,7 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         stop_id: stopId || '—',
         stop: stopId ? (ni.stops?.[stopId] ? `${ni.stops[stopId]} (${stopId})` : stopId) : '—',
         route: routeId ? ni.routes?.[routeId] || routeId : '—',
-        trip: (n.entity_type === 'Trip' ? n.entity_id : d.trip_id) || '—',
+        trip: tripPhrase(n.entity_type === 'Trip' ? n.entity_id : d.trip_id, result, 'gen'),
       });
       return {
         title: t(`producer.card.${g.ruleId}.title`),
@@ -1646,7 +1753,7 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
           dqTripMapText(d.example_trip_id, result),
         ].filter(Boolean).join(' '),
         action: last
-          ? t('producer.card.DQ_020.action_detail', { trip: d.example_trip_id!, stop: last })
+          ? t('producer.card.DQ_020.action_detail', { trip: tripPhrase(d.example_trip_id, result), stop: last })
           : t('producer.card.DQ_020.action'),
       };
     }
@@ -1758,6 +1865,38 @@ function plannerServiceText(serviceId: string | null | undefined, result: Valida
   return serviceId && text === serviceId ? t('producer.days.check') : text;
 }
 
+/** A trip as planners know it — route number, headsign, first departure — never its trip_id. */
+function tripParts(tripId: string, result: ValidationResult): { route?: string; headsign?: string; dep?: string } {
+  const ni = result.name_index;
+  const routeId = ni.trip_routes?.[tripId];
+  return {
+    route: routeId ? routeBadge(routeId, ni).label : undefined,
+    headsign: ni.trips?.[tripId] || undefined,
+    dep: ni.trip_first_dep?.[tripId] || undefined,
+  };
+}
+
+/** "S8 · Liman yönü · 06:00" for tables and the map line; the trip_id only when nothing else is known. */
+function tripShort(tripId: string | undefined | null, result: ValidationResult, withRoute = true): string {
+  if (!tripId) return '—';
+  const p = tripParts(tripId, result);
+  const parts = [withRoute ? p.route : undefined, p.headsign ? t('producer.trip.dir', { headsign: p.headsign }) : undefined, p.dep]
+    .filter(Boolean);
+  return parts.length ? parts.join(' · ') : tripId;
+}
+
+/** "S8 hattının „Liman“ yönündeki 06:00 kalkışlı seferi" for sentences (`gen`: "…seferinin"). */
+function tripPhrase(tripId: string | undefined | null, result: ValidationResult, form: 'subj' | 'gen' = 'subj', withRoute = true): string {
+  if (!tripId) return '—';
+  const p = tripParts(tripId, result);
+  if (!withRoute) p.route = undefined;
+  const suffix = form === 'gen' ? '_gen' : '';
+  if (!p.route && !p.headsign && !p.dep) return t(`producer.trip.code${suffix}`, { trip: tripId });
+  const dir = p.headsign ? t('producer.trip.dir_part', { headsign: p.headsign }) : '';
+  const dep = p.dep ? t('producer.trip.dep_part', { dep: p.dep }) : '';
+  return t(`producer.trip.${p.route ? 'phrase' : 'phrase_noroute'}${suffix}`, { route: p.route ?? '', dir, dep }).trim();
+}
+
 /** A route's example trip for the planner: the first trip (by trip code) with a drawn line, else
  *  the first with two or more stops. Undefined when the name index carries no trip of the route
  *  (large feeds keep only the trips a finding names). */
@@ -1788,7 +1927,7 @@ function dqIndexKey<T>(map: Record<string, T> | undefined, key?: string): string
 
 /** Rule groups whose cards draw one example trip with numbered stops and list it stop by stop. */
 function plannerTripRule(ruleId: string): boolean {
-  return ruleId.startsWith('DQ_') || ruleId.startsWith('CAL_') || ruleId.startsWith('OPR_');
+  return ruleId.startsWith('DQ_') || ruleId.startsWith('CAL_') || ruleId.startsWith('OPR_') || ruleId.startsWith('TRP_');
 }
 
 /** CAL findings (but CAL_020/022) carry the trips and routes on their calendar(s); the map draws the example trip. */
@@ -1833,8 +1972,20 @@ function dqExampleTrip(n: Notice, ni: ValidationResult['name_index']): string | 
     case 'OPR_003':
       return dqIndexKey(ni.trip_stops, d.trip_before) ?? routeExampleTrip(ni, routeIdOfNotice(n));
     case 'OPR_006': case 'OPR_007': case 'OPR_008': case 'OPR_017':
+    case 'TRP_001': case 'TRP_002': case 'TRP_006': case 'TRP_007': case 'TRP_011': case 'TRP_014':
       // Trip findings: the trip itself (listed stop by stop; the map already draws it).
-      return n.entity_type === 'Trip' ? n.entity_id ?? undefined : undefined;
+      return n.entity_type === 'Trip' ? dqIndexKey(ni.trip_stops, n.entity_id ?? undefined) : undefined;
+    // TRP summaries: the row's own trip once opened into rows, else the first example.
+    case 'TRP_003': case 'TRP_005': case 'TRP_012':
+      return n.entity_type === 'Trip'
+        ? dqIndexKey(ni.trip_stops, n.entity_id ?? undefined)
+        : listOf(d.example_trips).map(id => dqIndexKey(ni.trip_stops, id)).find(Boolean);
+    case 'TRP_004':
+      return dqIndexKey(ni.trip_stops, d.example_trip);
+    case 'TRP_013':
+      return dqIndexKey(ni.trip_stops, d.example_trip_id) ?? routeExampleTrip(ni, routeIdOfNotice(n));
+    case 'TRP_015':
+      return dqIndexKey(ni.trip_stops, d.example_0_trip_id);
     case 'OPR_009':
     case 'OPR_025':
       return dqIndexKey(ni.trip_stops, d.example_trip_id) ?? (n.entity_type === 'Route' ? routeExampleTrip(ni, routeIdOfNotice(n)) : undefined);
@@ -1881,7 +2032,7 @@ function dqTripMapText(tripId: string | undefined, result: ValidationResult): st
   if (!tripId || stops.filter(id => ni.stop_coords?.[id]).length < 2) return '';
   const stopName = (id: string) => ni.stops?.[id] || id;
   return t('producer.card.dq_trip_map', {
-    trip: tripId, from: stopName(stops[0]), to: stopName(stops[stops.length - 1]), n: localizedNumber(String(stops.length)),
+    trip: tripShort(tripId, result), from: stopName(stops[0]), to: stopName(stops[stops.length - 1]), n: localizedNumber(String(stops.length)),
   });
 }
 
@@ -1905,7 +2056,8 @@ function tripItineraryTable(tripId: string, result: ValidationResult, markStop?:
   if (stops.length > ITINERARY_ROWS) {
     rows.push(`<tr><td></td><td>${escHtml(t('producer.times.more_stops', { n: localizedNumber(String(stops.length - ITINERARY_ROWS)) }))}</td></tr>`);
   }
-  const caption = t('producer.times.trip_itinerary', { trip: tripId, route: routeId ? ni.routes?.[routeId] || routeId : '—' });
+  void routeId;
+  const caption = t('producer.times.trip_itinerary', { trip: tripShort(tripId, result) });
   return `<p class="producer-card-label">${escHtml(caption)}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.times.sequence')}</th><th>${t('producer.col.stop')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
 }
 
@@ -1966,8 +2118,9 @@ function timeStrip(n: Notice, result: ValidationResult): string {
   const tripId = plannerTripRule(n.rule_id) ? dqExampleTrip(n, result.name_index) : undefined;
   if (!tripId) return body;
   const stops = result.name_index.trip_stops?.[tripId] ?? [];
-  const mark = n.rule_id === 'DQ_020' ? stops[stops.length - 1] : n.rule_id === 'OPR_007' ? n.details?.dup_stop : n.details?.stop_id;
-  return body + tripItineraryTable(tripId, result, mark, n.rule_id === 'DQ_020' ? undefined : n.details?.stop_sequence);
+  const lastStop = n.rule_id === 'DQ_020' || n.rule_id === 'TRP_011';
+  const mark = lastStop ? stops[stops.length - 1] : n.rule_id === 'OPR_007' ? n.details?.dup_stop : n.details?.stop_id;
+  return body + tripItineraryTable(tripId, result, mark, lastStop ? undefined : n.details?.stop_sequence);
 }
 
 function timeStripBody(n: Notice, result: ValidationResult): string {
@@ -2195,12 +2348,16 @@ function timeStripBody(n: Notice, result: ValidationResult): string {
     for (let i = 0; d[`example_${i}_stop_id`]; i++) {
       const at = (key: string) => d[`example_${i}_${key}`];
       const stop = `${name(at('stop_id'))} (${at('stop_sequence') || '—'})`;
-      rows.push(`<tr><td>${escHtml(at('trip_id') || '—')}</td><td>${escHtml(stop)}</td><td>${escHtml(plannerTime(at('arrival')) || '—')}</td><td>${escHtml(plannerTime(at('departure')) || '—')}</td></tr>`);
+      rows.push(`<tr><td>${escHtml(tripShort(at('trip_id'), result))}</td><td>${escHtml(stop)}</td><td>${escHtml(plannerTime(at('arrival')) || '—')}</td><td>${escHtml(plannerTime(at('departure')) || '—')}</td></tr>`);
     }
-    return `<p class="producer-card-label">${escHtml(t('producer.times.stm050_examples'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.col.trip_code')}</th><th>${t('producer.times.stop_with_sequence')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+    return `<p class="producer-card-label">${escHtml(t('producer.times.stm050_examples'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.col.trip')}</th><th>${t('producer.times.stop_with_sequence')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
   if (n.rule_id.startsWith('OPR_')) {
     const table = oprTable(n, result);
+    if (table) return table;
+  }
+  if (n.rule_id.startsWith('TRP_')) {
+    const table = trpTable(n, result);
     if (table) return table;
   }
   if (n.rule_id === 'CAL_020' && d.feed_start_date && d.feed_end_date) {
@@ -2231,7 +2388,7 @@ function timeStripBody(n: Notice, result: ValidationResult): string {
       const rows: string[] = [];
       for (let i = 0; d[`route_${i}_route_id`]; i++) {
         const routeId = d[`route_${i}_route_id`]!;
-        rows.push(`<tr><td>${routeBadgeHtml(routeId, result)}</td><td>${escHtml(localizedNumber(d[`route_${i}_trips`] || '0'))}</td><td>${escHtml(d[`route_${i}_example_trip_id`] || '—')}</td></tr>`);
+        rows.push(`<tr><td>${routeBadgeHtml(routeId, result)}</td><td>${escHtml(localizedNumber(d[`route_${i}_trips`] || '0'))}</td><td>${escHtml(tripShort(d[`route_${i}_example_trip_id`], result, false))}</td></tr>`);
       }
       parts.push(`<p class="producer-card-label">${escHtml(t('producer.times.cal_routes', { routes: localizedNumber(d.route_count || '0'), trips: localizedNumber(d.trip_count || '0') }))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.col.route')}</th><th>${t('producer.times.trip_count')}</th><th>${t('producer.times.example_trip')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`);
     }
@@ -2288,7 +2445,7 @@ function timeStripBody(n: Notice, result: ValidationResult): string {
       const routeId = at('route_id') || '';
       const route = result.name_index.routes?.[routeId] || routeId;
       const share = `${localizedNumber(at('missing') || '0')} / ${localizedNumber(at('trips') || '0')}`;
-      rows.push(`<tr><td>${escHtml(route)}</td><td>${escHtml(share)}</td><td>${escHtml(at('example_trip_id') || '—')}</td></tr>`);
+      rows.push(`<tr><td>${escHtml(route)}</td><td>${escHtml(share)}</td><td>${escHtml(tripShort(at('example_trip_id'), result, false))}</td></tr>`);
     }
     return `<p class="producer-card-label">${escHtml(t('producer.times.dq020_routes'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.col.route')}</th><th>${t('producer.times.headsign_missing')}</th><th>${t('producer.times.example_trip')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
@@ -2315,9 +2472,9 @@ function timeStripBody(n: Notice, result: ValidationResult): string {
       const at = (key: string) => d[`example_${i}_${key}`];
       const routeId = at('route_id');
       const route = routeId ? result.name_index.routes?.[routeId] || routeId : '—';
-      rows.push(`<tr${n.rule_id === 'DQ_013' ? '' : ' class="bad"'}><td>${escHtml(at('trip_id') || '—')}</td><td>${escHtml(route)}</td><td>${escHtml(at('service_id') || '—')}</td></tr>`);
+      rows.push(`<tr${n.rule_id === 'DQ_013' ? '' : ' class="bad"'}><td>${escHtml(tripShort(at('trip_id'), result, false))}</td><td>${escHtml(route)}</td><td>${escHtml(at('service_id') || '—')}</td></tr>`);
     }
-    return `<p class="producer-card-label">${escHtml(t(n.rule_id === 'DQ_013' ? 'producer.times.dq013_trips' : 'producer.times.dq_trip_examples'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.col.trip_code')}</th><th>${t('producer.col.route')}</th><th>${t('producer.col.service_code')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+    return `<p class="producer-card-label">${escHtml(t(n.rule_id === 'DQ_013' ? 'producer.times.dq013_trips' : 'producer.times.dq_trip_examples'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.col.trip')}</th><th>${t('producer.col.route')}</th><th>${t('producer.col.service_code')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
   if (n.rule_id === 'DQ_005c' && d.example_0_stop_id) {
     // The first stops without a position: name and code, type, and the station they belong to.
@@ -2344,7 +2501,7 @@ function timeStripBody(n: Notice, result: ValidationResult): string {
       const routeId = at('route_id') || '';
       const route = result.name_index.routes?.[routeId] || routeId;
       const share = `${localizedNumber(at('shapeless') || '0')} / ${localizedNumber(at('trips') || '0')}`;
-      rows.push(`<tr><td>${escHtml(route)}</td><td>${escHtml(share)}</td><td>${escHtml(at('example_trip_id') || '—')}</td></tr>`);
+      rows.push(`<tr><td>${escHtml(route)}</td><td>${escHtml(share)}</td><td>${escHtml(tripShort(at('example_trip_id'), result, false))}</td></tr>`);
     }
     return `<p class="producer-card-label">${escHtml(t('producer.times.dq006_routes'))}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.col.route')}</th><th>${t('producer.times.shapeless_trips')}</th><th>${t('producer.times.example_trip')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
