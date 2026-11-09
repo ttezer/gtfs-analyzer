@@ -5006,14 +5006,19 @@ fn check_geo_shape_trip_analytics(
         }
         for (shape_id, count) in &shape_counts {
             if *count > config.max_shape_points {
-                notices.push(k6_notice(
+                let mut n026 = k6_notice(
                     ctr, "SHP_026", EntityType::Shape,
                     Some((*shape_id).to_string()), Some((*shape_id).to_string()),
                     "shapes.txt", None, None,
                     Some(count.to_string()), Some("≤5000".to_string()),
                     format!("'{shape_id}' şeklinde {count} nokta var — harita render performansını olumsuz etkiler."),
                     "shapes.txt'i basitleştirmek için Douglas-Peucker vb. bir algoritma kullanın.",
-                ));
+                );
+                // Planner context: the point count against the limit.
+                let d = n026.details.get_or_insert_with(Default::default);
+                d.insert("point_count".to_string(), count.to_string());
+                d.insert("limit".to_string(), config.max_shape_points.to_string());
+                notices.push(n026);
             }
         }
     }
@@ -8267,7 +8272,7 @@ fn check_remaining_analytics<'a>(
                             if coord_diff_m >= DIFF_THRESHOLD_M {
                                 if !fired_028 {
                                     fired_028 = true;
-                                    notices.push(k6_notice(
+                                    let mut n028 = k6_notice(
                                         ctr, "SHP_028", EntityType::Shape,
                                         Some(shape_id.to_string()), Some(shape_id.to_string()),
                                         "shapes.txt", None, Some("shape_dist_traveled"),
@@ -8275,11 +8280,15 @@ fn check_remaining_analytics<'a>(
                                         Some("artan dist".to_string()),
                                         format!("'{shape_id}' şeklinde art arda iki noktanın shape_dist_traveled ({da_v:.4}) aynı ama koordinatları farklı — mesafe artmadan konum değişmiş."),
                                         "Ardışık shape noktalarına artan shape_dist_traveled değerleri atayın.",
-                                    ));
+                                    );
+                                    // Planner context: both points, their shared distance and how far apart they are.
+                                    let d = n028.details.get_or_insert_with(Default::default);
+                                    shp_pair_details(d, (la, loa), (lb, lob), da_v, coord_diff_m);
+                                    notices.push(n028);
                                 }
                             } else if !fired_029 {
                                 fired_029 = true;
-                                notices.push(k6_notice(
+                                let mut n029 = k6_notice(
                                     ctr, "SHP_029", EntityType::Shape,
                                     Some(shape_id.to_string()), Some(shape_id.to_string()),
                                     "shapes.txt", None, Some("shape_dist_traveled"),
@@ -8287,7 +8296,10 @@ fn check_remaining_analytics<'a>(
                                     Some("artan dist".to_string()),
                                     format!("'{shape_id}' şeklinde art arda iki noktanın shape_dist_traveled ({da_v:.4}) aynı, koordinat farkı çok küçük (eşik altı)."),
                                     "Ardışık shape noktalarına artan shape_dist_traveled değerleri atayın ya da yinelenen noktayı kaldırın.",
-                                ));
+                                );
+                                let d = n029.details.get_or_insert_with(Default::default);
+                                shp_pair_details(d, (la, loa), (lb, lob), da_v, coord_diff_m);
+                                notices.push(n029);
                             }
                         }
                     }
@@ -8770,7 +8782,7 @@ fn check_remaining_analytics<'a>(
                 if dist_km > threshold_km {
                     seen_shp024.insert((stop_id, shape_id));
                     let stop_name = stop_names.get(stop_id).copied().unwrap_or(stop_id);
-                    notices.push(k6_notice(
+                    let mut n024 = k6_notice(
                         ctr, "SHP_024", EntityType::Stop,
                         Some(stop_id.to_string()), Some(stop_id.to_string()),
                         "stop_times.txt", Some(st.line as u64), Some("shape_dist_traveled"),
@@ -8782,7 +8794,17 @@ fn check_remaining_analytics<'a>(
                         format!("'{}' durağı (shape_dist_traveled={sdt:.3}) shape_dist_traveled konumundan {:.1}m uzakta (eşik: {:.0}m).",
                             stop_name, dist_km * 1000.0, threshold_km * 1000.0),
                         "stop_times.txt'deki shape_dist_traveled değerini ya da stop koordinatlarını düzeltin.",
-                    ));
+                    );
+                    // Planner context: the shape, the trip, the distance written and the place on
+                    // the line that distance points to.
+                    let d = n024.details.get_or_insert_with(Default::default);
+                    d.insert("shape_id".to_string(), shape_id.to_string());
+                    d.insert("trip_id".to_string(), trip.trip_id.to_string());
+                    d.insert("shape_dist_traveled".to_string(), format!("{sdt}"));
+                    d.insert("distance_m".to_string(), format!("{:.0}", dist_km * 1000.0));
+                    d.insert("implied_lat".to_string(), format!("{ilat:.6}"));
+                    d.insert("implied_lon".to_string(), format!("{ilon:.6}"));
+                    notices.push(n024);
                 }
             }
         }
@@ -8856,7 +8878,7 @@ fn check_remaining_analytics<'a>(
                     .get(trip.trip_id.as_str())
                     .copied()
                     .unwrap_or(trip.trip_id.as_str());
-                notices.push(k6_notice(
+                let mut n025 = k6_notice(
                     ctr, "SHP_025", EntityType::Trip,
                     Some(trip.trip_id.to_string()), Some(trip.trip_id.to_string()),
                     "stop_times.txt", None, Some("shape_dist_traveled"),
@@ -8865,7 +8887,13 @@ fn check_remaining_analytics<'a>(
                     format!("'{}' hattının seferinde stop_times shape_dist_traveled ({trip_max_sdt:.3}) şeklin maksimum değerini ({shape_max:.3}) aşıyor.",
                         route),
                     "stop_times.txt'deki shape_dist_traveled değerlerini shapes.txt ölçeğiyle eşleştirin.",
-                ));
+                );
+                // Planner context: the shape and both largest distances.
+                let d = n025.details.get_or_insert_with(Default::default);
+                d.insert("shape_id".to_string(), shape_id.to_string());
+                d.insert("trip_max".to_string(), format!("{trip_max_sdt}"));
+                d.insert("shape_max".to_string(), format!("{shape_max}"));
+                notices.push(n025);
             }
         }
     }
@@ -11666,6 +11694,22 @@ fn check_shp022<'a>(
 }
 
 /// Check whether two 2D line segments intersect (cross-product method).
+/// SHP_028/029 planner context: the two consecutive points sharing a distance.
+fn shp_pair_details(
+    d: &mut gtfs_core::NoticeDetails,
+    a: (f64, f64),
+    b: (f64, f64),
+    dist: f64,
+    apart_m: f64,
+) {
+    d.insert("lat".to_string(), format!("{:.6}", a.0));
+    d.insert("lon".to_string(), format!("{:.6}", a.1));
+    d.insert("next_lat".to_string(), format!("{:.6}", b.0));
+    d.insert("next_lon".to_string(), format!("{:.6}", b.1));
+    d.insert("dist".to_string(), format!("{dist}"));
+    d.insert("apart_m".to_string(), format!("{apart_m:.2}"));
+}
+
 /// The point where segments a–b and c–d cross (planar, on lat/lon), if they are not parallel.
 fn segment_intersection(
     a: (f64, f64),

@@ -2439,10 +2439,11 @@ pub fn aggregate_feed_level_notices(
 }
 
 /// Shape findings whose planner card names the routes drawn with the shape and an example trip.
-const SHAPE_CONTEXT_RULES: [&str; 20] = [
+const SHAPE_CONTEXT_RULES: [&str; 26] = [
     "SHP_001", "SHP_002", "SHP_003", "SHP_004", "SHP_005", "SHP_006", "SHP_008", "SHP_009",
     "SHP_010", "SHP_012", "SHP_014", "SHP_015", "SHP_016", "SHP_017", "SHP_018", "SHP_019",
-    "SHP_020", "SHP_021", "SHP_022", "SHP_023",
+    "SHP_020", "SHP_021", "SHP_022", "SHP_023", "SHP_024", "SHP_025", "SHP_026", "SHP_028",
+    "SHP_029", "SHP_030",
 ];
 /// Shape point findings (one row of the point list): the row's neighbours in the file.
 const SHAPE_POINT_RULES: [&str; 6] = [

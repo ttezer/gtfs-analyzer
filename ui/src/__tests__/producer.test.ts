@@ -1624,6 +1624,49 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('„Okul“ durağı şu çizimin 2 ayrı bölümüne yakın: 10 hattının „SE“ güzergâh çizimi');
   });
 
+  it('SHP_024–030 kartları mesafe sorunlarını çizim ve seferle anlatır, işaret edilen yeri haritada gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı' },
+      routes: { R1: '10' }, trips: { T1: 'Çarşı' }, trip_routes: { T1: 'R1' }, trip_first_dep: { T1: '06:00' },
+      trip_stops: { T1: ['S1', 'S2', 'S3'] }, trip_stop_sequences: { T1: [1, 2, 3] },
+      stop_coords: { S1: [41, 29], S2: [41.01, 29], S3: [41.02, 29] },
+      shape_coords: { SA: [[41, 29], [41.01, 29], [41.02, 29]] }, shape_routes: { SA: [['R1', '0']] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+    const ctx = { trip_count: '1', route_count: '1', routes: 'R1', example_trip_id: 'T1' };
+
+    // SHP_024: the stop and the place its distance points to, linked; the stop red in its trip.
+    let out = render(notice('a', 'SHP_024', 'MEDIUM', { entity_type: 'Stop', entity_id: 'S2',
+      details: { ...ctx, shape_id: 'SA', trip_id: 'T1', shape_dist_traveled: '1500', distance_m: '556', implied_lat: '41.015', implied_lon: '29' } }));
+    expect(out.html).toContain('„Okul“ durağının durak saatlerindeki mesafesi (1.500) çizimde bu duraktan 556 m uzaktaki bir noktayı gösteriyor (10 hattının „SA“ güzergâh çizimi)');
+    expect(out.map.opts?.pins.some(p => p.label === 'Mesafenin gösterdiği yer')).toBe(true);
+    expect(out.html).toContain('<tr class="bad"><td>2</td><td>Okul (S2)</td></tr>');
+
+    // SHP_025: both distances and the unit hint.
+    out = render(notice('a', 'SHP_025', 'MEDIUM', { entity_type: 'Trip', entity_id: 'T1', details: { ...ctx, shape_id: 'SA', trip_max: '2500', shape_max: '2.5' } }));
+    expect(out.html).toContain('10 hattının „Çarşı“ yönündeki 06:00 kalkışlı seferinin durak saatlerinde mesafe 2.500 değerine kadar çıkıyor');
+    expect(out.html).toContain('Fark yaklaşık 1.000 kat');
+
+    // SHP_028: two points with one distance, pinned and linked.
+    out = render(notice('a', 'SHP_028', 'LOW', { entity_type: 'Shape', entity_id: 'SA', details: { ...ctx, lat: '41', lon: '29', next_lat: '41.001', next_lon: '29', dist: '0', apart_m: '111.19' } }));
+    expect(out.html).toContain('art arda iki nokta aynı mesafeyi (0) taşıyor ama aralarında 111 m var');
+    expect(out.map.opts?.pins.filter(p => p.primary)).toHaveLength(2);
+    out = render(notice('a', 'SHP_029', 'INFO', { entity_type: 'Shape', entity_id: 'SA', details: { ...ctx, lat: '41', lon: '29', next_lat: '41.000005', next_lon: '29', dist: '500', apart_m: '0.55' } }));
+    expect(out.html).toContain('aralarında yalnız 0,6 m var');
+
+    // SHP_030: the trips using distances listed.
+    out = render(notice('a', 'SHP_030', 'MEDIUM', { entity_type: 'Shape', entity_id: 'SA',
+      details: { ...ctx, shape_point_count: '3', shape_points_missing_dist: '1', affected_trip_count: '1', representative_trip_ids: 'T1' } }));
+    expect(out.html).toContain('1 sefer durak saatlerinde mesafe kullanıyor ama çizimin 3 noktasından 1 tanesinde mesafe yok');
+    expect(out.html).toContain('<tr><td>10 · Çarşı yönü · 06:00</td><td>T1</td></tr>');
+  });
+
   it('STM_051–055 kartları Flex bölgesini, pencereyi, yazılan değeri ve aynı saatli durak serisini gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,

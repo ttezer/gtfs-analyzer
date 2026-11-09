@@ -8579,3 +8579,72 @@ fn more_shape_findings_carry_planner_context() {
     assert_eq!(get(&d, "lat").as_deref(), Some("41.000000"));
     assert_eq!(get(&d, "routes").as_deref(), Some("R1"));
 }
+
+#[test]
+fn last_shape_findings_carry_planner_context() {
+    // SHP_024 the place the written distance points to, SHP_025 both largest distances, SHP_026
+    // the point count, SHP_028/029 the two points sharing a distance, SHP_030 the shape's routes.
+    // Counts are unchanged.
+    let find = |vr: &gtfs_pipeline::ValidationResult, rule: &str| {
+        vr.notices
+            .iter()
+            .find(|n| n.rule_id == rule)
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor"))
+    };
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+
+    static STOPS: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
+          S1,One,41.0,29.0\nS2,Two,41.01,29.0\nS3,Three,41.02,29.0\n";
+    static ROUTES4: &[u8] = b"route_id,agency_id,route_short_name,route_type\n\
+          R1,1,10,3\nR2,1,20,3\nR3,1,30,3\nR4,1,40,3\n";
+    static TRIPS4: &[u8] = b"route_id,service_id,trip_id,shape_id\n\
+          R1,SVC1,T1,SA\nR2,SVC1,T2,SB\nR3,SVC1,T3,SC\nR4,SVC1,T4,SD\n";
+    static TIMES: &[u8] =
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\n\
+          T1,08:00:00,08:00:00,S1,1,0\nT1,08:05:00,08:05:00,S2,2,1500\nT1,08:10:00,08:10:00,S3,3,2500\n\
+          T2,08:00:00,08:00:00,S1,1,\nT2,08:05:00,08:05:00,S2,2,\n\
+          T3,08:00:00,08:00:00,S1,1,0\nT3,08:10:00,08:10:00,S3,2,2000\n\
+          T4,08:00:00,08:00:00,S1,1,\nT4,08:05:00,08:05:00,S2,2,\n";
+    let mut shapes = String::from(
+        "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
+         SA,41.0,29.0,1,0\nSA,41.01,29.0,2,1000\nSA,41.02,29.0,3,2000\n\
+         SB,41.0,29.0,1,0\nSB,41.001,29.0,2,0\nSB,41.01,29.0,3,500\nSB,41.010005,29.0,4,500\n\
+         SB,41.02,29.0,5,1000\n\
+         SC,41.0,29.0,1,0\nSC,41.01,29.0,2,\nSC,41.02,29.0,3,2000\n",
+    );
+    for i in 0..5001 {
+        shapes += &format!("SD,{:.6},29.0,{},\n", 41.0 + i as f64 * 0.000002, i + 1);
+    }
+    let files: Vec<(&str, &[u8])> = vec![
+        ("agency.txt", AGENCY),
+        ("stops.txt", STOPS),
+        ("routes.txt", ROUTES4),
+        ("trips.txt", TRIPS4),
+        ("stop_times.txt", TIMES),
+        ("calendar.txt", CALENDAR),
+        ("shapes.txt", shapes.as_bytes()),
+    ];
+    let vr = match run(&files) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+
+    let d = find(&vr, "SHP_024");
+    assert_eq!(get(&d, "shape_id").as_deref(), Some("SA"));
+    assert_eq!(get(&d, "trip_id").as_deref(), Some("T1"));
+    assert_eq!(get(&d, "implied_lat").as_deref(), Some("41.015000"));
+    assert_eq!(get(&d, "routes").as_deref(), Some("R1"));
+    let d = find(&vr, "SHP_025");
+    assert_eq!(get(&d, "trip_max").as_deref(), Some("2500"));
+    assert_eq!(get(&d, "shape_max").as_deref(), Some("2000"));
+    let d = find(&vr, "SHP_026");
+    assert_eq!(get(&d, "point_count").as_deref(), Some("5001"));
+    assert_eq!(get(&d, "routes").as_deref(), Some("R4"));
+    let d = find(&vr, "SHP_028");
+    assert_eq!(get(&d, "next_lat").as_deref(), Some("41.001000"));
+    let d = find(&vr, "SHP_029");
+    assert_eq!(get(&d, "lat").as_deref(), Some("41.010000"));
+    let d = find(&vr, "SHP_030");
+    assert_eq!(get(&d, "routes").as_deref(), Some("R3"));
+}
