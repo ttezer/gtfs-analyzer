@@ -1970,6 +1970,11 @@ function tripParts(tripId: string, result: ValidationResult): { route?: string; 
   };
 }
 
+/** A notice's record for the planner: trips as "S8 · Liman yönü · 06:00", others by their name. */
+function plannerEntityLabel(n: Notice, result: ValidationResult): string | null {
+  return n.entity_type === 'Trip' && n.entity_id ? tripShort(n.entity_id, result) : entityLabel(n, result.name_index);
+}
+
 /** "S8 · Liman yönü · 06:00" for tables and the map line; the trip_id only when nothing else is known. */
 function tripShort(tripId: string | undefined | null, result: ValidationResult, withRoute = true): string {
   if (!tripId) return '—';
@@ -2147,7 +2152,6 @@ function tripItineraryTable(tripId: string, result: ValidationResult, markStop?:
   const stops = ni.trip_stops?.[tripId] ?? [];
   if (stops.length < 2) return '';
   const sequences = ni.trip_stop_sequences?.[tripId] ?? [];
-  const routeId = ni.trip_routes?.[tripId];
   const rows = stops.slice(0, ITINERARY_ROWS).map((stopId, index) => {
     const sequence = sequences[index];
     const shown = sequence == null || sequence === 4294967295 ? '—' : String(sequence);
@@ -2158,7 +2162,6 @@ function tripItineraryTable(tripId: string, result: ValidationResult, markStop?:
   if (stops.length > ITINERARY_ROWS) {
     rows.push(`<tr><td></td><td>${escHtml(t('producer.times.more_stops', { n: localizedNumber(String(stops.length - ITINERARY_ROWS)) }))}</td></tr>`);
   }
-  void routeId;
   const caption = t('producer.times.trip_itinerary', { trip: tripShort(tripId, result) });
   return `<p class="producer-card-label">${escHtml(caption)}</p><table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.times.sequence')}</th><th>${t('producer.col.stop')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
 }
@@ -3195,8 +3198,10 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   // 018/019/021), a headsign row's own trip (its stop red), a summary's example trip (DQ_006
   // straight between its stops when it has no line; DQ_013; DQ_020 with its last stop — the
   // headsign candidate — red). A route whose trips the index lacks keeps the route view below.
-  const dqTrip = plannerTripRule(n.rule_id) && n.entity_type !== 'Trip' ? dqExampleTrip(n, result.name_index) : undefined;
-  if (dqTrip) {
+  // TRP_024's record is a vehicle block (its code is the block's, not a trip's): draw its first trip.
+  const dqTrip = plannerTripRule(n.rule_id) && (n.entity_type !== 'Trip' || n.rule_id === 'TRP_024') ? dqExampleTrip(n, result.name_index) : undefined;
+  // (Once redrawn as its trip, a TRP_024 record is that trip: no further step.)
+  if (dqTrip && dqTrip !== n.entity_id) {
     const tripStops = result.name_index.trip_stops?.[dqTrip] ?? [];
     const last = tripStops[tripStops.length - 1];
     const details = n.rule_id === 'DQ_021' || n.entity_type === 'Route' ? {}
@@ -3273,7 +3278,10 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   const tripLabel = n.rule_id === 'STM_006' && n.entity_id
     ? [routeIdForNotice ? ni.routes?.[routeIdForNotice] : '', ni.trips?.[n.entity_id], ni.trip_first_dep?.[n.entity_id]].filter(Boolean).join(' · ')
     : '';
-  const label = tripLabel || dqListLabel(n) || entityLabel(n, ni) || n.entity_id || '';
+  // A drawn trip is named as planners know it (route · direction · departure), also when a
+  // list-level finding's map draws its example trip; otherwise the list or record name.
+  const drawnTrip = n.entity_type === 'Trip' && n.entity_id && ni.trip_stops?.[n.entity_id] ? tripShort(n.entity_id, result) : '';
+  const label = tripLabel || drawnTrip || dqListLabel(n) || plannerEntityLabel(n, result) || n.entity_id || '';
   const shown = label ? t('producer.map.shown', { record: label }) : '';
   const zeroCaption = () => zeroStops.size
     ? t('producer.map.null_island', { stops: [...zeroStops].slice(0, 3).map(id => ni.stops?.[id] || id).join(', ') })
@@ -3723,7 +3731,11 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
   const withDays = g.notices.some(n => n.service_id)
     || (first.entity_type === 'Trip' && ['STM_003', 'STM_048', 'STM_056'].includes(g.ruleId));
   const days = (cols: string[], row: (n: Notice) => Cell[]) => withDays
-    ? { head: [...cols, t('producer.col.service')], row: (n: Notice) => [...row(n), serviceText(n.service_id, result)] }
+    ? {
+      head: [...cols, t('producer.col.service')],
+      // A trip row without a code (TRP_001/031/035) still names the calendar written on it.
+      row: (n: Notice) => [...row(n), serviceText(n.service_id || (['TRP_001', 'TRP_031', 'TRP_035'].includes(n.rule_id) ? n.details?.service_id : undefined), result)],
+    }
     : { head: cols, row };
   const badge = (routeId?: string | null, fallback?: string | null): Cell => routeId ? { html: routeBadgeHtml(routeId, result) } : dash(fallback);
   const stm006Columns = () => ({
@@ -3839,14 +3851,14 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
       // OPR route findings per direction and calendar: name both on each row.
       const perService = g.ruleId.startsWith('OPR_') && g.notices.some(n => n.service_id);
       return {
-        head: [t('producer.col.route'), t('producer.col.route_name'), t('producer.col.route_code'),
+        head: [t('producer.col.route'), t('producer.col.route_name'),
           ...(perService ? [t('producer.col.direction'), t('producer.col.service')] : []), ...(withSpot ? [t('producer.col.spot')] : [])],
         row: n => {
           const routeId = routeIdOfNotice(n);
           const d = n.details ?? {};
           return [
-            // "Hat kodu" is the route's number riders know (route_short_name), not the internal route_id.
-            badge(routeId), dash(routeId ? ni.route_long_names?.[routeId] : null), dash(routeId ? routeBadge(routeId, ni).label : null),
+            // The badge is the route's number riders know (route_short_name); a separate code column would repeat it.
+            badge(routeId), dash(routeId ? ni.route_long_names?.[routeId] : null),
             ...(perService ? [dash(oprDirectionName(d, result, d.trip_before) || null), plannerServiceText(n.service_id, result)] : []),
             ...(withSpot ? [dash(timeSpot(n, result))] : []),
           ];
@@ -3882,7 +3894,7 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
       return days(
         [t('producer.col.record'), ...(withLine ? [t('producer.col.row')] : []), ...(withServices ? [t('producer.col.service_code')] : [])],
         n => [
-          dqListLabel(n) || entityLabel(n, ni) || n.observed_value || t('producer.map.unknown_context'),
+          dqListLabel(n) || plannerEntityLabel(n, result) || n.observed_value || t('producer.map.unknown_context'),
           ...(withLine ? [n.line != null ? String(n.line) : '—'] : []),
           ...(withServices ? [servicesText(n)] : []),
         ],

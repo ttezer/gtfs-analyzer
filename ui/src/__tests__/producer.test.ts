@@ -1080,8 +1080,9 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('10 hattının „Çarşı“ yönünde seferlerinde (Hafta içi) 12:30 kalkışından sonraki sefer ancak 23:30 kalkışlı; arada 11 sa boyunca sefer yok. Sınır 4 sa.');
     expect(out.html).toContain('<tr class="bad"><td>12:30</td><td>Çarşı</td></tr>');
     expect(out.html).toContain('<td>12:30 → 23:30</td>');
-    // "Hat kodu" is the route's number (route_short_name), not route_id R1.
-    expect(out.html).toContain('<td>—</td><td>10</td><td>Çarşı</td>');
+    // The badge is the route's number (route_short_name); no separate code column repeats it, and route_id R1 is not shown.
+    expect(out.html).toContain('<th>Hat</th><th>Hat adı</th><th>Yön</th>');
+    expect(out.html).toContain('<td><span class="planner-route-badge">10</span></td><td>—</td><td>Çarşı</td>');
     expect(out.html).not.toContain('<td>R1</td>');
     expect(out.map.opts?.pins).toHaveLength(3);
 
@@ -1152,6 +1153,8 @@ describe('Üretici kartı görünümü', () => {
     out = render(notice('a', 'TRP_006', 'MEDIUM', { entity_type: 'Trip', entity_id: 'T1', observed_value: '5' }));
     expect(out.html).toContain('10 hattının „Çarşı“ yönündeki 06:00 kalkışlı seferinin tekerlekli sandalye bilgisi &quot;5&quot;');
     expect(out.html).not.toContain('T1 seferi');
+    // The map caption names the trip the same way (route · direction · departure).
+    expect(out.map.caption).toContain('Haritada: 10 · Çarşı yönü · 06:00');
 
     // TRP_011: no headsign; the last stop offered as one and red in the stop list.
     out = render(notice('a', 'TRP_011', 'LOW', { entity_type: 'Trip', entity_id: 'T2' }));
@@ -1170,6 +1173,8 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('Araç bloğu kodu taşıyan 2 seferin her biri ayrı bir blokta');
     expect(out.html).toContain('<tr class="bad"><td>B1</td><td>10 · Çarşı yönü · 06:00</td></tr>');
     expect(out.html).toContain('<td>Sefer listesi</td>');
+    // The map caption names the trip it draws, not the list.
+    expect(out.map.caption).toContain('Haritada: 10 · Çarşı yönü · 06:00');
   });
 
   it('kalan TRP kartları seferleri, blokları, takvimi ve satırı planlamacı diliyle anlatır', () => {
@@ -1213,6 +1218,9 @@ describe('Üretici kartı görünümü', () => {
       details: { block_id: 'B1', trip_count: '1', first_trip: 'T1', trips: 'T2' } }));
     expect(out.html).toContain('B1 araç bloğundaki seferler farklı türde hatlara ait (Otobüs (3), Tramvay (0))');
     expect(out.html).toContain('<td>B1</td><td>10 · Okul yönü · 08:00</td>');
+    // The record's code is the block's: the map draws the block's first trip and names it.
+    expect(out.map.caption).toContain('Haritada: 10 · Okul yönü · 08:00');
+    expect(out.map.opts?.pins.length).toBeGreaterThan(1);
 
     // TRP_031: the code-less route row named by its trip.
     out = render(notice('a', 'TRP_031', 'HIGH', { entity_type: 'Trip', file: 'trips.txt', line: 4, details: { trip_id: 'T2' } }));
