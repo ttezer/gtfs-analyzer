@@ -12545,6 +12545,18 @@ fn canonicalize_stop_components(mut components: Vec<Vec<&str>>) -> Vec<Vec<&str>
     components
 }
 
+/// VAT planner context sizes: stops only one route serves (VAT_001), routes named per nearby
+/// stop or cluster (VAT_002/005/007), same-path trips compared (VAT_003), isolated clusters
+/// described and stops probed for the nearest main-network stop (VAT_005), other routes
+/// listed (VAT_006) and routes named per shape (VAT_008).
+const VAT001_ONLY_EXAMPLES: usize = 10;
+const VAT_NEARBY_ROUTES: usize = 10;
+const VAT003_EXAMPLES: usize = 5;
+const VAT005_CLUSTERS: usize = 5;
+const VAT005_NEAREST_PROBE: usize = 20;
+const VAT006_OTHERS: usize = 5;
+const VAT008_ROUTES: usize = 20;
+
 fn check_vat_analytics(
     records: &EntityRecords,
     derived: &DerivedData,
@@ -12728,6 +12740,25 @@ fn check_vat_analytics(
                     let mut d = std::collections::BTreeMap::new();
                     d.insert("routes".to_string(), format!("{rid_a},{rid_b}"));
                     d.insert("route_b".to_string(), rid_b.to_string());
+                    // Planner context: how many stops they share and which stops only one serves.
+                    d.insert("shared_stops".to_string(), inter.to_string());
+                    d.insert("stops_a".to_string(), stops_a.len().to_string());
+                    d.insert("stops_b".to_string(), stops_b.len().to_string());
+                    let only = |x: &FxHashSet<&str>, y: &FxHashSet<&str>| -> String {
+                        let mut v: Vec<&str> =
+                            x.iter().copied().filter(|s| !y.contains(s)).collect();
+                        v.sort_unstable();
+                        v.truncate(VAT001_ONLY_EXAMPLES);
+                        v.join(",")
+                    };
+                    let only_a = only(stops_a, stops_b);
+                    let only_b = only(stops_b, stops_a);
+                    if !only_a.is_empty() {
+                        d.insert("only_a".to_string(), only_a);
+                    }
+                    if !only_b.is_empty() {
+                        d.insert("only_b".to_string(), only_b);
+                    }
                     n.details = Some(d.into());
                     notices.push(n);
                 }
@@ -12769,14 +12800,15 @@ fn check_vat_analytics(
         .collect();
 
     // Is there a nearby separate stop serving a route that this stop DOES NOT serve?
-    // If so, there is a genuinely undefined transfer between stops.
-    let has_nearby_unlinked_route = |stop_id: &str, own: &FxHashSet<&str>| -> bool {
-        let Some(&(la, lo)) = xfer_stop_pos.get(stop_id) else {
-            return false;
-        };
+    // If so, there is a genuinely undefined transfer between stops. Returns the nearest such
+    // stop, its distance (km) and the routes it adds, so the planner knows where to link.
+    type NearbyStop<'a> = (&'a str, f64, Vec<&'a str>);
+    let nearby_unlinked_route = |stop_id: &str, own: &FxHashSet<&str>| -> Option<NearbyStop<'_>> {
+        let &(la, lo) = xfer_stop_pos.get(stop_id)?;
         let max_km = config.max_transfer_distance_m / 1000.0;
         let band = max_km / 111.0;
         let start = xfer_sorted_stops.partition_point(|&(l, _, _)| l < la - band);
+        let mut best: Option<NearbyStop<'_>> = None;
         for &(nla, nlo, nid) in &xfer_sorted_stops[start..] {
             if nla > la + band {
                 break;
@@ -12784,16 +12816,44 @@ fn check_vat_analytics(
             if nid == stop_id {
                 continue;
             }
-            if haversine_km(la, lo, nla, nlo) > max_km {
+            let dist = haversine_km(la, lo, nla, nlo);
+            if dist > max_km {
+                continue;
+            }
+            let closer = match &best {
+                None => true,
+                Some((bid, bd, _)) => dist < *bd || (dist == *bd && nid < *bid),
+            };
+            if !closer {
                 continue;
             }
             if let Some(nr) = stop_routes.get(nid) {
-                if nr.iter().any(|r| !own.contains(r)) {
-                    return true;
+                let mut added: Vec<&str> =
+                    nr.iter().copied().filter(|r| !own.contains(r)).collect();
+                if !added.is_empty() {
+                    added.sort_unstable();
+                    best = Some((nid, dist, added));
                 }
             }
         }
-        false
+        best
+    };
+    let nearby_details = |d: &mut std::collections::BTreeMap<String, String>,
+                          near: &NearbyStop<'_>| {
+        d.insert("nearby_stop_id".to_string(), near.0.to_string());
+        d.insert(
+            "nearby_distance_m".to_string(),
+            format!("{:.0}", near.1 * 1000.0),
+        );
+        d.insert(
+            "nearby_routes".to_string(),
+            near.2
+                .iter()
+                .take(VAT_NEARBY_ROUTES)
+                .copied()
+                .collect::<Vec<_>>()
+                .join(","),
+        );
     };
 
     // ── VAT_002: undefined transfer hub (≥ 4 routes, no transfer) ────────────
@@ -12818,9 +12878,9 @@ fn check_vat_analytics(
             if has_parent.contains(stop_id) {
                 continue;
             }
-            if !has_nearby_unlinked_route(stop_id, routes) {
+            let Some(near) = nearby_unlinked_route(stop_id, routes) else {
                 continue;
-            }
+            };
             let name = stop_name_map.get(stop_id).copied().unwrap_or(stop_id);
             // Collect routes in stable order: route_ids for the map, readable labels for the message.
             let mut route_ids: Vec<&str> = routes.iter().copied().collect();
@@ -12848,6 +12908,7 @@ fn check_vat_analytics(
             n002.details = Some({
                 let mut d = std::collections::BTreeMap::new();
                 d.insert("routes".to_string(), route_ids.join(","));
+                nearby_details(&mut d, &near);
                 d.into()
             });
             notices.push(n002);
@@ -13059,11 +13120,25 @@ fn check_vat_analytics(
                     format!("'{label}' hattının '{trip_id}'{dep_suffix} seferinin süresi {dur_min}dk — bu saatte beklenen ~{ref_min}dk ({sigma_str}).{repeat_suffix}"),
                     "stop_times.txt zaman değerlerini ve sefer güzergahını doğrulayın.",
                 );
+                let mut d = std::collections::BTreeMap::new();
                 if repeats > 1 {
-                    let mut d = std::collections::BTreeMap::new();
                     d.insert("duplicate_trips".to_string(), repeats.to_string());
-                    n.details = Some(d.into());
                 }
+                // Planner context: the trip's duration, the expected one, and the same path's
+                // other trips nearest in departure time with their durations.
+                d.insert("duration_min".to_string(), dur_min.to_string());
+                d.insert("expected_min".to_string(), ref_min.to_string());
+                d.insert("departure".to_string(), format_hms(dep_secs));
+                d.insert("pattern_trips".to_string(), durs.len().to_string());
+                let mut near: Vec<&(&str, u32, u32, &str, u32)> =
+                    durs.iter().filter(|o| o.0 != trip_id).collect();
+                near.sort_by_key(|o| (o.2.abs_diff(dep_secs), o.0));
+                for (i, o) in near.iter().take(VAT003_EXAMPLES).enumerate() {
+                    d.insert(format!("example_{i}_trip_id"), o.0.to_string());
+                    d.insert(format!("example_{i}_departure"), format_hms(o.2));
+                    d.insert(format!("example_{i}_minutes"), (o.1 / 60).to_string());
+                }
+                n.details = Some(d.into());
                 notices.push(n);
             }
         }
@@ -13222,6 +13297,78 @@ fn check_vat_analytics(
                 );
                 let mut d = std::collections::BTreeMap::new();
                 d.insert("isolated_stops".to_string(), isolated_all.join(","));
+                // Planner context per cluster (first few): its size, the routes and an example
+                // trip running there, and the main network's nearest stop with its distance.
+                let shown = &isolated_comps[..isolated_comps.len().min(VAT005_CLUSTERS)];
+                let mut stop_cluster: FxHashMap<&str, usize> = FxHashMap::default();
+                for (ci, c) in shown.iter().enumerate() {
+                    for &sid in c.iter() {
+                        stop_cluster.insert(sid, ci);
+                    }
+                }
+                let mut cluster_trip: Vec<Option<&str>> = vec![None; shown.len()];
+                let mut cluster_routes: Vec<FxHashSet<&str>> =
+                    vec![FxHashSet::default(); shown.len()];
+                for (&trip_id, stops) in &idx.by_trip {
+                    let Some(&ci) = stops
+                        .first()
+                        .and_then(|st| stop_cluster.get(idx.stop_id_of(st)))
+                    else {
+                        continue;
+                    };
+                    if cluster_trip[ci].is_none_or(|t| trip_id < t) {
+                        cluster_trip[ci] = Some(trip_id);
+                    }
+                    if let Some(&r) = trip_route.get(trip_id) {
+                        cluster_routes[ci].insert(r);
+                    }
+                }
+                let main_pts: Vec<(&str, f64, f64)> = comp_nodes[main_idx]
+                    .iter()
+                    .filter_map(|s| stop_coords.get(s).map(|&(la, lo)| (*s, la, lo)))
+                    .collect();
+                for (ci, c) in shown.iter().enumerate() {
+                    d.insert(format!("cluster_{ci}_stops"), c.len().to_string());
+                    d.insert(format!("cluster_{ci}_stop_id"), c[0].to_string());
+                    if let Some(t) = cluster_trip[ci] {
+                        d.insert(format!("cluster_{ci}_trip_id"), t.to_string());
+                    }
+                    let mut routes: Vec<&str> = cluster_routes[ci].iter().copied().collect();
+                    routes.sort_unstable();
+                    if !routes.is_empty() {
+                        d.insert(
+                            format!("cluster_{ci}_routes"),
+                            routes
+                                .iter()
+                                .take(VAT_NEARBY_ROUTES)
+                                .copied()
+                                .collect::<Vec<_>>()
+                                .join(","),
+                        );
+                    }
+                    let mut nearest: Option<(f64, &str)> = None;
+                    for sid in c.iter().take(VAT005_NEAREST_PROBE) {
+                        let Some(&(la, lo)) = stop_coords.get(sid) else {
+                            continue;
+                        };
+                        for &(mid, mla, mlo) in &main_pts {
+                            let dist = haversine_km(la, lo, mla, mlo);
+                            if nearest
+                                .is_none_or(|(bd, bid)| dist < bd || (dist == bd && mid < bid))
+                            {
+                                nearest = Some((dist, mid));
+                            }
+                        }
+                    }
+                    if let Some((dist, mid)) = nearest {
+                        d.insert(format!("cluster_{ci}_nearest_stop_id"), mid.to_string());
+                        d.insert(
+                            format!("cluster_{ci}_nearest_m"),
+                            format!("{:.0}", dist * 1000.0),
+                        );
+                    }
+                }
+                d.insert("cluster_count".to_string(), comp_count.to_string());
                 n005.details = Some(d.into());
                 notices.push(n005);
             }
@@ -13238,7 +13385,7 @@ fn check_vat_analytics(
                 let ratio = count as f64 / total_trips as f64;
                 if ratio >= 0.40 {
                     let label = route_label.get(route).copied().unwrap_or(route);
-                    notices.push(k6_notice(
+                    let mut n006 = k6_notice(
                         ctr,
                         "VAT_006",
                         EntityType::Route,
@@ -13252,7 +13399,27 @@ fn check_vat_analytics(
                         format!("'{label}' hattı feed'deki {total_trips} seferin {count}'ini (%{:.0}) oluşturuyor — hizmet yoğunluğu dengesiz.",
                             ratio * 100.0),
                         "Yüksek sefer yoğunluğu operasyonel bir gerçeği yansıtıyorsa bu bilgi notudur. Değilse diğer hatlara sefer ekleyin.",
-                    ));
+                    );
+                    // Planner context: the trip counts and the next busiest routes.
+                    let mut d = std::collections::BTreeMap::new();
+                    d.insert("trips".to_string(), count.to_string());
+                    d.insert("total_trips".to_string(), total_trips.to_string());
+                    d.insert(
+                        "route_count".to_string(),
+                        route_trip_count.len().to_string(),
+                    );
+                    let mut others: Vec<(&str, u32)> = route_trip_count
+                        .iter()
+                        .filter(|(r, _)| **r != route)
+                        .map(|(&r, &c)| (r, c))
+                        .collect();
+                    others.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(b.0)));
+                    for (i, (r, c)) in others.iter().take(VAT006_OTHERS).enumerate() {
+                        d.insert(format!("other_{i}_route_id"), r.to_string());
+                        d.insert(format!("other_{i}_trips"), c.to_string());
+                    }
+                    n006.details = Some(d.into());
+                    notices.push(n006);
                 }
             }
         }
@@ -13297,9 +13464,9 @@ fn check_vat_analytics(
             // there) — if the neighboring stop serves a route passing through here, there is no new connection.
             let own_all = stop_routes.get(stop_id);
             let empty: FxHashSet<&str> = FxHashSet::default();
-            if !has_nearby_unlinked_route(stop_id, own_all.unwrap_or(&empty)) {
+            let Some(near) = nearby_unlinked_route(stop_id, own_all.unwrap_or(&empty)) else {
                 continue;
-            }
+            };
             let name = stop_name_map.get(stop_id).copied().unwrap_or(stop_id);
             // Determinism: FxHashSet iteration order is undefined. Previously take(5) came
             // BEFORE sorting → which 5 routes entered the message could vary between runs.
@@ -13328,6 +13495,7 @@ fn check_vat_analytics(
             );
             let mut d = std::collections::BTreeMap::new();
             d.insert("routes".to_string(), route_ids.join(","));
+            nearby_details(&mut d, &near);
             n007.details = Some(d.into());
             notices.push(n007);
         }
@@ -13451,7 +13619,7 @@ fn check_vat_analytics(
             for (shape_id, route_set) in &shape_routes {
                 if route_set.len() > threshold && route_set.len() >= 3 {
                     let pct = route_set.len() as f64 / total_routes as f64 * 100.0;
-                    notices.push(k6_notice(
+                    let mut n008 = k6_notice(
                         ctr, "VAT_008", EntityType::Shape,
                         Some((*shape_id).to_string()), None,
                         "trips.txt", None, None,
@@ -13460,7 +13628,24 @@ fn check_vat_analytics(
                         format!("'{shape_id}' shape'i {} hatta ({pct:.0}%) kullanılıyor — olası yanlış shape ataması.",
                             route_set.len()),
                         "Her hat ve yön için ayrı shape_id tanımlayın.",
-                    ));
+                    );
+                    // Planner context: the routes drawn with this shape.
+                    let mut routes: Vec<&str> = route_set.iter().copied().collect();
+                    routes.sort_unstable();
+                    let mut d = std::collections::BTreeMap::new();
+                    d.insert(
+                        "routes".to_string(),
+                        routes
+                            .iter()
+                            .take(VAT008_ROUTES)
+                            .copied()
+                            .collect::<Vec<_>>()
+                            .join(","),
+                    );
+                    d.insert("route_count".to_string(), routes.len().to_string());
+                    d.insert("total_routes".to_string(), total_routes.to_string());
+                    n008.details = Some(d.into());
+                    notices.push(n008);
                 }
             }
         }

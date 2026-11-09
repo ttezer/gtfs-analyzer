@@ -8041,3 +8041,110 @@ fn remaining_trip_findings_carry_planner_context() {
     assert_eq!(get(&d, "next_active").as_deref(), Some("20260601"));
     assert_eq!(get(&d, "trip_count").as_deref(), Some("1"));
 }
+
+#[test]
+fn analytics_findings_carry_planner_context() {
+    // VAT_001 the shared stops and the stops only one route serves, VAT_002/007 the nearby stop
+    // a transfer could link, VAT_003 the duration against the same path's other trips, VAT_005
+    // each detached cluster with its route, trip and the nearest main-network stop, VAT_006 the
+    // next busiest routes, VAT_008 the routes drawn with the shape. Counts are unchanged.
+    let find = |vr: &gtfs_pipeline::ValidationResult, rule: &str| {
+        vr.notices
+            .iter()
+            .find(|n| n.rule_id == rule)
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor"))
+    };
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+
+    // A1..A7 on a line; B, C branches from A1; N1 50 m from A1 (route R5); Z far away (R6).
+    let mut stops = String::from("stop_id,stop_name,stop_lat,stop_lon\n");
+    for i in 1..=7 {
+        stops += &format!("A{i},A{i},{:.3},29.0\n", 41.0 + 0.01 * i as f64);
+    }
+    stops += "B1,B1,41.0,29.02\nB2,B2,41.0,29.04\nC1,C1,40.99,29.0\nC2,C2,40.98,29.0\n\
+              N1,N1,41.0104,29.0\nD1,D1,41.01,28.98\nD2,D2,41.01,28.96\n\
+              Z1,Z1,42.0,30.0\nZ2,Z2,42.01,30.0\n";
+    let routes = "route_id,agency_id,route_short_name,route_type\n\
+                  R1,1,1,3\nR2,1,2,3\nR3,1,3,3\nR4,1,4,3\nR5,1,5,3\nR6,1,6,3\n";
+    let mut trips = String::from("route_id,service_id,trip_id,shape_id\n");
+    let mut times = String::from("trip_id,arrival_time,departure_time,stop_id,stop_sequence\n");
+    let hms = |s: u32| format!("{:02}:{:02}:00", s / 3600, (s % 3600) / 60);
+    let mut add = |trip: &str, route: &str, shape: &str, stops: &[&str], dep: u32, step: u32| {
+        trips += &format!("{route},SVC1,{trip},{shape}\n");
+        for (i, s) in stops.iter().enumerate() {
+            let t = hms(dep + step * i as u32);
+            times += &format!("{trip},{t},{t},{s},{}\n", i + 1);
+        }
+    };
+    let line: Vec<String> = (1..=6).map(|i| format!("A{i}")).collect();
+    let line: Vec<&str> = line.iter().map(String::as_str).collect();
+    // R1: 50 trips of 10 minutes every 6 minutes from 10:00; R1-07 takes 40 minutes.
+    for k in 0..50u32 {
+        let step = if k == 7 { 480 } else { 120 };
+        add(
+            &format!("R1-{k:02}"),
+            "R1",
+            "",
+            &line,
+            36000 + k * 360,
+            step,
+        );
+    }
+    let mut line7 = line.clone();
+    line7.push("A7");
+    add("R2-1", "R2", "", &line7, 36000, 120);
+    add("R3-1", "R3", "SH1", &["A1", "B1", "B2"], 36000, 120);
+    add("R4-1", "R4", "SH1", &["A1", "C1", "C2"], 36000, 120);
+    add("R5-1", "R5", "SH1", &["N1", "D1", "D2"], 36000, 120);
+    add("R6-1", "R6", "", &["Z1", "Z2"], 36000, 120);
+    let shapes =
+        "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,41.0,29.0,1\nSH1,41.0,29.04,2\n";
+    let files: Vec<(&str, &[u8])> = vec![
+        ("agency.txt", AGENCY),
+        ("stops.txt", stops.as_bytes()),
+        ("routes.txt", routes.as_bytes()),
+        ("trips.txt", trips.as_bytes()),
+        ("stop_times.txt", times.as_bytes()),
+        ("calendar.txt", CALENDAR),
+        ("shapes.txt", shapes.as_bytes()),
+    ];
+    let vr = match run(&files) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+
+    let d = find(&vr, "VAT_001");
+    assert_eq!(get(&d, "shared_stops").as_deref(), Some("6"));
+    assert_eq!(get(&d, "stops_a").as_deref(), Some("6"));
+    assert_eq!(get(&d, "only_b").as_deref(), Some("A7"));
+    assert_eq!(get(&d, "only_a"), None);
+    for rule in ["VAT_002", "VAT_007"] {
+        let d = find(&vr, rule);
+        assert_eq!(get(&d, "nearby_stop_id").as_deref(), Some("N1"), "{rule}");
+        assert_eq!(get(&d, "nearby_routes").as_deref(), Some("R5"), "{rule}");
+        let m: f64 = get(&d, "nearby_distance_m").unwrap().parse().unwrap();
+        assert!((40.0..60.0).contains(&m), "{rule}: {m}");
+    }
+    let d = find(&vr, "VAT_003");
+    assert_eq!(get(&d, "duration_min").as_deref(), Some("40"));
+    assert_eq!(get(&d, "expected_min").as_deref(), Some("10"));
+    assert_eq!(get(&d, "departure").as_deref(), Some("10:42:00"));
+    assert_eq!(get(&d, "pattern_trips").as_deref(), Some("50"));
+    assert_eq!(get(&d, "example_0_minutes").as_deref(), Some("10"));
+    assert!(get(&d, "example_4_trip_id").is_some());
+    let d = find(&vr, "VAT_005");
+    assert_eq!(get(&d, "cluster_count").as_deref(), Some("1"));
+    assert_eq!(get(&d, "cluster_0_stops").as_deref(), Some("2"));
+    assert_eq!(get(&d, "cluster_0_trip_id").as_deref(), Some("R6-1"));
+    assert_eq!(get(&d, "cluster_0_routes").as_deref(), Some("R6"));
+    assert_eq!(get(&d, "cluster_0_nearest_stop_id").as_deref(), Some("A7"));
+    let d = find(&vr, "VAT_006");
+    assert_eq!(get(&d, "trips").as_deref(), Some("50"));
+    assert_eq!(get(&d, "total_trips").as_deref(), Some("55"));
+    assert_eq!(get(&d, "other_0_trips").as_deref(), Some("1"));
+    assert_eq!(get(&d, "other_0_route_id").as_deref(), Some("R2"));
+    let d = find(&vr, "VAT_008");
+    assert_eq!(get(&d, "routes").as_deref(), Some("R3,R4,R5"));
+    assert_eq!(get(&d, "total_routes").as_deref(), Some("6"));
+}

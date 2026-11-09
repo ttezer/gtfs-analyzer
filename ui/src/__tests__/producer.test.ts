@@ -1227,6 +1227,73 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('Sefer listesinin 4. satırındaki seferin hattı boş (Çarşı yönü · 08:15)');
   });
 
+  it('VAT kartları hatları, durakları ve seferleri planlamacı diliyle anlatır ve haritada çizer', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı', S4: 'Liman', N1: 'Peron 2', Z1: 'Ada', Z2: 'Köy' },
+      routes: { R1: '10', R2: '20', R5: '50', R6: '60' }, trips: { T1: 'Çarşı', T2: 'Liman', T5: 'Liman', T6: 'Köy' },
+      trip_routes: { T1: 'R1', T2: 'R2', T5: 'R5', T6: 'R6' },
+      trip_first_dep: { T1: '06:00', T2: '07:00', T5: '08:00', T6: '09:00' },
+      trip_stops: { T1: ['S1', 'S2', 'S3'], T2: ['S1', 'S2', 'S4'], T5: ['N1', 'S4'], T6: ['Z1', 'Z2'] },
+      trip_stop_sequences: { T1: [1, 2, 3], T2: [1, 2, 3], T5: [1, 2], T6: [1, 2] },
+      stop_coords: { S1: [41, 29], S2: [41.01, 29.01], S3: [41.02, 29.02], S4: [41.03, 29.0], N1: [41.0004, 29], Z1: [42, 30], Z2: [42.01, 30] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+
+    // VAT_001: both routes by number, the shared and the differing stops; both routes drawn.
+    let out = render(notice('a', 'VAT_001', 'MEDIUM', { entity_type: 'Route', entity_id: 'R1', observed_value: 'Jaccard=50%',
+      details: { routes: 'R1,R2', route_b: 'R2', shared_stops: '2', stops_a: '3', stops_b: '3', only_a: 'S3', only_b: 'S4' } }));
+    expect(out.html).toContain('10 ve 20 hatları aynı türde ve durakları büyük ölçüde ortak: 2 durak iki hatta da var (10: 3 durak, 20: 3 durak; benzerlik %50).');
+    expect(out.html).toContain('İki hat yalnız 2 durakta ayrılıyor');
+    expect(out.html).toContain('<tr class="bad"><td>Çarşı (S3)</td><td>✓</td><td>—</td></tr>');
+    expect(out.html).toContain('<tr class="bad"><td>Liman (S4)</td><td>—</td><td>✓</td></tr>');
+    expect(out.map.opts?.extraPolylines).toHaveLength(2);
+    expect(out.map.opts?.pins.filter(p => p.primary)).toHaveLength(2);
+
+    // VAT_002: the nearby stop a transfer could link, its distance and routes; both stops red, linked.
+    out = render(notice('a', 'VAT_002', 'INFO', { entity_type: 'Stop', entity_id: 'S1', observed_value: '2 routes',
+      details: { routes: 'R1,R2', nearby_stop_id: 'N1', nearby_distance_m: '45', nearby_routes: 'R5' } }));
+    expect(out.html).toContain('Hastane durağından 2 hat geçiyor (10, 20). 45 m ötedeki Peron 2 durağından ise bu durağa uğramayan hatlar geçiyor (50)');
+    expect(out.html).toContain('Yolcular Hastane ile Peron 2 arasında yürüyerek aktarma yapıyorsa');
+    expect(out.html).toContain('<tr class="bad"><td>Peron 2 (N1)</td><td>45 m</td><td>50</td></tr>');
+    expect(out.map.opts?.pins.filter(p => p.primary)).toHaveLength(2);
+    expect(out.map.opts?.extraPolylines?.length).toBeGreaterThanOrEqual(4);
+
+    // VAT_003: the trip, its duration against the same path's trips, a table of them; the trip drawn.
+    out = render(notice('a', 'VAT_003', 'LOW', { entity_type: 'Trip', entity_id: 'T1',
+      details: { duration_min: '40', expected_min: '10', departure: '06:00:00', pattern_trips: '6', example_0_trip_id: 'X1', example_0_departure: '05:54:00', example_0_minutes: '10' } }));
+    expect(out.html).toContain('10 hattının „Çarşı“ yönündeki 06:00 kalkışlı seferi 40 dk sürüyor; aynı güzergâhtaki seferler bu saatlerde yaklaşık 10 dk sürüyor, bu sefer 30 dk daha uzun.');
+    expect(out.html).toContain('<tr><td>05:54</td><td>10 dk</td></tr><tr class="bad"><td>06:00</td><td>40 dk</td></tr>');
+    expect(out.html).toContain('Haritadaki sefer: 10 · Çarşı yönü · 06:00 — durak sırası');
+
+    // VAT_005: the detached clusters, their route and the nearest main-network stop; linked on the map.
+    out = render(notice('a', 'VAT_005', 'MEDIUM', { entity_type: 'Feed', observed_value: '2 / 1',
+      details: { isolated_stops: 'Z1,Z2', cluster_count: '1', cluster_0_stops: '2', cluster_0_stop_id: 'Z1', cluster_0_trip_id: 'T6',
+        cluster_0_routes: 'R6', cluster_0_nearest_stop_id: 'S3', cluster_0_nearest_m: '140000' } }));
+    expect(out.html).toContain('1 durak grubu (2 durak) ağın geri kalanına hiçbir seferle bağlanmıyor');
+    expect(out.html).toContain('Örneğin Ada durağının grubunda çalışan hat(lar): 60; ana ağa en yakın durak Çarşı (140 km).');
+    expect(out.html).toContain('<tr class="bad"><td>Ada (Z1)</td><td>2</td><td>60</td><td>Çarşı (S3) · 140 km</td></tr>');
+    expect(out.map.opts?.pins.filter(p => p.primary).length).toBeGreaterThanOrEqual(2);
+
+    // VAT_006: the route's share and the next busiest routes.
+    out = render(notice('a', 'VAT_006', 'INFO', { entity_type: 'Route', entity_id: 'R1', observed_value: '50/55 (%91)',
+      details: { trips: '50', total_trips: '55', route_count: '3', other_0_route_id: 'R2', other_0_trips: '3' } }));
+    expect(out.html).toContain('10 hattı veri setindeki 55 seferin 50 tanesini (%91) yapıyor; diğer 2 hat kalan 5 seferi paylaşıyor.');
+    expect(out.html).toContain('<tr><td>20</td><td>3</td><td>%5</td></tr>');
+
+    // VAT_008: the routes on the shape, each route's own stops drawn.
+    out = render(notice('a', 'VAT_008', 'LOW', { entity_type: 'Shape', entity_id: 'SH1', observed_value: '67% (2 routes)',
+      details: { routes: 'R1,R2', route_count: '2', total_routes: '3' } }));
+    expect(out.html).toContain('&quot;SH1&quot; güzergâh çizimi 2 hatta kullanılıyor (10, 20; 3 hattın 2 tanesi, %67)');
+    expect(out.html).toContain('<tr class="bad"><td>20</td><td>—</td><td>Liman yönü · 07:00</td></tr>');
+    expect(out.map.opts?.extraPolylines).toHaveLength(2);
+  });
+
   it('STM_051–055 kartları Flex bölgesini, pencereyi, yazılan değeri ve aynı saatli durak serisini gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,

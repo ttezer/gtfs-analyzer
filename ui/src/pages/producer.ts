@@ -686,6 +686,162 @@ function trpTable(n: Notice, result: ValidationResult): string {
   return '';
 }
 
+/** Route numbers as riders know them, comma-separated ("S8, S9 +3"). */
+function routeLabels(ids: string[], result: ValidationResult, max = 6): string {
+  const shown = ids.slice(0, max).map(id => routeBadge(id, result.name_index).label);
+  return shown.length ? shown.join(', ') + (ids.length > max ? ` +${localizedNumber(String(ids.length - max))}` : '') : '—';
+}
+
+/** Each VAT rule's own sentence in the planner's words: routes by number, stops by name, trips
+ *  by route, direction and departure. */
+function vatRuleText(n: Notice, result: ValidationResult): string | null {
+  const ni = result.name_index;
+  const d = n.details ?? {};
+  const stop = (id?: string | null) => (id ? ni.stops?.[id] || id : '—');
+  const label = (id?: string | null) => (id ? routeBadge(id, ni).label : '—');
+  // The percentage next to its sign ("Jaccard=92%", "50/55 (%91)", "40% (4 routes)").
+  const pctMatch = /%(\d+)|(\d+)%/.exec(n.observed_value ?? '');
+  const pct = pctMatch?.[1] ?? pctMatch?.[2];
+  switch (n.rule_id) {
+    case 'VAT_001': {
+      const [a, b] = listOf(d.routes);
+      if (!a || !b || !d.shared_stops || !pct) return null;
+      const shared = Number(d.shared_stops);
+      const diff = Number(d.stops_a) - shared + Number(d.stops_b) - shared;
+      return [
+        t('producer.card.VAT_001.what_detail', {
+          a: label(a), b: label(b), shared: localizedNumber(d.shared_stops), na: localizedNumber(d.stops_a || '—'),
+          nb: localizedNumber(d.stops_b || '—'), pct: localizedNumber(pct),
+        }),
+        diff > 0 ? t('producer.card.VAT_001.what_diff', { n: localizedNumber(String(diff)) }) : t('producer.card.VAT_001.what_same'),
+      ].join(' ');
+    }
+    case 'VAT_002':
+    case 'VAT_007': {
+      const routes = listOf(d.routes);
+      if (!d.nearby_stop_id || !routes.length) return null;
+      return t(`producer.card.${n.rule_id}.what_detail`, {
+        stop: stop(n.entity_id), n: localizedNumber(String(routes.length)), routes: routeLabels(routes, result),
+        near: stop(d.nearby_stop_id), dist: metersText(d.nearby_distance_m), nroutes: routeLabels(listOf(d.nearby_routes), result),
+      });
+    }
+    case 'VAT_003': {
+      if (!n.entity_id || !d.duration_min || !d.expected_min) return null;
+      const dur = Number(d.duration_min);
+      const exp = Number(d.expected_min);
+      return [
+        t(dur >= exp ? 'producer.card.VAT_003.what_long' : 'producer.card.VAT_003.what_short', {
+          trip: tripPhrase(n.entity_id, result), dur: durationText(dur * 60), exp: durationText(exp * 60),
+          diff: durationText(Math.abs(dur - exp) * 60), n: localizedNumber(d.pattern_trips || '—'),
+        }),
+        d.duplicate_trips ? t('producer.card.VAT_003.what_repeat', { n: localizedNumber(d.duplicate_trips) }) : '',
+      ].filter(Boolean).join(' ');
+    }
+    case 'VAT_005': {
+      // From the details: the summary opens into stop rows, which drop the observed value.
+      const stops = String(listOf(d.isolated_stops).length);
+      const clusters = d.cluster_count;
+      if (!clusters || !d.cluster_0_stop_id) return null;
+      return [
+        t('producer.card.VAT_005.what_detail', { n: localizedNumber(clusters), stops: localizedNumber(stops) }),
+        t(d.cluster_0_nearest_stop_id ? 'producer.card.VAT_005.what_example' : 'producer.card.VAT_005.what_example_plain', {
+          stop: stop(d.cluster_0_stop_id), routes: routeLabels(listOf(d.cluster_0_routes), result),
+          near: stop(d.cluster_0_nearest_stop_id), dist: metersText(d.cluster_0_nearest_m),
+        }),
+      ].join(' ');
+    }
+    case 'VAT_006':
+      if (!d.trips || !d.total_trips || !pct) return null;
+      return t('producer.card.VAT_006.what_detail', {
+        route: label(routeIdOfNotice(n)), trips: localizedNumber(d.trips), total: localizedNumber(d.total_trips), pct: localizedNumber(pct),
+        others: localizedNumber(String(Math.max(0, Number(d.route_count || '0') - 1))),
+        rest: localizedNumber(String(Number(d.total_trips) - Number(d.trips))),
+      });
+    case 'VAT_008':
+      if (!n.entity_id || !d.routes || !pct) return null;
+      return t('producer.card.VAT_008.what_detail', {
+        shape: n.entity_id, n: localizedNumber(d.route_count || String(listOf(d.routes).length)),
+        routes: routeLabels(listOf(d.routes), result), total: localizedNumber(d.total_routes || '—'), pct: localizedNumber(pct),
+      });
+    default:
+      return null;
+  }
+}
+
+/** VAT tables: the stops only one route serves, the stops a transfer could link, the same path's
+ *  trips with their durations, the detached clusters, the trip share per route, the routes on a shape. */
+function vatTable(n: Notice, result: ValidationResult): string {
+  const ni = result.name_index;
+  const d = n.details ?? {};
+  const stop = (id?: string | null) => (id ? (ni.stops?.[id] ? `${ni.stops[id]} (${id})` : id) : '—');
+  const label = (id?: string | null) => (id ? routeBadge(id, ni).label : '—');
+  const table = (caption: string, head: string[], rows: Array<{ cells: string[]; bad?: boolean }>) =>
+    `<p class="producer-card-label">${escHtml(caption)}</p><table class="planner-times planner-stop-times"><thead><tr>${head.map(h => `<th>${escHtml(h)}</th>`).join('')}</tr></thead><tbody>${
+      rows.map(r => `<tr${r.bad ? ' class="bad"' : ''}>${r.cells.map(c => `<td>${escHtml(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  switch (n.rule_id) {
+    case 'VAT_001': {
+      const [a, b] = listOf(d.routes);
+      const rows = [
+        ...listOf(d.only_a).map(id => ({ cells: [stop(id), '✓', '—'], bad: true })),
+        ...listOf(d.only_b).map(id => ({ cells: [stop(id), '—', '✓'], bad: true })),
+      ];
+      return a && b && rows.length ? table(t('producer.times.vat001_stops'), [t('producer.col.stop'), label(a), label(b)], rows) : '';
+    }
+    case 'VAT_002':
+    case 'VAT_007':
+      if (!d.nearby_stop_id || !n.entity_id) return '';
+      return table(t('producer.times.vat_transfer_stops'), [t('producer.col.stop'), t('producer.times.vat_distance'), t('producer.col.route')], [
+        { cells: [stop(n.entity_id), '—', routeLabels(listOf(d.routes), result)] },
+        { cells: [stop(d.nearby_stop_id), metersText(d.nearby_distance_m), routeLabels(listOf(d.nearby_routes), result)], bad: true },
+      ]);
+    case 'VAT_003': {
+      if (!n.entity_id || !d.duration_min) return '';
+      const rows: Array<{ dep: string; cells: string[]; bad?: boolean }> = [
+        { dep: d.departure || '', cells: [plannerTime(d.departure) || '—', durationText(Number(d.duration_min) * 60)], bad: true },
+      ];
+      for (let i = 0; d[`example_${i}_trip_id`]; i++) {
+        const dep = d[`example_${i}_departure`] || '';
+        rows.push({ dep, cells: [plannerTime(dep) || '—', durationText(Number(d[`example_${i}_minutes`]) * 60)] });
+      }
+      rows.sort((x, y) => x.dep.localeCompare(y.dep));
+      return table(t('producer.times.vat003_trips'), [t('producer.col.departure'), t('producer.times.opr_duration')], rows);
+    }
+    case 'VAT_005': {
+      const rows = [];
+      for (let i = 0; d[`cluster_${i}_stop_id`]; i++) {
+        const at = (key: string) => d[`cluster_${i}_${key}`];
+        rows.push({
+          cells: [stop(at('stop_id')), localizedNumber(at('stops') || '—'), routeLabels(listOf(at('routes')), result),
+            at('nearest_stop_id') ? `${stop(at('nearest_stop_id'))} · ${metersText(at('nearest_m'))}` : '—'],
+          bad: true,
+        });
+      }
+      return rows.length
+        ? table(t('producer.times.vat005_clusters'), [t('producer.times.vat005_example_stop'), t('producer.times.vat005_stop_count'), t('producer.col.route'), t('producer.times.vat005_nearest')], rows)
+        : '';
+    }
+    case 'VAT_006': {
+      const routeId = routeIdOfNotice(n);
+      if (!routeId || !d.trips || !d.total_trips) return '';
+      const total = Number(d.total_trips);
+      const share = (v: string) => `%${localizedNumber(String(Math.round(Number(v) * 100 / Math.max(1, total))))}`;
+      const rows = [{ cells: [label(routeId), localizedNumber(d.trips), share(d.trips)], bad: true }];
+      for (let i = 0; d[`other_${i}_route_id`]; i++) {
+        rows.push({ cells: [label(d[`other_${i}_route_id`]), localizedNumber(d[`other_${i}_trips`] || '0'), share(d[`other_${i}_trips`] || '0')], bad: false });
+      }
+      return table(t('producer.times.vat006_routes'), [t('producer.col.route'), t('producer.times.trip_count'), t('producer.times.vat006_share')], rows);
+    }
+    case 'VAT_008': {
+      const routes = listOf(d.routes);
+      if (!routes.length) return '';
+      return table(t('producer.times.vat008_routes'), [t('producer.col.route'), t('producer.col.route_name'), t('producer.times.example_trip')],
+        routes.map(id => ({ cells: [label(id), ni.route_long_names?.[id] || '—', tripShort(routeExampleTrip(ni, id), result, false)], bad: true })));
+    }
+    default:
+      return '';
+  }
+}
+
 /** CAL_020: do the calendars themselves run longer than the five-year limit the rule uses? */
 function cal020LongCalendars(d: Record<string, string>): boolean {
   const ms = (v?: string) => (v && /^\d{8}$/.test(v) ? Date.UTC(Number(v.slice(0, 4)), Number(v.slice(4, 6)) - 1, Number(v.slice(6, 8))) : NaN);
@@ -1696,6 +1852,18 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         action: t(`producer.card.${g.ruleId}.action`),
       };
     }
+    case 'VAT_001': case 'VAT_002': case 'VAT_003': case 'VAT_005': case 'VAT_006': case 'VAT_007': case 'VAT_008': {
+      const what = vatRuleText(n, result);
+      if (!what) return null;
+      const d = n.details ?? {};
+      // VAT_002/007: the two stops a transfer could link, by name.
+      const action = (g.ruleId === 'VAT_002' || g.ruleId === 'VAT_007') && d.nearby_stop_id && n.entity_id
+        ? t('producer.card.vat_transfer_action', {
+          stop: result.name_index.stops?.[n.entity_id] || n.entity_id, near: result.name_index.stops?.[d.nearby_stop_id] || d.nearby_stop_id,
+        })
+        : t(`producer.card.${g.ruleId}.action`);
+      return { title: t(`producer.card.${g.ruleId}.title`), what, action };
+    }
     case 'TRP_001': case 'TRP_002': case 'TRP_003': case 'TRP_004': case 'TRP_005': case 'TRP_006': case 'TRP_007':
     case 'TRP_011': case 'TRP_012': case 'TRP_013': case 'TRP_014': case 'TRP_015': case 'TRP_017': case 'TRP_019':
     case 'TRP_020': case 'TRP_021': case 'TRP_022': case 'TRP_023': case 'TRP_024': case 'TRP_025': case 'TRP_026':
@@ -2026,7 +2194,7 @@ function dqIndexKey<T>(map: Record<string, T> | undefined, key?: string): string
 
 /** Rule groups whose cards draw one example trip with numbered stops and list it stop by stop. */
 function plannerTripRule(ruleId: string): boolean {
-  return ruleId.startsWith('DQ_') || ruleId.startsWith('CAL_') || ruleId.startsWith('OPR_') || ruleId.startsWith('TRP_');
+  return ruleId.startsWith('DQ_') || ruleId.startsWith('CAL_') || ruleId.startsWith('OPR_') || ruleId.startsWith('TRP_') || ruleId === 'VAT_003';
 }
 
 /** CAL findings (but CAL_020/022) carry the trips and routes on their calendar(s); the map draws the example trip. */
@@ -2072,7 +2240,7 @@ function dqExampleTrip(n: Notice, ni: ValidationResult['name_index']): string | 
       return dqIndexKey(ni.trip_stops, d.trip_before) ?? routeExampleTrip(ni, routeIdOfNotice(n));
     case 'OPR_006': case 'OPR_007': case 'OPR_008': case 'OPR_017':
     case 'TRP_001': case 'TRP_002': case 'TRP_006': case 'TRP_007': case 'TRP_011': case 'TRP_014':
-    case 'TRP_019': case 'TRP_020': case 'TRP_022': case 'TRP_026': case 'TRP_032': case 'TRP_034':
+    case 'TRP_019': case 'TRP_020': case 'TRP_022': case 'TRP_026': case 'TRP_032': case 'TRP_034': case 'VAT_003':
       // Trip findings: the trip itself (listed stop by stop; the map already draws it).
       return n.entity_type === 'Trip' ? dqIndexKey(ni.trip_stops, n.entity_id ?? undefined) : undefined;
     // TRP summaries: the row's own trip once opened into rows, else the first example.
@@ -2463,6 +2631,10 @@ function timeStripBody(n: Notice, result: ValidationResult): string {
   }
   if (n.rule_id.startsWith('TRP_')) {
     const table = trpTable(n, result);
+    if (table) return table;
+  }
+  if (n.rule_id.startsWith('VAT_')) {
+    const table = vatTable(n, result);
     if (table) return table;
   }
   if (n.rule_id === 'CAL_020' && d.feed_start_date && d.feed_end_date) {
@@ -3592,6 +3764,59 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     const other = n.details.other_trip_id;
     const coords = (ni.trip_stops?.[other] ?? []).map(id => coord(id)).filter((p): p is [number, number] => p !== null);
     if (coords.length > 1) lines.push({ coords, color: MAP_RED, weight: 3, arrows: true });
+  }
+  // VAT: the routes in question in their own colours, the stops the finding is about in red.
+  if (n.rule_id.startsWith('VAT_') && n.details) {
+    const d = n.details;
+    const drawTrip = (tripId: string | undefined, color: string, weight: number, mark: boolean | null) => {
+      const tripStops = tripId ? ni.trip_stops?.[tripId] ?? [] : [];
+      const coords = tripStops.map(id => coord(id)).filter((p): p is [number, number] => p !== null);
+      if (coords.length > 1) lines.push({ coords, color, weight, arrows: true });
+      if (mark !== null) for (const stopId of tripStops) addStop(stopId, mark);
+    };
+    // A route by its drawn lines (once each), else its example trip's stops; its stops grey.
+    const drawRoute = (routeId: string | undefined, withStops: boolean) => {
+      if (!routeId) return;
+      const color = routeColor(routeId);
+      let drawn = false;
+      for (const shapeId of (ni.route_shapes?.[routeId] ?? []).slice(0, 2)) {
+        const coords = ni.shape_coords?.[shapeId];
+        drawn = lines.some(l => l.coords === coords) || addShape(shapeId, color) || drawn;
+      }
+      const tripId = routeExampleTrip(ni, routeId);
+      if (!drawn) drawTrip(tripId, color, 4, withStops ? false : null);
+      else if (withStops) for (const stopId of (tripId ? ni.trip_stops?.[tripId] ?? [] : [])) addStop(stopId, false);
+    };
+    const link = (from?: string | null, to?: string | null) => {
+      const a = coord(from);
+      const b = coord(to);
+      if (a && b) segments.push({ coords: [a, b], color: MAP_RED, weight: 3 });
+    };
+    if (n.rule_id === 'VAT_001') {
+      for (const id of [...listOf(d.only_a), ...listOf(d.only_b)]) addStop(id, true);
+      for (const routeId of listOf(d.routes)) drawRoute(routeId, true);
+      focus = undefined;
+    } else if (n.rule_id === 'VAT_002' || n.rule_id === 'VAT_007') {
+      addStop(d.nearby_stop_id, true);
+      link(n.entity_id, d.nearby_stop_id);
+      for (const routeId of listOf(d.routes).slice(0, 4)) drawRoute(routeId, false);
+      for (const routeId of listOf(d.nearby_routes).slice(0, 3)) drawRoute(routeId, false);
+    } else if (n.rule_id === 'VAT_005') {
+      for (const id of listOf(d.isolated_stops)) addStop(id, true);
+      for (let i = 0; d[`cluster_${i}_stop_id`]; i++) {
+        const tripId = d[`cluster_${i}_trip_id`];
+        drawTrip(tripId, routeColor(tripId ? ni.trip_routes?.[tripId] : undefined), 4, true);
+        addStop(d[`cluster_${i}_nearest_stop_id`], false);
+        link(d[`cluster_${i}_stop_id`], d[`cluster_${i}_nearest_stop_id`]);
+      }
+      focus = undefined;
+    } else if (n.rule_id === 'VAT_006') {
+      drawRoute(routeIdOfNotice(n) ?? undefined, true);
+      for (let i = 0; i < 3 && d[`other_${i}_route_id`]; i++) drawRoute(d[`other_${i}_route_id`], false);
+    } else if (n.rule_id === 'VAT_008') {
+      // Each route's own stops, straight between them, so a route that leaves the shared line shows.
+      for (const routeId of listOf(d.routes).slice(0, 6)) drawTrip(routeExampleTrip(ni, routeId), routeColor(routeId), 3, false);
+    }
   }
   // OPR_014: the stops of the longest transfers.
   if (n.rule_id === 'OPR_014' && n.details) {
