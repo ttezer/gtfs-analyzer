@@ -1172,6 +1172,53 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('<td>Sefer listesi</td>');
   });
 
+  it('kalan TRP kartları seferleri, blokları, takvimi ve satırı planlamacı diliyle anlatır', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı' },
+      routes: { R1: '10' }, trips: { T1: 'Okul', T2: 'Çarşı' }, trip_routes: { T1: 'R1', T2: 'R1' },
+      trip_first_dep: { T1: '08:00', T2: '08:15' },
+      trip_stops: { T1: ['S1', 'S2', 'S3'], T2: ['S1', 'S3'] }, trip_stop_sequences: { T1: [1, 2, 3], T2: [1, 2] },
+      stop_coords: { S1: [41, 29], S2: [41.01, 29.01], S3: [41.02, 29.02] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+
+    // TRP_020: the headsign is an intermediate stop, red in the stop list; the real last stop named.
+    let out = render(notice('a', 'TRP_020', 'LOW', { entity_type: 'Trip', entity_id: 'T1', observed_value: 'Okul',
+      details: { stop_id: 'S2', stop_sequence: '2', last_stop_id: 'S3' } }));
+    expect(out.html).toContain('10 hattının „Okul“ yönündeki 08:00 kalkışlı seferinin yön adı &quot;Okul&quot; seferin son durağı değil, yol üzerindeki bir ara durak (Okul, 2. sıra); sefer Çarşı durağında bitiyor.');
+    expect(out.html).toContain('<tr class="bad"><td>2</td><td>Okul (S2)</td></tr>');
+
+    // TRP_022: both trips with their times, the other trip also on the map.
+    out = render(notice('a', 'TRP_022', 'MEDIUM', { entity_type: 'Trip', entity_id: 'T1',
+      details: { block_id: 'B1', other_trip_id: 'T2', start: '08:00', end: '08:20', other_start: '08:15', other_end: '08:30' } }));
+    expect(out.html).toContain('aynı araç bloğunda (B1) ama saatleri çakışıyor: biri 08:00–08:20, diğeri 08:15–08:30');
+    expect(out.html).toContain('<tr class="bad"><td>10 · Çarşı yönü · 08:15</td><td>08:15</td><td>08:30</td></tr>');
+    expect(out.map.opts?.extraPolylines?.some(l => l.color === '#dc2626' || l.coords.length === 2)).toBe(true);
+
+    // TRP_028: some trips without wheelchair information.
+    out = render(notice('a', 'TRP_028', 'LOW', { entity_type: 'Feed', file: 'trips.txt', observed_value: '1/2',
+      details: { missing_trips: '1', trip_count: '2', example_trips: 'T2' } }));
+    expect(out.html).toContain('2 seferin 1 tanesinde (%50) tekerlekli sandalye bilgisi yok');
+
+    // TRP_023: the next service day; TRP_024: route types by name.
+    out = render(notice('a', 'TRP_023', 'HIGH', { entity_type: 'Feed', file: 'calendar.txt', details: { next_active: '20260601' } }));
+    expect(out.html).toContain('Önümüzdeki 7 günde hiçbir sefer çalışmıyor; ilk çalışma günü 01.06.2026.');
+    out = render(notice('a', 'TRP_024', 'MEDIUM', { entity_type: 'Trip', entity_id: 'B1', observed_value: 'route_type=0', expected_value: 'route_type=3',
+      details: { block_id: 'B1', trip_count: '1', first_trip: 'T1', trips: 'T2' } }));
+    expect(out.html).toContain('B1 araç bloğundaki seferler farklı türde hatlara ait (Otobüs (3), Tramvay (0))');
+    expect(out.html).toContain('<td>B1</td><td>10 · Okul yönü · 08:00</td>');
+
+    // TRP_031: the code-less route row named by its trip.
+    out = render(notice('a', 'TRP_031', 'HIGH', { entity_type: 'Trip', file: 'trips.txt', line: 4, details: { trip_id: 'T2' } }));
+    expect(out.html).toContain('Sefer listesinin 4. satırındaki seferin hattı boş (Çarşı yönü · 08:15)');
+  });
+
   it('STM_051–055 kartları Flex bölgesini, pencereyi, yazılan değeri ve aynı saatli durak serisini gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,

@@ -7970,3 +7970,74 @@ fn trip_findings_carry_planner_context() {
     assert_eq!(get(&d, "example_0_block").as_deref(), Some("B1"));
     assert_eq!(get(&d, "example_0_trip_id").as_deref(), Some("T1"));
 }
+
+#[test]
+fn remaining_trip_findings_carry_planner_context() {
+    // TRP_017 the frequency window, TRP_020 the intermediate stop and the last stop, TRP_021/028
+    // counts and example trips, TRP_022 the other trip and both time ranges, TRP_023 the next
+    // service day, TRP_031/035 the row's trip. Counts are unchanged.
+    let run_ok = |files: &[(&str, &[u8])]| match run(files) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+    let find = |vr: &gtfs_pipeline::ValidationResult, rule: &str| {
+        vr.notices
+            .iter()
+            .find(|n| n.rule_id == rule)
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor"))
+    };
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+
+    static STOPS3: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
+          S1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nS3,Stop3,41.2,29.2\n";
+    static TRIPS: &[u8] =
+        b"route_id,service_id,trip_id,trip_headsign,block_id,wheelchair_accessible,bikes_allowed\n\
+          R1,SVC1,T1,Stop2,B1,1,1\nR1,SVC1,T2,Stop3,B1,,\nR1,SVC1,F1,Stop3,,1,\n\
+          ,SVC1,T8,Stop3,,1,\nR1,,T9,Stop3,,1,\n";
+    static TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT1,08:20:00,08:20:00,S3,3\n\
+          T2,08:15:00,08:15:00,S1,1\nT2,08:30:00,08:30:00,S3,2\n";
+    static FREQ: &[u8] = b"trip_id,start_time,end_time,headway_secs\nF1,06:00:00,09:00:00,600\n";
+    let mut files = base_files();
+    files[1] = ("stops.txt", STOPS3);
+    files[3] = ("trips.txt", TRIPS);
+    files[4] = ("stop_times.txt", TIMES);
+    files.push(("frequencies.txt", FREQ));
+    let vr = run_ok(&files);
+
+    let d = find(&vr, "TRP_017");
+    assert_eq!(get(&d, "start_time").as_deref(), Some("06:00"));
+    assert_eq!(get(&d, "end_time").as_deref(), Some("09:00"));
+    assert_eq!(get(&d, "headway_secs").as_deref(), Some("600"));
+    let d = find(&vr, "TRP_020");
+    assert_eq!(get(&d, "stop_id").as_deref(), Some("S2"));
+    assert_eq!(get(&d, "stop_sequence").as_deref(), Some("2"));
+    assert_eq!(get(&d, "last_stop_id").as_deref(), Some("S3"));
+    let d = find(&vr, "TRP_021");
+    assert_eq!(get(&d, "missing_trips").as_deref(), Some("4"));
+    assert_eq!(get(&d, "trip_count").as_deref(), Some("5"));
+    let d = find(&vr, "TRP_022");
+    assert_eq!(get(&d, "block_id").as_deref(), Some("B1"));
+    assert_eq!(get(&d, "start").as_deref(), Some("08:00"));
+    assert_eq!(get(&d, "other_end").as_deref(), Some("08:30"));
+    let d = find(&vr, "TRP_028");
+    assert_eq!(get(&d, "missing_trips").as_deref(), Some("1"));
+    assert_eq!(get(&d, "example_trips").as_deref(), Some("T2"));
+    let d = find(&vr, "TRP_031");
+    assert_eq!(get(&d, "trip_id").as_deref(), Some("T8"));
+    let d = find(&vr, "TRP_035");
+    assert_eq!(get(&d, "trip_id").as_deref(), Some("T9"));
+    assert_eq!(get(&d, "route_id").as_deref(), Some("R1"));
+
+    // TRP_023: no service in the next 7 days, the next day is 1 June.
+    static LATER: &[u8] =
+        b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
+          SVC1,1,1,1,1,1,1,1,20260601,20261231\n";
+    let mut files = base_files();
+    files[5] = ("calendar.txt", LATER);
+    let vr = run_ok(&files);
+    let d = find(&vr, "TRP_023");
+    assert_eq!(get(&d, "next_active").as_deref(), Some("20260601"));
+    assert_eq!(get(&d, "trip_count").as_deref(), Some("1"));
+}

@@ -296,7 +296,7 @@ const DQ021_KIND: Record<string, string> = {
  *  show file and column names. A column without a name keeps its own (the planner still has to
  *  find it); a file without one leaves the card to its general text. */
 const PLANNER_LISTS = new Set(['agency', 'stops', 'routes', 'trips', 'stop_times', 'calendar', 'calendar_dates', 'shapes', 'frequencies', 'transfers', 'feed_info', 'fare_attributes', 'fare_rules', 'translations', 'attributions', 'pathways', 'levels']);
-const PLANNER_FIELDS = new Set(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'start_date', 'end_date', 'stop_id', 'stop_code', 'stop_name', 'stop_desc', 'stop_lat', 'stop_lon', 'zone_id', 'stop_url', 'parent_station', 'platform_code', 'tts_stop_name', 'route_id', 'route_short_name', 'route_long_name', 'route_desc', 'route_url', 'route_color', 'route_text_color', 'agency_id', 'agency_name', 'agency_url', 'agency_timezone', 'agency_phone', 'agency_lang', 'trip_id', 'service_id', 'trip_headsign', 'trip_short_name', 'block_id', 'shape_id', 'stop_headsign', 'arrival_time', 'departure_time', 'date', 'feed_publisher_name', 'feed_publisher_url', 'feed_lang', 'fare_id']);
+const PLANNER_FIELDS = new Set(['safe_duration_factor', 'safe_duration_offset', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'start_date', 'end_date', 'stop_id', 'stop_code', 'stop_name', 'stop_desc', 'stop_lat', 'stop_lon', 'zone_id', 'stop_url', 'parent_station', 'platform_code', 'tts_stop_name', 'route_id', 'route_short_name', 'route_long_name', 'route_desc', 'route_url', 'route_color', 'route_text_color', 'agency_id', 'agency_name', 'agency_url', 'agency_timezone', 'agency_phone', 'agency_lang', 'trip_id', 'service_id', 'trip_headsign', 'trip_short_name', 'block_id', 'shape_id', 'stop_headsign', 'arrival_time', 'departure_time', 'date', 'feed_publisher_name', 'feed_publisher_url', 'feed_lang', 'fare_id']);
 function plannerListName(file?: string | null): string | null {
   const stem = file?.replace(/\.txt$/, '');
   return stem && PLANNER_LISTS.has(stem) ? t(`producer.list.${stem}`) : null;
@@ -310,7 +310,8 @@ function dqListLabel(n: Notice): string | null {
   // CAL_020 / OPR_014 / OPR_016 / OPR_025 are about a whole list: name it, not the engine's summary ("11 years").
   if (['DQ_016', 'CAL_020', 'OPR_014', 'OPR_016', 'OPR_025', 'TRP_015'].includes(n.rule_id)) return plannerListName(n.file);
   // TRP_001 on a code-less row: the row is in the trip list.
-  if (n.rule_id === 'TRP_001' && !n.entity_id) return plannerListName(n.file);
+  if ((n.rule_id === 'TRP_001' || n.rule_id === 'TRP_031' || n.rule_id === 'TRP_035') && !n.entity_id) return plannerListName(n.file);
+  if (['TRP_023', 'TRP_025', 'TRP_028', 'TRP_029', 'TRP_021'].includes(n.rule_id) && !n.entity_id) return plannerListName(n.file);
   const kind = n.rule_id === 'DQ_021' && n.file ? DQ021_KIND[n.file] : undefined;
   return kind ? t(`producer.card.DQ_021.list_${kind}`) : null;
 }
@@ -566,9 +567,83 @@ function trpRuleText(n: Notice, result: ValidationResult): string | null {
       return d.trips_with_block && n.observed_value
         ? t('producer.card.TRP_015.what_detail', { trips: localizedNumber(d.trips_with_block), blocks: localizedNumber(n.observed_value) })
         : null;
+    case 'TRP_017':
+      if (!trip) return null;
+      return d.start_time && d.end_time && d.headway_secs
+        ? t('producer.card.TRP_017.what_detail', {
+          trip: tripPhrase(trip, result), start: d.start_time, end: d.end_time, headway: durationText(Number(d.headway_secs)),
+        })
+        : t('producer.card.TRP_017.what_plain', { trip: tripPhrase(trip, result) });
+    case 'TRP_019':
+      return trip ? t('producer.card.TRP_019.what_detail', { trip: tripPhrase(trip, result) }) : null;
+    case 'TRP_020':
+      return trip && value && d.stop_id
+        ? t('producer.card.TRP_020.what_detail', {
+          trip: tripPhrase(trip, result, 'gen'), headsign: value, stop: ni.stops?.[d.stop_id] || d.stop_id,
+          seq: d.stop_sequence || '—', last: (d.last_stop_id && (ni.stops?.[d.last_stop_id] || d.last_stop_id)) || '—',
+        })
+        : null;
+    case 'TRP_021':
+    case 'TRP_025':
+    case 'TRP_028':
+    case 'TRP_029': {
+      if (!d.missing_trips || !d.trip_count) return null;
+      const all = d.missing_trips === d.trip_count;
+      const kind = n.rule_id === 'TRP_021' ? 'bikes' : 'wheelchair';
+      return t(`producer.card.trp_${kind}_${all ? 'all' : 'some'}`, {
+        n: localizedNumber(d.missing_trips), total: localizedNumber(d.trip_count),
+        pct: localizedNumber(String(Math.round(Number(d.missing_trips) * 100 / Math.max(1, Number(d.trip_count))))),
+      });
+    }
+    case 'TRP_022':
+      return trip && d.other_trip_id && d.block_id
+        ? t('producer.card.TRP_022.what_detail', {
+          trip: tripPhrase(trip, result), other: tripPhrase(d.other_trip_id, result), block: d.block_id,
+          start: d.start || '—', end: d.end || '—', other_start: d.other_start || '—', other_end: d.other_end || '—',
+        })
+        : null;
+    case 'TRP_023':
+      return t(d.next_active ? 'producer.card.TRP_023.what_detail' : 'producer.card.TRP_023.what_none', { next: ymdText(d.next_active) });
+    case 'TRP_024': {
+      const types = [...new Set([/route_type=([\d/]+)/.exec(n.expected_value ?? '')?.[1], /route_type=([\d/]+)/.exec(n.observed_value ?? '')?.[1]]
+        .filter((v): v is string => Boolean(v)).flatMap(v => v.split('/')))].map(routeTypeName);
+      return d.block_id && types.length
+        ? t('producer.card.TRP_024.what_detail', { block: d.block_id, types: types.join(', '), n: localizedNumber(String(Number(d.trip_count || '0') + 1)) })
+        : null;
+    }
+    case 'TRP_026':
+      return trip && value ? t('producer.card.TRP_026.what_detail', { trip: tripPhrase(trip, result), svc: value }) : null;
+    case 'TRP_031':
+    case 'TRP_035': {
+      if (n.line == null) return null;
+      const parts = [
+        d.trip_id ? tripShort(d.trip_id, result, n.rule_id === 'TRP_035') : '',
+        n.rule_id === 'TRP_031' && d.service_id ? plannerServiceText(d.service_id, result) : '',
+      ].filter(v => v && v !== d.trip_id);
+      if (!parts.length && d.trip_headsign) parts.push(t('producer.trip.dir', { headsign: d.trip_headsign }));
+      return t(`producer.card.${n.rule_id}.what_detail`, { line: String(n.line), ctx: parts.length ? ` (${parts.join(', ')})` : '' });
+    }
+    case 'TRP_032':
+      return trip && n.observed_value != null ? t('producer.card.TRP_032.what_detail', { trip: tripPhrase(trip, result, 'gen'), value }) : null;
+    case 'TRP_034':
+      return trip && n.field
+        ? t('producer.card.TRP_034.what_detail', { trip: tripPhrase(trip, result, 'gen'), field: plannerFieldName(n.field).toLocaleLowerCase(intlLocale()), value })
+        : null;
     default:
       return null;
   }
+}
+
+/** A route type code as a mode planners name ("Otobüs"); extended codes by their mode family. */
+function routeTypeName(code: string): string {
+  const c = Number(code);
+  const base = !Number.isFinite(c) ? NaN
+    : c < 100 ? c
+      : c < 200 ? 2 : c < 300 ? 3 : c < 500 ? 1 : c < 800 ? 3 : c < 900 ? 11 : c < 1000 ? 0
+        : c < 1200 ? 4 : c < 1400 ? 6 : c < 1500 ? 7 : NaN;
+  const key = `producer.route_type.${base}`;
+  const text = t(key);
+  return text === key ? code : `${text} (${code})`;
 }
 
 /** TRP tables: the trips without a direction, the blocks with their one trip. */
@@ -588,6 +663,20 @@ function trpTable(n: Notice, result: ValidationResult): string {
     return trips.length
       ? table(t('producer.times.trp012_trips'), [t('producer.col.trip'), t('producer.times.trp_path')], trips.map(id => [tripShort(id, result, false), route(id)]))
       : '';
+  }
+  if (n.rule_id === 'TRP_022' && d.other_trip_id && n.entity_id) {
+    return table(t('producer.times.trp022_trips'), [t('producer.col.trip'), t('producer.times.trp_start'), t('producer.times.trp_end')], [
+      [tripShort(n.entity_id, result), d.start || '—', d.end || '—'],
+      [tripShort(d.other_trip_id, result), d.other_start || '—', d.other_end || '—'],
+    ]);
+  }
+  if (n.rule_id === 'TRP_024' && d.trips) {
+    const trips = [d.first_trip, ...listOf(d.trips)].filter((id): id is string => Boolean(id));
+    return table(t('producer.times.trp024_trips', { block: d.block_id || '—' }), [t('producer.col.trip')], [...new Set(trips)].map(id => [tripShort(id, result)]));
+  }
+  if (n.rule_id === 'TRP_017' && d.start_time && d.end_time) {
+    return table(t('producer.times.trp017_frequency'), [t('producer.times.trp_start'), t('producer.times.trp_end'), t('producer.times.trp_headway')],
+      [[d.start_time, d.end_time, d.headway_secs ? durationText(Number(d.headway_secs)) : '—']]);
   }
   if (n.rule_id === 'TRP_015') {
     const rows: string[][] = [];
@@ -1608,11 +1697,16 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       };
     }
     case 'TRP_001': case 'TRP_002': case 'TRP_003': case 'TRP_004': case 'TRP_005': case 'TRP_006': case 'TRP_007':
-    case 'TRP_011': case 'TRP_012': case 'TRP_013': case 'TRP_014': case 'TRP_015': {
+    case 'TRP_011': case 'TRP_012': case 'TRP_013': case 'TRP_014': case 'TRP_015': case 'TRP_017': case 'TRP_019':
+    case 'TRP_020': case 'TRP_021': case 'TRP_022': case 'TRP_023': case 'TRP_024': case 'TRP_025': case 'TRP_026':
+    case 'TRP_028': case 'TRP_029': case 'TRP_031': case 'TRP_032': case 'TRP_034': case 'TRP_035': {
       const what = trpRuleText(n, result);
       if (!what) return null;
       // Summaries and route findings also say which trip the map draws; trip findings are that trip.
-      const extra = n.entity_type === 'Trip' ? '' : dqTripMapText(dqExampleTrip(n, result.name_index), result);
+      // TRP_023/026 also name the trips and routes on the calendar(s).
+      const usage = g.ruleId === 'TRP_023' || g.ruleId === 'TRP_026' ? calUsageText(n) : '';
+      const mapText = n.entity_type === 'Trip' && n.entity_id && g.ruleId !== 'TRP_024' ? '' : dqTripMapText(dqExampleTrip(n, result.name_index), result);
+      const extra = [usage, mapText].filter(Boolean).join(' ');
       // TRP_011: the trip's last stop as a headsign the planner can start from.
       const stops = g.ruleId === 'TRP_011' && n.entity_id ? result.name_index.trip_stops?.[n.entity_id] ?? [] : [];
       const last = stops.length ? result.name_index.stops?.[stops[stops.length - 1]] : undefined;
@@ -1973,10 +2067,11 @@ function dqExampleTrip(n: Notice, ni: ValidationResult['name_index']): string | 
       return dqIndexKey(ni.trip_stops, d.trip_before) ?? routeExampleTrip(ni, routeIdOfNotice(n));
     case 'OPR_006': case 'OPR_007': case 'OPR_008': case 'OPR_017':
     case 'TRP_001': case 'TRP_002': case 'TRP_006': case 'TRP_007': case 'TRP_011': case 'TRP_014':
+    case 'TRP_019': case 'TRP_020': case 'TRP_022': case 'TRP_026': case 'TRP_032': case 'TRP_034':
       // Trip findings: the trip itself (listed stop by stop; the map already draws it).
       return n.entity_type === 'Trip' ? dqIndexKey(ni.trip_stops, n.entity_id ?? undefined) : undefined;
     // TRP summaries: the row's own trip once opened into rows, else the first example.
-    case 'TRP_003': case 'TRP_005': case 'TRP_012':
+    case 'TRP_003': case 'TRP_005': case 'TRP_012': case 'TRP_021': case 'TRP_025': case 'TRP_028': case 'TRP_029':
       return n.entity_type === 'Trip'
         ? dqIndexKey(ni.trip_stops, n.entity_id ?? undefined)
         : listOf(d.example_trips).map(id => dqIndexKey(ni.trip_stops, id)).find(Boolean);
@@ -1986,6 +2081,13 @@ function dqExampleTrip(n: Notice, ni: ValidationResult['name_index']): string | 
       return dqIndexKey(ni.trip_stops, d.example_trip_id) ?? routeExampleTrip(ni, routeIdOfNotice(n));
     case 'TRP_015':
       return dqIndexKey(ni.trip_stops, d.example_0_trip_id);
+    case 'TRP_023':
+      return dqIndexKey(ni.trip_stops, d.example_trip_id);
+    case 'TRP_024':
+      return dqIndexKey(ni.trip_stops, d.first_trip);
+    case 'TRP_031':
+    case 'TRP_035':
+      return dqIndexKey(ni.trip_stops, d.trip_id);
     case 'OPR_009':
     case 'OPR_025':
       return dqIndexKey(ni.trip_stops, d.example_trip_id) ?? (n.entity_type === 'Route' ? routeExampleTrip(ni, routeIdOfNotice(n)) : undefined);
@@ -3477,6 +3579,12 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   if (n.rule_id === 'DQ_022') {
     for (let i = 0; n.details?.[`example_${i}_stop_id`]; i++) addStop(n.details[`example_${i}_stop_id`], true);
   }
+  // TRP_022: the other trip of the block too, so both overlapping trips are on the map.
+  if (n.rule_id === 'TRP_022' && n.details?.other_trip_id) {
+    const other = n.details.other_trip_id;
+    const coords = (ni.trip_stops?.[other] ?? []).map(id => coord(id)).filter((p): p is [number, number] => p !== null);
+    if (coords.length > 1) lines.push({ coords, color: MAP_RED, weight: 3, arrows: true });
+  }
   // OPR_014: the stops of the longest transfers.
   if (n.rule_id === 'OPR_014' && n.details) {
     for (let i = 0; n.details[`example_${i}_seconds`]; i++) {
@@ -3653,6 +3761,13 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
   switch (first.entity_id ? first.entity_type : 'Feed') {
     case 'Trip': {
       if (g.ruleId === 'STM_006') return stm006Columns();
+      // TRP_024's record is a vehicle block, not a trip: its code and its first trip.
+      if (g.ruleId === 'TRP_024') {
+        return {
+          head: [t('producer.times.trp_block'), t('producer.col.trip')],
+          row: n => [dash(n.details?.block_id || n.entity_id), tripShort(n.details?.first_trip, result)],
+        };
+      }
       if (g.ruleId === 'STM_018' || g.ruleId === 'STM_019') return continuousServiceColumns();
       const withSpot = timeSpot(first, result) !== null;
       return days(

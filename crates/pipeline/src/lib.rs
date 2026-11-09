@@ -2372,11 +2372,11 @@ pub fn aggregate_feed_level_notices(
 }
 
 /// Calendar findings whose planner card names the trips and routes running on the calendar(s).
-const CALENDAR_USAGE_RULES: [&str; 25] = [
+const CALENDAR_USAGE_RULES: [&str; 27] = [
     "CAL_001", "CAL_002", "CAL_003", "CAL_004", "CAL_005", "CAL_006", "CAL_007", "CAL_008",
     "CAL_009", "CAL_010", "CAL_011", "CAL_012", "CAL_013", "CAL_014", "CAL_015", "CAL_016",
     "CAL_017", "CAL_018", "CAL_021", "CAL_023", "CAL_024", "CAL_025", "OPR_011", "OPR_012",
-    "OPR_016",
+    "OPR_016", "TRP_023", "TRP_026",
 ];
 /// Routes listed per calendar finding (most trips first).
 const CALENDAR_USAGE_ROUTES: usize = 10;
@@ -2428,9 +2428,12 @@ fn annotate_calendar_usage(all: &mut [gtfs_core::Notice], records: &EntityRecord
                 .filter(|c| !c.service_id.is_empty())
                 .map(|c| c.service_id.clone())
                 .collect()
-        } else if n.rule_id == "CAL_015" || n.rule_id == "OPR_016" {
+        } else if n.rule_id == "CAL_015" || n.rule_id == "OPR_016" || n.rule_id == "TRP_023" {
             // No calendar runs yet: every trip of the feed waits for the first service date.
             usage.keys().map(|s| s.to_string()).collect()
+        } else if n.rule_id == "TRP_026" {
+            // A trip finding about its calendar: the calendar is the observed service_id.
+            n.observed_value.clone().into_iter().collect()
         } else if n.entity_type == gtfs_core::EntityType::Service || n.rule_id == "CAL_025" {
             // CAL_025 is a calendar row finding: its record is the calendar itself.
             n.entity_id.clone().into_iter().collect()

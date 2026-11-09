@@ -465,24 +465,6 @@
         "entity_id": null,
         "entity_type": "Feed",
         "expected_value": "1 or 2",
-        "field": "wheelchair_accessible",
-        "file": "trips.txt",
-        "line": null,
-        "message": "None of the trips have wheelchair accessibility information (1 trips).",
-        "observed_value": "1",
-        "remediation": "Report wheelchair accessibility using the wheelchair_accessible field (1=accessible, 2=not accessible).",
-        "rule_class": "QUALITY",
-        "rule_id": "TRP_029",
-        "scope_key": null,
-        "service_id": null,
-        "severity": "INFO",
-        "title": "No trips report wheelchair accessibility"
-      },
-      {
-        "details": null,
-        "entity_id": null,
-        "entity_type": "Feed",
-        "expected_value": "1 or 2",
         "field": "wheelchair_boarding",
         "file": "stops.txt",
         "line": null,
@@ -531,24 +513,6 @@
         "service_id": null,
         "severity": "INFO",
         "title": "Feed geographic coverage summary"
-      },
-      {
-        "details": null,
-        "entity_id": null,
-        "entity_type": "Trip",
-        "expected_value": "1|2",
-        "field": "bikes_allowed",
-        "file": "trips.txt",
-        "line": null,
-        "message": "Some trips carry no bicycle information: bikes_allowed is empty or 0 (1/1).",
-        "observed_value": "1/1",
-        "remediation": "Set bikes_allowed to 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty both mean no information.",
-        "rule_class": "QUALITY",
-        "rule_id": "TRP_021",
-        "scope_key": null,
-        "service_id": null,
-        "severity": "INFO",
-        "title": "Bicycle allowance (bikes_allowed) not specified"
       },
       {
         "details": {
@@ -667,6 +631,50 @@
         "service_id": "SVC1",
         "severity": "INFO",
         "title": "Route has only one trip"
+      },
+      {
+        "details": {
+          "example_trips": "T1",
+          "missing_trips": "1",
+          "trip_count": "1"
+        },
+        "entity_id": null,
+        "entity_type": "Feed",
+        "expected_value": "1 or 2",
+        "field": "wheelchair_accessible",
+        "file": "trips.txt",
+        "line": null,
+        "message": "None of the trips have wheelchair accessibility information (1 trips).",
+        "observed_value": "1",
+        "remediation": "Report wheelchair accessibility using the wheelchair_accessible field (1=accessible, 2=not accessible).",
+        "rule_class": "QUALITY",
+        "rule_id": "TRP_029",
+        "scope_key": null,
+        "service_id": null,
+        "severity": "INFO",
+        "title": "No trips report wheelchair accessibility"
+      },
+      {
+        "details": {
+          "example_trips": "T1",
+          "missing_trips": "1",
+          "trip_count": "1"
+        },
+        "entity_id": null,
+        "entity_type": "Trip",
+        "expected_value": "1|2",
+        "field": "bikes_allowed",
+        "file": "trips.txt",
+        "line": null,
+        "message": "Some trips carry no bicycle information: bikes_allowed is empty or 0 (1/1).",
+        "observed_value": "1/1",
+        "remediation": "Set bikes_allowed to 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty both mean no information.",
+        "rule_class": "QUALITY",
+        "rule_id": "TRP_021",
+        "scope_key": null,
+        "service_id": null,
+        "severity": "INFO",
+        "title": "Bicycle allowance (bikes_allowed) not specified"
       },
       {
         "details": {
@@ -6972,42 +6980,6 @@
           "title": "File size (info)"
         },
         {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": "1 or 2",
-          "field": "wheelchair_accessible",
-          "file": "trips.txt",
-          "line": null,
-          "message": "None of the trips have wheelchair accessibility information (2 trips).",
-          "observed_value": "2",
-          "remediation": "Report wheelchair accessibility using the wheelchair_accessible field (1=accessible, 2=not accessible).",
-          "rule_class": "QUALITY",
-          "rule_id": "TRP_029",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "No trips report wheelchair accessibility"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Trip",
-          "expected_value": "1|2",
-          "field": "bikes_allowed",
-          "file": "trips.txt",
-          "line": null,
-          "message": "Some trips carry no bicycle information: bikes_allowed is empty or 0 (2/2).",
-          "observed_value": "2/2",
-          "remediation": "Set bikes_allowed to 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty both mean no information.",
-          "rule_class": "QUALITY",
-          "rule_id": "TRP_021",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Bicycle allowance (bikes_allowed) not specified"
-        },
-        {
           "details": {
             "affected_segments": "1",
             "arr": "08:00:00",
@@ -7189,6 +7161,50 @@
           "service_id": null,
           "severity": "LOW",
           "title": "Recommended field missing or empty"
+        },
+        {
+          "details": {
+            "example_trips": "T1,T2",
+            "missing_trips": "2",
+            "trip_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "1 or 2",
+          "field": "wheelchair_accessible",
+          "file": "trips.txt",
+          "line": null,
+          "message": "None of the trips have wheelchair accessibility information (2 trips).",
+          "observed_value": "2",
+          "remediation": "Report wheelchair accessibility using the wheelchair_accessible field (1=accessible, 2=not accessible).",
+          "rule_class": "QUALITY",
+          "rule_id": "TRP_029",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "No trips report wheelchair accessibility"
+        },
+        {
+          "details": {
+            "example_trips": "T1,T2",
+            "missing_trips": "2",
+            "trip_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Trip",
+          "expected_value": "1|2",
+          "field": "bikes_allowed",
+          "file": "trips.txt",
+          "line": null,
+          "message": "Some trips carry no bicycle information: bikes_allowed is empty or 0 (2/2).",
+          "observed_value": "2/2",
+          "remediation": "Set bikes_allowed to 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty both mean no information.",
+          "rule_class": "QUALITY",
+          "rule_id": "TRP_021",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Bicycle allowance (bikes_allowed) not specified"
         }
       ],
       "agency_breakdown": {
@@ -7492,42 +7508,6 @@
           "title": "File size (info)"
         },
         {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": "1 or 2",
-          "field": "wheelchair_accessible",
-          "file": "trips.txt",
-          "line": null,
-          "message": "None of the trips have wheelchair accessibility information (1 trips).",
-          "observed_value": "1",
-          "remediation": "Report wheelchair accessibility using the wheelchair_accessible field (1=accessible, 2=not accessible).",
-          "rule_class": "QUALITY",
-          "rule_id": "TRP_029",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "No trips report wheelchair accessibility"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Trip",
-          "expected_value": "1|2",
-          "field": "bikes_allowed",
-          "file": "trips.txt",
-          "line": null,
-          "message": "Some trips carry no bicycle information: bikes_allowed is empty or 0 (1/1).",
-          "observed_value": "1/1",
-          "remediation": "Set bikes_allowed to 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty both mean no information.",
-          "rule_class": "QUALITY",
-          "rule_id": "TRP_021",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Bicycle allowance (bikes_allowed) not specified"
-        },
-        {
           "details": {
             "example_0_route_id": "R1",
             "example_0_service_id": "SVC1",
@@ -7623,6 +7603,50 @@
           "service_id": "SVC1",
           "severity": "INFO",
           "title": "Route has only one trip"
+        },
+        {
+          "details": {
+            "example_trips": "T1",
+            "missing_trips": "1",
+            "trip_count": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "1 or 2",
+          "field": "wheelchair_accessible",
+          "file": "trips.txt",
+          "line": null,
+          "message": "None of the trips have wheelchair accessibility information (1 trips).",
+          "observed_value": "1",
+          "remediation": "Report wheelchair accessibility using the wheelchair_accessible field (1=accessible, 2=not accessible).",
+          "rule_class": "QUALITY",
+          "rule_id": "TRP_029",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "No trips report wheelchair accessibility"
+        },
+        {
+          "details": {
+            "example_trips": "T1",
+            "missing_trips": "1",
+            "trip_count": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Trip",
+          "expected_value": "1|2",
+          "field": "bikes_allowed",
+          "file": "trips.txt",
+          "line": null,
+          "message": "Some trips carry no bicycle information: bikes_allowed is empty or 0 (1/1).",
+          "observed_value": "1/1",
+          "remediation": "Set bikes_allowed to 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty both mean no information.",
+          "rule_class": "QUALITY",
+          "rule_id": "TRP_021",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Bicycle allowance (bikes_allowed) not specified"
         }
       ],
       "score": 96.3
@@ -10084,24 +10108,6 @@
         {
           "details": null,
           "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": "1 or 2",
-          "field": "wheelchair_accessible",
-          "file": "trips.txt",
-          "line": null,
-          "message": "None of the trips have wheelchair accessibility information (2 trips).",
-          "observed_value": "2",
-          "remediation": "Report wheelchair accessibility using the wheelchair_accessible field (1=accessible, 2=not accessible).",
-          "rule_class": "QUALITY",
-          "rule_id": "TRP_029",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "No trips report wheelchair accessibility"
-        },
-        {
-          "details": null,
-          "entity_id": null,
           "entity_type": "Transfer",
           "expected_value": null,
           "field": "to_stop_id",
@@ -10134,24 +10140,6 @@
           "service_id": null,
           "severity": "HIGH",
           "title": "No trip for in-seat transfer"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Trip",
-          "expected_value": "1|2",
-          "field": "bikes_allowed",
-          "file": "trips.txt",
-          "line": null,
-          "message": "Some trips carry no bicycle information: bikes_allowed is empty or 0 (2/2).",
-          "observed_value": "2/2",
-          "remediation": "Set bikes_allowed to 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty both mean no information.",
-          "rule_class": "QUALITY",
-          "rule_id": "TRP_021",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Bicycle allowance (bikes_allowed) not specified"
         },
         {
           "details": {
@@ -10302,6 +10290,50 @@
           "service_id": "SVC1",
           "severity": "INFO",
           "title": "Route has only one trip"
+        },
+        {
+          "details": {
+            "example_trips": "T1,T2",
+            "missing_trips": "2",
+            "trip_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "1 or 2",
+          "field": "wheelchair_accessible",
+          "file": "trips.txt",
+          "line": null,
+          "message": "None of the trips have wheelchair accessibility information (2 trips).",
+          "observed_value": "2",
+          "remediation": "Report wheelchair accessibility using the wheelchair_accessible field (1=accessible, 2=not accessible).",
+          "rule_class": "QUALITY",
+          "rule_id": "TRP_029",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "No trips report wheelchair accessibility"
+        },
+        {
+          "details": {
+            "example_trips": "T1,T2",
+            "missing_trips": "2",
+            "trip_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Trip",
+          "expected_value": "1|2",
+          "field": "bikes_allowed",
+          "file": "trips.txt",
+          "line": null,
+          "message": "Some trips carry no bicycle information: bikes_allowed is empty or 0 (2/2).",
+          "observed_value": "2/2",
+          "remediation": "Set bikes_allowed to 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty both mean no information.",
+          "rule_class": "QUALITY",
+          "rule_id": "TRP_021",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Bicycle allowance (bikes_allowed) not specified"
         },
         {
           "details": {
@@ -10693,42 +10725,6 @@
           "title": "File size (info)"
         },
         {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": "1 or 2",
-          "field": "wheelchair_accessible",
-          "file": "trips.txt",
-          "line": null,
-          "message": "None of the trips have wheelchair accessibility information (1 trips).",
-          "observed_value": "1",
-          "remediation": "Report wheelchair accessibility using the wheelchair_accessible field (1=accessible, 2=not accessible).",
-          "rule_class": "QUALITY",
-          "rule_id": "TRP_029",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "No trips report wheelchair accessibility"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Trip",
-          "expected_value": "1|2",
-          "field": "bikes_allowed",
-          "file": "trips.txt",
-          "line": null,
-          "message": "Some trips carry no bicycle information: bikes_allowed is empty or 0 (1/1).",
-          "observed_value": "1/1",
-          "remediation": "Set bikes_allowed to 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty both mean no information.",
-          "rule_class": "QUALITY",
-          "rule_id": "TRP_021",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Bicycle allowance (bikes_allowed) not specified"
-        },
-        {
           "details": {
             "example_0_route_id": "R1",
             "example_0_service_id": "SVC1",
@@ -10804,6 +10800,50 @@
           "service_id": null,
           "severity": "LOW",
           "title": "Recommended field missing or empty"
+        },
+        {
+          "details": {
+            "example_trips": "T1",
+            "missing_trips": "1",
+            "trip_count": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "1 or 2",
+          "field": "wheelchair_accessible",
+          "file": "trips.txt",
+          "line": null,
+          "message": "None of the trips have wheelchair accessibility information (1 trips).",
+          "observed_value": "1",
+          "remediation": "Report wheelchair accessibility using the wheelchair_accessible field (1=accessible, 2=not accessible).",
+          "rule_class": "QUALITY",
+          "rule_id": "TRP_029",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "No trips report wheelchair accessibility"
+        },
+        {
+          "details": {
+            "example_trips": "T1",
+            "missing_trips": "1",
+            "trip_count": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Trip",
+          "expected_value": "1|2",
+          "field": "bikes_allowed",
+          "file": "trips.txt",
+          "line": null,
+          "message": "Some trips carry no bicycle information: bikes_allowed is empty or 0 (1/1).",
+          "observed_value": "1/1",
+          "remediation": "Set bikes_allowed to 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty both mean no information.",
+          "rule_class": "QUALITY",
+          "rule_id": "TRP_021",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Bicycle allowance (bikes_allowed) not specified"
         }
       ],
       "score": 90.7
@@ -11173,42 +11213,6 @@
         },
         {
           "details": null,
-          "entity_id": "T1",
-          "entity_type": "Trip",
-          "expected_value": null,
-          "field": "service_id",
-          "file": "trips.txt",
-          "line": 2,
-          "message": "Trip 'T1': service_id 'SVCX' has no valid service dates — trip will never operate.",
-          "observed_value": "SVCX",
-          "remediation": "Ensure the service_id has active dates in calendar.txt or calendar_dates.txt.",
-          "rule_class": "ANALYTICS",
-          "rule_id": "TRP_026",
-          "scope_key": "T1",
-          "service_id": "SVCX",
-          "severity": "MEDIUM",
-          "title": "Trip with empty active-date set"
-        },
-        {
-          "details": null,
-          "entity_id": "T2",
-          "entity_type": "Trip",
-          "expected_value": null,
-          "field": "service_id",
-          "file": "trips.txt",
-          "line": 3,
-          "message": "Trip 'T2': service_id 'SVCY' has no valid service dates — trip will never operate.",
-          "observed_value": "SVCY",
-          "remediation": "Ensure the service_id has active dates in calendar.txt or calendar_dates.txt.",
-          "rule_class": "ANALYTICS",
-          "rule_id": "TRP_026",
-          "scope_key": "T2",
-          "service_id": "SVCY",
-          "severity": "MEDIUM",
-          "title": "Trip with empty active-date set"
-        },
-        {
-          "details": null,
           "entity_id": "T2",
           "entity_type": "Trip",
           "expected_value": null,
@@ -11242,42 +11246,6 @@
           "service_id": null,
           "severity": "INFO",
           "title": "File size (info)"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": "1 or 2",
-          "field": "wheelchair_accessible",
-          "file": "trips.txt",
-          "line": null,
-          "message": "None of the trips have wheelchair accessibility information (2 trips).",
-          "observed_value": "2",
-          "remediation": "Report wheelchair accessibility using the wheelchair_accessible field (1=accessible, 2=not accessible).",
-          "rule_class": "QUALITY",
-          "rule_id": "TRP_029",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "No trips report wheelchair accessibility"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Trip",
-          "expected_value": "1|2",
-          "field": "bikes_allowed",
-          "file": "trips.txt",
-          "line": null,
-          "message": "Some trips carry no bicycle information: bikes_allowed is empty or 0 (2/2).",
-          "observed_value": "2/2",
-          "remediation": "Set bikes_allowed to 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty both mean no information.",
-          "rule_class": "QUALITY",
-          "rule_id": "TRP_021",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Bicycle allowance (bikes_allowed) not specified"
         },
         {
           "details": {
@@ -11433,6 +11401,31 @@
         },
         {
           "details": {
+            "example_trip_id": "T1",
+            "route_0_example_trip_id": "T1",
+            "route_0_route_id": "R1",
+            "route_0_trips": "1",
+            "route_count": "1",
+            "trip_count": "1"
+          },
+          "entity_id": "T1",
+          "entity_type": "Trip",
+          "expected_value": null,
+          "field": "service_id",
+          "file": "trips.txt",
+          "line": 2,
+          "message": "Trip 'T1': service_id 'SVCX' has no valid service dates — trip will never operate.",
+          "observed_value": "SVCX",
+          "remediation": "Ensure the service_id has active dates in calendar.txt or calendar_dates.txt.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "TRP_026",
+          "scope_key": "T1",
+          "service_id": "SVCX",
+          "severity": "MEDIUM",
+          "title": "Trip with empty active-date set"
+        },
+        {
+          "details": {
             "example_trip_id": "T2",
             "route_0_example_trip_id": "T2",
             "route_0_route_id": "R1",
@@ -11480,6 +11473,75 @@
           "service_id": null,
           "severity": "INFO",
           "title": "Calendar inactive in the next 7 days"
+        },
+        {
+          "details": {
+            "example_trip_id": "T2",
+            "route_0_example_trip_id": "T2",
+            "route_0_route_id": "R1",
+            "route_0_trips": "1",
+            "route_count": "1",
+            "trip_count": "1"
+          },
+          "entity_id": "T2",
+          "entity_type": "Trip",
+          "expected_value": null,
+          "field": "service_id",
+          "file": "trips.txt",
+          "line": 3,
+          "message": "Trip 'T2': service_id 'SVCY' has no valid service dates — trip will never operate.",
+          "observed_value": "SVCY",
+          "remediation": "Ensure the service_id has active dates in calendar.txt or calendar_dates.txt.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "TRP_026",
+          "scope_key": "T2",
+          "service_id": "SVCY",
+          "severity": "MEDIUM",
+          "title": "Trip with empty active-date set"
+        },
+        {
+          "details": {
+            "example_trips": "T1,T2",
+            "missing_trips": "2",
+            "trip_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "1 or 2",
+          "field": "wheelchair_accessible",
+          "file": "trips.txt",
+          "line": null,
+          "message": "None of the trips have wheelchair accessibility information (2 trips).",
+          "observed_value": "2",
+          "remediation": "Report wheelchair accessibility using the wheelchair_accessible field (1=accessible, 2=not accessible).",
+          "rule_class": "QUALITY",
+          "rule_id": "TRP_029",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "No trips report wheelchair accessibility"
+        },
+        {
+          "details": {
+            "example_trips": "T1,T2",
+            "missing_trips": "2",
+            "trip_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Trip",
+          "expected_value": "1|2",
+          "field": "bikes_allowed",
+          "file": "trips.txt",
+          "line": null,
+          "message": "Some trips carry no bicycle information: bikes_allowed is empty or 0 (2/2).",
+          "observed_value": "2/2",
+          "remediation": "Set bikes_allowed to 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty both mean no information.",
+          "rule_class": "QUALITY",
+          "rule_id": "TRP_021",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Bicycle allowance (bikes_allowed) not specified"
         },
         {
           "details": {
@@ -11899,42 +11961,6 @@
           "title": "File size (info)"
         },
         {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": "1 or 2",
-          "field": "wheelchair_accessible",
-          "file": "trips.txt",
-          "line": null,
-          "message": "None of the trips have wheelchair accessibility information (1 trips).",
-          "observed_value": "1",
-          "remediation": "Report wheelchair accessibility using the wheelchair_accessible field (1=accessible, 2=not accessible).",
-          "rule_class": "QUALITY",
-          "rule_id": "TRP_029",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "No trips report wheelchair accessibility"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Trip",
-          "expected_value": "1|2",
-          "field": "bikes_allowed",
-          "file": "trips.txt",
-          "line": null,
-          "message": "Some trips carry no bicycle information: bikes_allowed is empty or 0 (1/1).",
-          "observed_value": "1/1",
-          "remediation": "Set bikes_allowed to 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty both mean no information.",
-          "rule_class": "QUALITY",
-          "rule_id": "TRP_021",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Bicycle allowance (bikes_allowed) not specified"
-        },
-        {
           "details": {
             "example_0_route_id": "R1",
             "example_0_service_id": "SVC1",
@@ -12033,6 +12059,50 @@
         },
         {
           "details": {
+            "example_trips": "T1",
+            "missing_trips": "1",
+            "trip_count": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "1 or 2",
+          "field": "wheelchair_accessible",
+          "file": "trips.txt",
+          "line": null,
+          "message": "None of the trips have wheelchair accessibility information (1 trips).",
+          "observed_value": "1",
+          "remediation": "Report wheelchair accessibility using the wheelchair_accessible field (1=accessible, 2=not accessible).",
+          "rule_class": "QUALITY",
+          "rule_id": "TRP_029",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "No trips report wheelchair accessibility"
+        },
+        {
+          "details": {
+            "example_trips": "T1",
+            "missing_trips": "1",
+            "trip_count": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Trip",
+          "expected_value": "1|2",
+          "field": "bikes_allowed",
+          "file": "trips.txt",
+          "line": null,
+          "message": "Some trips carry no bicycle information: bikes_allowed is empty or 0 (1/1).",
+          "observed_value": "1/1",
+          "remediation": "Set bikes_allowed to 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty both mean no information.",
+          "rule_class": "QUALITY",
+          "rule_id": "TRP_021",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Bicycle allowance (bikes_allowed) not specified"
+        },
+        {
+          "details": {
             "route_label": "101",
             "services": "SVC1"
           },
@@ -12092,42 +12162,6 @@
           "service_id": null,
           "severity": "INFO",
           "title": "File size (info)"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": "1 or 2",
-          "field": "wheelchair_accessible",
-          "file": "trips.txt",
-          "line": null,
-          "message": "None of the trips have wheelchair accessibility information (2 trips).",
-          "observed_value": "2",
-          "remediation": "Report wheelchair accessibility using the wheelchair_accessible field (1=accessible, 2=not accessible).",
-          "rule_class": "QUALITY",
-          "rule_id": "TRP_029",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "No trips report wheelchair accessibility"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Trip",
-          "expected_value": "1|2",
-          "field": "bikes_allowed",
-          "file": "trips.txt",
-          "line": null,
-          "message": "Some trips carry no bicycle information: bikes_allowed is empty or 0 (2/2).",
-          "observed_value": "2/2",
-          "remediation": "Set bikes_allowed to 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty both mean no information.",
-          "rule_class": "QUALITY",
-          "rule_id": "TRP_021",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Bicycle allowance (bikes_allowed) not specified"
         },
         {
           "details": {
@@ -12230,6 +12264,50 @@
           "service_id": null,
           "severity": "LOW",
           "title": "Recommended field missing or empty"
+        },
+        {
+          "details": {
+            "example_trips": "T1,T2",
+            "missing_trips": "2",
+            "trip_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "1 or 2",
+          "field": "wheelchair_accessible",
+          "file": "trips.txt",
+          "line": null,
+          "message": "None of the trips have wheelchair accessibility information (2 trips).",
+          "observed_value": "2",
+          "remediation": "Report wheelchair accessibility using the wheelchair_accessible field (1=accessible, 2=not accessible).",
+          "rule_class": "QUALITY",
+          "rule_id": "TRP_029",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "No trips report wheelchair accessibility"
+        },
+        {
+          "details": {
+            "example_trips": "T1,T2",
+            "missing_trips": "2",
+            "trip_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Trip",
+          "expected_value": "1|2",
+          "field": "bikes_allowed",
+          "file": "trips.txt",
+          "line": null,
+          "message": "Some trips carry no bicycle information: bikes_allowed is empty or 0 (2/2).",
+          "observed_value": "2/2",
+          "remediation": "Set bikes_allowed to 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty both mean no information.",
+          "rule_class": "QUALITY",
+          "rule_id": "TRP_021",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Bicycle allowance (bikes_allowed) not specified"
         },
         {
           "details": {
@@ -12552,42 +12630,6 @@
           "title": "File size (info)"
         },
         {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": "1 or 2",
-          "field": "wheelchair_accessible",
-          "file": "trips.txt",
-          "line": null,
-          "message": "None of the trips have wheelchair accessibility information (1 trips).",
-          "observed_value": "1",
-          "remediation": "Report wheelchair accessibility using the wheelchair_accessible field (1=accessible, 2=not accessible).",
-          "rule_class": "QUALITY",
-          "rule_id": "TRP_029",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "No trips report wheelchair accessibility"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Trip",
-          "expected_value": "1|2",
-          "field": "bikes_allowed",
-          "file": "trips.txt",
-          "line": null,
-          "message": "Some trips carry no bicycle information: bikes_allowed is empty or 0 (1/1).",
-          "observed_value": "1/1",
-          "remediation": "Set bikes_allowed to 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty both mean no information.",
-          "rule_class": "QUALITY",
-          "rule_id": "TRP_021",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Bicycle allowance (bikes_allowed) not specified"
-        },
-        {
           "details": {
             "example_0_route_id": "R1",
             "example_0_service_id": "SVC1",
@@ -12683,6 +12725,50 @@
           "service_id": "SVC1",
           "severity": "INFO",
           "title": "Route has only one trip"
+        },
+        {
+          "details": {
+            "example_trips": "T1",
+            "missing_trips": "1",
+            "trip_count": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "1 or 2",
+          "field": "wheelchair_accessible",
+          "file": "trips.txt",
+          "line": null,
+          "message": "None of the trips have wheelchair accessibility information (1 trips).",
+          "observed_value": "1",
+          "remediation": "Report wheelchair accessibility using the wheelchair_accessible field (1=accessible, 2=not accessible).",
+          "rule_class": "QUALITY",
+          "rule_id": "TRP_029",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "No trips report wheelchair accessibility"
+        },
+        {
+          "details": {
+            "example_trips": "T1",
+            "missing_trips": "1",
+            "trip_count": "1"
+          },
+          "entity_id": null,
+          "entity_type": "Trip",
+          "expected_value": "1|2",
+          "field": "bikes_allowed",
+          "file": "trips.txt",
+          "line": null,
+          "message": "Some trips carry no bicycle information: bikes_allowed is empty or 0 (1/1).",
+          "observed_value": "1/1",
+          "remediation": "Set bikes_allowed to 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty both mean no information.",
+          "rule_class": "QUALITY",
+          "rule_id": "TRP_021",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Bicycle allowance (bikes_allowed) not specified"
         }
       ],
       "score": 95.3

@@ -750,6 +750,8 @@ fn zone_only_trip_ids(records: &EntityRecords) -> HashSet<&str> {
 /// OPR_014: longest timed transfers listed; OPR_025: shortest trips listed.
 const OPR014_EXAMPLES: usize = 10;
 const OPR025_EXAMPLES: usize = 10;
+/// TRP_025/028/029: trips without wheelchair information listed.
+const TRP_WHEELCHAIR_EXAMPLES: usize = 10;
 /// TRP_012: trips without a direction listed per route; TRP_015: block examples listed.
 const TRP012_EXAMPLES: usize = 10;
 const TRP015_EXAMPLES: usize = 5;
@@ -5222,13 +5224,27 @@ fn check_operational_analytics(
             })
         });
         if !active_in_7days {
-            notices.push(k6_notice(
+            let mut n023 = k6_notice(
                 ctr, "TRP_023", EntityType::Feed,
                 None, None, "calendar.txt", None, None,
                 Some("0".to_string()), None,
                 "Önümüzdeki 7 günde aktif sefer bulunamadı — feed yakında devre dışı kalabilir.".to_string(),
                 "calendar.txt veya calendar_dates.txt'i güncelleyin ya da yeni bir feed yayınlayın.",
-            ));
+            );
+            // Planner context: the next day any calendar runs, when there is one.
+            let next = derived
+                .calendar_bitmap
+                .active_dates
+                .values()
+                .flat_map(|dates| dates.iter().copied())
+                .filter(|&d| yyyymmdd_to_jdn(d) >= today_jdn + 7)
+                .min();
+            if let Some(next) = next {
+                n023.details
+                    .get_or_insert_with(Default::default)
+                    .insert("next_active", next.to_string());
+            }
+            notices.push(n023);
         }
     }
 
@@ -5340,17 +5356,38 @@ fn check_operational_analytics(
                 .iter()
                 .filter(|t| !t.trip_id.is_empty() && t.wheelchair_accessible.unwrap_or(0) == 0)
                 .count();
+            // Planner context: the first trips (file order) without wheelchair information.
+            let mut unset_trips: Vec<(u64, &str)> = records
+                .trips
+                .iter()
+                .filter(|t| !t.trip_id.is_empty() && t.wheelchair_accessible.unwrap_or(0) == 0)
+                .map(|t| (t.line, t.trip_id.as_str()))
+                .collect();
+            unset_trips.sort_unstable();
+            let unset_examples: Vec<&str> = unset_trips
+                .iter()
+                .take(TRP_WHEELCHAIR_EXAMPLES)
+                .map(|&(_, t)| t)
+                .collect();
+            let wheelchair_details = |n: &mut Notice| {
+                let details = n.details.get_or_insert_with(Default::default);
+                details.insert("missing_trips", unset.to_string());
+                details.insert("trip_count", total.to_string());
+                details.insert("example_trips", unset_examples.join(","));
+            };
             if unset == total {
-                notices.push(k6_notice(
+                let mut n029 = k6_notice(
                     ctr, "TRP_029", EntityType::Feed,
                     None, None,
                     "trips.txt", None, Some("wheelchair_accessible"),
                     Some(format!("{total}")), Some("1 or 2".to_string()),
                     format!("{total} seferin hiçbirinde wheelchair_accessible bilgisi girilmemiş."),
                     "Tekerlekli sandalye erişilebilirliğini wheelchair_accessible alanıyla bildirin (1=erişilebilir, 2=erişilemez).",
-                ));
+                );
+                wheelchair_details(&mut n029);
+                notices.push(n029);
             } else if unset > 0 {
-                notices.push(k6_notice(
+                let mut n028 = k6_notice(
                     ctr, "TRP_028", EntityType::Feed,
                     None, None,
                     "trips.txt", None, Some("wheelchair_accessible"),
@@ -5358,7 +5395,9 @@ fn check_operational_analytics(
                     format!("{total} seferin {unset} tanesinde wheelchair_accessible bilgisi eksik ({:.0}%).",
                         unset as f64 / total as f64 * 100.0),
                     "Tüm seferlerin wheelchair_accessible alanını doldurun (1=erişilebilir, 2=erişilemez).",
-                ));
+                );
+                wheelchair_details(&mut n028);
+                notices.push(n028);
             }
         }
     }
@@ -5575,7 +5614,7 @@ fn check_operational_analytics(
                                 continue;
                             }
                         }
-                        notices.push(k6_notice(
+                        let mut n022 = k6_notice(
                             ctr, "TRP_022", EntityType::Trip,
                             Some(tid_a.to_string()), Some(tid_a.to_string()),
                             "trips.txt", None, Some("block_id"),
@@ -5583,7 +5622,17 @@ fn check_operational_analytics(
                             None,
                             format!("block_id '{block_id}' içinde '{tid_a}' ve '{tid_b}' seferlerinin saatleri çakışıyor."),
                             "Aynı araç bloğundaki seferlerin saatlerini örtüşmeyecek şekilde düzenleyin.",
-                        ));
+                        );
+                        // Planner context: the block, the other trip and both trips' start and end.
+                        let hm = |s: u32| format!("{:02}:{:02}", s / 3600, s / 60 % 60);
+                        let details = n022.details.get_or_insert_with(Default::default);
+                        details.insert("block_id", block_id.to_string());
+                        details.insert("other_trip_id", tid_b.to_string());
+                        details.insert("start", hm(dep_a));
+                        details.insert("end", hm(arr_a));
+                        details.insert("other_start", hm(dep_b));
+                        details.insert("other_end", hm(arr_b));
+                        notices.push(n022);
                     }
                 }
             }
@@ -5609,7 +5658,7 @@ fn check_operational_analytics(
             // trigger also triggered TRP_025 (100% > 80%), producing two INFO notices for the same
             // feed-level fact. Now TRP_025 = 80–99%, TRP_029 = 100%.
             if ratio > 0.80 && unknown < total {
-                notices.push(k6_notice(
+                let mut n025 = k6_notice(
                     ctr, "TRP_025", EntityType::Feed,
                     None, None, "trips.txt", None, Some("wheelchair_accessible"),
                     Some(format!("{:.0}%", ratio * 100.0)),
@@ -5617,7 +5666,26 @@ fn check_operational_analytics(
                     format!("Seferlerin %{:.0}'ında wheelchair_accessible bilgisi eksik veya bilinmiyor (0) — erişilebilirlik verisi yetersiz.",
                         ratio * 100.0),
                     "trips.txt'deki wheelchair_accessible alanını 1 (erişilebilir) veya 2 (erişilemez) olarak doldurun.",
-                ));
+                );
+                // Planner context: counts and the first trips (file order) without the information.
+                let mut unknown_trips: Vec<(u64, &str)> = records
+                    .trips
+                    .iter()
+                    .filter(|t| !t.trip_id.is_empty())
+                    .filter(|t| matches!(t.wheelchair_accessible, None | Some(0)))
+                    .map(|t| (t.line, t.trip_id.as_str()))
+                    .collect();
+                unknown_trips.sort_unstable();
+                let examples: Vec<&str> = unknown_trips
+                    .iter()
+                    .take(TRP_WHEELCHAIR_EXAMPLES)
+                    .map(|&(_, t)| t)
+                    .collect();
+                let details = n025.details.get_or_insert_with(Default::default);
+                details.insert("missing_trips", unknown.to_string());
+                details.insert("trip_count", total.to_string());
+                details.insert("example_trips", examples.join(","));
+                notices.push(n025);
             }
         }
     }
@@ -6197,7 +6265,7 @@ fn check_route_trip_quality(
                     .get(trip.trip_id.as_str())
                     .map(|s| format!(" {} kalkışlı", s))
                     .unwrap_or_default();
-                notices.push(k6_notice(
+                let mut n020 = k6_notice(
                     ctr,
                     "TRP_020",
                     EntityType::Trip,
@@ -6213,7 +6281,15 @@ fn check_route_trip_quality(
                         rname, headsign
                     ),
                     "Headsign bilinçli bir ana hedefi gösteriyorsa işlem gerekmez; değilse yön adını doğrulayın.",
-                ));
+                );
+                // Planner context: the intermediate stop the headsign names and the real last stop.
+                let details = n020.details.get_or_insert_with(Default::default);
+                details.insert("stop_id", idx.stop_id_of(st).to_string());
+                if let Some(seq) = st.stop_sequence() {
+                    details.insert("stop_sequence", seq.to_string());
+                }
+                details.insert("last_stop_id", terminal_stop_id.to_string());
+                notices.push(n020);
                 // #15: TRP_020 is Entity-scoped (trip_id) → dedup reduces it to one per trip.
                 // Emitting for EVERY matching intermediate stop (on a large feed) created and then
                 // discarded hundreds of thousands of intermediate notices; stop at the first match (same result).

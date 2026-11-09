@@ -219,6 +219,22 @@ impl Cols {
     }
 }
 
+/// Planner context for a trips.txt row finding without its own identity (TRP_031/TRP_035):
+/// the row's other columns that name the trip (raw, trimmed; only when non-empty).
+fn row_context(
+    n: &mut gtfs_core::Notice,
+    row: &[std::borrow::Cow<'_, str>],
+    cols: &[(&str, Option<usize>)],
+) {
+    let details = n.details.get_or_insert_with(Default::default);
+    for (key, col) in cols {
+        let value = get_col_raw(row, *col).trim();
+        if !value.is_empty() {
+            details.insert(*key, value.to_string());
+        }
+    }
+}
+
 pub fn validate_trips(
     file: &RawFile,
     zip_bytes: Option<&[u8]>,
@@ -441,7 +457,7 @@ pub fn validate_trips_with_limits(
 
         // TRP_031: route_id required — intern_idx 0 means it is empty
         if route_idx == 0 && has_route_id_col {
-            notices.push(make_k2_notice(
+            let mut n = make_k2_notice(
                 &mut counter,
                 "TRP_031",
                 EntityType::Trip,
@@ -454,14 +470,24 @@ pub fn validate_trips_with_limits(
                 None,
                 "route_id zorunludur.".to_string(),
                 "Her sefere geçerli bir route_id atayın.",
-            ));
+            );
+            row_context(
+                &mut n,
+                row,
+                &[
+                    ("trip_id", cols.trip_id),
+                    ("service_id", cols.service_id),
+                    ("trip_headsign", cols.trip_headsign),
+                ],
+            );
+            notices.push(n);
         }
 
         // TRP_035: service_id is required. TRP_003 ("service_id not found") measures only FK
         // resolution and treats an empty value as "no reference", letting it pass — found during
         // anchor-granularity triage (24 rows / 5 feeds in the corpus).
         if service_idx == 0 && has_service_id_col {
-            notices.push(make_k2_notice(
+            let mut n = make_k2_notice(
                 &mut counter,
                 "TRP_035",
                 EntityType::Trip,
@@ -474,7 +500,17 @@ pub fn validate_trips_with_limits(
                 Some("(dolu)".to_string()),
                 "service_id zorunludur; boş bırakılan sefer hiçbir takvime bağlanmaz.".to_string(),
                 "Her sefere calendar.txt veya calendar_dates.txt'te tanımlı bir service_id atayın.",
-            ));
+            );
+            row_context(
+                &mut n,
+                row,
+                &[
+                    ("trip_id", cols.trip_id),
+                    ("route_id", cols.route_id),
+                    ("trip_headsign", cols.trip_headsign),
+                ],
+            );
+            notices.push(n);
         }
 
         let shape_idx = intern_idx(
@@ -919,14 +955,25 @@ pub fn validate_trips_with_limits(
     // TRP_021: one summary notice after the loop
     if trp021_missing_count > 0 {
         let total = trp021_missing_count + bikes_allowed_set_count as usize;
+        // Planner context: counts and the first trips without bicycle information.
+        let trp021_details = |n: &mut gtfs_core::Notice| {
+            let details = n.details.get_or_insert_with(Default::default);
+            details.insert("missing_trips", trp021_missing_count.to_string());
+            details.insert("trip_count", total.to_string());
+            if !trp021_missing_examples.is_empty() {
+                details.insert("example_trips", trp021_missing_examples.join(","));
+            }
+        };
         if bikes_allowed_set_count == 0 {
-            notices.push(make_k2_notice(
+            let mut n = make_k2_notice(
                 &mut counter, "TRP_021", EntityType::Trip, None,
                 None, &file.name, None, Some("bikes_allowed"),
                 Some(format!("{trp021_missing_count}/{total}")), Some("1|2".to_string()),
                 format!("Bu feed'de hiçbir seferde bisiklet bilgisi yok: bikes_allowed boş veya 0 ({trp021_missing_count} sefer)."),
                 "bikes_allowed değerini 1 (bisiklet izinli) veya 2 (bisiklet izinsiz) olarak ayarlayın; 0 ve boş 'bilgi yok' demektir.",
-            ));
+            );
+            trp021_details(&mut n);
+            notices.push(n);
         } else {
             let examples = if trp021_missing_examples.is_empty() {
                 String::new()
@@ -941,14 +988,16 @@ pub fn validate_trips_with_limits(
                     }
                 )
             };
-            notices.push(make_k2_notice(
+            let mut n = make_k2_notice(
                 &mut counter, "TRP_021", EntityType::Trip, None,
                 None, &file.name, trp021_first_line, Some("bikes_allowed"),
                 Some(format!("{trp021_missing_count}/{total}")), Some("1|2".to_string()),
                 format!("{total} seferin {trp021_missing_count} tanesinde bisiklet bilgisi yok: bikes_allowed boş veya 0 ({:.0}%).{examples}",
                     trp021_missing_count as f64 / total as f64 * 100.0),
                 "Tüm seferlerin bikes_allowed alanını 1 (bisiklet izinli) veya 2 (bisiklet izinsiz) olarak doldurun; 0 ve boş 'bilgi yok' demektir.",
-            ));
+            );
+            trp021_details(&mut n);
+            notices.push(n);
         }
     }
 

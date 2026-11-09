@@ -2084,7 +2084,7 @@ fn check_frequencies(
         if map.trips.contains_key(rec.trip_id.as_str())
             && !trips_in_stm.contains(rec.trip_id.as_str())
         {
-            notices.push(notice(
+            let mut n = notice(
                 ctr,
                 "TRP_017",
                 EntityType::Trip,
@@ -2100,7 +2100,20 @@ fn check_frequencies(
                     rec.trip_id
                 ),
                 "stop_times.txt'e bu sefer için durak saatlerini ekleyin.",
-            ));
+            );
+            // Planner context: the frequency window and headway as written.
+            let details = n.details.get_or_insert_with(Default::default);
+            let hm = |t: (u32, u32, u32)| format!("{:02}:{:02}", t.0, t.1);
+            if let Some(t) = rec.start_time {
+                details.insert("start_time", hm(t));
+            }
+            if let Some(t) = rec.end_time {
+                details.insert("end_time", hm(t));
+            }
+            if let Some(h) = rec.headway_secs {
+                details.insert("headway_secs", h.to_string());
+            }
+            notices.push(n);
         }
     }
 }
