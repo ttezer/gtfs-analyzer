@@ -823,6 +823,51 @@ function stpRuleText(n: Notice, result: ValidationResult): string | null {
         })
         : '');
     }
+    case 'STP_021':
+      if (!n.entity_id || !d.parent_station) return null;
+      return t('producer.card.STP_021.what_detail', { stop: stop(n.entity_id), parent: stop(d.parent_station), type: locationTypeName(d.parent_location_type) });
+    case 'STP_022':
+      if (Number(d.affected_stops) > 1) {
+        return join(t('producer.card.STP_022.what_many', { n: localizedNumber(d.affected_stops!) }),
+          n.entity_id ? t('producer.card.stp_example', { stop: stop(n.entity_id) }) : '');
+      }
+      return n.entity_id ? join(t('producer.card.STP_022.what_detail', { stop: stop(n.entity_id) }), use) : null;
+    case 'STP_023':
+      return n.entity_id && value ? join(t('producer.card.STP_023.what_detail', { stop: stop(n.entity_id), value }), use) : null;
+    case 'STP_024':
+    case 'STP_026':
+      return n.entity_id ? join(t('producer.card.stp_access', { stop: stop(n.entity_id), value }), use) : null;
+    case 'STP_028':
+      return n.entity_id && d.stop_code
+        ? join(t('producer.card.STP_028.what_detail', { stop: stop(n.entity_id), code: d.stop_code, n: localizedNumber(value || String(d.stop_code.length)) }), use)
+        : null;
+    case 'STP_029': {
+      if (!n.entity_id || !d.parent_id) return null;
+      const dist = /[\d.]+/.exec(value)?.[0];
+      const limit = /[\d.]+/.exec(n.expected_value ?? '')?.[0];
+      return join(t('producer.card.STP_029.what_detail', { stop: stop(n.entity_id), parent: stop(d.parent_id), dist: metersText(dist), limit: metersText(limit) }),
+        d.nearest_station_id ? t('producer.card.STP_009.what_near', { station: stop(d.nearest_station_id), dist: metersText(d.nearest_station_m) }) : '', use);
+    }
+    case 'STP_030': {
+      if (!n.entity_id) return null;
+      const near = listOf(d.nearby_stops);
+      const dists = listOf(d.nearby_m);
+      return join(t('producer.card.STP_030.what_detail', { stop: stop(n.entity_id) }), near.length
+        ? t('producer.card.STP_030.what_near', { stops: near.map((id, i) => `„${stop(id)}“ (${metersText(dists[i])})`).join(', ') })
+        : '');
+    }
+    case 'STP_031':
+      return n.entity_id ? join(t('producer.card.STP_031.what_detail', { stop: stop(n.entity_id), value: value || stop(n.entity_id) }), use) : null;
+    case 'STP_032': {
+      const count = d.affected_platforms || n.observed_value;
+      if (!count) return null;
+      let i = 0;
+      while (d[`example_${i}_stop_id`] && d[`example_${i}_stop_id`] !== n.entity_id) i++;
+      const station = n.entity_id ? d[`example_${i}_nearest_station_id`] : undefined;
+      return join(t('producer.card.STP_032.what_detail', { n: localizedNumber(count) }),
+        n.entity_id ? t('producer.card.stp_example', { stop: stop(n.entity_id) }) : '',
+        station ? t('producer.card.STP_009.what_near', { station: stop(station), dist: metersText(d[`example_${i}_nearest_station_m`]) }) : '');
+    }
     case 'STP_010':
       if (!n.entity_id || !d.parent_station) return null;
       return join(t('producer.card.STP_010.what_detail', { stop: stop(n.entity_id), parent: stop(d.parent_station), type: locationTypeName(n.observed_value) }), use);
@@ -857,6 +902,24 @@ function stpTable(n: Notice, result: ValidationResult): string {
         { cells: [stop(n.entity_id), '—', routeLabels(a.routes, result), localizedNumber(a.trips || '0')], bad: true },
         { cells: [stop(otherId), dist, routeLabels(b.routes, result), localizedNumber(b.trips || '0')], bad: n.rule_id !== 'STP_020' },
       ]);
+  }
+  if (n.rule_id === 'STP_029' && d.parent_id && n.entity_id) {
+    const rows = [{ cells: [stop(d.parent_id), t('producer.times.stp_parent'), metersText(/[\d.]+/.exec(n.observed_value ?? '')?.[0])], bad: true }];
+    if (d.nearest_station_id) rows.push({ cells: [stop(d.nearest_station_id), t('producer.times.stp_nearer'), metersText(d.nearest_station_m)], bad: false });
+    return table(t('producer.times.stp029_stations'), [t('producer.times.stp_station'), t('producer.times.stp_role'), t('producer.times.vat_distance')], rows);
+  }
+  if (n.rule_id === 'STP_030' && d.nearby_stops) {
+    const dists = listOf(d.nearby_m);
+    return table(t('producer.times.stp030_candidates'), [t('producer.col.stop'), t('producer.times.vat_distance')],
+      listOf(d.nearby_stops).map((id, i) => ({ cells: [stop(id), metersText(dists[i])] })));
+  }
+  if (n.rule_id === 'STP_032' && d.example_0_stop_id) {
+    const rows = [];
+    for (let i = 0; d[`example_${i}_stop_id`]; i++) {
+      const at = (key: string) => d[`example_${i}_${key}`];
+      rows.push({ cells: [stop(at('stop_id')), at('nearest_station_id') ? `${stop(at('nearest_station_id'))} · ${metersText(at('nearest_station_m'))}` : '—'], bad: at('stop_id') === n.entity_id });
+    }
+    return table(t('producer.times.stp032_platforms'), [t('producer.times.stp_platform'), t('producer.times.stp_nearest_station')], rows);
   }
   if (n.rule_id === 'STP_012' && d.platforms) {
     return table(t('producer.times.stp012_platforms'), [t('producer.col.stop'), t('producer.col.stop_code')],
@@ -1242,7 +1305,9 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
     }
     case 'STP_001': case 'STP_002': case 'STP_003': case 'STP_004': case 'STP_005':
     case 'STP_006': case 'STP_007': case 'STP_008': case 'STP_009': case 'STP_010': case 'STP_011': case 'STP_012':
-    case 'STP_013': case 'STP_014': case 'STP_015': case 'STP_016': case 'STP_017': case 'STP_019': case 'STP_020': {
+    case 'STP_013': case 'STP_014': case 'STP_015': case 'STP_016': case 'STP_017': case 'STP_019': case 'STP_020':
+    case 'STP_021': case 'STP_022': case 'STP_023': case 'STP_024': case 'STP_026': case 'STP_028': case 'STP_029':
+    case 'STP_030': case 'STP_031': case 'STP_032': {
       // STP_001/009 keep their context line (the stop code; the stop and the missing station's code);
       // without planner details the cards keep their general text.
       const stopName = n.entity_id ? result.name_index.stops?.[n.entity_id] || n.entity_id : '';
@@ -2377,7 +2442,8 @@ function dqIndexKey<T>(map: Record<string, T> | undefined, key?: string): string
 
 /** Stop findings (STP_001–010) whose cards place the stop on an example trip. */
 const STP_CONTEXT_RULES = new Set(['STP_001', 'STP_002', 'STP_003', 'STP_004', 'STP_005', 'STP_006', 'STP_007', 'STP_008', 'STP_009', 'STP_010',
-  'STP_011', 'STP_012', 'STP_013', 'STP_014', 'STP_015', 'STP_016', 'STP_017', 'STP_019', 'STP_020']);
+  'STP_011', 'STP_012', 'STP_013', 'STP_014', 'STP_015', 'STP_016', 'STP_017', 'STP_019', 'STP_020',
+  'STP_021', 'STP_022', 'STP_023', 'STP_024', 'STP_026', 'STP_028', 'STP_029', 'STP_030', 'STP_031', 'STP_032']);
 
 /** Rule groups whose cards draw one example trip with numbered stops and list it stop by stop. */
 function plannerTripRule(ruleId: string): boolean {
@@ -4024,6 +4090,31 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
       addStop(n.entity_id, true);
       addStop(d.nearest_station_id, true);
       link(n.entity_id, d.nearest_station_id);
+    } else if (n.rule_id === 'STP_021') {
+      addStop(n.entity_id, true);
+      addStop(d.parent_station, true);
+      link(n.entity_id, d.parent_station);
+    } else if (n.rule_id === 'STP_029') {
+      // The stop, its far parent and a nearer station, each linked to the stop.
+      addStop(n.entity_id, true);
+      addStop(d.parent_id, true);
+      link(n.entity_id, d.parent_id);
+      addStop(d.nearest_station_id, true);
+      link(n.entity_id, d.nearest_station_id);
+      focus = undefined;
+    } else if (n.rule_id === 'STP_030') {
+      // The station and the stops around it that belong to no station (likely its platforms).
+      addStop(n.entity_id, true);
+      for (const id of listOf(d.nearby_stops)) {
+        addStop(id, false);
+        link(n.entity_id, id);
+      }
+    } else if (n.rule_id === 'STP_032' && n.entity_id) {
+      let i = 0;
+      while (d[`example_${i}_stop_id`] && d[`example_${i}_stop_id`] !== n.entity_id) i++;
+      addStop(n.entity_id, true);
+      addStop(d[`example_${i}_nearest_station_id`], true);
+      link(n.entity_id, d[`example_${i}_nearest_station_id`]);
     } else if (n.rule_id === 'STP_012') {
       // The station red, its platforms grey: where the trips should call instead.
       for (const id of listOf(d.platforms)) addStop(id, false);

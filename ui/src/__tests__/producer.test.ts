@@ -1409,6 +1409,51 @@ describe('Üretici kartı görünümü', () => {
     expect(out.map.opts?.extraPolylines?.length).toBeGreaterThanOrEqual(2);
   });
 
+  it('STP_021–032 kartları istasyon bağlarını ve değerleri planlamacı diliyle anlatır, önerilen istasyonu haritada bağlar', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı', ST: 'Gar', ST2: 'Yeni Gar', B1: 'Bekleme', N1: 'Peron' },
+      routes: { R1: '10' }, trips: { T1: 'Çarşı' }, trip_routes: { T1: 'R1' }, trip_first_dep: { T1: '06:00' },
+      trip_stops: { T1: ['S1', 'S2', 'S3'] }, trip_stop_sequences: { T1: [1, 2, 3] },
+      stop_coords: { S1: [41, 29], S2: [41.01, 29.01], S3: [41.02, 29.02], ST: [41.03, 29.03], ST2: [41.011, 29.01], B1: [41.0301, 29.03], N1: [41.0302, 29.0302] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+    const ctx = { trip_count: '12', route_count: '1', routes: 'R1', example_trip_id: 'T1', prev_stop_id: 'S1', next_stop_id: 'S3', stop_sequence: '2' };
+
+    // STP_021: the parent and its type, linked.
+    let out = render(notice('a', 'STP_021', 'HIGH', { entity_type: 'Stop', entity_id: 'B1', details: { parent_station: 'ST', parent_location_type: '1' } }));
+    expect(out.html).toContain('„Bekleme“ biniş alanı „Gar“ kaydına bağlı ama o kayıt bir peron değil, istasyon');
+    expect(out.map.opts?.pins.filter(p => p.primary)).toHaveLength(2);
+
+    // STP_024: the access value in plain words, with the trips through the stop.
+    out = render(notice('a', 'STP_024', 'MEDIUM', { entity_type: 'Stop', entity_id: 'S2', observed_value: '7', details: ctx }));
+    expect(out.html).toContain('„Okul“ durağının sokaktan erişim bilgisi „7“; bu alan yalnız 0 (istasyonun içinden erişilir) ya da 1 (doğrudan sokaktan erişilir) olabilir. Bu durağa 12 sefer uğruyor (10).');
+
+    // STP_029: the far parent and a nearer station, in the text, the table and on the map.
+    out = render(notice('a', 'STP_029', 'MEDIUM', { entity_type: 'Stop', entity_id: 'S2', observed_value: '2900m', expected_value: '≤ 150m',
+      details: { parent_id: 'ST', nearest_station_id: 'ST2', nearest_station_m: '110', ...ctx } }));
+    expect(out.html).toContain('„Okul“ durağı bağlı olduğu „Gar“ istasyonundan 2,9 km uzakta; bir istasyonun peronu bu kadar uzakta olmamalı (sınır 150 m). 110 m ötedeki „Yeni Gar“ istasyonu kastedilmiş olabilir.');
+    expect(out.html).toContain('<tr><td>Yeni Gar</td><td>Daha yakın istasyon</td><td>110 m</td></tr>');
+    expect(out.map.opts?.pins.filter(p => p.primary)).toHaveLength(3);
+
+    // STP_030: the stops around a platform-less station, linked to it.
+    out = render(notice('a', 'STP_030', 'LOW', { entity_type: 'Stop', entity_id: 'ST', details: { nearby_stops: 'N1', nearby_m: '25' } }));
+    expect(out.html).toContain('„Gar“ istasyonuna bağlı hiçbir peron yok');
+    expect(out.html).toContain('Yakındaki istasyona bağlı olmayan duraklar: „Peron“ (25 m)');
+
+    // STP_032: the summary row of a platform names its nearest station.
+    out = render(notice('a', 'STP_032', 'MEDIUM', { entity_type: 'Feed', observed_value: '1',
+      details: { affected_platforms: '1', example_platforms: 'N1', example_0_stop_id: 'N1', example_0_nearest_station_id: 'ST', example_0_nearest_station_m: '30' } }));
+    expect(out.html).toContain('1 peron yürüme yollarıyla bağlı ama hiçbir istasyona bağlı değil');
+    expect(out.html).toContain('30 m ötedeki „Gar“ istasyonu kastedilmiş olabilir.');
+    expect(out.html).toContain('<tr class="bad"><td>Peron</td><td>Gar · 30 m</td></tr>');
+  });
+
   it('STM_051–055 kartları Flex bölgesini, pencereyi, yazılan değeri ve aynı saatli durak serisini gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,

@@ -4824,6 +4824,8 @@
         {
           "details": {
             "affected_platforms": "2",
+            "example_0_stop_id": "S1",
+            "example_1_stop_id": "S2",
             "example_platforms": "S1, S2"
           },
           "entity_id": null,
@@ -9003,6 +9005,8 @@
         {
           "details": {
             "affected_platforms": "2",
+            "example_0_stop_id": "S1",
+            "example_1_stop_id": "S2",
             "example_platforms": "S1, S2"
           },
           "entity_id": null,

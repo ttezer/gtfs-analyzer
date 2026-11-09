@@ -10103,6 +10103,25 @@ fn check_remaining_analytics<'a>(
                 );
                 let mut det = std::collections::BTreeMap::new();
                 det.insert("parent_id".to_string(), parent_id.to_string());
+                // Planner context: a station nearer than the parent (within 1 km) is likely the
+                // one meant; otherwise the stop's position is the suspect.
+                let nearer = records
+                    .stops
+                    .iter()
+                    .filter(|s| s.location_type == Some(1) && s.stop_id != parent_id)
+                    .filter_map(|s| {
+                        let (la, lo) = recoverable_stop_coord(s)?;
+                        Some((
+                            haversine_km(slat, slon, la, lo) * 1000.0,
+                            s.stop_id.as_str(),
+                        ))
+                    })
+                    .filter(|&(m, _)| m < dist_m && m <= STP_NEAR_STATION_M)
+                    .min_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(b.1)));
+                if let Some((m, id)) = nearer {
+                    det.insert("nearest_station_id".to_string(), id.to_string());
+                    det.insert("nearest_station_m".to_string(), format!("{m:.0}"));
+                }
                 notice.details = Some(det.into());
                 notices.push(notice);
             }
@@ -10144,7 +10163,7 @@ fn check_remaining_analytics<'a>(
             }
             if !stations_with_children.contains(stop.stop_id.as_str()) {
                 let sname = stop.stop_name.as_deref().unwrap_or(stop.stop_id.as_str());
-                notices.push(k6_notice(
+                let mut n030 = k6_notice(
                     ctr,
                     "STP_030",
                     EntityType::Stop,
@@ -10161,7 +10180,43 @@ fn check_remaining_analytics<'a>(
                         stop.stop_id, sname
                     ),
                     "İstasyona bağlı peronlarda (location_type=0) parent_station alanını doldurun veya istasyonu kaldırın.",
-                ));
+                );
+                // Planner context: stops nearby that belong to no station — the likely platforms.
+                if let Some((la, lo)) = recoverable_stop_coord(stop) {
+                    let mut near: Vec<(f64, &str)> = records
+                        .stops
+                        .iter()
+                        .filter(|s| {
+                            matches!(s.location_type, None | Some(0))
+                                && s.row
+                                    .get("parent_station")
+                                    .is_none_or(|p| p.trim().is_empty())
+                        })
+                        .filter_map(|s| {
+                            let (sla, slo) = recoverable_stop_coord(s)?;
+                            Some((haversine_km(la, lo, sla, slo) * 1000.0, s.stop_id.as_str()))
+                        })
+                        .filter(|&(m, _)| m <= STP030_NEAR_M)
+                        .collect();
+                    near.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(b.1)));
+                    near.truncate(STP030_CANDIDATES);
+                    if !near.is_empty() {
+                        let mut d = std::collections::BTreeMap::new();
+                        d.insert(
+                            "nearby_stops".to_string(),
+                            near.iter().map(|(_, id)| *id).collect::<Vec<_>>().join(","),
+                        );
+                        d.insert(
+                            "nearby_m".to_string(),
+                            near.iter()
+                                .map(|(m, _)| format!("{m:.0}"))
+                                .collect::<Vec<_>>()
+                                .join(","),
+                        );
+                        n030.details = Some(d.into());
+                    }
+                }
+                notices.push(n030);
             }
         }
     }
@@ -12589,6 +12644,12 @@ fn canonicalize_stop_components(mut components: Vec<Vec<&str>>) -> Vec<Vec<&str>
 const VAT001_ONLY_EXAMPLES: usize = 10;
 /// STP_020 planner context: a used stop this close is named as the likely record trips use.
 const STP020_NEAR_M: f64 = 150.0;
+/// STP_029 planner context: a station nearer than the parent within this distance is named.
+const STP_NEAR_STATION_M: f64 = 1000.0;
+/// STP_030 planner context: stops without a station this close to the station, the likely
+/// platforms (at most this many, nearest first).
+const STP030_NEAR_M: f64 = 300.0;
+const STP030_CANDIDATES: usize = 5;
 const VAT_NEARBY_ROUTES: usize = 10;
 const VAT003_EXAMPLES: usize = 5;
 const VAT005_CLUSTERS: usize = 5;

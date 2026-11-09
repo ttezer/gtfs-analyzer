@@ -1167,7 +1167,7 @@ fn check_stops(
             if let Some(&pidx) = map.stops.get(parent) {
                 let ptype = records.stops[pidx].location_type;
                 if !matches!(ptype, None | Some(0)) {
-                    notices.push(notice(
+                    let mut n021 = notice(
                         ctr,
                         "STP_021",
                         EntityType::Stop,
@@ -1183,7 +1183,15 @@ fn check_stops(
                             rec.stop_id, parent
                         ),
                         "Boarding area'nın parent_station'ını location_type=0 olan bir platform olarak ayarlayın.",
-                    ));
+                    );
+                    // Planner context: the record it is attached to and that record's type.
+                    let d = n021.details.get_or_insert_with(Default::default);
+                    d.insert("parent_station".to_string(), parent.to_string());
+                    d.insert(
+                        "parent_location_type".to_string(),
+                        ptype.unwrap_or(0).to_string(),
+                    );
+                    notices.push(n021);
                 }
             }
         }

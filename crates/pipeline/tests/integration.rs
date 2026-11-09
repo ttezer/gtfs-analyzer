@@ -8286,3 +8286,58 @@ fn more_stop_findings_carry_planner_context() {
     assert_eq!(get(&d, "nearest_used_stop_id").as_deref(), Some("S5"));
     assert_eq!(get(&d, "nearest_trip_count").as_deref(), Some("1"));
 }
+
+#[test]
+fn station_and_value_stop_findings_carry_planner_context() {
+    // STP_021 the record a boarding area is attached to, STP_028 the code, STP_029 a station
+    // nearer than the parent, STP_030 the stops without a station around a platform-less station,
+    // STP_032 per example platform the nearest station, and the stop context for the value rules.
+    // Counts are unchanged.
+    let find = |vr: &gtfs_pipeline::ValidationResult, rule: &str| {
+        vr.notices
+            .iter()
+            .find(|n| n.rule_id == rule)
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor"))
+    };
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+
+    static STOPS: &[u8] = b"stop_id,stop_name,stop_desc,stop_lat,stop_lon,location_type,parent_station,stop_code,tts_stop_name,stop_access\n\
+          ST,Gar,,41.0,29.0,1,,,,\nST2,Yeni Gar,,41.02,29.0,1,,,,\nEMPTY,Bos Gar,,41.05,29.0,1,,,,\n\
+          B1,Bekleme,,41.0001,29.0,4,ST,,,\nS1,Okul,Okul,41.0201,29.0,0,ST,0123456789012345678901234567890123456789012345678901,<b>Okul</b>,7\n\
+          S2,Park,,41.0502,29.0,,,,,\nN1,Peron,,41.0,29.0002,0,,,,\nN2,Peron 2,,41.0,29.0003,0,,,,\n";
+    static PATHWAYS: &[u8] =
+        b"pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nPW1,N1,N2,1,1\n";
+    static TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S2,1\nT1,08:05:00,08:05:00,S1,2\nT1,08:10:00,08:10:00,N1,3\n";
+    let mut files = base_files();
+    files[1] = ("stops.txt", STOPS);
+    files[4] = ("stop_times.txt", TIMES);
+    files.push(("pathways.txt", PATHWAYS));
+    let vr = match run(&files) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+
+    let d = find(&vr, "STP_021");
+    assert_eq!(get(&d, "parent_station").as_deref(), Some("ST"));
+    assert_eq!(get(&d, "parent_location_type").as_deref(), Some("1"));
+    let d = find(&vr, "STP_028");
+    assert_eq!(get(&d, "stop_code").map(|v| v.len()), Some(52));
+    assert_eq!(get(&d, "next_stop_id").as_deref(), Some("N1"));
+    for rule in ["STP_023", "STP_024", "STP_031"] {
+        let d = find(&vr, rule);
+        assert_eq!(get(&d, "prev_stop_id").as_deref(), Some("S2"), "{rule}");
+    }
+    let d = find(&vr, "STP_029");
+    assert_eq!(get(&d, "parent_id").as_deref(), Some("ST"));
+    assert_eq!(get(&d, "nearest_station_id").as_deref(), Some("ST2"));
+    let d = find(&vr, "STP_030");
+    assert_eq!(get(&d, "nearby_stops").as_deref(), Some("S2"));
+    let d = find(&vr, "STP_032");
+    assert_eq!(get(&d, "example_0_stop_id").as_deref(), Some("N1"));
+    assert_eq!(
+        get(&d, "example_0_nearest_station_id").as_deref(),
+        Some("ST")
+    );
+}

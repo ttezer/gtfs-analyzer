@@ -99,7 +99,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         // STP_028: stop_code is too long (>50 characters)
         if let Some(ref code) = stop_code {
             if code.len() > 50 {
-                notices.push(make_k2_notice(
+                let mut n028 = make_k2_notice(
                     &mut counter,
                     "STP_028",
                     EntityType::Stop,
@@ -116,7 +116,12 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                         code.len()
                     ),
                     "stop_code'u 50 karakterin altında tutun.",
-                ));
+                );
+                // Planner context: the code itself.
+                n028.details
+                    .get_or_insert_with(Default::default)
+                    .insert("stop_code".to_string(), code.clone());
+                notices.push(n028);
             }
         }
 

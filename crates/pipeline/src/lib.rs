@@ -2376,10 +2376,15 @@ pub fn aggregate_feed_level_notices(
 }
 
 /// Stop findings whose planner card names the trips, routes and neighbouring stops of the stop.
-const STOP_CONTEXT_RULES: [&str; 14] = [
+const STOP_CONTEXT_RULES: [&str; 21] = [
     "STP_001", "STP_003", "STP_006", "STP_007", "STP_008", "STP_009", "STP_010", "STP_012",
-    "STP_013", "STP_014", "STP_015", "STP_016", "STP_017", "STP_019",
+    "STP_013", "STP_014", "STP_015", "STP_016", "STP_017", "STP_019", "STP_022", "STP_023",
+    "STP_024", "STP_026", "STP_028", "STP_029", "STP_031",
 ];
+/// STP_032 summary: per example platform, the nearest station within this distance (a likely
+/// parent).
+const STP032_STATION_KM: f64 = 1.0;
+const STP032_RULE: &str = "STP_032";
 /// Stop findings about a second stop, which gets the same context under a prefix: the other stop
 /// of a close pair (`other_`), the used stop near an unused one (`nearest_`).
 const STOP_CONTEXT_OTHER: [(&str, &str, &str); 3] = [
@@ -2431,6 +2436,57 @@ fn annotate_stop_context(all: &mut [gtfs_core::Notice], records: &EntityRecords)
             }
         } else if STOP_CONTEXT_SUMMARIES.contains(&n.rule_id.as_str()) {
             wanted.extend(summary_stops(n));
+        }
+    }
+    // STP_032: per example platform (they belong to no station), the nearest station.
+    for n in all.iter_mut().filter(|n| n.rule_id == STP032_RULE) {
+        let examples: Vec<String> = n
+            .details
+            .as_ref()
+            .and_then(|d| d.get("example_platforms"))
+            .map(|v| {
+                v.as_str()
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut adds = Vec::new();
+        for (i, id) in examples.iter().enumerate() {
+            adds.push((format!("example_{i}_stop_id"), id.clone()));
+            let Some((lat, lon)) = records
+                .stops
+                .iter()
+                .find(|s| &s.stop_id == id)
+                .and_then(|s| s.stop_lat.zip(s.stop_lon))
+            else {
+                continue;
+            };
+            let nearest = records
+                .stops
+                .iter()
+                .filter(|s| s.location_type == Some(1))
+                .filter_map(|s| {
+                    let (sla, slo) = s.stop_lat.zip(s.stop_lon)?;
+                    Some((
+                        crate::k5_derived::haversine_km(lat, lon, sla, slo),
+                        s.stop_id.as_str(),
+                    ))
+                })
+                .filter(|(km, _)| *km <= STP032_STATION_KM)
+                .min_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(b.1)));
+            if let Some((km, sid)) = nearest {
+                adds.push((format!("example_{i}_nearest_station_id"), sid.to_string()));
+                adds.push((
+                    format!("example_{i}_nearest_station_m"),
+                    format!("{:.0}", km * 1000.0),
+                ));
+            }
+        }
+        let d = n.details.get_or_insert_with(Default::default);
+        for (k, v) in adds {
+            d.insert(k, v);
         }
     }
     // STP_014: the feed's own timezone, the likely value for a stop.
