@@ -2393,7 +2393,7 @@ const tr = {
     'producer.card.AGN_003.what': '{agency} için verilen web adresi geçerli bir URL olarak okunamıyor.',
     'producer.card.AGN_003.action': 'İşletmecinin geçerli web adresini girin.',
     'producer.card.STM_002.title': 'Seferde kullanılan durak bulunamadı',
-    'producer.card.STM_002.context': "{route} · Hat kodu {route_code} · {service}",
+    'producer.card.STM_002.context': "{route} · {service}",
     'producer.card.STM_002.service_context': "{name} · {days}",
     'producer.card.STM_002.what': "{service} takvimindeki, hat kodu {route_code} olan seferde bu durak {time} aralığında kullanılıyor; durak listesinde bu durak bulunmuyor.",
     'producer.card.STM_002.action': "Planlama yazılımında bu seferin konumunu kontrol edin. Fiziksel bir duraksa mevcut durakla eşleştirin veya durak kaydı oluşturun. Bu bilgi bir hizmet alanını gösteriyorsa alanı durak olarak eklemeyin; seferde doğru konum türünü ve kaydını kullanın.",

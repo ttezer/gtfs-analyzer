@@ -1186,10 +1186,12 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         title: t('producer.card.STM_002.title'),
         context: t('producer.card.STM_002.context', {
           route,
-          route_code: routeId || '—',
           service: serviceContext,
         }),
-        what: t(geojsonLocation ? 'producer.card.STM_002.geojson_what' : 'producer.card.STM_002.what', { route_code: routeId || '—', service: serviceContext, time, time_range: timeRange }),
+        // "Hat kodu" is the route's number riders know (route_short_name, as the badge), not route_id.
+        what: t(geojsonLocation ? 'producer.card.STM_002.geojson_what' : 'producer.card.STM_002.what', {
+          route_code: routeId ? routeBadge(routeId, result.name_index).label : '—', service: serviceContext, time, time_range: timeRange,
+        }),
         action: t(geojsonLocation ? 'producer.card.STM_002.geojson_action' : 'producer.card.STM_002.action'),
       };
     }
@@ -3524,7 +3526,7 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
                 ? t('producer.card.pickup_window', { start: plannerTime(details.example_1_window_start) ?? '', end: plannerTime(details.example_1_window_end) ?? '' })
                 : null);
             return [
-              routeId ? { html: `${routeBadgeHtml(routeId, result)} <span class="planner-route-code">${escHtml(routeId)}</span>` } : '—',
+              routeId ? { html: routeBadgeHtml(routeId, result) } : '—',
               dash(details.example_1_trip_id ? ni.trips?.[details.example_1_trip_id] : null),
               dash(time),
               {
@@ -3571,7 +3573,8 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
           const routeId = routeIdOfNotice(n);
           const d = n.details ?? {};
           return [
-            badge(routeId), dash(routeId ? ni.route_long_names?.[routeId] : null), dash(routeId),
+            // "Hat kodu" is the route's number riders know (route_short_name), not the internal route_id.
+            badge(routeId), dash(routeId ? ni.route_long_names?.[routeId] : null), dash(routeId ? routeBadge(routeId, ni).label : null),
             ...(perService ? [dash(oprDirectionName(d, result, d.trip_before) || null), plannerServiceText(n.service_id, result)] : []),
             ...(withSpot ? [dash(timeSpot(n, result))] : []),
           ];

@@ -2395,7 +2395,7 @@ const fr: LocaleShape = {
     'producer.card.AGN_003.what': "L'adresse web fournie pour {agency} n'est pas une URL valide.",
     'producer.card.AGN_003.action': "Saisissez une adresse web valide pour l'opérateur.",
     'producer.card.STM_002.title': 'Arrêt utilisé par un trajet introuvable',
-    'producer.card.STM_002.context': "{route} · Code de ligne {route_code} · {service}",
+    'producer.card.STM_002.context': "{route} · {service}",
     'producer.card.STM_002.service_context': "{name} · {days}",
     'producer.card.STM_002.what': "Un trajet de la ligne {route_code} selon le calendrier {service} utilise cet arrêt pendant {time}, mais l'arrêt manque dans la liste.",
     'producer.card.STM_002.action': "Vérifiez l'emplacement du trajet dans le logiciel de planification. S'il s'agit d'un arrêt physique, associez-le à un arrêt existant ou créez un arrêt. S'il s'agit d'une zone de service, ne l'ajoutez pas comme arrêt : utilisez le type et l'enregistrement de lieu appropriés dans le trajet.",

@@ -2394,7 +2394,7 @@ const ja: LocaleShape = {
     'producer.card.AGN_003.what': '{agency}に指定されたウェブアドレスは有効なURLとして読み取れません。',
     'producer.card.AGN_003.action': '事業者の有効なウェブアドレスを入力してください。',
     'producer.card.STM_002.title': '便で使用されている停留所が見つかりません',
-    'producer.card.STM_002.context': "{route} · 路線コード {route_code} · {service}",
+    'producer.card.STM_002.context': "{route} · {service}",
     'producer.card.STM_002.service_context': "{name} · {days}",
     'producer.card.STM_002.what': "{service}の運行カレンダーで、路線コード{route_code}の便が{time}の間この停留所を使っていますが、停留所一覧にありません。",
     'producer.card.STM_002.action': "計画ソフトで便の場所を確認してください。実際の停留所なら既存の停留所に対応付けるか、新しい停留所を登録してください。サービスエリアを示している場合は停留所として追加せず、便で正しい場所の種類と登録を使ってください。",

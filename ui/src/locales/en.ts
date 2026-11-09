@@ -2395,7 +2395,7 @@ const en: LocaleShape = {
     'producer.card.AGN_003.what': 'The website address provided for {agency} is not a valid URL.',
     'producer.card.AGN_003.action': 'Enter a valid website address for the agency.',
     'producer.card.STM_002.title': 'A stop used by a trip was not found',
-    'producer.card.STM_002.context': "{route} · Route code {route_code} · {service}",
+    'producer.card.STM_002.context': "{route} · {service}",
     'producer.card.STM_002.service_context': "{name} · {days}",
     'producer.card.STM_002.what': "A trip on route code {route_code} under the {service} calendar uses this stop during {time}, but the stop is missing from the stop list.",
     'producer.card.STM_002.action': "Check the trip's location in the planning software. If it is a physical stop, match it to an existing stop or create a stop record. If it represents a service area, do not add it as a stop; use the correct location type and record in the trip.",

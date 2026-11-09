@@ -181,9 +181,10 @@ describe('Üretici kartı görünümü', () => {
     renderProducer(root, r);
     expect(root.innerHTML).toContain('Seferde kullanılan durak bulunamadı');
     expect(root.innerHTML).not.toContain('Bu kodu kullanan hatlar');
-    expect(root.innerHTML).toContain('Hat kodu R1');
+    // The route is shown by the number riders know (here its name), never by route_id.
+    expect(root.innerHTML).not.toContain('Hat kodu R1');
     expect(root.innerHTML).toContain('Year round (Weekday)');
-    expect(root.innerHTML).toContain('planner-route-code">R1</span>');
+    expect(root.innerHTML).not.toContain('planner-route-code');
     expect(root.innerHTML).toContain('Hafta içi');
     expect(root.innerHTML).toContain('alış-bırakış aralığı 06:00–21:00');
     expect(root.innerHTML).toContain('talebe bağlı hizmetin yolcu alma ve bırakma bölgesi; sefer bu bölgeyi 06:00–21:00 boyunca kullanıyor');
@@ -1078,6 +1079,9 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('10 hattının „Çarşı“ yönünde seferlerinde (Hafta içi) 12:30 kalkışından sonraki sefer ancak 23:30 kalkışlı; arada 11 sa boyunca sefer yok. Sınır 4 sa.');
     expect(out.html).toContain('<tr class="bad"><td>12:30</td><td>T1</td><td>Çarşı</td></tr>');
     expect(out.html).toContain('<td>12:30 → 23:30</td>');
+    // "Hat kodu" is the route's number (route_short_name), not route_id R1.
+    expect(out.html).toContain('<td>—</td><td>10</td><td>Çarşı</td>');
+    expect(out.html).not.toContain('<td>R1</td>');
     expect(out.map.opts?.pins).toHaveLength(3);
 
     // OPR_007: the repeated stop red in the trip's stop list.
