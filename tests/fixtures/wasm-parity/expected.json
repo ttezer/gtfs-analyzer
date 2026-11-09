@@ -6047,6 +6047,22 @@
         {
           "details": {
             "affected_shapes": "2",
+            "example_0_dist": "5",
+            "example_0_lat": "41.1",
+            "example_0_lon": "29.1",
+            "example_0_prev_dist": "10",
+            "example_0_prev_lat": "41",
+            "example_0_prev_lon": "29",
+            "example_0_shape_id": "SH1",
+            "example_0_shape_pt_sequence": "2",
+            "example_1_dist": "5",
+            "example_1_lat": "41.1",
+            "example_1_lon": "29.1",
+            "example_1_prev_dist": "10",
+            "example_1_prev_lat": "41",
+            "example_1_prev_lon": "29",
+            "example_1_shape_id": "SH2",
+            "example_1_shape_pt_sequence": "2",
             "example_shapes": "SH1, SH2"
           },
           "entity_id": null,

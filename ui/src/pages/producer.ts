@@ -309,6 +309,8 @@ function plannerFieldName(field: string): string {
 function dqListLabel(n: Notice): string | null {
   // CAL_020 / OPR_014 / OPR_016 / OPR_025 are about a whole list: name it, not the engine's summary ("11 years").
   if (['DQ_016', 'CAL_020', 'OPR_014', 'OPR_016', 'OPR_025', 'TRP_015'].includes(n.rule_id)) return plannerListName(n.file);
+  // SHP_001: the code-less point is a row of the shape point list.
+  if (n.rule_id === 'SHP_001') return plannerListName(n.file);
   // STP_002: the code-less row by the name written on it.
   if (n.rule_id === 'STP_002') return n.details?.stop_name || plannerListName(n.file);
   // TRP_001 on a code-less row: the row is in the trip list.
@@ -1050,6 +1052,132 @@ function stpTable(n: Notice, result: ValidationResult): string {
       });
     }
     return table(t('producer.times.stp_examples'), [t('producer.col.stop'), t('producer.col.route'), t('producer.times.stp_between')], rows);
+  }
+  return '';
+}
+
+/** SHP findings: the shape a row is about and its context; a summary row reads its own
+ *  example's keys (`example_<i>_*`), SHP_001 the shape of the rows around it (`shape_*`). */
+function shpContext(n: Notice): { shape?: string; at: (key: string) => string | undefined; routes: string[] } {
+  const d = n.details ?? {};
+  let prefix = '';
+  let shape = n.entity_id ?? undefined;
+  if (d.example_0_shape_id) {
+    let i = 0;
+    while (d[`example_${i}_shape_id`] && d[`example_${i}_shape_id`] !== n.entity_id) i++;
+    if (!d[`example_${i}_shape_id`]) i = 0;
+    prefix = `example_${i}_`;
+    shape = d[`example_${i}_shape_id`];
+  } else if (n.rule_id === 'SHP_001') {
+    prefix = 'shape_';
+    shape = d.prev_shape_id || d.next_shape_id;
+  }
+  const at = (key: string) => d[`${prefix}${key}`] || undefined;
+  return { shape, at, routes: listOf(at('routes')) };
+}
+
+/** "„SH1“ güzergâh çizimi (S8 hattı)". */
+function shapeText(shape: string | undefined, routes: string[], result: ValidationResult): string {
+  if (!shape) return '—';
+  const ids = routes.length ? routes : [...new Set((result.name_index.shape_routes?.[shape] ?? []).map(([r]) => r))];
+  return ids.length ? t('producer.card.shp_shape_routes', { shape, routes: routeLabels(ids, result) }) : t('producer.card.shp_shape', { shape });
+}
+
+/** Each SHP rule's own sentence: the shape by its routes, the point by its row, where it goes wrong. */
+function shpRuleText(n: Notice, result: ValidationResult): string | null {
+  const d = n.details ?? {};
+  const c = shpContext(n);
+  const shape = shapeText(c.shape, c.routes, result);
+  const value = (n.observed_value ?? '').trim();
+  const join = (...parts: string[]) => parts.filter(Boolean).join(' ');
+  const between = d.prev_line && d.next_line ? t('producer.card.shp_between', { prev: d.prev_line, next: d.next_line }) : '';
+  const meters = (a?: string, b?: string, x?: string, y?: string) => {
+    const p = [Number(a), Number(b)] as [number, number];
+    const q = [Number(x), Number(y)] as [number, number];
+    return [...p, ...q].every(Number.isFinite) && a && x ? metersText(String(metersBetween(p, q))) : '';
+  };
+  switch (n.rule_id) {
+    case 'SHP_001':
+      if (n.line == null) return null;
+      return join(t('producer.card.SHP_001.what_detail', { line: String(n.line) }),
+        c.shape ? t('producer.card.SHP_001.what_near', { shape }) : '');
+    case 'SHP_002':
+    case 'SHP_003':
+      if (n.line == null) return null;
+      return join(t(`producer.card.${n.rule_id}.what_detail`, { shape, line: String(n.line), value: value || '—' }), between);
+    case 'SHP_004':
+      return n.line == null ? null : t('producer.card.SHP_004.what_detail', { shape, line: String(n.line), value: value || '—' });
+    case 'SHP_005': {
+      const count = d.affected_shapes || n.observed_value;
+      if (!count) return null;
+      const ex = c.at('dist') && c.at('prev_dist')
+        ? t('producer.card.SHP_005.what_example', { shape, seq: c.at('shape_pt_sequence') || '—', prev: localizedNumber(c.at('prev_dist')!), dist: localizedNumber(c.at('dist')!) })
+        : '';
+      return join(t('producer.card.SHP_005.what_detail', { n: localizedNumber(count) }), ex);
+    }
+    case 'SHP_006':
+      return t('producer.card.SHP_006.what_detail', { shape });
+    case 'SHP_008': {
+      if (n.line == null) return null;
+      const dist = meters(d.first_lat, d.first_lon, d.lat, d.lon);
+      return t('producer.card.SHP_008.what_detail', {
+        shape, seq: value || '—', first: d.first_line || '—', line: String(n.line), dist: dist ? t('producer.card.shp_apart', { dist }) : '',
+      });
+    }
+    case 'SHP_009':
+      if (!n.entity_id && Number(d.affected_shapes) > 1) return t('producer.card.SHP_009.what_many', { n: localizedNumber(d.affected_shapes!) });
+      return join(t('producer.card.SHP_009.what_detail', { shape }),
+        d.repeated_shapes ? t('producer.card.SHP_009.what_repeat', { n: localizedNumber(d.repeated_shapes) }) : '');
+    case 'SHP_010':
+      if (Number(d.affected_shapes) > 1) {
+        return join(t('producer.card.SHP_010.what_many', { n: localizedNumber(d.affected_shapes!) }), n.entity_id ? t('producer.card.shp_example', { shape }) : '');
+      }
+      return t('producer.card.SHP_010.what_detail', { shape, prev: d.prev_line || '—', line: String(n.line ?? '—') });
+    case 'SHP_012': {
+      const far = listOf(d.far_stops);
+      if (!far.length) return null;
+      const ms = listOf(d.far_stop_m).map(Number);
+      let worst = 0;
+      ms.forEach((m, i) => { if (m > (ms[worst] ?? 0)) worst = i; });
+      const limit = /\d+m/.exec(value)?.[0]?.replace('m', '');
+      return join(t('producer.card.SHP_012.what_detail', { shape, n: localizedNumber(/^\d+/.exec(value)?.[0] || String(far.length)), limit: metersText(limit) }),
+        ms.length ? t('producer.card.SHP_012.what_worst', { stop: result.name_index.stops?.[far[worst]] || far[worst], dist: metersText(String(ms[worst])) }) : '');
+    }
+    default:
+      return null;
+  }
+}
+
+/** SHP tables: the far stops with their distance, the summary's shapes, the repeated order's rows. */
+function shpTable(n: Notice, result: ValidationResult): string {
+  const ni = result.name_index;
+  const d = n.details ?? {};
+  const table = (caption: string, head: string[], rows: Array<{ cells: string[]; bad?: boolean }>) =>
+    `<p class="producer-card-label">${escHtml(caption)}</p><table class="planner-times planner-stop-times"><thead><tr>${head.map(h => `<th>${escHtml(h)}</th>`).join('')}</tr></thead><tbody>${
+      rows.map(r => `<tr${r.bad ? ' class="bad"' : ''}>${r.cells.map(c => `<td>${escHtml(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  if (n.rule_id === 'SHP_012' && d.far_stops) {
+    const ms = listOf(d.far_stop_m);
+    return table(t('producer.times.shp012_stops'), [t('producer.col.stop'), t('producer.times.shp_distance')],
+      listOf(d.far_stops).map((id, i) => ({ cells: [ni.stops?.[id] ? `${ni.stops[id]} (${id})` : id, metersText(ms[i])], bad: true })));
+  }
+  if (n.rule_id === 'SHP_005' && d.example_0_shape_id) {
+    const rows = [];
+    for (let i = 0; d[`example_${i}_shape_id`]; i++) {
+      const at = (key: string) => d[`example_${i}_${key}`];
+      rows.push({
+        cells: [at('shape_id')!, routeLabels(listOf(at('routes')), result), at('shape_pt_sequence') || '—',
+          at('prev_dist') && at('dist') ? `${localizedNumber(at('prev_dist')!)} → ${localizedNumber(at('dist')!)}` : '—'],
+        bad: at('shape_id') === n.entity_id,
+      });
+    }
+    return table(t('producer.times.shp005_shapes'), [t('producer.col.shape_code'), t('producer.col.route'), t('producer.times.shp_seq'), t('producer.times.shp_dists')], rows);
+  }
+  if (n.rule_id === 'SHP_008' && d.first_line && n.line != null) {
+    const pos = (a?: string, b?: string) => (a && b ? `${a}, ${b}` : '—');
+    return table(t('producer.times.shp008_rows'), [t('producer.col.row'), t('producer.times.stp_position')], [
+      { cells: [d.first_line, pos(d.first_lat, d.first_lon)], bad: true },
+      { cells: [String(n.line), pos(d.lat, d.lon)], bad: true },
+    ]);
   }
   return '';
 }
@@ -2212,6 +2340,17 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         action: t(`producer.card.${g.ruleId}.action`),
       };
     }
+    case 'SHP_001': case 'SHP_002': case 'SHP_003': case 'SHP_004': case 'SHP_005': case 'SHP_006': case 'SHP_008':
+    case 'SHP_009': case 'SHP_010': case 'SHP_012': {
+      const raw = shpRuleText(n, result);
+      if (!raw) return null;
+      // Sentences may open with the shape phrase ("the shape … of route 10"): capitalise.
+      const what = raw.charAt(0).toLocaleUpperCase(intlLocale()) + raw.slice(1);
+      // The shape's routes and the example trip the map draws its stops from.
+      const trip = shpContext(n).at('example_trip_id');
+      const mapText = trip ? dqTripMapText(dqIndexKey(result.name_index.trip_stops, trip), result) : '';
+      return { title: t(`producer.card.${g.ruleId}.title`), what: [what, mapText].filter(Boolean).join(' '), action: t(`producer.card.${g.ruleId}.action`) };
+    }
     case 'VAT_001': case 'VAT_002': case 'VAT_003': case 'VAT_005': case 'VAT_006': case 'VAT_007': case 'VAT_008': {
       const what = vatRuleText(n, result);
       if (!what) return null;
@@ -2552,6 +2691,9 @@ function dqIndexKey<T>(map: Record<string, T> | undefined, key?: string): string
   return key in map ? key : key.trim() in map ? key.trim() : undefined;
 }
 
+/** Shape findings whose cards draw the shape with its routes, an example trip and the faulty spot. */
+const SHP_CONTEXT_RULES = new Set(['SHP_001', 'SHP_002', 'SHP_003', 'SHP_004', 'SHP_005', 'SHP_006', 'SHP_008', 'SHP_009', 'SHP_010', 'SHP_012']);
+
 /** Stop findings (STP_001–010) whose cards place the stop on an example trip. */
 const STP_CONTEXT_RULES = new Set(['STP_001', 'STP_002', 'STP_003', 'STP_004', 'STP_005', 'STP_006', 'STP_007', 'STP_008', 'STP_009', 'STP_010',
   'STP_011', 'STP_012', 'STP_013', 'STP_014', 'STP_015', 'STP_016', 'STP_017', 'STP_019', 'STP_020',
@@ -2754,6 +2896,13 @@ function timeStrip(n: Notice, result: ValidationResult): string {
   const body = timeStripBody(n, result);
   // DQ cards: the stops of the trip on the map, in order (the headsign row's stop, or the
   // last stop a missing headsign could name, in red).
+  // SHP cards: the example trip on the shape, stop by stop (SHP_012: its first far stop red).
+  if (SHP_CONTEXT_RULES.has(n.rule_id)) {
+    const trip = dqIndexKey(result.name_index.trip_stops, shpContext(n).at('example_trip_id'));
+    const far = listOf(n.details?.far_stops);
+    const mark = (trip ? result.name_index.trip_stops?.[trip] ?? [] : []).find(id => far.includes(id));
+    return trip ? body + tripItineraryTable(trip, result, mark) : body;
+  }
   // STP cards: the example trip through the stop, the stop red in its stop list.
   if (STP_CONTEXT_RULES.has(n.rule_id)) {
     const c = stpContext(n, n.rule_id === 'STP_020' ? 'nearest' : undefined);
@@ -3011,6 +3160,10 @@ function timeStripBody(n: Notice, result: ValidationResult): string {
   }
   if (STP_CONTEXT_RULES.has(n.rule_id)) {
     const table = stpTable(n, result);
+    if (table) return table;
+  }
+  if (SHP_CONTEXT_RULES.has(n.rule_id)) {
+    const table = shpTable(n, result);
     if (table) return table;
   }
   if (n.rule_id === 'CAL_020' && d.feed_start_date && d.feed_end_date) {
@@ -3829,7 +3982,10 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   // A drawn trip is named as planners know it (route · direction · departure), also when a
   // list-level finding's map draws its example trip; otherwise the list or record name.
   const drawnTrip = n.entity_type === 'Trip' && n.entity_id && ni.trip_stops?.[n.entity_id] ? tripShort(n.entity_id, result) : '';
-  const label = tripLabel || drawnTrip || dqListLabel(n) || plannerEntityLabel(n, result) || n.entity_id || '';
+  // A shape finding names the shape with its routes ("S8 hattının „SA“ güzergâh çizimi").
+  const shpShape = SHP_CONTEXT_RULES.has(n.rule_id) ? shpContext(n) : undefined;
+  const shpLabel = shpShape?.shape ? shapeText(shpShape.shape, shpShape.routes, result) : '';
+  const label = tripLabel || drawnTrip || shpLabel || dqListLabel(n) || plannerEntityLabel(n, result) || n.entity_id || '';
   const shown = label ? t('producer.map.shown', { record: label }) : '';
   const zeroCaption = () => zeroStops.size
     ? t('producer.map.null_island', { stops: [...zeroStops].slice(0, 3).map(id => ni.stops?.[id] || id).join(', ') })
@@ -4140,6 +4296,65 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     const other = n.details.other_trip_id;
     const coords = (ni.trip_stops?.[other] ?? []).map(id => coord(id)).filter((p): p is [number, number] => p !== null);
     if (coords.length > 1) lines.push({ coords, color: MAP_RED, weight: 3, arrows: true });
+  }
+  // SHP: the shape in its route's colour (SHP_001: the shape of the rows around the point), the
+  // example trip's stops grey and numbered, and the faulty spot red — the point, the stretch a
+  // point without a position belongs to (circled), the crossing (circled), the far stops.
+  if (SHP_CONTEXT_RULES.has(n.rule_id)) {
+    const d = n.details ?? {};
+    const c = shpContext(n);
+    const routeId = c.routes[0] || (c.shape ? ni.shape_routes?.[c.shape]?.[0]?.[0] : undefined);
+    if (c.shape && !lines.some(l => l.coords === ni.shape_coords?.[c.shape!])) addShape(c.shape, routeColor(routeId));
+    const trip = dqIndexKey(ni.trip_stops, c.at('example_trip_id'));
+    if (trip) {
+      const sequences = ni.trip_stop_sequences?.[trip] ?? [];
+      for (const [index, stopId] of (ni.trip_stops?.[trip] ?? []).entries()) addStop(stopId, false, sequences[index]);
+      if (!c.shape || !ni.shape_coords?.[c.shape]) {
+        const coords = (ni.trip_stops?.[trip] ?? []).map(id => coord(id)).filter((p): p is [number, number] => p !== null);
+        if (coords.length > 1) lines.push({ coords, color: routeColor(ni.trip_routes?.[trip]), weight: 3, arrows: true });
+      }
+    }
+    const pt = (lat?: string, lon?: string): [number, number] | null => {
+      const p: [number, number] = [Number(lat), Number(lon)];
+      return lat && lon && p.every(Number.isFinite) && Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180 && !isNullIsland(p) ? p : null;
+    };
+    const pin = (p: [number, number] | null, label: string) => {
+      if (p) pins.push({ lat: p[0], lon: p[1], label, primary: true, color: MAP_RED, stroke: '#ffffff' });
+    };
+    const circle = (p: [number, number] | null, radius: number) => {
+      if (p) highlights.push({ center: p, radiusMeters: radius, color: MAP_RED });
+    };
+    const row = (line?: string | number | null) => t('producer.times.stp_row', { line: String(line ?? '—') });
+    const here = pt(d.lat, d.lon);
+    if (n.rule_id === 'SHP_002' || n.rule_id === 'SHP_003') {
+      const a = pt(d.prev_lat, d.prev_lon);
+      const b = pt(d.next_lat, d.next_lon);
+      if (a && b) {
+        segments.push({ coords: [a, b], color: MAP_RED, weight: 7, zoomTo: true });
+        circle([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], Math.max(60, metersBetween(a, b) / 2 + 40));
+      }
+    } else if (n.rule_id === 'SHP_005') {
+      const p = pt(c.at('lat'), c.at('lon'));
+      const q = pt(c.at('prev_lat'), c.at('prev_lon'));
+      pin(p, t('producer.times.shp_point', { seq: c.at('shape_pt_sequence') || '—' }));
+      if (p && q) segments.push({ coords: [q, p], color: MAP_RED, weight: 7, zoomTo: true });
+    } else if (n.rule_id === 'SHP_008') {
+      const first = pt(d.first_lat, d.first_lon);
+      pin(first, row(d.first_line));
+      pin(here, row(n.line));
+      if (first && here) segments.push({ coords: [first, here], color: MAP_RED, weight: 3 });
+    } else if (n.rule_id === 'SHP_009') {
+      const p = pt(d.cross_lat, d.cross_lon);
+      circle(p, 80);
+      pin(p, t('producer.times.shp_cross'));
+    } else if (n.rule_id === 'SHP_012') {
+      for (const id of listOf(d.far_stops)) addStop(id, true);
+      focus = undefined;
+    } else {
+      // SHP_001/004/006/010: the point itself.
+      pin(here, row(n.line));
+      circle(here, 60);
+    }
   }
   // STP: the stop on its example trip (line and grey stops); a stop without a usable position is
   // shown by the stretch between the stops before and after it (red, circled). A repeated code's
@@ -4584,7 +4799,9 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
       return {
         head: [t('producer.col.route'), t('producer.col.shape_code')],
         row: n => {
-          const routeIds = [...new Set((n.entity_id ? ni.shape_routes?.[n.entity_id] ?? [] : []).map(([routeId]) => routeId))];
+          const indexed = [...new Set((n.entity_id ? ni.shape_routes?.[n.entity_id] ?? [] : []).map(([routeId]) => routeId))];
+          // Large feeds index only the shapes a finding names; SHP findings carry their routes.
+          const routeIds = indexed.length ? indexed : SHP_CONTEXT_RULES.has(n.rule_id) ? shpContext(n).routes : [];
           const routes: Cell = routeIds.length
             ? { html: routeIds.slice(0, 4).map(routeId => routeBadgeHtml(routeId, result)).join(' ') + (routeIds.length > 4 ? ` +${routeIds.length - 4}` : '') }
             : '—';

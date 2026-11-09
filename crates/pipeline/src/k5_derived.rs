@@ -325,14 +325,19 @@ fn build_shape_geometry(
                     ),
                     "shapes.txt'e bu shape_id için en az bir nokta daha ekleyin.",
                 );
-                notice.details = Some(
-                    [
-                        ("shape_id".to_string(), shape_id.clone()),
-                        ("shape_point_count".to_string(), "1".to_string()),
-                    ]
-                    .into_iter()
-                    .collect(),
-                );
+                let mut d: std::collections::BTreeMap<String, String> = [
+                    ("shape_id".to_string(), shape_id.clone()),
+                    ("shape_point_count".to_string(), "1".to_string()),
+                ]
+                .into_iter()
+                .collect();
+                // Planner context: where the one point is.
+                let pt = &records.shapes[point_indices[0]];
+                if let (Some(la), Some(lo)) = (pt.shape_pt_lat(), pt.shape_pt_lon()) {
+                    d.insert("lat".to_string(), la.to_string());
+                    d.insert("lon".to_string(), lo.to_string());
+                }
+                notice.details = Some(d.into());
                 notices.push(notice);
             }
             continue;
@@ -356,6 +361,8 @@ fn build_shape_geometry(
         // intermediate notices and discarded them later (#15 Mode A). One emission per shape
         // produces exactly the same result.
         let mut shp010_fired = false;
+        // SHP_005 planner context: the last point with a position before the current one.
+        let mut last_coord: Option<(f64, f64)> = None;
 
         for &idx in point_indices {
             let pt = &records.shapes[idx];
@@ -373,19 +380,40 @@ fn build_shape_geometry(
             if let Some(d) = pt.shape_dist_traveled() {
                 if let Some(prev) = prev_dist {
                     if d < prev {
-                        notices.push(k5_notice(
+                        let mut n005 = k5_notice(
                             ctr, "SHP_005", EntityType::Shape,
                             Some(shape_id.clone()), Some(shape_id.clone()),
                             "shapes.txt", Some(pt.line_u64()), Some("shape_dist_traveled"),
                             Some(format!("{d}")), Some(format!("≥ {prev} (önceki sıra)")),
                             format!("shape_id '{shape_id}' için shape_dist_traveled shape_pt_sequence ile azalıyor: {prev} → {d}."),
                             "shape_dist_traveled değerlerini her shape için shape_pt_sequence'e göre artan yazın.",
-                        ));
+                        );
+                        // Planner context: the point, its order and both distances, and the
+                        // point before it (where the line seems to run backwards).
+                        let det = n005.details.get_or_insert_with(Default::default);
+                        det.insert("dist".to_string(), d.to_string());
+                        det.insert("prev_dist".to_string(), prev.to_string());
+                        if let Some(seq) = pt.shape_pt_sequence() {
+                            det.insert("shape_pt_sequence".to_string(), seq.to_string());
+                        }
+                        if let (Some(la), Some(lo)) = (pt.shape_pt_lat(), pt.shape_pt_lon()) {
+                            det.insert("lat".to_string(), la.to_string());
+                            det.insert("lon".to_string(), lo.to_string());
+                        }
+                        if let Some((la, lo)) = last_coord {
+                            det.insert("prev_lat".to_string(), la.to_string());
+                            det.insert("prev_lon".to_string(), lo.to_string());
+                        }
+                        notices.push(n005);
                     }
                 }
                 prev_dist = Some(d);
             }
 
+            if let (Some(la), Some(lo)) = (pt.shape_pt_lat(), pt.shape_pt_lon()) {
+                // Recorded after the SHP_005 check above, so it holds the point before.
+                last_coord = Some((la, lo));
+            }
             let (lat, lon) = match (pt.shape_pt_lat(), pt.shape_pt_lon()) {
                 (Some(la), Some(lo)) => (la, lo),
                 _ => {
@@ -432,6 +460,10 @@ fn build_shape_geometry(
                     let details = notice.details.get_or_insert_with(Default::default);
                     details.insert("affected_shapes".to_string(), "1".to_string());
                     details.insert("example_shapes".to_string(), shape_id.to_string());
+                    // Planner context: where the repeated point is and its two rows.
+                    details.insert("lat".to_string(), lat.to_string());
+                    details.insert("lon".to_string(), lon.to_string());
+                    details.insert("prev_line".to_string(), prev_line.to_string());
                     shp010_pending.push(notice);
                 }
 

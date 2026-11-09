@@ -694,6 +694,36 @@ fn aggregate_shp005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     examples.sort_unstable();
     examples.dedup();
     examples.truncate(5);
+    // Planner context: each example shape's first decrease (lowest row) — the point, the point
+    // before it, the order and both distances, under `example_<i>_`.
+    let mut first_decrease: std::collections::HashMap<String, (u64, Vec<(String, String)>)> =
+        std::collections::HashMap::new();
+    for n in matched.iter().chain(std::iter::once(&aggregate)) {
+        let (Some(shape), Some(d)) = (n.entity_id.as_ref(), n.details.as_ref()) else {
+            continue;
+        };
+        let line = n.line.unwrap_or(u64::MAX);
+        let keep = first_decrease.get(shape).is_none_or(|(l, _)| line < *l);
+        if keep {
+            let pairs = SHP005_EXAMPLE_KEYS
+                .iter()
+                .filter_map(|k| d.get(k).map(|v| (k.to_string(), v.to_string())))
+                .collect();
+            first_decrease.insert(shape.clone(), (line, pairs));
+        }
+    }
+    let example_points: Vec<(String, String)> = examples
+        .iter()
+        .enumerate()
+        .flat_map(|(i, shape)| {
+            first_decrease
+                .get(shape)
+                .map(|(_, pairs)| pairs.clone())
+                .unwrap_or_default()
+                .into_iter()
+                .map(move |(k, v)| (format!("example_{i}_{k}"), v))
+        })
+        .collect();
     aggregate.entity_type = gtfs_core::EntityType::Feed;
     aggregate.entity_id = None;
     aggregate.scope_key = None;
@@ -711,6 +741,9 @@ fn aggregate_shp005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         if !examples.is_empty() {
             details.insert("example_shapes".to_string(), examples.join(", "));
         }
+        for (k, v) in example_points {
+            details.insert(k, v);
+        }
         details.into()
     });
     aggregate.service_id = None;
@@ -724,6 +757,17 @@ fn aggregate_shp005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     );
     *notices = retained;
 }
+
+/// SHP_005 per-example planner keys kept from each shape's first decrease.
+const SHP005_EXAMPLE_KEYS: [&str; 7] = [
+    "lat",
+    "lon",
+    "prev_lat",
+    "prev_lon",
+    "dist",
+    "prev_dist",
+    "shape_pt_sequence",
+];
 
 fn aggregate_stm008(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     use std::collections::BTreeMap;
@@ -2388,6 +2432,197 @@ pub fn aggregate_feed_level_notices(
         let _t = crate::timing::Timer::start("aggregate::stop_context");
         annotate_stop_context(all, records);
     }
+    {
+        let _t = crate::timing::Timer::start("aggregate::shape_context");
+        annotate_shape_context(all, records);
+    }
+}
+
+/// Shape findings whose planner card names the routes drawn with the shape and an example trip.
+const SHAPE_CONTEXT_RULES: [&str; 10] = [
+    "SHP_001", "SHP_002", "SHP_003", "SHP_004", "SHP_005", "SHP_006", "SHP_008", "SHP_009",
+    "SHP_010", "SHP_012",
+];
+/// Shape point findings (one row of the point list): the row's neighbours in the file.
+const SHAPE_POINT_RULES: [&str; 5] = ["SHP_001", "SHP_002", "SHP_003", "SHP_004", "SHP_008"];
+/// How far up and down the file a point's neighbours with a position are looked for.
+const SHAPE_NEIGHBOUR_SCAN: usize = 50;
+
+/// Planner context for shape findings: the routes drawn with the shape (`trip_count`,
+/// `route_count`, `routes` most trips first) and an `example_trip_id` (smallest trip code with
+/// stop times). Summaries (`example_shapes`) carry it per example (`example_<i>_shape_id`,
+/// `example_<i>_*`). A point row (SHP_001–004/008) also gets its position (`lat`, `lon`) and
+/// the nearest rows of the same shape with a position before and after it in the file
+/// (`prev_lat`, `prev_lon`, `prev_line`, `next_*`); SHP_001 (no shape code) the shape codes of
+/// the rows around it (`prev_shape_id`, `next_shape_id`) and that shape's routes (`shape_`);
+/// SHP_008 the row that first used the order number (`first_line`, `first_lat`, `first_lon`).
+/// Shared native/WASM step; details only, counts are unchanged.
+fn annotate_shape_context(all: &mut [gtfs_core::Notice], records: &EntityRecords) {
+    use rustc_hash::FxHashMap;
+    if !all
+        .iter()
+        .any(|n| SHAPE_CONTEXT_RULES.contains(&n.rule_id.as_str()))
+    {
+        return;
+    }
+    let ti = &records.trip_interns;
+    let has_times = &records.stop_times_index.trip_id_set;
+    // shape → (trips, routes → trips, example trip (has times, id)).
+    type ShapeUse<'a> = (usize, FxHashMap<&'a str, usize>, Option<(bool, &'a str)>);
+    let mut usage: FxHashMap<&str, ShapeUse<'_>> = FxHashMap::default();
+    for t in &records.trips {
+        let Some(shape) = ti.shape_id(t).filter(|s| !s.is_empty()) else {
+            continue;
+        };
+        let e = usage.entry(shape).or_default();
+        e.0 += 1;
+        *e.1.entry(ti.route_id(t)).or_insert(0) += 1;
+        let cand = (has_times.contains(t.trip_id.as_str()), t.trip_id.as_str());
+        let better = match e.2 {
+            None => true,
+            Some((timed, id)) => (cand.0 && !timed) || (cand.0 == timed && cand.1 < id),
+        };
+        if better {
+            e.2 = Some(cand);
+        }
+    }
+    let describe = |shape: &str, prefix: &str| -> Vec<(String, String)> {
+        let Some((trips, routes, example)) = usage.get(shape) else {
+            return Vec::new();
+        };
+        let mut ranked: Vec<(&str, usize)> = routes.iter().map(|(&r, &c)| (r, c)).collect();
+        ranked.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(b.0)));
+        let top: Vec<&str> = ranked
+            .iter()
+            .take(STOP_CONTEXT_ROUTES)
+            .map(|(r, _)| *r)
+            .filter(|r| !r.is_empty())
+            .collect();
+        let mut out = vec![
+            (format!("{prefix}trip_count"), trips.to_string()),
+            (format!("{prefix}route_count"), routes.len().to_string()),
+        ];
+        if !top.is_empty() {
+            out.push((format!("{prefix}routes"), top.join(",")));
+        }
+        if let Some((_, trip)) = example {
+            out.push((format!("{prefix}example_trip_id"), trip.to_string()));
+        }
+        out
+    };
+    // Point rows: file line → record index (only the lines asked for).
+    let wanted_lines: rustc_hash::FxHashSet<u64> = all
+        .iter()
+        .filter(|n| SHAPE_POINT_RULES.contains(&n.rule_id.as_str()))
+        .filter_map(|n| n.line)
+        .collect();
+    let line_idx: FxHashMap<u64, usize> = records
+        .shapes
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| wanted_lines.contains(&p.line_u64()))
+        .map(|(i, p)| (p.line_u64(), i))
+        .collect();
+    let shape_of = |i: usize| records.shape_interns.id(&records.shapes[i]);
+    let coord_of = |i: usize| {
+        let p = &records.shapes[i];
+        p.shape_pt_lat().zip(p.shape_pt_lon())
+    };
+    // The nearest row of the same shape with a position, walking from `i` in one direction.
+    let neighbour = |i: usize, up: bool| -> Option<usize> {
+        let shape = shape_of(i);
+        (1..=SHAPE_NEIGHBOUR_SCAN)
+            .map_while(|k| if up { i.checked_sub(k) } else { Some(i + k) })
+            .take_while(|&j| j < records.shapes.len() && shape_of(j) == shape)
+            .find(|&j| coord_of(j).is_some())
+    };
+    for n in all.iter_mut() {
+        if !SHAPE_CONTEXT_RULES.contains(&n.rule_id.as_str()) {
+            continue;
+        }
+        let mut adds: Vec<(String, String)> = Vec::new();
+        match n.entity_id.as_deref() {
+            Some(shape) => adds.extend(describe(shape, "")),
+            None => {
+                let examples: Vec<String> = n
+                    .details
+                    .as_ref()
+                    .and_then(|d| d.get("example_shapes"))
+                    .map(|v| {
+                        v.as_str()
+                            .split(',')
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                for (i, shape) in examples.iter().enumerate() {
+                    adds.push((format!("example_{i}_shape_id"), shape.clone()));
+                    adds.extend(describe(shape, &format!("example_{i}_")));
+                }
+            }
+        }
+        if let Some(&i) = n
+            .line
+            .filter(|_| SHAPE_POINT_RULES.contains(&n.rule_id.as_str()))
+            .and_then(|l| line_idx.get(&l))
+        {
+            if let Some((la, lo)) = coord_of(i) {
+                adds.push(("lat".to_string(), la.to_string()));
+                adds.push(("lon".to_string(), lo.to_string()));
+            }
+            if shape_of(i).is_empty() {
+                // SHP_001: the shape codes of the rows around the code-less one.
+                let around = |j: Option<usize>| j.map(shape_of).filter(|s| !s.is_empty());
+                let prev = around(i.checked_sub(1));
+                let next = around(Some(i + 1).filter(|&j| j < records.shapes.len()));
+                if let Some(p) = prev {
+                    adds.push(("prev_shape_id".to_string(), p.to_string()));
+                }
+                if let Some(x) = next {
+                    adds.push(("next_shape_id".to_string(), x.to_string()));
+                }
+                if let Some(shape) = prev.or(next) {
+                    adds.extend(describe(shape, "shape_"));
+                }
+            } else {
+                for (up, prefix) in [(true, "prev"), (false, "next")] {
+                    if let Some(j) = neighbour(i, up) {
+                        let (la, lo) = coord_of(j).unwrap_or_default();
+                        adds.push((format!("{prefix}_lat"), la.to_string()));
+                        adds.push((format!("{prefix}_lon"), lo.to_string()));
+                        adds.push((
+                            format!("{prefix}_line"),
+                            records.shapes[j].line_u64().to_string(),
+                        ));
+                    }
+                }
+                if n.rule_id == SHP008_RULE {
+                    // The row that first used this order number in the same shape.
+                    let seq = records.shapes[i].shape_pt_sequence();
+                    let first = records.shapes[..i]
+                        .iter()
+                        .rev()
+                        .take_while(|p| records.shape_interns.id(p) == shape_of(i))
+                        .find(|p| p.shape_pt_sequence() == seq && seq.is_some());
+                    if let Some(p) = first {
+                        adds.push(("first_line".to_string(), p.line_u64().to_string()));
+                        if let (Some(la), Some(lo)) = (p.shape_pt_lat(), p.shape_pt_lon()) {
+                            adds.push(("first_lat".to_string(), la.to_string()));
+                            adds.push(("first_lon".to_string(), lo.to_string()));
+                        }
+                    }
+                }
+            }
+        }
+        if adds.is_empty() {
+            continue;
+        }
+        let d = n.details.get_or_insert_with(Default::default);
+        for (k, v) in adds {
+            d.insert(k, v);
+        }
+    }
 }
 
 /// Stop findings whose planner card names the trips, routes and neighbouring stops of the stop.
@@ -2403,6 +2638,7 @@ const STP032_STATION_KM: f64 = 1.0;
 /// STP_033 (stop without fare zone): zones of the stops before and after it, and for the
 /// summary how many stops do have a zone.
 const STP033_RULE: &str = "STP_033";
+const SHP008_RULE: &str = "SHP_008";
 // Rule ids of the context tables above, named apart from their `details` keys.
 const STP032_RULE: &str = "STP_032";
 const STP039_RULE: &str = "STP_039";

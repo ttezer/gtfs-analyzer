@@ -8428,3 +8428,78 @@ F1,Z1,Z2
         Some("ST2")
     );
 }
+
+#[test]
+fn shape_findings_carry_planner_context() {
+    // SHP_001–012: the routes drawn with the shape and an example trip; a point row its position
+    // and the rows of the shape around it (SHP_001 the shape codes around it, SHP_008 the row that
+    // first used the order number); SHP_005 the decreasing point; SHP_006 the one point; SHP_009 the
+    // crossing; SHP_010 the repeated point; SHP_012 the far stops' distances. Counts are unchanged.
+    let find = |vr: &gtfs_pipeline::ValidationResult, rule: &str| {
+        vr.notices
+            .iter()
+            .find(|n| n.rule_id == rule)
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor"))
+    };
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+
+    static STOPS: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
+          S1,One,41.0,29.0\nS2,Two,41.01,29.0\nS3,Three,41.02,29.5\n";
+    static ROUTES4: &[u8] = b"route_id,agency_id,route_short_name,route_type\n\
+          R1,1,10,3\nR2,1,20,3\nR3,1,30,3\nR4,1,40,3\n";
+    static TRIPS4: &[u8] =
+        b"route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SA\nR2,SVC1,T2,SB\nR3,SVC1,T3,SC\nR4,SVC1,T4,SD\n";
+    static TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:05:00,08:05:00,S2,2\nT1,08:10:00,08:10:00,S3,3\n\
+          T2,08:00:00,08:00:00,S1,1\nT2,08:05:00,08:05:00,S2,2\n\
+          T3,08:00:00,08:00:00,S1,1\nT3,08:05:00,08:05:00,S2,2\n\
+          T4,08:00:00,08:00:00,S1,1\nT4,08:05:00,08:05:00,S2,2\n";
+    static SHAPES: &[u8] =
+        b"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
+          SA,41.0,29.0,1,0\nSA,41.01,29.0,2,1000\nSA,41.02,29.0,3,900\n\
+          SB,41.0,29.0,1,\nSB,41.02,29.02,2,\nSB,41.02,29.0,3,\nSB,41.0,29.02,4,\nSB,40.99,29.03,5,\n\
+          SC,41.0,29.0,1,\nSC,41.0,29.0,2,\nSC,abc,29.0,3,\nSC,41.01,29.0,4,\nSC,41.02,29.0,4,\n\
+          SC,41.025,29.0,x,\n,41.03,29.0,7,\nSD,41.0,29.0,1,\n";
+    let mut files = base_files();
+    files[1] = ("stops.txt", STOPS);
+    files[2] = ("routes.txt", ROUTES4);
+    files[3] = ("trips.txt", TRIPS4);
+    files[4] = ("stop_times.txt", TIMES);
+    files.push(("shapes.txt", SHAPES));
+    let vr = match run(&files) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+
+    let d = find(&vr, "SHP_001");
+    assert_eq!(get(&d, "prev_shape_id").as_deref(), Some("SC"));
+    assert_eq!(get(&d, "shape_routes").as_deref(), Some("R3"));
+    assert_eq!(get(&d, "lat").as_deref(), Some("41.03"));
+    let d = find(&vr, "SHP_002");
+    assert_eq!(get(&d, "routes").as_deref(), Some("R3"));
+    assert_eq!(get(&d, "prev_lat").as_deref(), Some("41"));
+    assert_eq!(get(&d, "next_lat").as_deref(), Some("41.01"));
+    let d = find(&vr, "SHP_004");
+    assert_eq!(get(&d, "lat").as_deref(), Some("41.025"));
+    let d = find(&vr, "SHP_005");
+    assert_eq!(get(&d, "example_0_shape_id").as_deref(), Some("SA"));
+    assert_eq!(get(&d, "example_0_routes").as_deref(), Some("R1"));
+    assert_eq!(get(&d, "example_0_prev_dist").as_deref(), Some("1000"));
+    assert_eq!(get(&d, "example_0_prev_lat").as_deref(), Some("41.01"));
+    let d = find(&vr, "SHP_006");
+    assert_eq!(get(&d, "lat").as_deref(), Some("41"));
+    assert_eq!(get(&d, "example_trip_id").as_deref(), Some("T4"));
+    let d = find(&vr, "SHP_008");
+    assert_eq!(get(&d, "first_lat").as_deref(), Some("41.01"));
+    assert_eq!(get(&d, "lat").as_deref(), Some("41.02"));
+    let d = find(&vr, "SHP_009");
+    assert_eq!(get(&d, "cross_lat").as_deref(), Some("41.010000"));
+    assert_eq!(get(&d, "routes").as_deref(), Some("R2"));
+    let d = find(&vr, "SHP_010");
+    assert_eq!(get(&d, "lat").as_deref(), Some("41"));
+    let d = find(&vr, "SHP_012");
+    assert_eq!(get(&d, "far_stops").as_deref(), Some("S3"));
+    let m: f64 = get(&d, "far_stop_m").unwrap().parse().unwrap();
+    assert!(m > 30_000.0, "{m}");
+}

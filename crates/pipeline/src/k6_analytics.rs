@@ -11234,6 +11234,14 @@ fn check_remaining_analytics<'a>(
                 let d = n.details.get_or_insert_with(Default::default);
                 d.insert("affected_shapes".to_string(), "1".to_string());
                 d.insert("example_shapes".to_string(), shape_id.to_string());
+                // Planner context: where the line crosses itself.
+                if let Some((la, lo)) = shape_coords
+                    .get(shape_id)
+                    .and_then(|pts| segment_intersection(pts[i], pts[i + 1], pts[j], pts[j + 1]))
+                {
+                    d.insert("cross_lat".to_string(), format!("{la:.6}"));
+                    d.insert("cross_lon".to_string(), format!("{lo:.6}"));
+                }
             }
             if n_shapes > 1 {
                 let d = n.details.get_or_insert_with(Default::default);
@@ -11390,10 +11398,23 @@ fn check_shp012<'a>(
                 ),
                 "shapes.txt noktalarını durak konumlarına yaklaştırın.",
             );
+            // Planner context: each listed stop's distance to the line (m), in the same order.
+            let far_m: Vec<String> = far
+                .iter()
+                .map(|s| {
+                    dist_cache
+                        .get(&(*shape_id, *s))
+                        .map(|m| format!("{m:.0}"))
+                        .unwrap_or_default()
+                })
+                .collect();
             n.details = Some(
-                [("far_stops".to_string(), far.join(","))]
-                    .into_iter()
-                    .collect(),
+                [
+                    ("far_stops".to_string(), far.join(",")),
+                    ("far_stop_m".to_string(), far_m.join(",")),
+                ]
+                .into_iter()
+                .collect(),
             );
             notices.push(n);
         }
@@ -11622,6 +11643,23 @@ fn check_shp022<'a>(
 }
 
 /// Check whether two 2D line segments intersect (cross-product method).
+/// The point where segments a–b and c–d cross (planar, on lat/lon), if they are not parallel.
+fn segment_intersection(
+    a: (f64, f64),
+    b: (f64, f64),
+    c: (f64, f64),
+    d: (f64, f64),
+) -> Option<(f64, f64)> {
+    let r = (b.0 - a.0, b.1 - a.1);
+    let s = (d.0 - c.0, d.1 - c.1);
+    let denom = r.0 * s.1 - r.1 * s.0;
+    if denom.abs() < f64::EPSILON {
+        return None;
+    }
+    let t = ((c.0 - a.0) * s.1 - (c.1 - a.1) * s.0) / denom;
+    Some((a.0 + t * r.0, a.1 + t * r.1))
+}
+
 fn segments_cross(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64)) -> bool {
     let cross = |o: (f64, f64), p: (f64, f64), q: (f64, f64)| -> f64 {
         (p.0 - o.0) * (q.1 - o.1) - (p.1 - o.1) * (q.0 - o.0)

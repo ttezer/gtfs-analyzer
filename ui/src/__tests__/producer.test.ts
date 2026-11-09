@@ -1516,6 +1516,62 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('bu kayıt hiçbir istasyona bağlı değil.');
   });
 
+  it('SHP_001–012 kartları çizimi hattıyla anlatır, hatalı noktayı ya da bölümü haritada kırmızı gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı' },
+      routes: { R1: '10' }, trips: { T1: 'Çarşı' }, trip_routes: { T1: 'R1' }, trip_first_dep: { T1: '06:00' },
+      trip_stops: { T1: ['S1', 'S2', 'S3'] }, trip_stop_sequences: { T1: [1, 2, 3] },
+      stop_coords: { S1: [41, 29], S2: [41.01, 29], S3: [41.02, 29.5] },
+      shape_coords: { SA: [[41, 29], [41.01, 29], [41.02, 29]] }, shape_routes: { SA: [['R1', '0']] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+    const ctx = { trip_count: '3', route_count: '1', routes: 'R1', example_trip_id: 'T1' };
+
+    // SHP_002: the point by its row, the stretch it belongs to red and circled; the trip's stops listed.
+    let out = render(notice('a', 'SHP_002', 'CRITICAL', { entity_type: 'Shape', entity_id: 'SA', line: 4, observed_value: 'abc',
+      details: { ...ctx, prev_lat: '41', prev_lon: '29', prev_line: '3', next_lat: '41.01', next_lon: '29', next_line: '5' } }));
+    expect(out.html).toContain('10 hattının „SA“ güzergâh çizimi: 4. satırdaki noktanın enlemi „abc“, geçerli bir değer değil');
+    expect(out.html).toContain('Nokta haritada 3. ve 5. satırdaki noktaların arasında olmalı');
+    expect(out.html).toContain('Haritadaki sefer: 10 · Çarşı yönü · 06:00 — durak sırası');
+    expect(out.map.opts?.highlights).toHaveLength(1);
+    expect(out.map.opts?.extraPolylines?.some(l => l.zoomTo)).toBe(true);
+    expect(out.map.caption).toContain('Haritada: 10 hattının „SA“ güzergâh çizimi');
+
+    // SHP_001: the shape of the rows around the code-less point, the point pinned.
+    out = render(notice('a', 'SHP_001', 'CRITICAL', { entity_type: 'Shape', line: 9, file: 'shapes.txt',
+      details: { lat: '41.03', lon: '29', prev_shape_id: 'SA', shape_routes: 'R1', shape_trip_count: '3', shape_example_trip_id: 'T1' } }));
+    expect(out.html).toContain('Güzergâh noktaları listesinin 9. satırındaki noktanın çizim kodu boş');
+    expect(out.html).toContain('Çevresindeki satırlar şu çizime ait: 10 hattının „SA“ güzergâh çizimi');
+    expect(out.map.opts?.pins.some(p => p.primary && p.lat === 41.03)).toBe(true);
+    expect(out.html).toContain('<td>Güzergâh çizimleri</td>');
+
+    // SHP_005: the summary row's decrease; the stretch going back red.
+    out = render(notice('a', 'SHP_005', 'CRITICAL', { entity_type: 'Feed', observed_value: '1',
+      details: { affected_shapes: '1', example_shapes: 'SA', example_0_shape_id: 'SA', example_0_routes: 'R1', example_0_example_trip_id: 'T1',
+        example_0_shape_pt_sequence: '3', example_0_prev_dist: '1000', example_0_dist: '900', example_0_lat: '41.02', example_0_lon: '29',
+        example_0_prev_lat: '41.01', example_0_prev_lon: '29' } }));
+    expect(out.html).toContain('1 güzergâh çiziminde kat edilen mesafe bir noktada geriye gidiyor. Örneğin 10 hattının „SA“ güzergâh çizimi: 3. noktada mesafe 1.000 iken 900 oluyor');
+    expect(out.map.opts?.extraPolylines?.some(l => l.zoomTo)).toBe(true);
+
+    // SHP_009: the crossing circled.
+    out = render(notice('a', 'SHP_009', 'LOW', { entity_type: 'Shape', entity_id: 'SA', details: { ...ctx, cross_lat: '41.01', cross_lon: '29' } }));
+    expect(out.html).toContain('10 hattının „SA“ güzergâh çizimi kendi üzerinden geçiyor');
+    expect(out.map.opts?.highlights).toHaveLength(1);
+
+    // SHP_012: the far stops with their distance, red on the map and in the stop list.
+    out = render(notice('a', 'SHP_012', 'MEDIUM', { entity_type: 'Shape', entity_id: 'SA', observed_value: '1 (>100m)', details: { ...ctx, far_stops: 'S3', far_stop_m: '41000' } }));
+    expect(out.html).toContain('10 hattının „SA“ güzergâh çizimi, onu kullanan seferlerin 1 durağından 100 m üzerinde uzaktan geçiyor');
+    expect(out.html).toContain('En uzak durak „Çarşı“ (41 km).');
+    expect(out.html).toContain('<tr class="bad"><td>3</td><td>Çarşı (S3)</td></tr>');
+    expect(out.map.opts?.pins.filter(p => p.primary)).toHaveLength(1);
+  });
+
   it('STM_051–055 kartları Flex bölgesini, pencereyi, yazılan değeri ve aynı saatli durak serisini gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,
