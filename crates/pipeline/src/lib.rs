@@ -1336,6 +1336,16 @@ fn aggregate_stp042(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     examples.sort_unstable();
     examples.dedup();
     examples.truncate(5);
+    // Planner context: each example stop's written address (`example_<i>_url`).
+    let urls: std::collections::HashMap<String, String> = matched
+        .iter()
+        .chain(std::iter::once(&aggregate))
+        .filter_map(|n| Some((n.entity_id.clone()?, n.observed_value.clone()?)))
+        .collect();
+    let example_urls: Vec<String> = examples
+        .iter()
+        .map(|id| urls.get(id).cloned().unwrap_or_default())
+        .collect();
     aggregate.entity_type = gtfs_core::EntityType::Feed;
     aggregate.entity_id = None;
     aggregate.scope_key = None;
@@ -1349,6 +1359,11 @@ fn aggregate_stp042(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         details.insert("affected_stops".to_string(), affected_stops.to_string());
         if !examples.is_empty() {
             details.insert("example_stop_ids".to_string(), examples.join(", "));
+        }
+        for (i, url) in example_urls.into_iter().enumerate() {
+            if !url.is_empty() {
+                details.insert(format!("example_{i}_url"), url);
+            }
         }
         details.into()
     });
@@ -2376,20 +2391,28 @@ pub fn aggregate_feed_level_notices(
 }
 
 /// Stop findings whose planner card names the trips, routes and neighbouring stops of the stop.
-const STOP_CONTEXT_RULES: [&str; 21] = [
+const STOP_CONTEXT_RULES: [&str; 27] = [
     "STP_001", "STP_003", "STP_006", "STP_007", "STP_008", "STP_009", "STP_010", "STP_012",
     "STP_013", "STP_014", "STP_015", "STP_016", "STP_017", "STP_019", "STP_022", "STP_023",
-    "STP_024", "STP_026", "STP_028", "STP_029", "STP_031",
+    "STP_024", "STP_026", "STP_028", "STP_029", "STP_031", "STP_033", "STP_036", "STP_039",
+    "STP_040", "STP_041", "STP_044",
 ];
 /// STP_032 summary: per example platform, the nearest station within this distance (a likely
 /// parent).
 const STP032_STATION_KM: f64 = 1.0;
+/// STP_033 (stop without fare zone): zones of the stops before and after it, and for the
+/// summary how many stops do have a zone.
+const STP033_RULE: &str = "STP_033";
+// Rule ids of the context tables above, named apart from their `details` keys.
 const STP032_RULE: &str = "STP_032";
+const STP039_RULE: &str = "STP_039";
+const STP045_RULE: &str = "STP_045";
 /// Stop findings about a second stop, which gets the same context under a prefix: the other stop
 /// of a close pair (`other_`), the used stop near an unused one (`nearest_`).
-const STOP_CONTEXT_OTHER: [(&str, &str, &str); 3] = [
+const STOP_CONTEXT_OTHER: [(&str, &str, &str); 4] = [
     ("STP_016", "other_stop_id", "other_"),
     ("STP_017", "other_stop_id", "other_"),
+    (STP039_RULE, "other_stop_id", "other_"),
     ("STP_020", "nearest_used_stop_id", "nearest_"),
 ];
 /// Feed summaries (one per feed) whose example stops get the same context, per example.
@@ -2439,11 +2462,22 @@ fn annotate_stop_context(all: &mut [gtfs_core::Notice], records: &EntityRecords)
         }
     }
     // STP_032: per example platform (they belong to no station), the nearest station.
-    for n in all.iter_mut().filter(|n| n.rule_id == STP032_RULE) {
+    // Platform summaries whose example platforms (`details[key]`) get the nearest station.
+    const PLATFORM_STATION_SUMMARIES: [(&str, &str); 2] = [
+        (STP032_RULE, "example_platforms"),
+        (STP045_RULE, "example_stops"),
+    ];
+    for n in all.iter_mut() {
+        let Some(&(_, key)) = PLATFORM_STATION_SUMMARIES
+            .iter()
+            .find(|(rule, _)| *rule == n.rule_id.as_str())
+        else {
+            continue;
+        };
         let examples: Vec<String> = n
             .details
             .as_ref()
-            .and_then(|d| d.get("example_platforms"))
+            .and_then(|d| d.get(key))
             .map(|v| {
                 v.as_str()
                     .split(',')
@@ -2488,6 +2522,28 @@ fn annotate_stop_context(all: &mut [gtfs_core::Notice], records: &EntityRecords)
         for (k, v) in adds {
             d.insert(k, v);
         }
+    }
+    // STP_033: which stops do carry a fare zone (the summary says how many; a stop finding
+    // reads its neighbours' zones at the end).
+    let zone_of: FxHashMap<&str, &str> = records
+        .stops
+        .iter()
+        .filter_map(|s| {
+            let z = s
+                .row
+                .get("zone_id")
+                .map(|v| v.trim())
+                .filter(|v| !v.is_empty())?;
+            Some((s.stop_id.as_str(), z))
+        })
+        .collect();
+    for n in all
+        .iter_mut()
+        .filter(|n| n.rule_id == STP033_RULE && n.entity_id.is_none())
+    {
+        n.details
+            .get_or_insert_with(Default::default)
+            .insert("zoned_stops".to_string(), zone_of.len().to_string());
     }
     // STP_014: the feed's own timezone, the likely value for a stop.
     let agency_timezone = records
@@ -2615,6 +2671,19 @@ fn annotate_stop_context(all: &mut [gtfs_core::Notice], records: &EntityRecords)
         let d = n.details.get_or_insert_with(Default::default);
         for (k, v) in adds {
             d.insert(k, v);
+        }
+    }
+    // STP_033: the fare zones around the stop on its example trip.
+    for n in all
+        .iter_mut()
+        .filter(|n| n.rule_id == STP033_RULE && n.entity_id.is_some())
+    {
+        let d = n.details.get_or_insert_with(Default::default);
+        for (key, out) in [("prev_stop_id", "prev_zone"), ("next_stop_id", "next_zone")] {
+            let zone = d.get(key).and_then(|id| zone_of.get(id.as_str()).copied());
+            if let Some(zone) = zone {
+                d.insert(out.to_string(), zone.to_string());
+            }
         }
     }
 }

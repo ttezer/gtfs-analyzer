@@ -5431,17 +5431,71 @@ fn check_operational_analytics(
                         && matches!(s.wheelchair_boarding, None | Some(0))
                 })
                 .count();
+            // Planner context: the stops without the information that most trips call at (the
+            // ones riders meet most), with their trip counts.
+            let mut calls: Vec<u32> = vec![0; records.stop_times_index.stop_intern.len()];
+            for st in &records.stop_times_index.rows {
+                if let Some(c) = calls.get_mut(st.stop_idx as usize) {
+                    *c += 1;
+                }
+            }
+            let mut busiest: Vec<(u32, &str)> = records
+                .stops
+                .iter()
+                .filter(|s| {
+                    !s.stop_id.is_empty()
+                        && matches!(s.location_type, None | Some(0))
+                        && matches!(s.wheelchair_boarding, None | Some(0))
+                })
+                .map(|s| {
+                    let n = records
+                        .stop_times_index
+                        .stop_id_to_idx
+                        .get(s.stop_id.as_str())
+                        .and_then(|&i| calls.get(i as usize).copied())
+                        .unwrap_or(0);
+                    (n, s.stop_id.as_str())
+                })
+                .collect();
+            busiest.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(b.1)));
+            busiest.truncate(STP037_EXAMPLES);
+            let wheelchair_stop_details = |n: &mut Notice| {
+                let mut d = std::collections::BTreeMap::new();
+                d.insert("missing_stops".to_string(), unset.to_string());
+                d.insert("stop_count".to_string(), total.to_string());
+                if !busiest.is_empty() {
+                    d.insert(
+                        "example_stops".to_string(),
+                        busiest
+                            .iter()
+                            .map(|(_, id)| *id)
+                            .collect::<Vec<_>>()
+                            .join(","),
+                    );
+                    d.insert(
+                        "example_stop_calls".to_string(),
+                        busiest
+                            .iter()
+                            .map(|(c, _)| c.to_string())
+                            .collect::<Vec<_>>()
+                            .join(","),
+                    );
+                }
+                n.details = Some(d.into());
+            };
             if unset == total {
-                notices.push(k6_notice(
+                let mut n038 = k6_notice(
                     ctr, "STP_038", EntityType::Feed,
                     None, None,
                     "stops.txt", None, Some("wheelchair_boarding"),
                     Some(format!("{total}")), Some("1 or 2".to_string()),
                     format!("{total} fiziksel durağın hiçbirinde wheelchair_boarding bilgisi girilmemiş."),
                     "Durakların tekerlekli sandalye erişilebilirliğini wheelchair_boarding ile bildirin (1=erişilebilir, 2=erişilemez).",
-                ));
+                );
+                wheelchair_stop_details(&mut n038);
+                notices.push(n038);
             } else if unset > 0 {
-                notices.push(k6_notice(
+                let mut n037 = k6_notice(
                     ctr, "STP_037", EntityType::Feed,
                     None, None,
                     "stops.txt", None, Some("wheelchair_boarding"),
@@ -5449,7 +5503,9 @@ fn check_operational_analytics(
                     format!("{total} fiziksel durağın {unset} tanesinde wheelchair_boarding bilgisi eksik ({:.0}%).",
                         unset as f64 / total as f64 * 100.0),
                     "Eksik duraklarda wheelchair_boarding alanını 1 (erişilebilir) veya 2 (erişilemez) olarak doldurun.",
-                ));
+                );
+                wheelchair_stop_details(&mut n037);
+                notices.push(n037);
             }
         }
     }
@@ -6488,6 +6544,23 @@ fn check_route_trip_quality(
                     "stop_url'yi bu durağa özgü bir sayfaya yönlendirin ya da boş bırakın.",
                 );
                 notice.details = Some(details.into());
+                // Planner context (STP_035): the routes whose web address the stops repeat.
+                if rule_id == "STP_035" {
+                    let mut routes: Vec<&str> = records
+                        .routes
+                        .iter()
+                        .filter(|r| {
+                            r.route_url.as_deref().and_then(normalize_web_url).as_ref()
+                                == Some(normalized)
+                        })
+                        .map(|r| r.route_id.as_str())
+                        .collect();
+                    routes.sort_unstable();
+                    routes.truncate(5);
+                    if let Some(d) = notice.details.as_mut() {
+                        d.insert("route_ids".to_string(), routes.join(","));
+                    }
+                }
                 notices.push(notice);
             }
         };
@@ -6730,11 +6803,16 @@ fn check_data_quality(
                     .and_then(|p| p.stop_name.as_deref())
                 {
                     if !lower.contains(&parent_name.to_lowercase()) {
-                        notices.push(k6_notice(ctr, "STP_041", EntityType::Stop, Some(stop.stop_id.clone()),
+                        let mut n041 = k6_notice(ctr, "STP_041", EntityType::Stop, Some(stop.stop_id.clone()),
                             Some(stop.stop_id.clone()), "stops.txt", Some(stop.line), Some("stop_name"),
                             Some(name.to_string()), Some(format!("{} içermeli", parent_name)),
                             format!("Alt durak '{}' adı üst istasyon '{}' adını içermiyor.", name, parent_name),
-                            "Alt durak adında üst istasyon adını kullanın; yerel adlandırma farklıysa profili kapatın."));
+                            "Alt durak adında üst istasyon adını kullanın; yerel adlandırma farklıysa profili kapatın.");
+                        // Planner context: the station the stop belongs to.
+                        let mut d = std::collections::BTreeMap::new();
+                        d.insert("parent_station".to_string(), parent_id.trim().to_string());
+                        n041.details = Some(d.into());
+                        notices.push(n041);
                     }
                 }
             }
@@ -12642,6 +12720,8 @@ fn canonicalize_stop_components(mut components: Vec<Vec<&str>>) -> Vec<Vec<&str>
 /// described and stops probed for the nearest main-network stop (VAT_005), other routes
 /// listed (VAT_006) and routes named per shape (VAT_008).
 const VAT001_ONLY_EXAMPLES: usize = 10;
+/// STP_037/038 planner context: the stops without wheelchair information most trips call at.
+const STP037_EXAMPLES: usize = 5;
 /// STP_020 planner context: a used stop this close is named as the likely record trips use.
 const STP020_NEAR_M: f64 = 150.0;
 /// STP_029 planner context: a station nearer than the parent within this distance is named.

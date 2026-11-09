@@ -464,24 +464,6 @@
         "details": null,
         "entity_id": null,
         "entity_type": "Feed",
-        "expected_value": "1 or 2",
-        "field": "wheelchair_boarding",
-        "file": "stops.txt",
-        "line": null,
-        "message": "No physical stop reports wheelchair_boarding (2 stops).",
-        "observed_value": "2",
-        "remediation": "Report stop wheelchair accessibility using wheelchair_boarding (1=accessible, 2=not accessible).",
-        "rule_class": "QUALITY",
-        "rule_id": "STP_038",
-        "scope_key": null,
-        "service_id": null,
-        "severity": "INFO",
-        "title": "No stops report wheelchair boarding"
-      },
-      {
-        "details": null,
-        "entity_id": null,
-        "entity_type": "Feed",
         "expected_value": null,
         "field": null,
         "file": "shapes.txt/feed_info.txt",
@@ -557,6 +539,29 @@
         "service_id": null,
         "severity": "INFO",
         "title": "Too few trips"
+      },
+      {
+        "details": {
+          "example_stop_calls": "1,1",
+          "example_stops": "S1,S2",
+          "missing_stops": "2",
+          "stop_count": "2"
+        },
+        "entity_id": null,
+        "entity_type": "Feed",
+        "expected_value": "1 or 2",
+        "field": "wheelchair_boarding",
+        "file": "stops.txt",
+        "line": null,
+        "message": "No physical stop reports wheelchair_boarding (2 stops).",
+        "observed_value": "2",
+        "remediation": "Report stop wheelchair accessibility using wheelchair_boarding (1=accessible, 2=not accessible).",
+        "rule_class": "QUALITY",
+        "rule_id": "STP_038",
+        "scope_key": null,
+        "service_id": null,
+        "severity": "INFO",
+        "title": "No stops report wheelchair boarding"
       },
       {
         "details": {
@@ -1461,24 +1466,6 @@
           "details": null,
           "entity_id": null,
           "entity_type": "Feed",
-          "expected_value": "1 or 2",
-          "field": "wheelchair_boarding",
-          "file": "stops.txt",
-          "line": null,
-          "message": "No physical stop reports wheelchair_boarding (3 stops).",
-          "observed_value": "3",
-          "remediation": "Report stop wheelchair accessibility using wheelchair_boarding (1=accessible, 2=not accessible).",
-          "rule_class": "QUALITY",
-          "rule_id": "STP_038",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "No stops report wheelchair boarding"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Feed",
           "expected_value": null,
           "field": null,
           "file": "stops.txt",
@@ -1559,6 +1546,29 @@
           "service_id": null,
           "severity": "HIGH",
           "title": "High proportion of stops without coordinates"
+        },
+        {
+          "details": {
+            "example_stop_calls": "1,1,0",
+            "example_stops": "S1,S2,S3",
+            "missing_stops": "3",
+            "stop_count": "3"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "1 or 2",
+          "field": "wheelchair_boarding",
+          "file": "stops.txt",
+          "line": null,
+          "message": "No physical stop reports wheelchair_boarding (3 stops).",
+          "observed_value": "3",
+          "remediation": "Report stop wheelchair accessibility using wheelchair_boarding (1=accessible, 2=not accessible).",
+          "rule_class": "QUALITY",
+          "rule_id": "STP_038",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "No stops report wheelchair boarding"
         },
         {
           "details": {
@@ -1908,24 +1918,6 @@
           "details": null,
           "entity_id": null,
           "entity_type": "Feed",
-          "expected_value": "1 or 2",
-          "field": "wheelchair_boarding",
-          "file": "stops.txt",
-          "line": null,
-          "message": "No physical stop reports wheelchair_boarding (2 stops).",
-          "observed_value": "2",
-          "remediation": "Report stop wheelchair accessibility using wheelchair_boarding (1=accessible, 2=not accessible).",
-          "rule_class": "QUALITY",
-          "rule_id": "STP_038",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "No stops report wheelchair boarding"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Feed",
           "expected_value": null,
           "field": null,
           "file": "stops.txt",
@@ -1960,6 +1952,29 @@
           "service_id": null,
           "severity": "MEDIUM",
           "title": "stop_code missing"
+        },
+        {
+          "details": {
+            "example_stop_calls": "1,1",
+            "example_stops": "S1,S2",
+            "missing_stops": "2",
+            "stop_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "1 or 2",
+          "field": "wheelchair_boarding",
+          "file": "stops.txt",
+          "line": null,
+          "message": "No physical stop reports wheelchair_boarding (2 stops).",
+          "observed_value": "2",
+          "remediation": "Report stop wheelchair accessibility using wheelchair_boarding (1=accessible, 2=not accessible).",
+          "rule_class": "QUALITY",
+          "rule_id": "STP_038",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "No stops report wheelchair boarding"
         }
       ],
       "score": 94.8
@@ -3272,6 +3287,29 @@
         },
         {
           "details": {
+            "example_stop_calls": "1,1",
+            "example_stops": "S1,S1",
+            "missing_stops": "2",
+            "stop_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "1 or 2",
+          "field": "wheelchair_boarding",
+          "file": "stops.txt",
+          "line": null,
+          "message": "No physical stop reports wheelchair_boarding (2 stops).",
+          "observed_value": "2",
+          "remediation": "Report stop wheelchair accessibility using wheelchair_boarding (1=accessible, 2=not accessible).",
+          "rule_class": "QUALITY",
+          "rule_id": "STP_038",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "No stops report wheelchair boarding"
+        },
+        {
+          "details": {
             "example_trip_id": "T1",
             "first_lat": "40",
             "first_line": "2",
@@ -3660,6 +3698,29 @@
           "service_id": null,
           "severity": "MEDIUM",
           "title": "stop_code missing"
+        },
+        {
+          "details": {
+            "example_stop_calls": "1,1",
+            "example_stops": "S1,S2",
+            "missing_stops": "2",
+            "stop_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "1 or 2",
+          "field": "wheelchair_boarding",
+          "file": "stops.txt",
+          "line": null,
+          "message": "No physical stop reports wheelchair_boarding (2 stops).",
+          "observed_value": "2",
+          "remediation": "Report stop wheelchair accessibility using wheelchair_boarding (1=accessible, 2=not accessible).",
+          "rule_class": "QUALITY",
+          "rule_id": "STP_038",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "No stops report wheelchair boarding"
         }
       ],
       "score": 91.3
@@ -5253,24 +5314,6 @@
           "details": null,
           "entity_id": null,
           "entity_type": "Feed",
-          "expected_value": "1 or 2",
-          "field": "wheelchair_boarding",
-          "file": "stops.txt",
-          "line": null,
-          "message": "No physical stop reports wheelchair_boarding (3 stops).",
-          "observed_value": "3",
-          "remediation": "Report stop wheelchair accessibility using wheelchair_boarding (1=accessible, 2=not accessible).",
-          "rule_class": "QUALITY",
-          "rule_id": "STP_038",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "No stops report wheelchair boarding"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Feed",
           "expected_value": null,
           "field": null,
           "file": "stops.txt",
@@ -5374,6 +5417,29 @@
           "service_id": null,
           "severity": "MEDIUM",
           "title": "Two stops at identical coordinates"
+        },
+        {
+          "details": {
+            "example_stop_calls": "1,1,0",
+            "example_stops": "S1,S2,PLAT",
+            "missing_stops": "3",
+            "stop_count": "3"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "1 or 2",
+          "field": "wheelchair_boarding",
+          "file": "stops.txt",
+          "line": null,
+          "message": "No physical stop reports wheelchair_boarding (3 stops).",
+          "observed_value": "3",
+          "remediation": "Report stop wheelchair accessibility using wheelchair_boarding (1=accessible, 2=not accessible).",
+          "rule_class": "QUALITY",
+          "rule_id": "STP_038",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "No stops report wheelchair boarding"
         },
         {
           "details": {
@@ -5753,24 +5819,6 @@
           "details": null,
           "entity_id": null,
           "entity_type": "Feed",
-          "expected_value": "1 or 2",
-          "field": "wheelchair_boarding",
-          "file": "stops.txt",
-          "line": null,
-          "message": "No physical stop reports wheelchair_boarding (2 stops).",
-          "observed_value": "2",
-          "remediation": "Report stop wheelchair accessibility using wheelchair_boarding (1=accessible, 2=not accessible).",
-          "rule_class": "QUALITY",
-          "rule_id": "STP_038",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "INFO",
-          "title": "No stops report wheelchair boarding"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Feed",
           "expected_value": null,
           "field": null,
           "file": "stops.txt",
@@ -5805,6 +5853,29 @@
           "service_id": null,
           "severity": "MEDIUM",
           "title": "stop_code missing"
+        },
+        {
+          "details": {
+            "example_stop_calls": "1,1",
+            "example_stops": "S1,S2",
+            "missing_stops": "2",
+            "stop_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "1 or 2",
+          "field": "wheelchair_boarding",
+          "file": "stops.txt",
+          "line": null,
+          "message": "No physical stop reports wheelchair_boarding (2 stops).",
+          "observed_value": "2",
+          "remediation": "Report stop wheelchair accessibility using wheelchair_boarding (1=accessible, 2=not accessible).",
+          "rule_class": "QUALITY",
+          "rule_id": "STP_038",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "No stops report wheelchair boarding"
         }
       ],
       "score": 94.6
@@ -7151,6 +7222,29 @@
         },
         {
           "details": {
+            "example_stop_calls": "2,2",
+            "example_stops": "S1,S2",
+            "missing_stops": "2",
+            "stop_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "1 or 2",
+          "field": "wheelchair_boarding",
+          "file": "stops.txt",
+          "line": null,
+          "message": "No physical stop reports wheelchair_boarding (2 stops).",
+          "observed_value": "2",
+          "remediation": "Report stop wheelchair accessibility using wheelchair_boarding (1=accessible, 2=not accessible).",
+          "rule_class": "QUALITY",
+          "rule_id": "STP_038",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "No stops report wheelchair boarding"
+        },
+        {
+          "details": {
             "example_trip_id": "T1",
             "fixed_trips": "2",
             "route_0_example_trip_id": "T1",
@@ -7570,6 +7664,29 @@
           "service_id": null,
           "severity": "INFO",
           "title": "Too few trips"
+        },
+        {
+          "details": {
+            "example_stop_calls": "1,1",
+            "example_stops": "S1,S2",
+            "missing_stops": "2",
+            "stop_count": "2"
+          },
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": "1 or 2",
+          "field": "wheelchair_boarding",
+          "file": "stops.txt",
+          "line": null,
+          "message": "No physical stop reports wheelchair_boarding (2 stops).",
+          "observed_value": "2",
+          "remediation": "Report stop wheelchair accessibility using wheelchair_boarding (1=accessible, 2=not accessible).",
+          "rule_class": "QUALITY",
+          "rule_id": "STP_038",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "INFO",
+          "title": "No stops report wheelchair boarding"
         },
         {
           "details": {
@@ -9323,6 +9440,8 @@
         {
           "details": {
             "affected_stops": "2",
+            "example_0_url": "notaurl",
+            "example_1_url": "alsobad",
             "example_stop_ids": "S1, S2"
           },
           "entity_id": null,

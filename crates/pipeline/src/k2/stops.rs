@@ -86,11 +86,16 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         }
         if let Some(code) = &stop_code {
             if let Some(first_stop) = stop_code_owner.get(code) {
-                notices.push(make_k2_notice(&mut counter, "STP_039", EntityType::Stop, entity_id.clone(),
+                let mut n039 = make_k2_notice(&mut counter, "STP_039", EntityType::Stop, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("stop_code"), Some(code.clone()),
                     Some("unique within the feed".to_string()),
                     format!("stop_code '{code}' hem '{first_stop}' hem '{stop_id}' duraklarında kullanılıyor."),
-                    "Her yolcu-facing stop_code değerini feed içinde benzersiz yapın."));
+                    "Her yolcu-facing stop_code değerini feed içinde benzersiz yapın.");
+                // Planner context: the stop that already carries the code.
+                n039.details
+                    .get_or_insert_with(Default::default)
+                    .insert("other_stop_id".to_string(), first_stop.clone());
+                notices.push(n039);
             } else {
                 stop_code_owner.insert(code.clone(), stop_id.clone());
             }

@@ -8341,3 +8341,90 @@ fn station_and_value_stop_findings_carry_planner_context() {
         Some("ST")
     );
 }
+
+#[test]
+fn remaining_stop_findings_carry_planner_context() {
+    // STP_033 the neighbours' fare zones, STP_035 the route sharing the address, STP_036 the
+    // station's parent, STP_037 the busiest stops without wheelchair information, STP_039 the
+    // stop already carrying the code (with its trips), STP_041 the station, STP_042 the written
+    // address per example, STP_043 why the access value is out of place, STP_045 each example
+    // stop's nearest station. Counts are unchanged.
+    let find = |vr: &gtfs_pipeline::ValidationResult, rule: &str| {
+        vr.notices
+            .iter()
+            .find(|n| n.rule_id == rule)
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor"))
+    };
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+
+    static STOPS: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station,zone_id,stop_code,stop_url,wheelchair_boarding,stop_access,platform_code\n\
+          ST,Gar,41.0,29.0,1,,,,,,,\nST2,Ust Gar,41.0305,29.0,1,ST,,,,,,\nP1,Peron Bir,41.0001,29.0,0,ST,Z1,,,1,,\n\
+          S1,Okul,41.01,29.0,0,,Z1,100,http://r.example/1,,,\nS2,Park,41.02,29.0,0,,,100,not a url,,1,\n\
+          S3,Liman,41.03,29.0,0,,Z2,,,,,5\n";
+    static ROUTES_URL: &[u8] =
+        b"route_id,agency_id,route_short_name,route_type,route_url\nR1,1,101,3,http://r.example/1\n";
+    static TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:05:00,08:05:00,S2,2\nT1,08:10:00,08:10:00,S3,3\n\
+          T2,09:00:00,09:00:00,S2,1\nT2,09:05:00,09:05:00,S3,2\n";
+    static TRIPS2: &[u8] = b"route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n";
+    let mut files = base_files();
+    files[1] = ("stops.txt", STOPS);
+    files[2] = ("routes.txt", ROUTES_URL);
+    files[3] = ("trips.txt", TRIPS2);
+    files[4] = ("stop_times.txt", TIMES);
+    // A zone-based fare keeps STP_033 in scope.
+    static FARES: &[u8] = b"fare_id,price,currency_type,payment_method,transfers
+F1,1.50,EUR,0,0
+";
+    static FARE_RULES: &[u8] = b"fare_id,origin_id,destination_id
+F1,Z1,Z2
+";
+    files.push(("fare_attributes.txt", FARES));
+    files.push(("fare_rules.txt", FARE_RULES));
+    let config = ValidatorConfig {
+        stop_name_best_practices: true,
+        ..ValidatorConfig::default()
+    };
+    let vr = match validate_bytes(&make_zip(&files), &config, TODAY) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+
+    let d = vr
+        .notices
+        .iter()
+        .find(|n| n.rule_id == "STP_033" && n.entity_id.as_deref() == Some("S2"))
+        .and_then(|n| n.details.clone())
+        .expect("STP_033 for S2");
+    assert_eq!(get(&d, "prev_zone").as_deref(), Some("Z1"));
+    assert_eq!(get(&d, "next_zone").as_deref(), Some("Z2"));
+    let d = find(&vr, "STP_035");
+    assert_eq!(get(&d, "route_ids").as_deref(), Some("R1"));
+    let d = find(&vr, "STP_036");
+    assert_eq!(get(&d, "parent_station").as_deref(), Some("ST"));
+    let d = find(&vr, "STP_037");
+    assert_eq!(
+        get(&d, "example_stops").map(|v| v.starts_with("S2,S3")),
+        Some(true)
+    );
+    assert_eq!(
+        get(&d, "example_stop_calls").map(|v| v.starts_with("2,2")),
+        Some(true)
+    );
+    let d = find(&vr, "STP_039");
+    assert_eq!(get(&d, "other_stop_id").as_deref(), Some("S1"));
+    assert_eq!(get(&d, "other_trip_count").as_deref(), Some("1"));
+    let d = find(&vr, "STP_041");
+    assert_eq!(get(&d, "parent_station").as_deref(), Some("ST"));
+    let d = find(&vr, "STP_042");
+    assert_eq!(get(&d, "example_0_url").as_deref(), Some("not a url"));
+    let d = find(&vr, "STP_043");
+    assert_eq!(get(&d, "location_type").as_deref(), Some("0"));
+    let d = find(&vr, "STP_045");
+    assert_eq!(get(&d, "example_0_stop_id").as_deref(), Some("S3"));
+    assert_eq!(
+        get(&d, "example_0_nearest_station_id").as_deref(),
+        Some("ST2")
+    );
+}

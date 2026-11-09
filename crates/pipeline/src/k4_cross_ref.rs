@@ -1102,7 +1102,7 @@ fn check_stops(
 
         // STP_036: location_type=1 (station) must not have parent_station.
         if loc_type == Some(1) && !parent.trim().is_empty() {
-            notices.push(notice(
+            let mut n036 = notice(
                 ctr,
                 "STP_036",
                 EntityType::Stop,
@@ -1115,7 +1115,12 @@ fn check_stops(
                 Some("must be empty".to_string()),
                 format!("İstasyon '{}' (location_type=1) parent_station='{}' içeriyor; istasyonlar üst varlık olarak parent_station içermemelidir.", rec.stop_id, parent),
                 "İstasyondan parent_station alanını kaldırın; sadece location_type 2/3/4 için parent_station gerekir.",
-            ));
+            );
+            // Planner context: the record the station is attached to.
+            n036.details
+                .get_or_insert_with(Default::default)
+                .insert("parent_station".to_string(), parent.to_string());
+            notices.push(n036);
         }
 
         // STP_012: stops used in stop_times must have location_type = 0 or empty.
@@ -1270,7 +1275,7 @@ fn check_stops(
                 } else {
                     "parent_station boş".to_string()
                 };
-                notices.push(notice(
+                let mut n043 = notice(
                     ctr,
                     "STP_043",
                     EntityType::Stop,
@@ -1283,7 +1288,17 @@ fn check_stops(
                     Some("(boş)".to_string()),
                     format!("stop_access yalnız üst istasyonu olan platformlarda kullanılabilir ({why})."),
                     "stop_access alanını yalnız parent_station'ı olan platformlarda (location_type 0/boş) doldurun.",
-                ));
+                );
+                // Planner context: why the field is out of place — the record's type, its station.
+                let d = n043.details.get_or_insert_with(Default::default);
+                d.insert(
+                    "location_type".to_string(),
+                    loc_type.unwrap_or(0).to_string(),
+                );
+                if !no_parent {
+                    d.insert("parent_station".to_string(), parent.to_string());
+                }
+                notices.push(n043);
             }
         }
 
