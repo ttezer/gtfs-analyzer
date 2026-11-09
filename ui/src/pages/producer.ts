@@ -304,9 +304,10 @@ function plannerFieldName(field: string): string {
   return PLANNER_FIELDS.has(field) ? t(`producer.field.${field}`) : field;
 }
 
-/** File-level DQ cards (DQ_016, DQ_021) name their file in the planner's words, not as a file name. */
+/** File-level cards (DQ_016, DQ_021, CAL_020) name their file in the planner's words, not as a file name. */
 function dqListLabel(n: Notice): string | null {
-  if (n.rule_id === 'DQ_016') return plannerListName(n.file);
+  // CAL_020 is about the dataset details' window: name that list, not the engine's "11 years".
+  if (n.rule_id === 'DQ_016' || n.rule_id === 'CAL_020') return plannerListName(n.file);
   const kind = n.rule_id === 'DQ_021' && n.file ? DQ021_KIND[n.file] : undefined;
   return kind ? t(`producer.card.DQ_021.list_${kind}`) : null;
 }
@@ -317,7 +318,7 @@ const DQ021_CODE_KINDS = new Set(['stop', 'route', 'trip', 'attribution', 'locat
  *  the sentence needs (the card then keeps its general text). */
 function calRuleText(n: Notice, result: ValidationResult): string | null {
   const d = n.details ?? {};
-  const svc = n.entity_type === 'Service' ? n.entity_id ?? '' : '';
+  const svc = n.entity_type === 'Service' || n.rule_id === 'CAL_025' ? n.entity_id ?? '' : '';
   const services = calServices(n);
   const count = localizedNumber(String(services.length));
   const value = (n.observed_value ?? '').trim();
@@ -375,6 +376,55 @@ function calRuleText(n: Notice, result: ValidationResult): string | null {
       return services.length && n.observed_value
         ? t('producer.card.CAL_013.what_detail', { n: count, date: ymdText(n.observed_value) })
         : null;
+    case 'CAL_014': {
+      // The calendar's running days against the dataset's validity window, and how far it reaches out.
+      const [first, last] = (n.observed_value ?? '').split('..');
+      const [fs, fe] = (n.expected_value ?? '').split('..');
+      const before = Number(d.days_before) || 0;
+      const after = Number(d.days_after) || 0;
+      if (!svc || !first || !last || !fs || !fe || (!before && !after)) return null;
+      const key = before && after ? 'what_both' : before ? 'what_before' : 'what_after';
+      return t(`producer.card.CAL_014.${key}`, {
+        svc, first: ymdText(first), last: ymdText(last), fs: ymdText(fs), fe: ymdText(fe),
+        before: localizedNumber(String(before)), after: localizedNumber(String(after)),
+      });
+    }
+    case 'CAL_015': {
+      const date = d.first_service_date || n.observed_value;
+      if (!date) return null;
+      return t(d.message_variant === 'future_only_jp' ? 'producer.card.CAL_015.what_jp' : 'producer.card.CAL_015.what_detail', {
+        date: ymdText(date), days: localizedNumber(d.days_until ?? '—'),
+      });
+    }
+    case 'CAL_016':
+      return n.observed_value && services.length
+        ? t('producer.card.CAL_016.what_detail', { date: ymdText(n.observed_value), n: count })
+        : null;
+    case 'CAL_017':
+      return svc && n.observed_value ? t('producer.card.CAL_017.what_detail', { svc, date: ymdText(n.observed_value) }) : null;
+    case 'CAL_018':
+      return svc ? t('producer.card.CAL_018.what_detail', { svc }) : null;
+    case 'CAL_020':
+      return d.feed_start_date && d.feed_end_date && d.span_days
+        ? t('producer.card.CAL_020.what_detail', {
+          start: ymdText(d.feed_start_date), end: ymdText(d.feed_end_date), years: localizedNumber(String(Math.floor(Number(d.span_days) / 365))),
+        })
+        : null;
+    case 'CAL_021':
+      return svc && d.window_days && d.next_active
+        ? t('producer.card.CAL_021.what_detail', { svc, n: localizedNumber(d.window_days), next: ymdText(d.next_active) })
+        : null;
+    case 'CAL_022':
+      return n.line != null ? t('producer.card.CAL_022.what_detail', { line: String(n.line) }) : null;
+    case 'CAL_023':
+      return svc && n.observed_value ? t('producer.card.CAL_023.what_detail', { svc, date: ymdText(n.observed_value) }) : null;
+    case 'CAL_024':
+      if (!svc || !n.observed_value) return null;
+      return t(d.next_active ? 'producer.card.CAL_024.what_detail' : 'producer.card.CAL_024.what_none', {
+        svc, n: localizedNumber(n.observed_value), next: ymdText(d.next_active),
+      });
+    case 'CAL_025':
+      return svc && n.field ? t('producer.card.CAL_025.what_detail', { svc, day: plannerFieldName(n.field) }) : null;
     default:
       return null;
   }
@@ -1227,12 +1277,15 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       };
     }
     case 'CAL_001': case 'CAL_002': case 'CAL_003': case 'CAL_004': case 'CAL_005': case 'CAL_006':
-    case 'CAL_007': case 'CAL_008': case 'CAL_009': case 'CAL_010': case 'CAL_011': case 'CAL_012': case 'CAL_013': {
+    case 'CAL_007': case 'CAL_008': case 'CAL_009': case 'CAL_010': case 'CAL_011': case 'CAL_012': case 'CAL_013':
+    case 'CAL_014': case 'CAL_015': case 'CAL_016': case 'CAL_017': case 'CAL_018': case 'CAL_020': case 'CAL_021':
+    case 'CAL_022': case 'CAL_023': case 'CAL_024': case 'CAL_025': {
       const what = calRuleText(n, result);
       if (!what) return null;
       return {
         title: t(`producer.card.${g.ruleId}.title`),
-        what: g.ruleId === 'CAL_011' ? what : calWhat(n, result, what),
+        // CAL_011 has no trips; CAL_020/022 concern no calendar's trips.
+        what: ['CAL_011', 'CAL_020', 'CAL_022'].includes(g.ruleId) ? what : calWhat(n, result, what),
         action: t(`producer.card.${g.ruleId}.action`),
       };
     }
@@ -1512,9 +1565,10 @@ function plannerTripRule(ruleId: string): boolean {
   return ruleId.startsWith('DQ_') || ruleId.startsWith('CAL_');
 }
 
-/** CAL_001–013 carry the trips and routes on their calendar(s); the map draws the example trip. */
+/** CAL findings (but CAL_020/022) carry the trips and routes on their calendar(s); the map draws the example trip. */
 const CAL_USAGE_RULES = new Set(['CAL_001', 'CAL_002', 'CAL_003', 'CAL_004', 'CAL_005', 'CAL_006', 'CAL_007',
-  'CAL_008', 'CAL_009', 'CAL_010', 'CAL_011', 'CAL_012', 'CAL_013']);
+  'CAL_008', 'CAL_009', 'CAL_010', 'CAL_011', 'CAL_012', 'CAL_013', 'CAL_014', 'CAL_015', 'CAL_016', 'CAL_017',
+  'CAL_018', 'CAL_021', 'CAL_023', 'CAL_024', 'CAL_025']);
 
 /** The trip a DQ card draws on its map and lists stop by stop: the route's example trip for a route
  *  record, the record's own trip for a headsign row, the example trip of a feed summary. */
@@ -1556,7 +1610,7 @@ function dqExampleTrip(n: Notice, ni: ValidationResult['name_index']): string | 
 
 /** The calendar(s) a CAL finding is about: its own, a summary's list, or none. */
 function calServices(n: Notice): string[] {
-  if (n.entity_type === 'Service' && n.entity_id) return [n.entity_id];
+  if ((n.entity_type === 'Service' || n.rule_id === 'CAL_025') && n.entity_id) return [n.entity_id];
   return listOf(n.details?.services);
 }
 
@@ -1566,7 +1620,7 @@ function calUsageText(n: Notice): string {
   if (d.trip_count == null) return '';
   if (d.trip_count === '0') return t('producer.card.cal_usage_none');
   // A summary's calendar row still carries the whole summary's counts.
-  const many = n.rule_id === 'CAL_009' || calServices(n).length > 1 || Number(d.affected_services) > 1;
+  const many = n.rule_id === 'CAL_009' || n.rule_id === 'CAL_015' || calServices(n).length > 1 || Number(d.affected_services) > 1;
   return t(many ? 'producer.card.cal_usage_many' : 'producer.card.cal_usage', {
     routes: localizedNumber(d.route_count || '0'), trips: localizedNumber(d.trip_count),
   });

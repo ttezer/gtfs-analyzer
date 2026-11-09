@@ -7744,3 +7744,72 @@ fn all_expired_calendars_name_the_latest_end_date_and_every_trip() {
     assert_eq!(get("trip_count").as_deref(), Some("1"));
     assert_eq!(get("example_trip_id").as_deref(), Some("T1"));
 }
+
+#[test]
+fn calendar_findings_014_to_025_carry_planner_context() {
+    // CAL_015 the first service date and days until it, CAL_016 the calendars running that far,
+    // CAL_020 the validity window, CAL_021/024 the next service day; the calendar findings also
+    // name their trips and routes. Counts are unchanged.
+    let run_ok = |files: &[(&str, &[u8])]| match run(files) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+    let one = |vr: &gtfs_pipeline::ValidationResult, rule: &str| {
+        let hits: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == rule).collect();
+        assert_eq!(hits.len(), 1, "{rule} tek bulgu");
+        hits[0]
+            .details
+            .clone()
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor"))
+    };
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+
+    // The whole feed starts on 1 June 2026, 17 days after today.
+    static FUTURE: &[u8] =
+        b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
+          SVC1,1,1,1,1,1,1,1,20260601,20261231\n";
+    let mut files = base_files();
+    files[5] = ("calendar.txt", FUTURE);
+    let vr = run_ok(&files);
+    let d = one(&vr, "CAL_015");
+    assert_eq!(get(&d, "first_service_date").as_deref(), Some("20260601"));
+    assert_eq!(get(&d, "days_until").as_deref(), Some("17"));
+    assert_eq!(get(&d, "trip_count").as_deref(), Some("1"));
+    let d = one(&vr, "CAL_017");
+    assert_eq!(get(&d, "example_trip_id").as_deref(), Some("T1"));
+
+    // A calendar running into 2029 and a dataset window of nine years.
+    static FAR: &[u8] =
+        b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
+          SVC1,1,1,1,1,1,1,1,20250101,20290101\n";
+    static LONG_INFO: &[u8] =
+        b"feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\n\
+          Test,http://test.example,en,20200101,20290101\n";
+    let mut files = base_files();
+    files[5] = ("calendar.txt", FAR);
+    files.push(("feed_info.txt", LONG_INFO));
+    let vr = run_ok(&files);
+    let d = one(&vr, "CAL_016");
+    assert_eq!(get(&d, "services").as_deref(), Some("SVC1"));
+    assert_eq!(get(&d, "trip_count").as_deref(), Some("1"));
+    let d = one(&vr, "CAL_020");
+    assert_eq!(get(&d, "feed_start_date").as_deref(), Some("20200101"));
+    assert_eq!(get(&d, "feed_end_date").as_deref(), Some("20290101"));
+    assert_eq!(get(&d, "span_days").as_deref(), Some("3288"));
+    assert_eq!(get(&d, "trip_count"), None);
+
+    // A calendar covering today with no service until 1 July.
+    static DATES_ONLY: &[u8] =
+        b"service_id,date,exception_type\nSVC1,20260501,1\nSVC1,20260701,1\n";
+    let mut files = base_files();
+    files.remove(5);
+    files.push(("calendar_dates.txt", DATES_ONLY));
+    let vr = run_ok(&files);
+    let d = one(&vr, "CAL_021");
+    assert_eq!(get(&d, "window_days").as_deref(), Some("7"));
+    assert_eq!(get(&d, "next_active").as_deref(), Some("20260701"));
+    assert_eq!(get(&d, "example_trip_id").as_deref(), Some("T1"));
+    let d = one(&vr, "CAL_024");
+    assert_eq!(get(&d, "next_active").as_deref(), Some("20260701"));
+    assert_eq!(get(&d, "route_0_route_id").as_deref(), Some("R1"));
+}

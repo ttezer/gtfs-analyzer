@@ -2355,19 +2355,20 @@ pub fn aggregate_feed_level_notices(
 }
 
 /// Calendar findings whose planner card names the trips and routes running on the calendar(s).
-const CALENDAR_USAGE_RULES: [&str; 13] = [
+const CALENDAR_USAGE_RULES: [&str; 22] = [
     "CAL_001", "CAL_002", "CAL_003", "CAL_004", "CAL_005", "CAL_006", "CAL_007", "CAL_008",
-    "CAL_009", "CAL_010", "CAL_011", "CAL_012", "CAL_013",
+    "CAL_009", "CAL_010", "CAL_011", "CAL_012", "CAL_013", "CAL_014", "CAL_015", "CAL_016",
+    "CAL_017", "CAL_018", "CAL_021", "CAL_023", "CAL_024", "CAL_025",
 ];
 /// Routes listed per calendar finding (most trips first).
 const CALENDAR_USAGE_ROUTES: usize = 10;
 
-/// Planner context for the calendar findings CAL_001–CAL_013: which trips and routes run on the
+/// Planner context for the calendar findings (CAL_001–CAL_025 but CAL_020/022): which trips and routes run on the
 /// calendar(s) the finding is about — `trip_count`, `route_count`, the routes with the most trips
 /// (`route_<i>_{route_id,trips,example_trip_id}`) and one `example_trip_id` to draw on the map
 /// (a trip with stop times first, in file order). A service finding is about its own calendar;
-/// CAL_007/008/012/013 summaries about the calendars in `details.services`; CAL_009 about every
-/// calendar. Runs after aggregation (the summaries carry their full calendar list then) in the
+/// CAL_007/008/012/013/016 summaries about the calendars in `details.services`; CAL_009 about every
+/// calendar, CAL_015 about every calendar with trips; CAL_025 (a calendar row) about its own. Runs after aggregation (the summaries carry their full calendar list then) in the
 /// shared native/WASM step. Details only: counts, texts and severities are unchanged.
 fn annotate_calendar_usage(all: &mut [gtfs_core::Notice], records: &EntityRecords) {
     use rustc_hash::FxHashMap;
@@ -2409,7 +2410,11 @@ fn annotate_calendar_usage(all: &mut [gtfs_core::Notice], records: &EntityRecord
                 .filter(|c| !c.service_id.is_empty())
                 .map(|c| c.service_id.clone())
                 .collect()
-        } else if n.entity_type == gtfs_core::EntityType::Service {
+        } else if n.rule_id == "CAL_015" {
+            // No calendar runs yet: every trip of the feed waits for the first service date.
+            usage.keys().map(|s| s.to_string()).collect()
+        } else if n.entity_type == gtfs_core::EntityType::Service || n.rule_id == "CAL_025" {
+            // CAL_025 is a calendar row finding: its record is the calendar itself.
             n.entity_id.clone().into_iter().collect()
         } else {
             n.details

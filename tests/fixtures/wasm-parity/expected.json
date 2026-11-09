@@ -11182,24 +11182,6 @@
         },
         {
           "details": null,
-          "entity_id": "SVCX",
-          "entity_type": "Service",
-          "expected_value": null,
-          "field": "service_id",
-          "file": "trips.txt",
-          "line": 2,
-          "message": "Service 'SVCX' has no active dates in the next 7 days; 1 trips are affected.",
-          "observed_value": "1",
-          "remediation": "Update the service calendar or publish a new feed.",
-          "rule_class": "ANALYTICS",
-          "rule_id": "CAL_024",
-          "scope_key": "SVCX",
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Calendar inactive in the next 7 days"
-        },
-        {
-          "details": null,
           "entity_id": "SVCY",
           "entity_type": "Service",
           "expected_value": "≥ 1",
@@ -11215,24 +11197,6 @@
           "service_id": null,
           "severity": "HIGH",
           "title": "Service has no active days"
-        },
-        {
-          "details": null,
-          "entity_id": "SVCY",
-          "entity_type": "Service",
-          "expected_value": null,
-          "field": "service_id",
-          "file": "trips.txt",
-          "line": 3,
-          "message": "Service 'SVCY' has no active dates in the next 7 days; 1 trips are affected.",
-          "observed_value": "1",
-          "remediation": "Update the service calendar or publish a new feed.",
-          "rule_class": "ANALYTICS",
-          "rule_id": "CAL_024",
-          "scope_key": "SVCY",
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Calendar inactive in the next 7 days"
         },
         {
           "details": null,
@@ -11443,6 +11407,56 @@
           "service_id": null,
           "severity": "LOW",
           "title": "Recommended field missing or empty"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "route_0_example_trip_id": "T1",
+            "route_0_route_id": "R1",
+            "route_0_trips": "1",
+            "route_count": "1",
+            "trip_count": "1"
+          },
+          "entity_id": "SVCX",
+          "entity_type": "Service",
+          "expected_value": null,
+          "field": "service_id",
+          "file": "trips.txt",
+          "line": 2,
+          "message": "Service 'SVCX' has no active dates in the next 7 days; 1 trips are affected.",
+          "observed_value": "1",
+          "remediation": "Update the service calendar or publish a new feed.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "CAL_024",
+          "scope_key": "SVCX",
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Calendar inactive in the next 7 days"
+        },
+        {
+          "details": {
+            "example_trip_id": "T2",
+            "route_0_example_trip_id": "T2",
+            "route_0_route_id": "R1",
+            "route_0_trips": "1",
+            "route_count": "1",
+            "trip_count": "1"
+          },
+          "entity_id": "SVCY",
+          "entity_type": "Service",
+          "expected_value": null,
+          "field": "service_id",
+          "file": "trips.txt",
+          "line": 3,
+          "message": "Service 'SVCY' has no active dates in the next 7 days; 1 trips are affected.",
+          "observed_value": "1",
+          "remediation": "Update the service calendar or publish a new feed.",
+          "rule_class": "ANALYTICS",
+          "rule_id": "CAL_024",
+          "scope_key": "SVCY",
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Calendar inactive in the next 7 days"
         },
         {
           "details": {

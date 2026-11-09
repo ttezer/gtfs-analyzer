@@ -1017,6 +1017,32 @@ describe('Üretici kartı görünümü', () => {
     out = render(notice('a', 'CAL_011', 'LOW', { entity_type: 'Service', entity_id: 'UNUSED', details: { trip_count: '0', route_count: '0' } }));
     expect(out.html).toContain('UNUSED takvimini hiçbir sefer kullanmıyor (Hafta içi, 01.01.2025 – 31.12.2027)');
     expect(out.html).not.toContain('Bu takvimlerle çalışan hatlar');
+
+    // CAL_014: the calendar's days against the dataset window and how far it reaches past it.
+    out = render(notice('a', 'CAL_014', 'INFO', { entity_type: 'Service', entity_id: 'EXP', observed_value: '20250101..20250301',
+      expected_value: '20250101..20250201', details: { days_before: '0', days_after: '28', ...usage } }));
+    expect(out.html).toContain('EXP takvimi 01.01.2025 – 01.03.2025 arasında çalışıyor; veri seti bilgilerinde yazan geçerlilik dönemi ise 01.01.2025 – 01.02.2025. Takvim bu dönemin bitişinden 28 gün sonrasına uzanıyor');
+    // CAL_015: the first service day; the JP variant says it is expected.
+    out = render(notice('a', 'CAL_015', 'HIGH', { entity_type: 'Feed', observed_value: '20260601',
+      details: { first_service_date: '20260601', days_until: '17', ...usage } }));
+    expect(out.html).toContain('Veri setindeki ilk çalışma günü 01.06.2026 (17 gün sonra)');
+    expect(out.html).toContain('Bu takvimlerle 2 hattın 3 seferi çalışıyor.');
+    out = render(notice('a', 'CAL_015', 'INFO', { entity_type: 'Feed', observed_value: '20260601',
+      details: { first_service_date: '20260601', days_until: '17', message_variant: 'future_only_jp' } }));
+    expect(out.html).toContain('Japonya (GTFS-JP) veri setindeki bütün takvimler 01.06.2026 tarihinde başlıyor');
+    // CAL_020: the dataset window, no calendar trips; CAL_022: the row; CAL_025: the empty day.
+    out = render(notice('a', 'CAL_020', 'LOW', { entity_type: 'Feed', file: 'feed_info.txt', observed_value: '9 years', details: { feed_start_date: '20200101', feed_end_date: '20290101', span_days: '3288' } }));
+    expect(out.html).toContain('geçerlilik dönemi 01.01.2020 – 01.01.2029, yani yaklaşık 9 yıl');
+    expect(out.html).toContain('<td>Veri seti bilgileri</td>');
+    out = render(notice('a', 'CAL_022', 'HIGH', { entity_type: 'Service', line: 4 }));
+    expect(out.html).toContain('Takvim listesinin 4. satırında takvim kodu boş');
+    out = render(notice('a', 'CAL_025', 'HIGH', { entity_type: 'Row', entity_id: 'EXP', field: 'sunday', details: usage }));
+    expect(out.html).toContain('EXP takviminin Pazar alanı boş');
+    expect(out.html).toContain('<td>R1, R2</td>');
+    // CAL_024: the next service day, or none.
+    out = render(notice('a', 'CAL_024', 'LOW', { entity_type: 'Service', entity_id: 'EXP', observed_value: '3', details: { next_active: '20260701', ...usage } }));
+    expect(out.html).toContain('bir sonraki çalışma günü 01.07.2026. Bu takvime bağlı 3 sefer');
+    expect(out.map.opts?.extraPolylines).toHaveLength(2);
   });
 
   it('STM_051–055 kartları Flex bölgesini, pencereyi, yazılan değeri ve aynı saatli durak serisini gösterir', () => {

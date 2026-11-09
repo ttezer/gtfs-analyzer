@@ -3752,7 +3752,12 @@ fn check_calendar_analytics(
                     .unwrap_or(0);
                 if !has_upcoming && trip_count > 0 {
                     let n = config.upcoming_service_days;
-                    notices.push(k6_notice(
+                    // Planner context: the next day the calendar runs again (after the window).
+                    let next_active = sorted
+                        .iter()
+                        .copied()
+                        .find(|&d| yyyymmdd_to_jdn(d) > window_end_jdn);
+                    let mut notice = k6_notice(
                         ctr,
                         "CAL_021",
                         EntityType::Service,
@@ -3765,7 +3770,13 @@ fn check_calendar_analytics(
                         Some(format!("≥ 1 / {n}")),
                         format!("'{service_id}' servisi bugünü kapsıyor ama önümüzdeki {n} günde aktif günü yok ({trip_count} sefer etkileniyor)."),
                         "Yakın günlerde sefer olmaması kasıtlıysa yok sayın; değilse calendar/calendar_dates ile yakın tarihlere aktif gün ekleyin.",
-                    ));
+                    );
+                    let details = notice.details.get_or_insert_with(Default::default);
+                    details.insert("window_days", n.to_string());
+                    if let Some(next) = next_active {
+                        details.insert("next_active", next.to_string());
+                    }
+                    notices.push(notice);
                 }
             }
         }
@@ -4015,6 +4026,8 @@ fn check_calendar_analytics(
             .min();
         if let Some(first) = min_date {
             if first > today_yyyymmdd {
+                let days_until =
+                    yyyymmdd_to_jdn(first).saturating_sub(yyyymmdd_to_jdn(today_yyyymmdd));
                 let mut notice = k6_notice(
                     ctr, "CAL_015", EntityType::Feed,
                     None, None, "calendar.txt", None, None,
@@ -4041,6 +4054,10 @@ fn check_calendar_analytics(
                         .collect(),
                     );
                 }
+                // Planner context: the first service date and the days until it.
+                let details = notice.details.get_or_insert_with(Default::default);
+                details.insert("first_service_date", first.to_string());
+                details.insert("days_until", days_until.to_string());
                 notices.push(notice);
             }
         }
@@ -4142,13 +4159,27 @@ fn check_calendar_analytics(
         if let Some(last) = max_date {
             let last_jdn = yyyymmdd_to_jdn(last);
             if last_jdn > far_future_jdn {
-                notices.push(k6_notice(
+                let mut notice = k6_notice(
                     ctr, "CAL_016", EntityType::Feed,
                     None, None, "calendar.txt", None, None,
                     Some(format!("{last}")), Some("≤ +2 years".to_string()),
                     format!("Feed'in en son servis tarihi {last} — bugünden 2 yıldan fazla ileride; bu veri bozuk olabilir."),
                     "Servis takvimini gerçekçi bir bitiş tarihiyle sınırlandırın.",
-                ));
+                );
+                // Planner context: the calendars running beyond two years from today.
+                let mut far: Vec<&str> = derived
+                    .calendar_bitmap
+                    .active_dates
+                    .iter()
+                    .filter(|(_, dates)| dates.iter().any(|&d| yyyymmdd_to_jdn(d) > far_future_jdn))
+                    .map(|(service, _)| service.as_str())
+                    .collect();
+                far.sort_unstable();
+                notice
+                    .details
+                    .get_or_insert_with(Default::default)
+                    .insert("services", far.join(","));
+                notices.push(notice);
             }
         }
     }
@@ -5154,14 +5185,33 @@ fn check_operational_analytics(
         let mut services: Vec<(&str, (u32, u64))> = inactive_by_service.into_iter().collect();
         services.sort_by(|a, b| a.0.cmp(b.0));
         for (service_id, (count, line)) in services {
-            notices.push(k6_notice(
+            let mut notice = k6_notice(
                 ctr, "CAL_024", EntityType::Service,
                 Some(service_id.to_string()), Some(service_id.to_string()),
                 "trips.txt", Some(line), Some("service_id"),
                 Some(count.to_string()), None,
                 format!("'{service_id}' takvimi önümüzdeki 7 günde aktif değil — {count} sefer etkileniyor."),
                 "calendar.txt veya calendar_dates.txt'i güncelleyin ya da yeni bir feed yayınlayın.",
-            ));
+            );
+            // Planner context: the next day the calendar runs again, when there is one.
+            let next_active = derived
+                .calendar_bitmap
+                .active_dates
+                .get(service_id)
+                .and_then(|dates| {
+                    dates
+                        .iter()
+                        .copied()
+                        .filter(|&d| yyyymmdd_to_jdn(d) >= today_jdn + 7)
+                        .min()
+                });
+            if let Some(next) = next_active {
+                notice
+                    .details
+                    .get_or_insert_with(Default::default)
+                    .insert("next_active", next.to_string());
+            }
+            notices.push(notice);
         }
     }
 
@@ -7013,14 +7063,20 @@ fn check_data_quality(
                 let end_jdn = yyyymmdd_to_jdn(ey * 10000 + em * 100 + ed);
                 let span_days = end_jdn.saturating_sub(start_jdn);
                 if span_days > 1825 {
-                    notices.push(k6_notice(
+                    let mut notice = k6_notice(
                         ctr, "CAL_020", EntityType::Feed,
                         None, None, "feed_info.txt", None, None,
                         Some(format!("{} years", span_days / 365)), Some("≤5 years".to_string()),
                         format!("Feed geçerlilik penceresi {} gün (~{} yıl) — gerçekçi olmayan zaman dilimi.",
                             span_days, span_days / 365),
                         "feed_start_date ve feed_end_date değerlerini gerçekçi hizmet dönemine göre düzenleyin.",
-                    ));
+                    );
+                    // Planner context: the validity window as written and its length.
+                    let details = notice.details.get_or_insert_with(Default::default);
+                    details.insert("feed_start_date", (sy * 10000 + sm * 100 + sd).to_string());
+                    details.insert("feed_end_date", (ey * 10000 + em * 100 + ed).to_string());
+                    details.insert("span_days", span_days.to_string());
+                    notices.push(notice);
                 }
             }
         }
