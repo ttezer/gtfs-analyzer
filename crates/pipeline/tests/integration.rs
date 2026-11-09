@@ -7626,3 +7626,121 @@ fn data_quality_findings_012_to_022_carry_planner_context() {
     assert_eq!(get(&d, "example_0_stop_id").as_deref(), Some("S1"));
     assert_eq!(get(&d, "example_4_stop_id").as_deref(), Some("S5"));
 }
+
+#[test]
+fn calendar_findings_001_to_013_name_the_trips_and_routes_on_their_calendars() {
+    // CAL_001–013 planner context: the trips and routes running on the calendar(s) a finding is
+    // about, most trips first, with one example trip per route for the map. Plus each rule's own
+    // context (CAL_001 first line, CAL_008 days left and full calendar list, CAL_010 active days).
+    // Counts are unchanged.
+    static CAL_STOPS: &[u8] =
+        b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\n";
+    static CAL_ROUTES: &[u8] =
+        b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,202,3\n";
+    static CAL_TRIPS: &[u8] = b"route_id,service_id,trip_id\n\
+          R1,EXP,T1\nR1,EXP,T2\nR2,EXP,T3\nR2,LIVE,T4\nR2,SOON,T5\nR1,SHORT,T6\n";
+    static CAL_STOP_TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n\
+          T2,09:00:00,09:00:00,S1,1\nT2,09:10:00,09:10:00,S2,2\n\
+          T3,10:00:00,10:00:00,S1,1\nT3,10:10:00,10:10:00,S2,2\n\
+          T4,11:00:00,11:00:00,S1,1\nT4,11:10:00,11:10:00,S2,2\n\
+          T5,12:00:00,12:00:00,S1,1\nT5,12:10:00,12:10:00,S2,2\n\
+          T6,13:00:00,13:00:00,S1,1\nT6,13:10:00,13:10:00,S2,2\n";
+    static CAL_CALENDAR: &[u8] =
+        b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
+          LIVE,1,1,1,1,1,1,1,20250101,20271231\n\
+          EXP,1,1,1,1,1,1,1,20250101,20250301\n\
+          SOON,1,1,1,1,1,1,1,20250101,20260520\n\
+          SHORT,1,1,1,1,1,1,1,20260601,20260603\n\
+          UNUSED,1,1,1,1,1,1,1,20250101,20271231\n\
+          LIVE,1,1,1,1,1,1,1,20250101,20271231\n";
+    let files: Vec<(&str, &[u8])> = vec![
+        ("agency.txt", AGENCY),
+        ("stops.txt", CAL_STOPS),
+        ("routes.txt", CAL_ROUTES),
+        ("trips.txt", CAL_TRIPS),
+        ("stop_times.txt", CAL_STOP_TIMES),
+        ("calendar.txt", CAL_CALENDAR),
+    ];
+    let vr = match run(&files) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+    let details = |rule: &str| {
+        let hits: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == rule).collect();
+        assert_eq!(hits.len(), 1, "{rule} tek bulgu");
+        hits[0]
+            .details
+            .clone()
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor"))
+    };
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+
+    // CAL_013: the expired calendar runs two R1 trips and one R2 trip.
+    let d = details("CAL_013");
+    assert_eq!(get(&d, "services").as_deref(), Some("EXP"));
+    assert_eq!(get(&d, "trip_count").as_deref(), Some("3"));
+    assert_eq!(get(&d, "route_count").as_deref(), Some("2"));
+    assert_eq!(get(&d, "route_0_route_id").as_deref(), Some("R1"));
+    assert_eq!(get(&d, "route_0_trips").as_deref(), Some("2"));
+    assert_eq!(get(&d, "route_0_example_trip_id").as_deref(), Some("T1"));
+    assert_eq!(get(&d, "route_1_route_id").as_deref(), Some("R2"));
+    assert_eq!(get(&d, "route_1_example_trip_id").as_deref(), Some("T3"));
+    assert_eq!(get(&d, "example_trip_id").as_deref(), Some("T1"));
+
+    // CAL_008: ends in five days; the summary keeps every calendar and the days left.
+    let d = details("CAL_008");
+    assert_eq!(get(&d, "services").as_deref(), Some("SOON"));
+    assert_eq!(get(&d, "days_left").as_deref(), Some("5"));
+    assert_eq!(get(&d, "trip_count").as_deref(), Some("1"));
+    assert_eq!(get(&d, "route_0_route_id").as_deref(), Some("R2"));
+    assert_eq!(get(&d, "example_trip_id").as_deref(), Some("T5"));
+
+    // CAL_001: the repeated calendar's first line and its trip.
+    let d = details("CAL_001");
+    assert_eq!(get(&d, "first_line").as_deref(), Some("2"));
+    assert_eq!(get(&d, "trip_count").as_deref(), Some("1"));
+    assert_eq!(get(&d, "example_trip_id").as_deref(), Some("T4"));
+
+    // CAL_010: three active days and their range.
+    let d = details("CAL_010");
+    assert_eq!(get(&d, "active_days").as_deref(), Some("3"));
+    assert_eq!(get(&d, "first_active").as_deref(), Some("20260601"));
+    assert_eq!(get(&d, "last_active").as_deref(), Some("20260603"));
+    assert_eq!(get(&d, "example_trip_id").as_deref(), Some("T6"));
+
+    // CAL_011: an unused calendar has no trips.
+    let d = details("CAL_011");
+    assert_eq!(get(&d, "trip_count").as_deref(), Some("0"));
+    assert_eq!(get(&d, "route_count").as_deref(), Some("0"));
+    assert_eq!(get(&d, "example_trip_id"), None);
+}
+
+#[test]
+fn all_expired_calendars_name_the_latest_end_date_and_every_trip() {
+    // CAL_009: every calendar has ended; the planner context names the latest end date and the
+    // trips on all calendars. Counts are unchanged.
+    static OLD_CALENDAR: &[u8] =
+        b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
+          SVC1,1,1,1,1,1,0,0,20240101,20250301\n";
+    let mut files = base_files();
+    files[5] = ("calendar.txt", OLD_CALENDAR);
+    let vr = match run(&files) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+    let hits: Vec<_> = vr
+        .notices
+        .iter()
+        .filter(|n| n.rule_id == "CAL_009")
+        .collect();
+    assert_eq!(hits.len(), 1, "CAL_009 tek bulgu");
+    let d = hits[0]
+        .details
+        .clone()
+        .expect("CAL_009 ayrıntısı bekleniyor");
+    let get = |key: &str| d.get(key).map(|v| v.to_string());
+    assert_eq!(get("last_end_date").as_deref(), Some("20250301"));
+    assert_eq!(get("trip_count").as_deref(), Some("1"));
+    assert_eq!(get("example_trip_id").as_deref(), Some("T1"));
+}

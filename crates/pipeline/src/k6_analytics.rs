@@ -3695,7 +3695,7 @@ fn check_calendar_analytics(
                     format!("'{service_id}' takvimi feed'in {feed_window_days} günlük yayın penceresinin yalnızca {total_days} gününde (%{pct:.0}) aktif."),
                 )
             };
-            notices.push(k6_notice(
+            let mut n = k6_notice(
                 ctr,
                 "CAL_010",
                 EntityType::Service,
@@ -3708,7 +3708,14 @@ fn check_calendar_analytics(
                 Some(expected),
                 msg,
                 "Servis takvimini genişletin ya da bu servisin kısa olduğunu belgeleyin.",
-            ));
+            );
+            // Planner context: how many days and between which dates the calendar runs.
+            let details = n.details.get_or_insert_with(Default::default);
+            details.insert("active_days", total_days.to_string());
+            details.insert("first_active", sorted[0].to_string());
+            details.insert("last_active", sorted[sorted.len() - 1].to_string());
+            details.insert("feed_window_days", feed_window_days.to_string());
+            notices.push(n);
         }
 
         // CAL_007/012: a gap of >= big_gap_days between consecutive active dates for this service.
@@ -3854,7 +3861,7 @@ fn check_calendar_analytics(
             let end_jdn = yyyymmdd_to_jdn(end_yyyymmdd);
             let today_jdn = yyyymmdd_to_jdn(today_yyyymmdd);
             if end_jdn > today_jdn && end_jdn - today_jdn <= warning_days {
-                notices.push(k6_notice(
+                let mut n = k6_notice(
                     ctr,
                     "CAL_008",
                     EntityType::Service,
@@ -3871,7 +3878,12 @@ fn check_calendar_analytics(
                         end_jdn - today_jdn
                     ),
                     "Feed'i güncellemeyi planlayın.",
-                ));
+                );
+                // Planner context: days left until the calendar ends.
+                n.details
+                    .get_or_insert_with(Default::default)
+                    .insert("days_left", (end_jdn - today_jdn).to_string());
+                notices.push(n);
             }
         }
     }

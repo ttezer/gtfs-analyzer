@@ -960,6 +960,65 @@ describe('Üretici kartı görünümü', () => {
     expect(red(out)).toHaveLength(2);
   });
 
+  it('CAL_001–013 kartları takvimi, onu kullanan hatları ve seferleri, haritada güzergâhı gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı' },
+      routes: { R1: '10', R2: '20' }, trips: { T1: 'Merkez', T2: 'Liman' }, trip_routes: { T1: 'R1', T2: 'R2' },
+      trip_stops: { T1: ['S1', 'S2', 'S3'], T2: ['S3', 'S1'] }, trip_stop_sequences: { T1: [1, 2, 3], T2: [1, 2] },
+      stop_coords: { S1: [41, 29], S2: [41.01, 29.01], S3: [41.02, 29.02] },
+      service_days: { EXP: ['1111111', '20250101', '20250301', '0'], ZERO: ['0000000', '20250101', '20271231', '0'],
+        DATES: ['0000000', '20250101', '20271231', '4'], SOON: ['1111111', '20250101', '20261120', '0'],
+        UNUSED: ['1111100', '20250101', '20271231', '0'] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+    const usage = { trip_count: '3', route_count: '2', example_trip_id: 'T1',
+      route_0_route_id: 'R1', route_0_trips: '2', route_0_example_trip_id: 'T1',
+      route_1_route_id: 'R2', route_1_trips: '1', route_1_example_trip_id: 'T2' };
+
+    // CAL_013 summary: the calendar, the routes on it, the example trip and every route on the map.
+    let out = render(notice('a', 'CAL_013', 'INFO', { entity_type: 'Feed', entity_id: '20250301', observed_value: '20250301',
+      details: { services: 'EXP', ...usage } }));
+    expect(out.html).toContain('1 takvimin son çalışma günü 01.03.2025 geçti');
+    expect(out.html).toContain('Bu takvimle 2 hattın 3 seferi çalışıyor. Haritada örnek sefer T1: Hastane → Çarşı (3 durak).');
+    expect(out.html).toContain('<td>EXP</td><td>Her gün</td><td>01.01.2025 – 01.03.2025</td>');
+    expect(out.html).toContain('Bu takvimlerle çalışan hatlar (2 hat, 3 sefer)');
+    expect(out.html).toContain('<tr><td>1</td><td>Hastane (S1)</td></tr>');
+    expect(out.map.opts?.extraPolylines).toHaveLength(2);
+    // The affected record names the routes on its calendar, comma-separated.
+    expect(out.html).toContain('<th>Hat kodu</th>');
+    expect(out.html).toContain('<td>R1, R2</td>');
+    expect(out.map.opts?.extraPolylines?.[1]?.coords).toEqual([[41.02, 29.02], [41, 29]]);
+
+    // CAL_002: the day and the value; CAL_005: both dates.
+    out = render(notice('a', 'CAL_002', 'HIGH', { entity_type: 'Service', entity_id: 'EXP', field: 'monday', observed_value: '2', details: usage }));
+    expect(out.html).toContain('EXP takviminin Pazartesi alanında &quot;2&quot; yazıyor');
+    out = render(notice('a', 'CAL_005', 'HIGH', { entity_type: 'Service', entity_id: 'EXP', field: 'end_date', observed_value: '20260101', expected_value: '>= 20270101', details: usage }));
+    expect(out.html).toContain('EXP takvimi 01.01.2027 tarihinde başlıyor ama 01.01.2026 tarihinde bitiyor');
+
+    // CAL_006: no weekday — runs only on its exception dates, or never.
+    out = render(notice('a', 'CAL_006', 'INFO', { entity_type: 'Service', entity_id: 'ZERO', details: usage }));
+    expect(out.html).toContain('ZERO takviminde haftanın hiçbir günü işaretli değil ve istisna tarihi de yok; bu takvim hiç çalışmaz.');
+    out = render(notice('a', 'CAL_006', 'INFO', { entity_type: 'Service', entity_id: 'DATES', details: usage }));
+    expect(out.html).toContain('yalnız istisna listesindeki 4 tarihte çalışır');
+
+    // CAL_008 opened into a calendar row (no observed value): the end date comes from the calendar.
+    out = render(notice('a', 'CAL_008', 'MEDIUM', { entity_type: 'Service', entity_id: 'SOON', observed_value: null,
+      details: { affected_services: '2', services: 'SOON,X', days_left: '11', ...usage } }));
+    expect(out.html).toContain('2 takvim 20.11.2026 tarihinde bitiyor (11 gün kaldı)');
+    expect(out.html).toContain('Bu takvimlerle 2 hattın 3 seferi çalışıyor.');
+
+    // CAL_011: no trip, so no route table and no example trip.
+    out = render(notice('a', 'CAL_011', 'LOW', { entity_type: 'Service', entity_id: 'UNUSED', details: { trip_count: '0', route_count: '0' } }));
+    expect(out.html).toContain('UNUSED takvimini hiçbir sefer kullanmıyor (Hafta içi, 01.01.2025 – 31.12.2027)');
+    expect(out.html).not.toContain('Bu takvimlerle çalışan hatlar');
+  });
+
   it('STM_051–055 kartları Flex bölgesini, pencereyi, yazılan değeri ve aynı saatli durak serisini gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,

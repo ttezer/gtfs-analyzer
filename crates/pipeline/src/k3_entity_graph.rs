@@ -307,7 +307,7 @@ fn build_services(
             continue;
         }
         if let Some(&prev_line) = seen_cal.get(sid.as_str()) {
-            notices.push(make_notice(
+            let mut n = make_notice(
                 ctr,
                 "CAL_001",
                 EntityType::Service,
@@ -322,7 +322,12 @@ fn build_services(
                     sid
                 ),
                 "Her hizmet kaydına benzersiz bir service_id atayın.",
-            ));
+            );
+            // Planner context: the line where the calendar was first written.
+            n.details
+                .get_or_insert_with(Default::default)
+                .insert("first_line", prev_line.to_string());
+            notices.push(n);
         } else {
             seen_cal.insert(sid.clone(), rec.line);
             map.services.insert(sid.clone());

@@ -1950,24 +1950,6 @@
       "added": [
         {
           "details": null,
-          "entity_id": "SVC2",
-          "entity_type": "Service",
-          "expected_value": null,
-          "field": "service_id",
-          "file": "calendar.txt",
-          "line": 3,
-          "message": "Service 'SVC2' is defined but not used by any trip.",
-          "observed_value": "SVC2",
-          "remediation": "Remove the unused service or assign it to at least one trip.",
-          "rule_class": "QUALITY",
-          "rule_id": "CAL_011",
-          "scope_key": "SVC2",
-          "service_id": null,
-          "severity": "LOW",
-          "title": "Unused service"
-        },
-        {
-          "details": null,
           "entity_id": "calendar.txt",
           "entity_type": "File",
           "expected_value": null,
@@ -1987,7 +1969,15 @@
         {
           "details": {
             "affected_services": "2",
-            "example_services": "SVC1, SVC2"
+            "days_left": "10",
+            "example_services": "SVC1, SVC2",
+            "example_trip_id": "T1",
+            "route_0_example_trip_id": "T1",
+            "route_0_route_id": "R1",
+            "route_0_trips": "1",
+            "route_count": "1",
+            "services": "SVC1,SVC2",
+            "trip_count": "1"
           },
           "entity_id": null,
           "entity_type": "Feed",
@@ -2004,6 +1994,27 @@
           "service_id": null,
           "severity": "HIGH",
           "title": "Service expires soon"
+        },
+        {
+          "details": {
+            "route_count": "0",
+            "trip_count": "0"
+          },
+          "entity_id": "SVC2",
+          "entity_type": "Service",
+          "expected_value": null,
+          "field": "service_id",
+          "file": "calendar.txt",
+          "line": 3,
+          "message": "Service 'SVC2' is defined but not used by any trip.",
+          "observed_value": "SVC2",
+          "remediation": "Remove the unused service or assign it to at least one trip.",
+          "rule_class": "QUALITY",
+          "rule_id": "CAL_011",
+          "scope_key": "SVC2",
+          "service_id": null,
+          "severity": "LOW",
+          "title": "Unused service"
         }
       ],
       "agency_breakdown": {
@@ -11153,24 +11164,6 @@
         },
         {
           "details": null,
-          "entity_id": "SVC1",
-          "entity_type": "Service",
-          "expected_value": null,
-          "field": "service_id",
-          "file": "calendar.txt",
-          "line": 2,
-          "message": "Service 'SVC1' is defined but not used by any trip.",
-          "observed_value": "SVC1",
-          "remediation": "Remove the unused service or assign it to at least one trip.",
-          "rule_class": "QUALITY",
-          "rule_id": "CAL_011",
-          "scope_key": "SVC1",
-          "service_id": null,
-          "severity": "LOW",
-          "title": "Unused service"
-        },
-        {
-          "details": null,
           "entity_id": "SVCX",
           "entity_type": "Service",
           "expected_value": "≥ 1",
@@ -11450,6 +11443,27 @@
           "service_id": null,
           "severity": "LOW",
           "title": "Recommended field missing or empty"
+        },
+        {
+          "details": {
+            "route_count": "0",
+            "trip_count": "0"
+          },
+          "entity_id": "SVC1",
+          "entity_type": "Service",
+          "expected_value": null,
+          "field": "service_id",
+          "file": "calendar.txt",
+          "line": 2,
+          "message": "Service 'SVC1' is defined but not used by any trip.",
+          "observed_value": "SVC1",
+          "remediation": "Remove the unused service or assign it to at least one trip.",
+          "rule_class": "QUALITY",
+          "rule_id": "CAL_011",
+          "scope_key": "SVC1",
+          "service_id": null,
+          "severity": "LOW",
+          "title": "Unused service"
         }
       ],
       "agency_breakdown": {

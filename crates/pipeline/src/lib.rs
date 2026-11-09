@@ -1910,11 +1910,18 @@ fn aggregate_cal008(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     for (end_date, mut matches) in groups {
         let mut aggregate = take_representative(&mut matches, resolver);
         let affected_services = matches.len() + 1;
+        // Days left is the same for every calendar ending on this date; read it before rewriting.
+        let days_left = aggregate
+            .details
+            .as_ref()
+            .and_then(|d| d.get("days_left").cloned());
         let mut examples: Vec<String> = aggregate.entity_id.clone().into_iter()
             .chain(matches.iter().filter_map(|notice| notice.entity_id.clone()))
             .collect();
         examples.sort_unstable();
         examples.dedup();
+        // Every calendar ending on this date, so the planner context counts all their trips.
+        let services = examples.join(",");
         examples.truncate(5);
         aggregate.entity_type = gtfs_core::EntityType::Feed;
         aggregate.entity_id = None;
@@ -1931,6 +1938,10 @@ fn aggregate_cal008(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
             details.insert("affected_services".to_string(), affected_services.to_string());
             if !examples.is_empty() {
                 details.insert("example_services".to_string(), examples.join(", "));
+            }
+            details.insert("services".to_string(), services.clone());
+            if let Some(days) = &days_left {
+                details.insert("days_left".to_string(), days.clone());
             }
             details.into()
         });
@@ -2337,6 +2348,121 @@ pub fn aggregate_feed_level_notices(
     timed_aggregate!("CAL_008", aggregate_cal008);
     timed_aggregate!("GGL_001", aggregate_ggl001);
     timed_aggregate!("FAR_010", aggregate_far010);
+    {
+        let _t = crate::timing::Timer::start("aggregate::calendar_usage");
+        annotate_calendar_usage(all, records);
+    }
+}
+
+/// Calendar findings whose planner card names the trips and routes running on the calendar(s).
+const CALENDAR_USAGE_RULES: [&str; 13] = [
+    "CAL_001", "CAL_002", "CAL_003", "CAL_004", "CAL_005", "CAL_006", "CAL_007", "CAL_008",
+    "CAL_009", "CAL_010", "CAL_011", "CAL_012", "CAL_013",
+];
+/// Routes listed per calendar finding (most trips first).
+const CALENDAR_USAGE_ROUTES: usize = 10;
+
+/// Planner context for the calendar findings CAL_001–CAL_013: which trips and routes run on the
+/// calendar(s) the finding is about — `trip_count`, `route_count`, the routes with the most trips
+/// (`route_<i>_{route_id,trips,example_trip_id}`) and one `example_trip_id` to draw on the map
+/// (a trip with stop times first, in file order). A service finding is about its own calendar;
+/// CAL_007/008/012/013 summaries about the calendars in `details.services`; CAL_009 about every
+/// calendar. Runs after aggregation (the summaries carry their full calendar list then) in the
+/// shared native/WASM step. Details only: counts, texts and severities are unchanged.
+fn annotate_calendar_usage(all: &mut [gtfs_core::Notice], records: &EntityRecords) {
+    use rustc_hash::FxHashMap;
+    if !all
+        .iter()
+        .any(|n| CALENDAR_USAGE_RULES.contains(&n.rule_id.as_str()))
+    {
+        return;
+    }
+    let ti = &records.trip_interns;
+    let has_times = &records.stop_times_index.trip_id_set;
+    // service → route → (trips, example trip, example has stop times); trips in file order.
+    let mut usage: FxHashMap<&str, FxHashMap<&str, (usize, &str, bool)>> = FxHashMap::default();
+    for t in &records.trips {
+        let service = ti.service_id(t);
+        if service.is_empty() {
+            continue;
+        }
+        let entry = usage
+            .entry(service)
+            .or_default()
+            .entry(ti.route_id(t))
+            .or_insert((0, "", false));
+        entry.0 += 1;
+        let timed = has_times.contains(t.trip_id.as_str());
+        if entry.1.is_empty() || (timed && !entry.2) {
+            entry.1 = t.trip_id.as_str();
+            entry.2 = timed;
+        }
+    }
+    for n in all.iter_mut() {
+        if !CALENDAR_USAGE_RULES.contains(&n.rule_id.as_str()) {
+            continue;
+        }
+        let mut services: Vec<String> = if n.rule_id == "CAL_009" {
+            records
+                .calendars
+                .iter()
+                .filter(|c| !c.service_id.is_empty())
+                .map(|c| c.service_id.clone())
+                .collect()
+        } else if n.entity_type == gtfs_core::EntityType::Service {
+            n.entity_id.clone().into_iter().collect()
+        } else {
+            n.details
+                .as_ref()
+                .and_then(|d| d.get("services"))
+                .map(|list| {
+                    list.split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
+        services.sort_unstable();
+        services.dedup();
+        if services.is_empty() {
+            continue;
+        }
+        // Routes across the calendars: summed trips; the example comes from the first calendar
+        // (sorted) that has one, preferring a trip with stop times.
+        let mut routes: std::collections::BTreeMap<&str, (usize, &str, bool)> =
+            std::collections::BTreeMap::new();
+        for service in &services {
+            let Some(by_route) = usage.get(service.as_str()) else {
+                continue;
+            };
+            for (&route, &(trips, example, timed)) in by_route {
+                let entry = routes.entry(route).or_insert((0, "", false));
+                entry.0 += trips;
+                if entry.1.is_empty() || (timed && !entry.2) {
+                    entry.1 = example;
+                    entry.2 = timed;
+                }
+            }
+        }
+        let trip_count: usize = routes.values().map(|v| v.0).sum();
+        let mut ranked: Vec<_> = routes.into_iter().collect();
+        ranked.sort_by(|a, b| b.1 .0.cmp(&a.1 .0).then_with(|| a.0.cmp(b.0)));
+        let details = n.details.get_or_insert_with(Default::default);
+        details.insert("trip_count", trip_count.to_string());
+        details.insert("route_count", ranked.len().to_string());
+        let example = ranked.iter().find(|(_, v)| v.2).or(ranked.first());
+        if let Some((_, (_, trip, _))) = example {
+            details.insert("example_trip_id", trip.to_string());
+        }
+        for (i, (route, (trips, trip, _))) in
+            ranked.into_iter().take(CALENDAR_USAGE_ROUTES).enumerate()
+        {
+            details.insert(format!("route_{i}_route_id"), route.to_string());
+            details.insert(format!("route_{i}_trips"), trips.to_string());
+            details.insert(format!("route_{i}_example_trip_id"), trip.to_string());
+        }
+    }
 }
 
 pub fn build_name_index(

@@ -1902,7 +1902,13 @@ fn check_calendar(
                 .iter()
                 .filter(|rec| !rec.service_id.is_empty())
                 .count();
-            notices.push(notice(
+            // Planner context: the latest end date any calendar reaches.
+            let last_end = records
+                .calendars
+                .iter()
+                .filter_map(|r| r.end_date.map(date_to_u32))
+                .max();
+            let mut n = notice(
                 ctr,
                 "CAL_009",
                 EntityType::Feed,
@@ -1917,7 +1923,13 @@ fn check_calendar(
                     "Feed'deki tüm calendar.txt servislerinin end_date'i geçmişte kaldı ({expired_services} servis)."
                 ),
                 "Feed'in geçerlilik tarihlerini güncelleyin.",
-            ));
+            );
+            if let Some(last) = last_end {
+                n.details
+                    .get_or_insert_with(Default::default)
+                    .insert("last_end_date", last.to_string());
+            }
+            notices.push(n);
         }
     }
 
