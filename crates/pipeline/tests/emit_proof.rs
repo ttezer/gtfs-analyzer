@@ -4176,3 +4176,100 @@ fn full_catalog_trp017_requires_an_existing_trip() {
     assert!(!notices.iter().any(|n| n.rule_id == "FRQ_001"));
     assert!(notices.iter().any(|n| n.rule_id == "TRP_017"));
 }
+
+// ── Notice text invariance gate (issue #201, phase F0) ───────────────────────
+//
+// Moving the engine's source language from Turkish to English must not change what
+// users read. For every fixture above, this records each notice's title, message and
+// remediation as a user sees them in four languages, through the same path as the CLI
+// (`Translator::new(lang)`, which is `None` for Turkish today). Fatal errors are
+// recorded with their translated message. Lines are deduplicated and sorted, so the
+// baseline feed's shared notices appear once.
+//
+// Regenerate only for an intended text change: `GTFS_BLESS_NOTICE_TEXT=1`.
+#[test]
+fn notice_text_is_unchanged_in_every_language() {
+    use gtfs_core::i18n::{Lang, Translator};
+
+    fn clean(s: &str) -> String {
+        s.replace('\\', "\\\\").replace('\t', "\\t").replace('\n', "\\n")
+    }
+
+    let langs = [("tr", Lang::Tr), ("en", Lang::En), ("ja", Lang::Ja), ("fr", Lang::Fr)];
+    let translators: Vec<(&str, Option<Translator>)> = langs
+        .iter()
+        .map(|(name, lang)| (*name, Translator::new(*lang).expect("embedded locale")))
+        .collect();
+
+    // No fixture ends in a fatal error, so a few broken inputs cover the fatal messages.
+    let mut inputs: Vec<(Vec<u8>, ValidatorConfig)> = vec![
+        (b"not a zip archive".to_vec(), ValidatorConfig::default()),
+        (Vec::new(), ValidatorConfig::default()),
+        (make_zip(&[]), ValidatorConfig::default()),
+        (make_zip(&[("readme.md".to_string(), b"no gtfs here".to_vec())]), ValidatorConfig::default()),
+    ];
+    for f in fixtures() {
+        let cfg = f.config.clone().unwrap_or_default();
+        let zip_bytes = make_zip_with_modes(&with_opts(&f.overrides, &f.removes, &f.raw), &f.no_read);
+        let zip_bytes = if f.flip_stream_flags {
+            flip_data_descriptor_flags(zip_bytes)
+        } else {
+            zip_bytes
+        };
+        inputs.push((zip_bytes, cfg));
+    }
+
+    let mut lines = BTreeSet::new();
+    for (zip_bytes, cfg) in &inputs {
+        let result = validate_bytes(zip_bytes, cfg, TODAY);
+        for (name, translator) in &translators {
+            match &result {
+                ValidateResult::Ok(vr) => {
+                    for original in &vr.notices {
+                        let mut notice = original.clone();
+                        if let Some(t) = translator {
+                            t.translate(&mut notice);
+                        }
+                        lines.insert(format!(
+                            "{name}\t{}\t{}\t{}\t{}",
+                            notice.rule_id,
+                            clean(&notice.title),
+                            clean(&notice.message),
+                            clean(&notice.remediation)
+                        ));
+                    }
+                }
+                ValidateResult::Fatal(original) => {
+                    let mut err = original.clone();
+                    if let Some(t) = translator {
+                        t.translate_fatal(&mut err);
+                    }
+                    lines.insert(format!("{name}\tFATAL\t{}", clean(&err.message)));
+                }
+            }
+        }
+    }
+    let actual: String = lines.into_iter().map(|l| l + "\n").collect();
+
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/notice_text_golden.tsv");
+    if std::env::var_os("GTFS_BLESS_NOTICE_TEXT").is_some() {
+        std::fs::write(&path, &actual).unwrap();
+        return;
+    }
+    let expected = std::fs::read_to_string(&path)
+        .expect("tests/notice_text_golden.tsv missing; generate it with GTFS_BLESS_NOTICE_TEXT=1");
+    if expected != actual {
+        let exp: BTreeSet<&str> = expected.lines().collect();
+        let act: BTreeSet<&str> = actual.lines().collect();
+        let gone: Vec<&&str> = exp.difference(&act).take(10).collect();
+        let new: Vec<&&str> = act.difference(&exp).take(10).collect();
+        panic!(
+            "notice text changed ({} lines gone, {} new).\nGone (first 10):\n{}\nNew (first 10):\n{}\n\
+             If the change is intended, regenerate with GTFS_BLESS_NOTICE_TEXT=1.",
+            exp.difference(&act).count(),
+            act.difference(&exp).count(),
+            gone.iter().map(|l| format!("  {l}")).collect::<Vec<_>>().join("\n"),
+            new.iter().map(|l| format!("  {l}")).collect::<Vec<_>>().join("\n"),
+        );
+    }
+}

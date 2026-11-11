@@ -29,6 +29,10 @@ rayon = { version = "1", optional = true }
 # adaptive precision (Shewchuk algoritmasını yeniden yazmak). En küçük yeterli araç bu.
 robust = "1.2.0"
 
+[dev-dependencies]
+# Tests only: the notice text gate (emit_proof) translates through the same dictionaries as the CLI.
+gtfs-core = { workspace = true, features = ["i18n"] }
+
 [features]
 # Native'de VARSAYILAN AÇIK: VBB (5,7M stop_times) ölçümünde K6 4.889ms → 2.634ms (1,86×),
 # toplam 13,07s → 11,07s; notice çıktısı bit-özdeş doğrulandı (baseline diff temiz).
