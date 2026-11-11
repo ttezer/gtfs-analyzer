@@ -406,7 +406,7 @@ pub static RULES: &[RuleMeta] = &[
         "İki durak birbirine çok yakın"),
     r!("STP_018", Kritik, Spec, 1, &[], None, VS_K, Feed,
         "Hiç durak yok"),
-    r!("STP_019", Dusuk,  Quality, 1, &[], Some("stop_id"), VS, Entity,
+    r!("STP_019", Bilgi,  Quality, 1, &[], Some("stop_id"), VS, Entity,
         "stop_name çok uzun"),
     r!("STP_020", Orta,   Analytics, 2, &[], Some("stop_id"), VA, Entity,
         "Hiç sefer geçmeyen durak"),
@@ -506,7 +506,7 @@ pub static RULES: &[RuleMeta] = &[
         "Hat rengi ve metin rengi kontrast düşük"),
     r!("RTS_010", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
         "route_short_name çok uzun"),
-    r!("RTS_011", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
+    r!("RTS_011", Bilgi,  Quality, 1, &[], Some("route_id"), VS, Entity,
         "route_long_name çok uzun"),
     r!("RTS_012", Orta,   Quality, 1, &[], Some("route_id"), VS, Entity,
         "Seferi olmayan hat"),
@@ -863,7 +863,7 @@ pub static RULES: &[RuleMeta] = &[
         "Polygon ring kapalı değil (ilk != son nokta)"),
     r!("LOC_005", Dusuk,  Quality, 1, &[], None, VS, File,
         "FeatureCollection boş — hiç feature yok"),
-    r!("LOC_006", Orta,   Quality, 1, &[], None, VS, File,
+    r!("LOC_006", Bilgi,  Quality, 1, &[], None, VS, File,
         "Polygon alanı 500km²'yi aşıyor — gerçekçi olmayan Flex bölge"),
     r!("LOC_007", Orta,   Spec,    2, &[], None, VS, File,
         "FeatureCollection içinde yinelenen 'id' değeri — Flex referansı belirsizleşir"),
@@ -936,7 +936,7 @@ pub static RULES: &[RuleMeta] = &[
         "Servisin aktif haftanın günü yok (tüm günler 0, calendar_dates ile geçersiz kılınan yok)"),
     // CAL_019 (2026-10-11): retired. It compared the raw calendar range with the feed_info window
     // and reported the same fact as CAL_014 a second time. The ID must not be reused.
-    r!("CAL_020", Dusuk,  Quality,   1, &[], None, VS, Feed,
+    r!("CAL_020", Bilgi,  Quality,   1, &[], None, VS, Feed,
         "Feed geçerlilik penceresi 5 yılı aşıyor — gerçekçi olmayan zaman dilimi"),
     r!("CAL_021", Bilgi,  Analytics, 1, &[], Some("service_id"), VA, Entity,
         "Servis bugünü kapsıyor ama yakın günlerde aktif sefer yok"),
@@ -961,7 +961,7 @@ pub static RULES: &[RuleMeta] = &[
         "exception_type eksik veya geçersiz"),
     r!("CLD_004", Yuksek, Quality, 2, &[], Some("service_id"), VS, Row,
         "calendar_dates-only serviste aktif gün (exception_type=1) tanımlı değil"),
-    r!("CLD_005", Kritik, Quality, 2, &[], Some("service_id"), VS, Row,
+    r!("CLD_005", Bilgi, Quality, 2, &[], Some("service_id"), VS, Row,
         "Tarih makul yıl aralığı dışında"),
     r_noscore!("CLD_006", Bilgi, Analytics, 1, &[], Some("service_id"), VA, Row,
         "Çok fazla istisna günü"),
@@ -1578,7 +1578,7 @@ pub static RULES: &[RuleMeta] = &[
         "feed_contact_email ve feed_contact_url ikisi de eksik"),
     r!("FIN_019", Dusuk,  Quality, 1, &[], None, VS, Feed,
         "Feed'in geçerlilik süresi 7 gün içinde dolacak"),
-    r!("FIN_020", Orta,   Quality, 1, &[], None, VS, Feed,
+    r!("FIN_020", Bilgi,  Quality, 1, &[], None, VS, Feed,
         "Feed geçerlilik penceresi 7 günden kısa — operasyonel kullanım için çok kısa"),
 
     // ── TRN: Translations ──────────────────────────────────────────────────────

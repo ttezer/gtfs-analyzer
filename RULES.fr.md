@@ -121,7 +121,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | STP_016 | Deux arrêts aux coordonnées identiques | MOYENNE | Quality |
 | STP_017 | Deux arrêts trop proches l’un de l’autre | FAIBLE | Quality |
 | STP_018 | Aucun arrêt trouvé | CRITIQUE | Spec |
-| STP_019 | stop_name trop long | FAIBLE | Quality |
+| STP_019 | stop_name trop long | INFO | Quality |
 | STP_020 | Arrêt sans aucune course | MOYENNE | Analytics |
 | STP_021 | Le parent de la zone d’embarquement n’est pas un quai | ÉLEVÉE | Quality |
 | STP_022 | stop_code manquant | MOYENNE | Quality |
@@ -160,7 +160,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | RTS_007 | route_text_color n’est pas une couleur hexadécimale valide | MOYENNE | Spec |
 | RTS_008 | Contraste insuffisant entre la couleur de la ligne et celle du texte | MOYENNE | Quality |
 | RTS_010 | route_short_name trop long | FAIBLE | Quality |
-| RTS_011 | route_long_name trop long | FAIBLE | Quality |
+| RTS_011 | route_long_name trop long | INFO | Quality |
 | RTS_012 | Ligne sans aucune course | MOYENNE | Quality |
 | RTS_013 | continuous_pickup invalide | FAIBLE | Spec |
 | RTS_016 | Ligne sans aucun jour de service actif | FAIBLE | Quality |
@@ -288,7 +288,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | LOC_003 | L’objet Feature n’a pas la propriété obligatoire « id » | CRITIQUE | Spec |
 | LOC_004 | L’anneau du polygone n’est pas fermé | MOYENNE | Spec |
 | LOC_005 | La FeatureCollection ne contient aucun objet Feature | FAIBLE | Quality |
-| LOC_006 | La superficie du polygone dépasse 500 km² | MOYENNE | Quality |
+| LOC_006 | La superficie du polygone dépasse 500 km² | INFO | Quality |
 | LOC_007 | Identifiant « id » d’objet Feature en double dans la FeatureCollection | MOYENNE | Spec |
 | LOC_008 | Membre « type » absent ou différent de « Feature » | MOYENNE | Spec |
 | LOC_009 | Objet « properties » manquant dans l’objet Feature | MOYENNE | Spec |
@@ -317,7 +317,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | CAL_016 | Le service s’étend jusqu’à une date très lointaine | INFO | Quality |
 | CAL_017 | Le calendrier n’a pas encore commencé (toutes les dates actives sont futures) | INFO | Analytics |
 | CAL_018 | Le service n’a aucun jour de semaine actif (tous les jours à 0, aucun remplacé par calendar_dates) | INFO | Quality |
-| CAL_020 | La fenêtre de validité du jeu de données dépasse 5 ans | FAIBLE | Quality |
+| CAL_020 | La fenêtre de validité du jeu de données dépasse 5 ans | INFO | Quality |
 | CAL_021 | Actif aujourd’hui mais aucun service dans les jours à venir | INFO | Analytics |
 | CAL_022 | service_id manquant | CRITIQUE | Spec |
 | CAL_023 | end_date du calendrier très lointaine (suspect) | MOYENNE | Quality |
@@ -332,7 +332,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | CLD_002 | Format de date invalide | CRITIQUE | Spec |
 | CLD_003 | exception_type manquant ou invalide | CRITIQUE | Spec |
 | CLD_004 | Un service défini uniquement par calendar_dates n’a aucune date active | ÉLEVÉE | Quality |
-| CLD_005 | Date hors plage | CRITIQUE | Quality |
+| CLD_005 | Date hors plage | INFO | Quality |
 | CLD_006 | Trop de jours d’exception | INFO | Analytics |
 | CLD_007 | Nombre excessif d’exceptions de calendrier | INFO | Analytics |
 
@@ -629,7 +629,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | FIN_017 | Le jeu de données expire dans un futur très lointain | INFO | Quality |
 | FIN_018 | feed_contact_email et feed_contact_url tous deux manquants | FAIBLE | Quality |
 | FIN_019 | La validité du jeu de données expire sous 7 jours | FAIBLE | Quality |
-| FIN_020 | Fenêtre de validité du jeu de données inférieure à 7 jours | MOYENNE | Quality |
+| FIN_020 | Fenêtre de validité du jeu de données inférieure à 7 jours | INFO | Quality |
 
 ## TRN — Traductions
 

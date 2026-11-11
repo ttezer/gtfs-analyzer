@@ -121,7 +121,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STP_016 | Two stops at identical coordinates | MEDIUM | Quality |
 | STP_017 | Two stops too close together | LOW | Quality |
 | STP_018 | No stops found | CRITICAL | Spec |
-| STP_019 | stop_name too long | LOW | Quality |
+| STP_019 | stop_name too long | INFO | Quality |
 | STP_020 | Stop with no trips | MEDIUM | Analytics |
 | STP_021 | Boarding area parent is not a platform | HIGH | Quality |
 | STP_022 | stop_code missing | MEDIUM | Quality |
@@ -160,7 +160,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | RTS_007 | route_text_color invalid hex color | MEDIUM | Spec |
 | RTS_008 | Route color and text color have low contrast | MEDIUM | Quality |
 | RTS_010 | route_short_name too long | LOW | Quality |
-| RTS_011 | route_long_name too long | LOW | Quality |
+| RTS_011 | route_long_name too long | INFO | Quality |
 | RTS_012 | Route with no trips | MEDIUM | Quality |
 | RTS_013 | continuous_pickup invalid | LOW | Spec |
 | RTS_016 | Route with no active service days | LOW | Quality |
@@ -288,7 +288,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | LOC_003 | Feature missing required 'id' property | CRITICAL | Spec |
 | LOC_004 | Polygon ring is not closed | MEDIUM | Spec |
 | LOC_005 | FeatureCollection has no features | LOW | Quality |
-| LOC_006 | Polygon area exceeds 500km² | MEDIUM | Quality |
+| LOC_006 | Polygon area exceeds 500km² | INFO | Quality |
 | LOC_007 | Duplicate feature 'id' in FeatureCollection | MEDIUM | Spec |
 | LOC_008 | Feature 'type' member missing or not \"Feature\ | MEDIUM | Spec |
 | LOC_009 | Feature 'properties' object missing | MEDIUM | Spec |
@@ -317,7 +317,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | CAL_016 | Service extends to a very distant future date | INFO | Quality |
 | CAL_017 | Calendar has not yet started (all active dates in the future) | INFO | Analytics |
 | CAL_018 | Service has no active weekdays (all days 0, none overridden by calendar_dates) | INFO | Quality |
-| CAL_020 | Feed validity window exceeds 5 years | LOW | Quality |
+| CAL_020 | Feed validity window exceeds 5 years | INFO | Quality |
 | CAL_021 | Active today but no service in the upcoming days | INFO | Analytics |
 | CAL_022 | service_id missing | CRITICAL | Spec |
 | CAL_023 | Calendar end_date far in the future (suspect) | MEDIUM | Quality |
@@ -332,7 +332,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | CLD_002 | date invalid format | CRITICAL | Spec |
 | CLD_003 | exception_type missing or invalid | CRITICAL | Spec |
 | CLD_004 | Calendar-dates-only service has no active dates | HIGH | Quality |
-| CLD_005 | Date out of range | CRITICAL | Quality |
+| CLD_005 | Date out of range | INFO | Quality |
 | CLD_006 | Too many exception days | INFO | Analytics |
 | CLD_007 | Excessive calendar exceptions | INFO | Analytics |
 
@@ -629,7 +629,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | FIN_017 | Feed expires in the very distant future | INFO | Quality |
 | FIN_018 | Both feed_contact_email and feed_contact_url missing | LOW | Quality |
 | FIN_019 | Feed validity expires within 7 days | LOW | Quality |
-| FIN_020 | Feed validity window shorter than 7 days | MEDIUM | Quality |
+| FIN_020 | Feed validity window shorter than 7 days | INFO | Quality |
 
 ## TRN — Translations
 

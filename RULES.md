@@ -121,7 +121,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STP_016 | İki durak tam aynı koordinatta | ORTA | Quality |
 | STP_017 | İki durak birbirine çok yakın | DÜŞÜK | Quality |
 | STP_018 | Hiç durak yok | KRİTİK | Spec |
-| STP_019 | stop_name çok uzun | DÜŞÜK | Quality |
+| STP_019 | stop_name çok uzun | BİLGİ | Quality |
 | STP_020 | Hiç sefer geçmeyen durak | ORTA | Analytics |
 | STP_021 | Boarding area parent'ı platform değil | YÜKSEK | Quality |
 | STP_022 | stop_code eksik | ORTA | Quality |
@@ -160,7 +160,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | RTS_007 | route_text_color geçersiz hex renk | ORTA | Spec |
 | RTS_008 | Hat rengi ve metin rengi kontrast düşük | ORTA | Quality |
 | RTS_010 | route_short_name çok uzun | DÜŞÜK | Quality |
-| RTS_011 | route_long_name çok uzun | DÜŞÜK | Quality |
+| RTS_011 | route_long_name çok uzun | BİLGİ | Quality |
 | RTS_012 | Seferi olmayan hat | ORTA | Quality |
 | RTS_013 | continuous_pickup geçersiz | DÜŞÜK | Spec |
 | RTS_016 | Hiçbir aktif servis günü olmayan hat | DÜŞÜK | Quality |
@@ -288,7 +288,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | LOC_003 | Feature'da 'id' property eksik — stop_times çapraz referansı için zorunlu | KRİTİK | Spec |
 | LOC_004 | Polygon ring kapalı değil (ilk != son nokta) | ORTA | Spec |
 | LOC_005 | FeatureCollection boş — hiç feature yok | DÜŞÜK | Quality |
-| LOC_006 | Polygon alanı 500km²'yi aşıyor — gerçekçi olmayan Flex bölge | ORTA | Quality |
+| LOC_006 | Polygon alanı 500km²'yi aşıyor — gerçekçi olmayan Flex bölge | BİLGİ | Quality |
 | LOC_007 | FeatureCollection içinde yinelenen 'id' değeri — Flex referansı belirsizleşir | ORTA | Spec |
 | LOC_008 | Feature 'type' alanı eksik veya "Feature" değil | ORTA | Spec |
 | LOC_009 | Feature 'properties' nesnesi eksik | ORTA | Spec |
@@ -317,7 +317,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | CAL_016 | Servis çok uzak bir gelecek tarihine kadar uzanıyor | BİLGİ | Quality |
 | CAL_017 | Takvim henüz başlamamış (tüm aktif tarihler gelecekte) | BİLGİ | Analytics |
 | CAL_018 | Servisin aktif haftanın günü yok (tüm günler 0, calendar_dates ile geçersiz kılınan yok) | BİLGİ | Quality |
-| CAL_020 | Feed geçerlilik penceresi 5 yılı aşıyor — gerçekçi olmayan zaman dilimi | DÜŞÜK | Quality |
+| CAL_020 | Feed geçerlilik penceresi 5 yılı aşıyor — gerçekçi olmayan zaman dilimi | BİLGİ | Quality |
 | CAL_021 | Servis bugünü kapsıyor ama yakın günlerde aktif sefer yok | BİLGİ | Analytics |
 | CAL_022 | service_id eksik | KRİTİK | Spec |
 | CAL_023 | end_date çok ileri (şüpheli uzak-gelecek tarih) | ORTA | Quality |
@@ -332,7 +332,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | CLD_002 | date eksik veya geçersiz format | KRİTİK | Spec |
 | CLD_003 | exception_type eksik veya geçersiz | KRİTİK | Spec |
 | CLD_004 | calendar_dates-only serviste aktif gün (exception_type=1) tanımlı değil | YÜKSEK | Quality |
-| CLD_005 | Tarih makul yıl aralığı dışında | KRİTİK | Quality |
+| CLD_005 | Tarih makul yıl aralığı dışında | BİLGİ | Quality |
 | CLD_006 | Çok fazla istisna günü | BİLGİ | Analytics |
 | CLD_007 | Aşırı takvim istisnası | BİLGİ | Analytics |
 
@@ -629,7 +629,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | FIN_017 | Feed çok uzak gelecekte sona eriyor | BİLGİ | Quality |
 | FIN_018 | feed_contact_email ve feed_contact_url ikisi de eksik | DÜŞÜK | Quality |
 | FIN_019 | Feed'in geçerlilik süresi 7 gün içinde dolacak | DÜŞÜK | Quality |
-| FIN_020 | Feed geçerlilik penceresi 7 günden kısa — operasyonel kullanım için çok kısa | ORTA | Quality |
+| FIN_020 | Feed geçerlilik penceresi 7 günden kısa — operasyonel kullanım için çok kısa | BİLGİ | Quality |
 
 ## TRN — Translations (Çeviriler)
 
