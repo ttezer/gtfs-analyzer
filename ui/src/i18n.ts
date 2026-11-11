@@ -14,7 +14,7 @@ export type Locale = keyof typeof LOCALES;
 let _locale: Locale = (() => {
   if (typeof localStorage === 'undefined') return 'tr';
   const s = localStorage.getItem('gtfs-locale');
-  return (s && s in LOCALES) ? s as Locale : 'tr';
+  return (s && Object.hasOwn(LOCALES, s)) ? s as Locale : 'tr';
 })();
 
 // Synchronize the document language with the locale so CSS text-transform:uppercase uses

@@ -1,3 +1,4 @@
+import { csvCell } from '../csv';
 import type { ValidationResult } from '../types';
 import { buildGoldenSnapshot, compareGolden, parseGolden, UnsupportedGoldenSchemaError, type ChangeKind, type GoldenRun, type RuleChange } from '../golden';
 import { t } from '../i18n';
@@ -151,7 +152,7 @@ function formatYmd(value: unknown): string {
   const s = String(value ?? ''); return /^\d{8}$/.test(s) ? `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6)}` : '—';
 }
 function downloadCsv(changes: RuleChange[], before: GoldenRun, now: GoldenRun): void {
-  const q = (v: unknown) => `"${String(v).replace(/"/g, '""')}"`;
+  const q = (v: unknown) => csvCell(v == null ? '' : String(v));
   const rows = [['status','rule_id','title','before','now','delta','percent'], ...changes.map(c => [c.kind,c.id,c.title ?? '',c.before,c.now,c.delta,c.percent ?? ''])];
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + rows.map(r => r.map(q).join(',')).join('\r\n')], { type: 'text/csv' }));
   a.download = `${before.feedName || now.feedName || 'gtfs'}-comparison.csv`; a.click(); URL.revokeObjectURL(a.href);

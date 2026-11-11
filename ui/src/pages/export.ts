@@ -9,6 +9,7 @@ import { buildExecutiveReportHtml, buildExecutiveReportModel } from '../executiv
 import type { Locale } from '../i18n';
 import { withAutoPrint, withLang } from '../print-doc';
 import { escHtml } from '../escape';
+import { csvCell } from '../csv';
 import { formatBytes } from '../format';
 
 // Bytes → human-readable size (with a locale decimal separator). Used for estimated export size.
@@ -344,14 +345,6 @@ export function renderExport(
     a.download = fileName.replace(/\.zip$/i, `-summary-${fnTs}.png`);
     a.click();
   });
-}
-
-function csvCell(v: string | number | null | undefined): string {
-  const s = v == null ? '' : String(v);
-  const safe = /^[=+\-@]/.test(s) ? `'${s}` : s;
-  return safe.includes(',') || safe.includes('"') || safe.includes('\n')
-    ? `"${safe.replace(/"/g, '""')}"`
-    : safe;
 }
 
 // Builds CSV content (without BOM; BOM is added during download).
