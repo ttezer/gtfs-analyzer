@@ -17,6 +17,17 @@ describe('Turkish remediation dictionary', () => {
     }
   });
 
+  it('picks the branch text by message_variant', () => {
+    const variants = Object.entries(tr.ruleRemediations).filter(([key]) => key.split('.').length === 2);
+    expect(variants.length).toBeGreaterThan(0);
+    for (const [key, text] of variants) {
+      const [ruleId, variant] = key.split('.');
+      expect(tRemediationForLocale('tr', {
+        rule_id: ruleId, remediation: 'English engine text', details: { message_variant: variant },
+      })).toBe(text);
+    }
+  });
+
   it('keeps the engine text for a rule that is not in the dictionary', () => {
     expect(tRemediationForLocale('tr', { rule_id: 'NOPE_999', remediation: 'motorun metni' })).toBe('motorun metni');
   });

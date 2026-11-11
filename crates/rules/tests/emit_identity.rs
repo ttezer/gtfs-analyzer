@@ -154,6 +154,10 @@ fn emit_field_sets() -> BTreeMap<String, Vec<(String, BTreeSet<String>)>> {
                     if l.contains(".insert(") {
                         continue;
                     }
+                    // A `message_variant` names the BRANCH of one fact (issue #201), not a field.
+                    if l.contains(".with_message_variant(") {
+                        continue;
+                    }
                     for lit in l.split('"').skip(1).step_by(2) {
                         if lit != *id && looks_like_field(lit) {
                             fields.insert(lit.to_string());
