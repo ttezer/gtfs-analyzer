@@ -458,17 +458,17 @@ pub fn check_with_files_and_whitespace_roots(
             if has_agency_cemv1 && has_fares_v2 && !has_type3 {
                 feed_cemv("XFL_028",
                     "agency_cemv_support=1 var ve Fares v2 kullaniliyor ama hic contactless fare media (fare_media_type=3) yok.".to_string(),
-                    "Detayli ucret icin fare_media.txt'te fare_media_type=3 olan bir medya tanimlayin.");
+                    "Define a fare_media_type=3 media in fare_media.txt and link it to fare products.");
             }
             if has_route_cemv1 && has_fares_v2 && !has_type3 {
                 feed_cemv("XFL_029",
                     "route_cemv_support=1 var ve Fares v2 kullaniliyor ama hic contactless fare media (fare_media_type=3) yok.".to_string(),
-                    "Detayli ucret icin fare_media.txt'te fare_media_type=3 olan bir medya tanimlayin.");
+                    "Define a fare_media_type=3 media in fare_media.txt and link it to fare products.");
             }
             if has_type3 && !has_any_cemv1 {
                 feed_cemv("XFL_030",
                     "Contactless fare media (fare_media_type=3) tanimli ama hicbir agency/route'da cemv_support=1 yok.".to_string(),
-                    "Uygulama uyumlulugu icin agency veya route duzeyinde cemv_support=1 belirtmeyi degerlendirin.");
+                    "Consider setting cemv_support=1 at agency or route level.");
             }
         }
 
@@ -6786,7 +6786,7 @@ fn check_xfl(
                 "areas.txt",
                 r.line,
                 "areas.txt'te area_id zorunludur.".to_string(),
-                "Her alana benzersiz bir area_id verin.",
+                "Give every area a unique area_id.",
                 notices,
                 ctr,
             );
@@ -6804,7 +6804,7 @@ fn check_xfl(
                 require_nonempty(&r.row, day, "CAL_025", EntityType::Row,
                     (!r.service_id.is_empty()).then(|| r.service_id.clone()), "calendar.txt", r.line,
                     format!("service_id '{}' için '{day}' alanı boş; gün alanları zorunludur (0 veya 1).", r.service_id),
-                    "Haftanın her günü için 0 ya da 1 girin.", notices, ctr);
+                    "Enter 0 or 1 for every day of the week.", notices, ctr);
             }
         }
         for r in &records.fare_media {
@@ -6817,7 +6817,7 @@ fn check_xfl(
                 "fare_media.txt",
                 r.line,
                 "fare_media_id zorunludur.".to_string(),
-                "Her ücret aracına benzersiz bir fare_media_id verin.",
+                "Give every fare media a unique fare_media_id.",
                 notices,
                 ctr,
             );
@@ -6832,7 +6832,7 @@ fn check_xfl(
                 "networks.txt",
                 r.line,
                 "networks.txt'te network_id zorunludur.".to_string(),
-                "Her ağa benzersiz bir network_id verin.",
+                "Give every network a unique network_id.",
                 notices,
                 ctr,
             );
@@ -6847,7 +6847,7 @@ fn check_xfl(
                 "rider_categories.txt",
                 r.line,
                 "rider_category_id zorunludur.".to_string(),
-                "Her yolcu kategorisine benzersiz bir rider_category_id verin.",
+                "Give every rider category a unique rider_category_id.",
                 notices,
                 ctr,
             );
@@ -6895,7 +6895,7 @@ fn check_xfl(
                     "location_group_id",
                     r.line,
                     "location_groups.txt'te location_group_id zorunludur.".to_string(),
-                    "Her konum grubuna benzersiz bir location_group_id verin.",
+                    "Give every location group a unique location_group_id.",
                     notices,
                     ctr,
                 );
@@ -6913,7 +6913,7 @@ fn check_xfl(
                     "location_group_id",
                     r.line,
                     "location_group_stops.txt'te location_group_id zorunludur.".to_string(),
-                    "Satırı bir location_group_id'ye bağlayın.",
+                    "Attach the row to a location_group_id.",
                     notices,
                     ctr,
                 );
@@ -6926,7 +6926,7 @@ fn check_xfl(
                     "stop_id",
                     r.line,
                     "location_group_stops.txt'te stop_id zorunludur.".to_string(),
-                    "Satırı bir stop_id'ye bağlayın.",
+                    "Attach the row to a stop_id.",
                     notices,
                     ctr,
                 );
@@ -6942,7 +6942,7 @@ fn check_xfl(
                 "stop_areas.txt",
                 r.line,
                 "stop_areas.txt'te area_id zorunludur.".to_string(),
-                "Satırı bir area_id'ye bağlayın.",
+                "Attach the row to an area_id.",
                 notices,
                 ctr,
             );
@@ -6955,7 +6955,7 @@ fn check_xfl(
                 "stop_areas.txt",
                 r.line,
                 "stop_areas.txt'te stop_id zorunludur.".to_string(),
-                "Satırı bir stop_id'ye bağlayın.",
+                "Attach the row to a stop_id.",
                 notices,
                 ctr,
             );
@@ -6970,7 +6970,7 @@ fn check_xfl(
                 "timeframes.txt",
                 r.line,
                 "timeframes.txt'te service_id zorunludur.".to_string(),
-                "Her zaman dilimini calendar'da tanımlı bir service_id'ye bağlayın.",
+                "Attach every timeframe to a service_id defined in the calendar.",
                 notices,
                 ctr,
             );
