@@ -938,8 +938,7 @@ pub(crate) fn arc033_summary(
             "'{file}' RFC 4180'e uymuyor: {kind} ({} satırda; ilk örnek: '{example}').",
             acc.rows
         ),
-        "Tırnak veya virgül içeren alan değerlerini tırnak içine alın; değerin içindeki her \
-tırnağı ikiye katlayarak kaçırın (\"12\"\" Street\").",
+        "Quote any field value that contains a quotation mark or a comma, and double every quotation mark inside it (\"12\"\" Street\").",
     ))
 }
 

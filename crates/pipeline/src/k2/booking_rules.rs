@@ -65,7 +65,7 @@ fn opt_int_checked(
                 Some(raw.to_string()),
                 Some("tam sayı".to_string()),
                 format!("{field} '{raw}' tam sayı olarak okunamıyor."),
-                "Bu alanı tam sayı olarak girin.",
+                "Enter the prior_notice numeric fields as whole numbers.",
             ));
             None
         }

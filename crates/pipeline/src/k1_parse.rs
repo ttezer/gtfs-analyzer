@@ -523,8 +523,7 @@ pub(crate) struct Rfc4180Acc {
 /// marks."* and *"In addition, each quotation mark in the field value must be preceded with
 /// a quotation mark."*
 const ARC033_REMEDIATION: &str =
-    "Tırnak veya virgül içeren alan değerlerini tırnak içine alın; değerin içindeki her \
-tırnağı ikiye katlayarak kaçırın (\"12\"\" Street\").";
+    "Quote any field value that contains a quotation mark or a comma, and double every quotation mark inside it (\"12\"\" Street\").";
 
 pub(crate) const RFC4180_BARE_QUOTE: &str = "tırnaksız alan tırnak işareti içeriyor";
 pub(crate) const RFC4180_AFTER_CLOSE: &str = "kapanış tırnağından sonra karakter var";
@@ -1077,7 +1076,7 @@ pub(crate) fn is_identity_column(col: &str) -> bool {
 }
 
 pub(crate) const DQ016_REMEDIATION: &str =
-    "Değerlerdeki gereksiz baştaki/sondaki boşlukları kaldırın; ayraç olarak ', ' değil ',' kullanın.";
+    "Trim leading and trailing whitespace from all field values.";
 
 /// In zip 9, `name()` returns a `Result`: a non-UTF-8 name is decoded as cp437 and errors only
 /// on an inaccessible branch. It is still not swallowed silently; it is reported as "ZIP could
@@ -1211,7 +1210,7 @@ pub(crate) fn arc030_message(file_name: &str, cp: u32) -> String {
 }
 
 pub(crate) const ARC030_REMEDIATION: &str =
-    "Alan değerlerindeki sekme ve satır sonu karakterlerini kaldırın; çok satırlı metni tek satıra indirin.";
+    "Remove tabs and line breaks from field values; collapse multi-line text onto a single line.";
 
 // ── ARC_032: HTML tag / comment / escape sequence ─────────────────────────────
 //
@@ -1561,12 +1560,10 @@ impl Arc037Acc {
 }
 
 pub(crate) const ARC037_REMEDIATION: &str =
-    "ID değerlerinde yalnız yazdırılabilir ASCII karakterler kullanın; ID'ler yolculara \
-     gösterilmez, görünen ad için name/desc alanları vardır.";
+    "Use only printable ASCII characters in ID values; IDs are not shown to riders, the name and description fields carry the display text.";
 
 pub(crate) const ARC032_REMEDIATION: &str =
-    "HTML etiketlerini ve karakter kaçışlarını alan değerlerinden kaldırın; \
-     GTFS alanları düz metin taşır ve tüketiciler bu işaretleri olduğu gibi gösterir.";
+    "Remove HTML tags and character escapes from field values; GTFS fields carry plain text and consumers display this markup literally.";
 
 pub(crate) fn arc021_message(file_name: &str, cp: u32) -> String {
     // Do not say "non-ASCII": the rule deliberately exempts valid Unicode letters (ü, ö, 漢字…);
@@ -1576,7 +1573,7 @@ pub(crate) fn arc021_message(file_name: &str, cp: u32) -> String {
 }
 
 pub(crate) const ARC021_REMEDIATION: &str =
-    "Alan değerlerindeki kontrol/yazdırılamaz karakterleri kaldırın; geçerli Unicode harfler (ü, ö, 漢字 vb.) sorun değildir.";
+    "Remove control/non-printable characters from field values; valid Unicode letters (e.g. ü, ö, 漢字) are fine.";
 
 /// Column names defined in the GTFS specification (ARC_017).
 /// `translations.txt::table_name` carries a table name without its extension; the column list

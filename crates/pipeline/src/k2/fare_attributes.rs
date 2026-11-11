@@ -368,7 +368,7 @@ fn parse_enum_u32(
                         Some(v.to_string()),
                         None,
                         format!("{field} alanı geçerli bir enum değeri değil."),
-                        "Alanı geçerli bir spec enum değerine ayarlayın.",
+                        "Set the field to a valid spec enum value.",
                     ));
                 }
             }
@@ -393,7 +393,7 @@ fn parse_enum_u32(
                     observed.map(str::to_string),
                     None,
                     err,
-                    "Alanı geçerli bir spec enum değerine ayarlayın.",
+                    "Set the field to a valid spec enum value.",
                 ));
             }
             None

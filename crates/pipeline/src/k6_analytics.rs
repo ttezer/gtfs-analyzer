@@ -2122,7 +2122,7 @@ fn check_speed_and_duration<'a>(
                             format_hms(duration_sec), format_hms(max_sec)),
                         // One message: the locale dictionary has ONE remediation key per rule; a conditional variant
                         // cannot be represented with --lang en/ja (see the i18n architecture).
-                        "İlk kalkış ve son varış saatlerini doğrulayın; uzun mesafe tarifelerinde bu süre olağandır, şehir içi hatlarda veri hatası işaretidir.",
+                        "Verify the first departure and last arrival times: this duration is normal for long-distance schedules but signals a data error on urban routes.",
                     );
                         if is_rail {
                             n.severity = gtfs_core::Severity::Bilgi;
