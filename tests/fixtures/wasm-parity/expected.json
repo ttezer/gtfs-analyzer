@@ -285,24 +285,6 @@
         "entity_id": "R1",
         "entity_type": "Route",
         "expected_value": null,
-        "field": "route_id",
-        "file": "routes.txt",
-        "line": 2,
-        "message": "Route 'R1' has no shape defined.",
-        "observed_value": null,
-        "remediation": "Define shapes.txt for all routes and assign shape_id in trips.txt.",
-        "rule_class": "QUALITY",
-        "rule_id": "RTS_017",
-        "scope_key": "R1",
-        "service_id": null,
-        "severity": "INFO",
-        "title": "Route with no shape defined"
-      },
-      {
-        "details": null,
-        "entity_id": "R1",
-        "entity_type": "Route",
-        "expected_value": null,
         "field": "route_url",
         "file": "routes.txt",
         "line": 2,
@@ -616,6 +598,27 @@
         "service_id": null,
         "severity": "LOW",
         "title": "Recommended field missing or empty"
+      },
+      {
+        "details": {
+          "example_trip_id": "T1",
+          "trip_count": "1"
+        },
+        "entity_id": "R1",
+        "entity_type": "Route",
+        "expected_value": null,
+        "field": "route_id",
+        "file": "routes.txt",
+        "line": 2,
+        "message": "Route 'R1' has no shape defined.",
+        "observed_value": null,
+        "remediation": "Define shapes.txt for all routes and assign shape_id in trips.txt.",
+        "rule_class": "QUALITY",
+        "rule_id": "RTS_017",
+        "scope_key": "R1",
+        "service_id": null,
+        "severity": "INFO",
+        "title": "Route with no shape defined"
       },
       {
         "details": {
@@ -7321,6 +7324,27 @@
         },
         {
           "details": {
+            "example_trip_id": "T1",
+            "trip_count": "2"
+          },
+          "entity_id": "R1",
+          "entity_type": "Route",
+          "expected_value": null,
+          "field": "route_id",
+          "file": "routes.txt",
+          "line": 2,
+          "message": "Route 'R1' has no shape defined.",
+          "observed_value": null,
+          "remediation": "Define shapes.txt for all routes and assign shape_id in trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "RTS_017",
+          "scope_key": "R1",
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Route with no shape defined"
+        },
+        {
+          "details": {
             "example_trips": "T1,T2",
             "missing_trips": "2",
             "trip_count": "2"
@@ -7763,6 +7787,27 @@
           "service_id": null,
           "severity": "LOW",
           "title": "Recommended field missing or empty"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "trip_count": "1"
+          },
+          "entity_id": "R1",
+          "entity_type": "Route",
+          "expected_value": null,
+          "field": "route_id",
+          "file": "routes.txt",
+          "line": 2,
+          "message": "Route 'R1' has no shape defined.",
+          "observed_value": null,
+          "remediation": "Define shapes.txt for all routes and assign shape_id in trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "RTS_017",
+          "scope_key": "R1",
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Route with no shape defined"
         },
         {
           "details": {
@@ -10156,24 +10201,6 @@
           "field": "route_id",
           "file": "routes.txt",
           "line": 3,
-          "message": "Route 'R2' has no shape defined.",
-          "observed_value": null,
-          "remediation": "Define shapes.txt for all routes and assign shape_id in trips.txt.",
-          "rule_class": "QUALITY",
-          "rule_id": "RTS_017",
-          "scope_key": "R2",
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Route with no shape defined"
-        },
-        {
-          "details": null,
-          "entity_id": "R2",
-          "entity_type": "Route",
-          "expected_value": null,
-          "field": "route_id",
-          "file": "routes.txt",
-          "line": 3,
           "message": "Route 'R2' is never used.",
           "observed_value": "R2",
           "remediation": "Add stop_times records to this route's trips or remove the route.",
@@ -10475,6 +10502,27 @@
           "service_id": null,
           "severity": "LOW",
           "title": "Recommended field missing or empty"
+        },
+        {
+          "details": {
+            "example_trip_id": "T2",
+            "trip_count": "1"
+          },
+          "entity_id": "R2",
+          "entity_type": "Route",
+          "expected_value": null,
+          "field": "route_id",
+          "file": "routes.txt",
+          "line": 3,
+          "message": "Route 'R2' has no shape defined.",
+          "observed_value": null,
+          "remediation": "Define shapes.txt for all routes and assign shape_id in trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "RTS_017",
+          "scope_key": "R2",
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Route with no shape defined"
         },
         {
           "details": {
@@ -11400,24 +11448,6 @@
       "added": [
         {
           "details": null,
-          "entity_id": "R1",
-          "entity_type": "Route",
-          "expected_value": null,
-          "field": null,
-          "file": "routes.txt",
-          "line": null,
-          "message": "Route 'R1' has no active service days.",
-          "observed_value": null,
-          "remediation": "Fix service definitions in calendar.txt or calendar_dates.txt.",
-          "rule_class": "QUALITY",
-          "rule_id": "RTS_016",
-          "scope_key": "R1",
-          "service_id": null,
-          "severity": "LOW",
-          "title": "Route with no active service days"
-        },
-        {
-          "details": null,
           "entity_id": "T2",
           "entity_type": "Trip",
           "expected_value": null,
@@ -11628,6 +11658,49 @@
           "service_id": "SVCX",
           "severity": "MEDIUM",
           "title": "Trip with empty active-date set"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "services": "SVCX,SVCY",
+            "trip_count": "2"
+          },
+          "entity_id": "R1",
+          "entity_type": "Route",
+          "expected_value": null,
+          "field": null,
+          "file": "routes.txt",
+          "line": null,
+          "message": "Route 'R1' has no active service days.",
+          "observed_value": null,
+          "remediation": "Fix service definitions in calendar.txt or calendar_dates.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "RTS_016",
+          "scope_key": "R1",
+          "service_id": null,
+          "severity": "LOW",
+          "title": "Route with no active service days"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "trip_count": "2"
+          },
+          "entity_id": "R1",
+          "entity_type": "Route",
+          "expected_value": null,
+          "field": "route_id",
+          "file": "routes.txt",
+          "line": 2,
+          "message": "Route 'R1' has no shape defined.",
+          "observed_value": null,
+          "remediation": "Define shapes.txt for all routes and assign shape_id in trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "RTS_017",
+          "scope_key": "R1",
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Route with no shape defined"
         },
         {
           "details": {
@@ -12244,6 +12317,27 @@
         },
         {
           "details": {
+            "example_trip_id": "T1",
+            "trip_count": "1"
+          },
+          "entity_id": "R1",
+          "entity_type": "Route",
+          "expected_value": null,
+          "field": "route_id",
+          "file": "routes.txt",
+          "line": 2,
+          "message": "Route 'R1' has no shape defined.",
+          "observed_value": null,
+          "remediation": "Define shapes.txt for all routes and assign shape_id in trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "RTS_017",
+          "scope_key": "R1",
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Route with no shape defined"
+        },
+        {
+          "details": {
             "example_trip_id": "T1"
           },
           "entity_id": "R1",
@@ -12469,6 +12563,27 @@
           "service_id": null,
           "severity": "LOW",
           "title": "Recommended field missing or empty"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "trip_count": "2"
+          },
+          "entity_id": "R1",
+          "entity_type": "Route",
+          "expected_value": null,
+          "field": "route_id",
+          "file": "routes.txt",
+          "line": 2,
+          "message": "Route 'R1' has no shape defined.",
+          "observed_value": null,
+          "remediation": "Define shapes.txt for all routes and assign shape_id in trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "RTS_017",
+          "scope_key": "R1",
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Route with no shape defined"
         },
         {
           "details": {
@@ -12910,6 +13025,27 @@
           "service_id": null,
           "severity": "LOW",
           "title": "Recommended field missing or empty"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "trip_count": "1"
+          },
+          "entity_id": "R1",
+          "entity_type": "Route",
+          "expected_value": null,
+          "field": "route_id",
+          "file": "routes.txt",
+          "line": 2,
+          "message": "Route 'R1' has no shape defined.",
+          "observed_value": null,
+          "remediation": "Define shapes.txt for all routes and assign shape_id in trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "RTS_017",
+          "scope_key": "R1",
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Route with no shape defined"
         },
         {
           "details": {
@@ -13421,24 +13557,6 @@
       "removed": [
         {
           "details": null,
-          "entity_id": "R1",
-          "entity_type": "Route",
-          "expected_value": null,
-          "field": "route_id",
-          "file": "routes.txt",
-          "line": 2,
-          "message": "Route 'R1' has no shape defined.",
-          "observed_value": null,
-          "remediation": "Define shapes.txt for all routes and assign shape_id in trips.txt.",
-          "rule_class": "QUALITY",
-          "rule_id": "RTS_017",
-          "scope_key": "R1",
-          "service_id": null,
-          "severity": "INFO",
-          "title": "Route with no shape defined"
-        },
-        {
-          "details": null,
           "entity_id": "trips.txt",
           "entity_type": "File",
           "expected_value": null,
@@ -13531,6 +13649,27 @@
           "service_id": null,
           "severity": "LOW",
           "title": "Recommended field missing or empty"
+        },
+        {
+          "details": {
+            "example_trip_id": "T1",
+            "trip_count": "1"
+          },
+          "entity_id": "R1",
+          "entity_type": "Route",
+          "expected_value": null,
+          "field": "route_id",
+          "file": "routes.txt",
+          "line": 2,
+          "message": "Route 'R1' has no shape defined.",
+          "observed_value": null,
+          "remediation": "Define shapes.txt for all routes and assign shape_id in trips.txt.",
+          "rule_class": "QUALITY",
+          "rule_id": "RTS_017",
+          "scope_key": "R1",
+          "service_id": null,
+          "severity": "INFO",
+          "title": "Route with no shape defined"
         },
         {
           "details": {

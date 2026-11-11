@@ -143,13 +143,18 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                 // Google's own exemption: if `route_long_name` is populated, the warning may be
                 // ignored — the long name already provides a readable display. Without the guard,
                 // legitimate names such as "Green Line" produced unnecessary noise.
-                notices.push(make_k2_notice(
+                let mut n021 = make_k2_notice(
                     &mut counter, "RTS_021", EntityType::Route, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("route_short_name"),
                     Some(char_len.to_string()), Some("≤6 (Google)".to_string()),
                     format!("'{}' hattının route_short_name değeri {} karakter; Google Transit 6 karakteri tavsiye ediyor.", route_id, char_len),
                     "Google Transit uyumluluğu için route_short_name'i 6 karakterin altında tutun ya da route_long_name'i doldurun.",
-                ));
+                );
+                // Planner context: the name itself.
+                n021.details
+                    .get_or_insert_with(Default::default)
+                    .insert("name".to_string(), s.clone());
+                notices.push(n021);
             }
         }
 

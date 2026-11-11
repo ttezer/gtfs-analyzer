@@ -2443,14 +2443,17 @@ pub fn aggregate_feed_level_notices(
 }
 
 /// Route findings whose planner card names the route's trips and draws an example trip.
-const ROUTE_CONTEXT_RULES: [&str; 10] = [
+const ROUTE_CONTEXT_RULES: [&str; 19] = [
     "RTS_001", "RTS_002", "RTS_003", "RTS_004", "RTS_005", "RTS_006", "RTS_007", "RTS_008",
-    "RTS_010", "RTS_011",
+    "RTS_010", "RTS_011", "RTS_013", "RTS_016", "RTS_017", "RTS_018", "RTS_019", "RTS_020",
+    "RTS_021", "RTS_022", "RTS_023",
 ];
 
 /// Planner context for route findings: how many trips the route has (`trip_count`) and an
 /// `example_trip_id` to draw (smallest trip code with stop times and a shape, then with stop
-/// times). Shared native/WASM step; details only, counts are unchanged.
+/// times). A finding about several routes (`conflicting_routes`) carries the same per route
+/// (`route_<i>_route_id`, `route_<i>_trips`, `route_<i>_example_trip_id`). Shared native/WASM
+/// step; details only, counts are unchanged.
 fn annotate_route_context(all: &mut [gtfs_core::Notice], records: &EntityRecords) {
     use rustc_hash::FxHashMap;
     if !all
@@ -2482,17 +2485,39 @@ fn annotate_route_context(all: &mut [gtfs_core::Notice], records: &EntityRecords
         if !ROUTE_CONTEXT_RULES.contains(&n.rule_id.as_str()) {
             continue;
         }
-        let Some((trips, example)) = n.entity_id.as_deref().and_then(|id| usage.get(id)) else {
-            continue;
-        };
-        let (trips, example) = (*trips, *example);
+        let group: Vec<String> = n
+            .details
+            .as_ref()
+            .and_then(|d| d.get("conflicting_routes"))
+            .map(|v| {
+                v.as_str()
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let own = n.entity_id.as_deref().and_then(|id| usage.get(id)).copied();
         let d = n.details.get_or_insert_with(Default::default);
-        d.insert("trip_count".to_string(), trips.to_string());
-        if let Some((_, trip)) = example {
-            d.insert("example_trip_id".to_string(), trip.to_string());
+        if let Some((trips, example)) = own {
+            d.insert("trip_count".to_string(), trips.to_string());
+            if let Some((_, trip)) = example {
+                d.insert("example_trip_id".to_string(), trip.to_string());
+            }
+        }
+        for (i, route) in group.iter().take(ROUTE_GROUP_LISTED).enumerate() {
+            d.insert(format!("route_{i}_route_id"), route.clone());
+            let (trips, example) = usage.get(route.as_str()).copied().unwrap_or((0, None));
+            d.insert(format!("route_{i}_trips"), trips.to_string());
+            if let Some((_, trip)) = example {
+                d.insert(format!("route_{i}_example_trip_id"), trip.to_string());
+            }
         }
     }
 }
+
+/// Routes described per finding about several routes.
+const ROUTE_GROUP_LISTED: usize = 10;
 
 /// Shape findings whose planner card names the routes drawn with the shape and an example trip.
 const SHAPE_CONTEXT_RULES: [&str; 26] = [

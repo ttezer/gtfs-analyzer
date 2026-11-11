@@ -8715,3 +8715,69 @@ fn route_findings_carry_planner_context() {
     let d = find(&vr, "RTS_011");
     assert_eq!(get(&d, "name").map(|v| v.len()), Some(101));
 }
+
+#[test]
+fn more_route_findings_carry_planner_context() {
+    // RTS_012 the routes with the same number that have trips, RTS_016 the calendars, RTS_019 each
+    // route of the group, RTS_021 the name, and the trip context. Counts are unchanged.
+    let find = |vr: &gtfs_pipeline::ValidationResult, rule: &str| {
+        vr.notices
+            .iter()
+            .find(|n| n.rule_id == rule)
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor"))
+    };
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+
+    static ROUTES: &[u8] =
+        b"route_id,agency_id,route_short_name,route_long_name,route_type,route_url,route_desc,continuous_pickup\n\
+          R1,1,10,Ten,3,,,\nR0,1,10,Unused,3,,,\nR2,1,20,Twenty,3,,,\nD1,1,30,Same,3,,,\nD2,1,30,Same,3,,,\n\
+          R3,1,LONGNAME1,,3,,,\nR4,1,44,44 Merkez,3,,,\nR5,1,50,Fifty,3,,Fifty,\nR6,1,60,Sixty,3,http://test.example,,\n\
+          R7,1,70,Seventy,3,,,9\n";
+    static CAL: &[u8] =
+        b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
+          SVC1,1,1,1,1,1,0,0,20250101,20271231\nNONE,0,0,0,0,0,0,0,20250101,20271231\n";
+    let ids = ["R1", "D1", "D2", "R3", "R4", "R5", "R6", "R7"];
+    let mut trips = String::from("route_id,service_id,trip_id\nR2,NONE,TR2\n");
+    let mut times = String::from(
+        "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+         TR2,08:00:00,08:00:00,S1,1\nTR2,08:05:00,08:05:00,S2,2\n",
+    );
+    for r in ids {
+        trips += &format!("{r},SVC1,T{r}\n");
+        times += &format!("T{r},08:00:00,08:00:00,S1,1\nT{r},08:05:00,08:05:00,S2,2\n");
+    }
+    let files: Vec<(&str, &[u8])> = vec![
+        ("agency.txt", AGENCY),
+        ("stops.txt", STOPS),
+        ("routes.txt", ROUTES),
+        ("trips.txt", trips.as_bytes()),
+        ("stop_times.txt", times.as_bytes()),
+        ("calendar.txt", CAL),
+    ];
+    let vr = match run(&files) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+
+    let d = find(&vr, "RTS_012");
+    assert_eq!(get(&d, "same_name_routes").as_deref(), Some("R1"));
+    let d = find(&vr, "RTS_016");
+    assert_eq!(get(&d, "services").as_deref(), Some("NONE"));
+    assert_eq!(get(&d, "example_trip_id").as_deref(), Some("TR2"));
+    let d = find(&vr, "RTS_019");
+    assert_eq!(get(&d, "route_0_route_id").as_deref(), Some("D1"));
+    assert_eq!(get(&d, "route_1_example_trip_id").as_deref(), Some("TD2"));
+    let d = find(&vr, "RTS_021");
+    assert_eq!(get(&d, "name").as_deref(), Some("LONGNAME1"));
+    for (rule, trip) in [
+        ("RTS_013", "TR7"),
+        ("RTS_020", "TR6"),
+        ("RTS_022", "TR4"),
+        ("RTS_023", "TR5"),
+    ] {
+        let d = find(&vr, rule);
+        assert_eq!(get(&d, "example_trip_id").as_deref(), Some(trip), "{rule}");
+    }
+    assert!(find(&vr, "RTS_017").get("trip_count").is_some());
+}

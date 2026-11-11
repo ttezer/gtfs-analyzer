@@ -1115,6 +1115,34 @@ function rtsRuleText(n: Notice, result: ValidationResult): string | null {
       return join(t('producer.card.RTS_008.what_detail', { route, color: d.color, text: d.text_color, ratio: localizedNumber(Number(value).toFixed(1)) }),
         t('producer.card.RTS_008.what_suggest', { text: better, ratio: localizedNumber(contrastRatio(d.color, better).toFixed(1)) }), use);
     }
+    case 'RTS_012':
+      return join(t('producer.card.RTS_012.what_detail', { route }),
+        d.same_name_routes ? t('producer.card.RTS_012.what_same', { codes: listOf(d.same_name_routes).join(', ') }) : '');
+    case 'RTS_013':
+    case 'RTS_018':
+      return join(t(`producer.card.${n.rule_id}.what_detail`, { route, value: value || '—' }), use);
+    case 'RTS_016':
+      return t('producer.card.RTS_016.what_detail', { route, n: localizedNumber(d.trip_count || '0') });
+    case 'RTS_017':
+      return t('producer.card.RTS_017.what_detail', { route, n: localizedNumber(d.trip_count || '0') });
+    case 'RTS_019':
+      return d.conflicting_routes && value
+        ? t('producer.card.RTS_019.what_detail', { name: value, n: localizedNumber(String(listOf(d.conflicting_routes).length)) })
+        : null;
+    case 'RTS_020':
+      return value ? join(t('producer.card.RTS_020.what_detail', { route, value }), use) : null;
+    case 'RTS_021':
+      return d.name ? join(t('producer.card.RTS_021.what_detail', { route, n: localizedNumber(value || String([...d.name].length)) }), use) : null;
+    case 'RTS_022': {
+      if (!value) return null;
+      const esc = route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const clean = value.replace(new RegExp(esc, 'i'), '').replace(/\s{2,}/g, ' ').replace(/^[\s\-–:,]+|[\s\-–:,]+$/g, '');
+      return join(t('producer.card.RTS_022.what_detail', { route, long: value }), clean && clean !== value ? t('producer.card.stp_suggest', { value: clean }) : '', use);
+    }
+    case 'RTS_023':
+      return value
+        ? join(t((d.matched_field ?? '').includes('route_long_name') ? 'producer.card.RTS_023.what_long' : 'producer.card.RTS_023.what_short', { route, value }), use)
+        : null;
     case 'RTS_010':
     case 'RTS_011':
       return d.name ? join(t(`producer.card.${n.rule_id}.what_detail`, { route, name: d.name, n: localizedNumber(value || String([...d.name].length)) }), use) : null;
@@ -1124,7 +1152,7 @@ function rtsRuleText(n: Notice, result: ValidationResult): string | null {
 }
 
 /** RTS tables: the two rows of a repeated code, the defined agencies, the badge preview. */
-function rtsTable(n: Notice): string {
+function rtsTable(n: Notice, result: ValidationResult): string {
   const d = n.details ?? {};
   const table = (caption: string, head: string[], rows: Array<{ cells: string[]; bad?: boolean }>) =>
     `<p class="producer-card-label">${escHtml(caption)}</p><table class="planner-times planner-stop-times"><thead><tr>${head.map(h => `<th>${escHtml(h)}</th>`).join('')}</tr></thead><tbody>${
@@ -1135,6 +1163,17 @@ function rtsTable(n: Notice): string {
       { cells: [d.first_line, d.first_short_name || '—', d.first_long_name || '—', type(d.first_type)], bad: true },
       { cells: [String(n.line), d.short_name || '—', d.long_name || '—', type(d.type)], bad: true },
     ]);
+  }
+  if (n.rule_id === 'RTS_016' && d.services) {
+    return table(t('producer.times.rts016_services'), [t('producer.col.service_code'), t('producer.col.service')],
+      listOf(d.services).map(id => ({ cells: [id, serviceText(id, result)], bad: true })));
+  }
+  if (n.rule_id === 'RTS_019' && d.route_0_route_id) {
+    const rows = [];
+    for (let i = 0; d[`route_${i}_route_id`]; i++) {
+      rows.push({ cells: [d[`route_${i}_route_id`]!, localizedNumber(d[`route_${i}_trips`] || '0'), tripShort(d[`route_${i}_example_trip_id`], result, false)], bad: true });
+    }
+    return table(t('producer.times.rts019_routes'), [t('producer.times.rts_record_code'), t('producer.times.trip_count'), t('producer.times.example_trip')], rows);
   }
   if (n.rule_id === 'RTS_002' && d.known_agencies) {
     return table(t('producer.times.rts002_agencies'), [t('producer.times.rts_agency_code'), t('producer.times.stp_name')],
@@ -2514,7 +2553,8 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       };
     }
     case 'RTS_001': case 'RTS_002': case 'RTS_003': case 'RTS_004': case 'RTS_005': case 'RTS_006': case 'RTS_007':
-    case 'RTS_008': case 'RTS_010': case 'RTS_011': {
+    case 'RTS_008': case 'RTS_010': case 'RTS_011': case 'RTS_012': case 'RTS_013': case 'RTS_016': case 'RTS_017':
+    case 'RTS_018': case 'RTS_019': case 'RTS_020': case 'RTS_021': case 'RTS_022': case 'RTS_023': {
       const what = rtsRuleText(n, result);
       if (!what) return null;
       const mapText = dqTripMapText(dqExampleTrip(n, result.name_index), result);
@@ -2874,7 +2914,8 @@ function dqIndexKey<T>(map: Record<string, T> | undefined, key?: string): string
 }
 
 /** Route findings whose cards draw the route's lines and an example trip with numbered stops. */
-const RTS_CONTEXT_RULES = new Set(['RTS_001', 'RTS_002', 'RTS_003', 'RTS_004', 'RTS_005', 'RTS_006', 'RTS_007', 'RTS_008', 'RTS_010', 'RTS_011']);
+const RTS_CONTEXT_RULES = new Set(['RTS_001', 'RTS_002', 'RTS_003', 'RTS_004', 'RTS_005', 'RTS_006', 'RTS_007', 'RTS_008', 'RTS_010', 'RTS_011',
+  'RTS_012', 'RTS_013', 'RTS_016', 'RTS_017', 'RTS_018', 'RTS_019', 'RTS_020', 'RTS_021', 'RTS_022', 'RTS_023']);
 
 /** Shape findings whose cards draw the shape with its routes, an example trip and the faulty spot. */
 const SHP_CONTEXT_RULES = new Set(['SHP_001', 'SHP_002', 'SHP_003', 'SHP_004', 'SHP_005', 'SHP_006', 'SHP_008', 'SHP_009', 'SHP_010', 'SHP_012',
@@ -2905,8 +2946,12 @@ function dqExampleTrip(n: Notice, ni: ValidationResult['name_index']): string | 
     case 'DQ_003':
     case 'DQ_004':
       return n.entity_type === 'Route' ? routeExampleTrip(ni, routeIdOfNotice(n)) : undefined;
+    case 'RTS_012':
+      // No trips of its own: the trip of a route carrying the same number, if any.
+      return n.entity_type === 'Route' ? routeExampleTrip(ni, listOf(d.same_name_routes)[0]) : undefined;
     case 'RTS_001': case 'RTS_002': case 'RTS_003': case 'RTS_004': case 'RTS_005':
-    case 'RTS_006': case 'RTS_007': case 'RTS_008': case 'RTS_010': case 'RTS_011':
+    case 'RTS_006': case 'RTS_007': case 'RTS_008': case 'RTS_010': case 'RTS_011': case 'RTS_013': case 'RTS_016':
+    case 'RTS_017': case 'RTS_018': case 'RTS_019': case 'RTS_020': case 'RTS_021': case 'RTS_022': case 'RTS_023':
       return n.entity_type === 'Route' ? dqIndexKey(ni.trip_stops, d.example_trip_id) ?? routeExampleTrip(ni, routeIdOfNotice(n)) : undefined;
     case 'DQ_018':
     case 'DQ_019':
@@ -3361,7 +3406,7 @@ function timeStripBody(n: Notice, result: ValidationResult): string {
     if (table) return table;
   }
   if (RTS_CONTEXT_RULES.has(n.rule_id)) {
-    const table = rtsTable(n);
+    const table = rtsTable(n, result);
     if (table) return table;
   }
   if (n.rule_id === 'CAL_020' && d.feed_start_date && d.feed_end_date) {
@@ -4108,7 +4153,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
       : n.rule_id === 'DQ_020' ? { ...n.details, ...(last ? { stop_id: last } : {}) }
         : n.details;
     const map = plannerMap({ ...n, entity_type: 'Trip', entity_id: dqTrip, details }, result);
-    if (CAL_USAGE_RULES.has(n.rule_id)) addCalendarRoutes(map, n, result, dqTrip);
+    if (CAL_USAGE_RULES.has(n.rule_id) || n.rule_id === 'RTS_019') addCalendarRoutes(map, n, result, dqTrip);
     // RTS: the route's other lines (its other directions and variants) in its colour.
     if (RTS_CONTEXT_RULES.has(n.rule_id)) {
       const ni = result.name_index;

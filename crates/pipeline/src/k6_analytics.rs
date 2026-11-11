@@ -6109,7 +6109,7 @@ fn check_route_trip_quality(
                 .unwrap_or(false)
         });
         if !has_active {
-            notices.push(k6_notice(
+            let mut n016 = k6_notice(
                 ctr,
                 "RTS_016",
                 EntityType::Route,
@@ -6125,7 +6125,22 @@ fn check_route_trip_quality(
                     format!("'{rname}' hattının hiçbir seferinde aktif takvim günü yok.")
                 },
                 "calendar.txt veya calendar_dates.txt'deki servis tanımlarını düzeltin.",
-            ));
+            );
+            // Planner context: the calendars the route's trips are on.
+            let mut services: Vec<&str> = trips
+                .iter()
+                .map(|t| ti_rtq.service_id(t))
+                .filter(|s| !s.is_empty())
+                .collect();
+            services.sort_unstable();
+            services.dedup();
+            services.truncate(RTS016_SERVICES);
+            if !services.is_empty() {
+                n016.details
+                    .get_or_insert_with(Default::default)
+                    .insert("services", services.join(","));
+            }
+            notices.push(n016);
         }
     }
     drop(_t3);
@@ -12825,6 +12840,8 @@ fn canonicalize_stop_components(mut components: Vec<Vec<&str>>) -> Vec<Vec<&str>
 /// described and stops probed for the nearest main-network stop (VAT_005), other routes
 /// listed (VAT_006) and routes named per shape (VAT_008).
 const VAT001_ONLY_EXAMPLES: usize = 10;
+/// RTS_016 planner context: the calendars named per route.
+const RTS016_SERVICES: usize = 10;
 /// STP_037/038 planner context: the stops without wheelchair information most trips call at.
 const STP037_EXAMPLES: usize = 5;
 /// STP_020 planner context: a used stop this close is named as the likely record trips use.

@@ -1382,12 +1382,28 @@ fn check_routes(
         .iter()
         .map(|t| ti_rts012.route_id(t))
         .collect();
+    // RTS_012 planner context: route number → routes with trips carrying it (first few, sorted).
+    let mut used_by_short_name: HashMap<&str, Vec<&str>> = HashMap::new();
+    for rec in &records.routes {
+        if let Some(short) = rec.route_short_name.as_deref().filter(|s| !s.is_empty()) {
+            if used_routes.contains(rec.route_id.as_str()) {
+                used_by_short_name
+                    .entry(short)
+                    .or_default()
+                    .push(rec.route_id.as_str());
+            }
+        }
+    }
+    for list in used_by_short_name.values_mut() {
+        list.sort_unstable();
+        list.truncate(STP_CONTEXT_LIST);
+    }
     for rec in &records.routes {
         if rec.route_id.is_empty() {
             continue;
         }
         if !used_routes.contains(rec.route_id.as_str()) {
-            notices.push(notice(
+            let mut n012 = notice(
                 ctr,
                 "RTS_012",
                 EntityType::Route,
@@ -1407,7 +1423,20 @@ fn check_routes(
                     format!("'{}' kodlu hattın hiçbir seferi bulunmamaktadır.", label)
                 },
                 "Kullanılmayan rotayı silin veya bu rotaya bir sefer ekleyin.",
-            ));
+            );
+            // Planner context: routes with the same number that do have trips — often the
+            // record the trips use instead of this one.
+            if let Some(same) = rec
+                .route_short_name
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .and_then(|s| used_by_short_name.get(s))
+            {
+                n012.details
+                    .get_or_insert_with(Default::default)
+                    .insert("same_name_routes".to_string(), same.join(","));
+            }
+            notices.push(n012);
         }
     }
 

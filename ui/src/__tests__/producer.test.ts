@@ -1720,6 +1720,50 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('10 hattının adı 101 karakter: „Uzun ad“.');
   });
 
+  it('RTS_012–023 kartları seferleri, takvimleri ve aynı adlı hatları anlatır, hatları haritada çizer', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı' },
+      routes: { R1: '10', R2: '10', R0: '10', R4: '44' }, trips: { T1: 'Çarşı', T2: 'Okul' }, trip_routes: { T1: 'R1', T2: 'R2' }, trip_first_dep: { T1: '06:00', T2: '07:00' },
+      trip_stops: { T1: ['S1', 'S2', 'S3'], T2: ['S3', 'S2'] }, trip_stop_sequences: { T1: [1, 2, 3], T2: [1, 2] },
+      stop_coords: { S1: [41, 29], S2: [41.01, 29], S3: [41.02, 29] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+    const ctx = { trip_count: '12', example_trip_id: 'T1' };
+
+    // RTS_012: no trips; the record with the same number named and its trip drawn.
+    let out = render(notice('a', 'RTS_012', 'MEDIUM', { entity_type: 'Route', entity_id: 'R0', details: { same_name_routes: 'R1' } }));
+    expect(out.html).toContain('10 hattının hiç seferi yok');
+    expect(out.html).toContain('Aynı numarayla seferi olan başka kayıt var (kod: R1)');
+    expect(out.map.opts?.pins).toHaveLength(3);
+
+    // RTS_016: the calendars listed.
+    out = render(notice('a', 'RTS_016', 'HIGH', { entity_type: 'Route', entity_id: 'R1', details: { ...ctx, services: 'NONE' } }));
+    expect(out.html).toContain('10 hattının 12 seferi var ama bağlı oldukları takvimlerin hiçbirinde çalışma günü yok');
+    expect(out.html).toContain('<td>NONE</td>');
+
+    // RTS_019: each route with its trips; every route drawn.
+    out = render(notice('a', 'RTS_019', 'LOW', { entity_type: 'Route', entity_id: 'R1', observed_value: '10 — Aynı',
+      details: { ...ctx, conflicting_routes: 'R1, R2', route_0_route_id: 'R1', route_0_trips: '5', route_0_example_trip_id: 'T1', route_1_route_id: 'R2', route_1_trips: '3', route_1_example_trip_id: 'T2' } }));
+    expect(out.html).toContain('„10 — Aynı“ adı 2 hatta kullanılıyor');
+    expect(out.html).toContain('<tr class="bad"><td>R2</td><td>3</td><td>Okul yönü · 07:00</td></tr>');
+    expect(out.map.opts?.extraPolylines?.length).toBeGreaterThanOrEqual(2);
+
+    // RTS_022: the number removed from the long name, offered.
+    out = render(notice('a', 'RTS_022', 'LOW', { entity_type: 'Route', entity_id: 'R4', observed_value: '44 Merkez', details: { trip_count: '1' } }));
+    expect(out.html).toContain('44 hattının uzun adı „44 Merkez“ numarasını da içeriyor');
+    expect(out.html).toContain('Önerilen: „Merkez“.');
+
+    // RTS_023: which name the description repeats.
+    out = render(notice('a', 'RTS_023', 'LOW', { entity_type: 'Route', entity_id: 'R1', observed_value: 'Merkez', details: { ...ctx, matched_field: 'route_long_name' } }));
+    expect(out.html).toContain('10 hattının açıklaması „Merkez“ uzun adıyla aynı');
+  });
+
   it('STM_051–055 kartları Flex bölgesini, pencereyi, yazılan değeri ve aynı saatli durak serisini gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,
