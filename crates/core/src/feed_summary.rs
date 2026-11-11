@@ -57,9 +57,15 @@ pub struct FeedSummary {
 }
 
 /// Returns `None` for an empty or whitespace-only value; trims all other values.
+/// Trimmed, non-empty value, capped like notice values (`crate::notice::MAX_NOTICE_VALUE_CHARS`):
+/// the summary is shown in every report, so one pathological field must not fill it.
 pub fn clean(value: &str) -> Option<String> {
     let trimmed = value.trim();
-    (!trimmed.is_empty()).then(|| trimmed.to_string())
+    (!trimmed.is_empty()).then(|| {
+        let mut text = trimmed.to_string();
+        crate::notice::cap_notice_text(&mut text);
+        text
+    })
 }
 
 #[cfg(test)]
@@ -70,6 +76,8 @@ mod tests {
     fn clean_drops_blank_and_trims() {
         assert_eq!(clean("  "), None);
         assert_eq!(clean(""), None);
+        let long = "a".repeat(crate::notice::MAX_NOTICE_VALUE_CHARS + 1);
+        assert!(clean(&long).unwrap().ends_with("… (+1 B)"));
         assert_eq!(clean(" a b "), Some("a b".to_string()));
     }
 

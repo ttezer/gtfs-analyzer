@@ -145,7 +145,11 @@ pub fn build_feed_summary(records: &EntityRecords) -> gtfs_core::feed_summary::F
             .take(MAX_AGENCIES)
             .map(|a| AgencyContact {
                 agency_id: opt(&a.agency_id),
-                agency_name: a.agency_name.trim().to_string(),
+                agency_name: {
+                    let mut name = a.agency_name.trim().to_string();
+                    gtfs_core::notice::cap_notice_text(&mut name);
+                    name
+                },
                 agency_url: clean(&a.agency_url),
                 agency_timezone: clean(&a.agency_timezone),
                 agency_lang: opt(&a.agency_lang),
@@ -2114,6 +2118,9 @@ pub fn apply_report_scope(
     if !disabled.is_empty() {
         notices.retain(|notice| !disabled.contains(notice.rule_id.as_str()));
     }
+    // Every orchestration (native, both WASM paths) calls this before dedup, cap and K7, so
+    // the value cap lives here: no path can emit an uncapped feed value.
+    notices.iter_mut().for_each(gtfs_core::Notice::cap_long_values);
 }
 
 /// Full K1–K7 pipeline—for integration tests and tool integration.

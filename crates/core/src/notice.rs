@@ -107,6 +107,10 @@ impl NoticeDetails {
         self.0.len()
     }
 
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut String> {
+        self.0.iter_mut().map(|(_, value)| value)
+    }
+
     pub fn capacity(&self) -> usize {
         self.0.capacity()
     }
@@ -158,6 +162,30 @@ impl<'de> Deserialize<'de> for NoticeDetails {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         BTreeMap::<String, String>::deserialize(deserializer).map(Into::into)
     }
+}
+
+/// Longest feed-derived text a notice field may carry, in characters.
+///
+/// A notice copies feed values (ids, observed values, values interpolated into the message)
+/// verbatim, and one value can reach many notices. A single 8 MB CSV field inside a 9 KB ZIP
+/// made the full JSON output 654 MB (2026-11 security review). Real values are far shorter:
+/// the longest seen in corpus samples is ~300 characters, so feeds without pathological fields
+/// produce byte-identical output.
+pub const MAX_NOTICE_VALUE_CHARS: usize = 4096;
+
+/// Cut `text` to [`MAX_NOTICE_VALUE_CHARS`] characters and record how much was dropped.
+/// Language-neutral marker: `… (+N B)`, N = removed UTF-8 bytes.
+pub fn cap_notice_text(text: &mut String) {
+    // Byte length bounds the character count from above: short strings return here.
+    if text.len() <= MAX_NOTICE_VALUE_CHARS {
+        return;
+    }
+    let Some((cut, _)) = text.char_indices().nth(MAX_NOTICE_VALUE_CHARS) else {
+        return;
+    };
+    let removed = text.len() - cut;
+    text.truncate(cut);
+    text.push_str(&format!("… (+{removed} B)"));
 }
 
 /// Canonical data structure representing one validation finding.
@@ -247,5 +275,61 @@ mod tests {
         assert_eq!(json, r#"{"a":"first","z":"updated"}"#);
         let decoded: NoticeDetails = serde_json::from_str(&json).expect("details deserialize");
         assert_eq!(decoded, details);
+    }
+}
+
+impl Notice {
+    /// Cap every feed-derived text field at [`MAX_NOTICE_VALUE_CHARS`]. Rule-defined text
+    /// (`title`, `remediation`, `blocks`) and generated ids are not feed data and stay as is.
+    pub fn cap_long_values(&mut self) {
+        for field in [
+            &mut self.entity_id,
+            &mut self.scope_key,
+            &mut self.file,
+            &mut self.field,
+            &mut self.observed_value,
+            &mut self.expected_value,
+            &mut self.service_id,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            cap_notice_text(field);
+        }
+        cap_notice_text(&mut self.message);
+        if let Some(details) = &mut self.details {
+            details.values_mut().for_each(cap_notice_text);
+        }
+    }
+}
+
+#[cfg(test)]
+mod cap_tests {
+    use super::*;
+
+    #[test]
+    fn short_text_is_untouched() {
+        let mut s = "a".repeat(MAX_NOTICE_VALUE_CHARS);
+        let before = s.clone();
+        cap_notice_text(&mut s);
+        assert_eq!(s, before);
+    }
+
+    #[test]
+    fn long_text_is_cut_with_the_removed_byte_count() {
+        let mut s = "a".repeat(MAX_NOTICE_VALUE_CHARS + 10);
+        cap_notice_text(&mut s);
+        assert_eq!(s, format!("{}… (+10 B)", "a".repeat(MAX_NOTICE_VALUE_CHARS)));
+    }
+
+    #[test]
+    fn cut_respects_multibyte_characters() {
+        // 4096 three-byte characters (12 KB) stay whole; one more is cut on a char boundary.
+        let mut kept = "愛".repeat(MAX_NOTICE_VALUE_CHARS);
+        cap_notice_text(&mut kept);
+        assert_eq!(kept, "愛".repeat(MAX_NOTICE_VALUE_CHARS));
+        let mut cut = "愛".repeat(MAX_NOTICE_VALUE_CHARS + 2);
+        cap_notice_text(&mut cut);
+        assert_eq!(cut, format!("{}… (+6 B)", "愛".repeat(MAX_NOTICE_VALUE_CHARS)));
     }
 }
