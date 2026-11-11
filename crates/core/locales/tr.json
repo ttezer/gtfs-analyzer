@@ -561,6 +561,37 @@
       "Enter -1 (unlimited) or a positive integer.": "-1 (sınırsız) veya pozitif bir tam sayı girin.",
       "Enter -1 (unlimited) or a positive value such as 1.": "-1 (sınırsız) veya 1 gibi pozitif bir değer girin."
     },
+    "JPN_011": {
+      "Enter a unique agency_id on every row of agency.txt.": "agency.txt'teki her satıra benzersiz bir agency_id girin.",
+      "Enter an agency_id defined in agency.txt on every route in routes.txt.": "routes.txt'teki her hatta agency.txt'te tanımlı bir agency_id girin."
+    },
+    "JPN_014": {
+      "Enter a unique office_id on every row of office_jp.txt.": "office_jp.txt'teki her satıra benzersiz bir office_id girin.",
+      "Use a unique office_id for each office record.": "Her ofis kaydı için benzersiz bir office_id kullanın."
+    },
+    "JPN_015": {
+      "Match route_id to a route defined in routes.txt.": "route_id değerini routes.txt'te tanımlı bir rota ile eşleştirin.",
+      "Use a route_id in routes_jp.txt that is defined in routes.txt.": "routes_jp.txt'te routes.txt'te tanımlı bir route_id kullanın.",
+      "Use a unique route_id for each routes_jp record.": "Her routes_jp kaydı için benzersiz bir route_id kullanın."
+    },
+    "JPN_017": {
+      "Enter a unique jp_pattern_id on every row of pattern_jp.txt.": "pattern_jp.txt'teki her satıra benzersiz bir jp_pattern_id girin.",
+      "Use a unique jp_pattern_id for each stop pattern.": "Her duruş paterni için benzersiz bir jp_pattern_id kullanın."
+    },
+    "JPN_020": {
+      "Enter a callable phone number in office_phone.": "office_phone alanına aranabilir bir telefon numarası girin.",
+      "Use a valid http/https URL for office_url.": "office_url için geçerli bir http/https URL'si kullanın."
+    },
+    "JPN_021": {
+      "Fill in the ja-Hrkt translation with a Hiragana or Katakana reading.": "ja-Hrkt translation alanını Hiragana veya Katakana okumasıyla doldurun.",
+      "Keep one consistent kana value for the same translation target.": "Aynı çeviri hedefi için tek ve tutarlı bir kana değeri bırakın.",
+      "Write the Japanese reading in the ja-Hrkt translation.": "ja-Hrkt translation alanına Japonca okunuşu yazın."
+    },
+    "JPN_022": {
+      "Add the location_type column to stops.txt; 0 or an empty cell is valid for an ordinary stop.": "stops.txt'e location_type sütununu ekleyin; normal durak için 0 veya boş hücre geçerlidir.",
+      "Fill in agency_lang in agency.txt.": "agency.txt'teki agency_lang alanını doldurun.",
+      "Fill in the required field in feed_info.txt.": "feed_info.txt'teki ilgili zorunlu alanı doldurun."
+    },
     "LOC_001": {
       "Define a Polygon or MultiPolygon geometry for every feature.": "Her feature için Polygon veya MultiPolygon geometrisi tanımlayın.",
       "Use only Polygon and MultiPolygon geometries in locations.geojson.": "locations.geojson'da yalnızca Polygon ve MultiPolygon geometrileri kullanın."

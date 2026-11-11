@@ -5074,7 +5074,7 @@ fn check_gtfs_jp(
                 Some(format!("{missing}")),
                 Some("dolu".to_string()),
                 format!("GTFS-JP: {missing} işleticide agency_id eksik — JP profilinde tek işletici olsa bile agency_id zorunludur."),
-                "agency.txt'teki her satıra benzersiz bir agency_id girin.",
+                "Enter a unique agency_id on every row of agency.txt.",
             ));
         }
         let missing_routes = records
@@ -5102,7 +5102,7 @@ fn check_gtfs_jp(
                 format!(
                     "GTFS-JP: {missing_routes} hatta agency_id eksik; JP profilinde routes.agency_id zorunludur."
                 ),
-                "routes.txt'teki her hatta agency.txt'te tanımlı bir agency_id girin.",
+                "Enter an agency_id defined in agency.txt on every route in routes.txt.",
             ));
         }
 
@@ -5166,7 +5166,7 @@ fn check_gtfs_jp(
                     None,
                     None,
                     "GTFS-JP v4'te agency_lang zorunludur ancak değer eksik.".to_string(),
-                    "agency.txt'teki agency_lang alanını doldurun.",
+                    "Fill in agency_lang in agency.txt.",
                 ));
             }
         }
@@ -5188,7 +5188,7 @@ fn check_gtfs_jp(
                     None,
                     None,
                     "GTFS-JP v4'te location_type sütunu zorunludur ancak sütun eksik.".to_string(),
-                    "stops.txt'e location_type sütununu ekleyin; normal durak için 0 veya boş hücre geçerlidir.",
+                    "Add the location_type column to stops.txt; 0 or an empty cell is valid for an ordinary stop.",
                 ));
             }
         }
@@ -5224,7 +5224,7 @@ fn check_gtfs_jp(
                         None,
                         None,
                         format!("GTFS-JP v4'te {field} zorunludur ancak değer eksik."),
-                        "feed_info.txt'teki ilgili zorunlu alanı doldurun.",
+                        "Fill in the required field in feed_info.txt.",
                     ));
                 }
             }
@@ -5769,7 +5769,7 @@ fn check_gtfs_jp(
                     "office_jp.txt", Some(office.line), Some("office_id"),
                     Some(String::new()), Some("dolu ve tekil".to_string()),
                     "office_jp.txt satırında office_id eksik — her ofis kaydı benzersiz bir kimlik taşımalıdır.".to_string(),
-                    "office_jp.txt'teki her satıra benzersiz bir office_id girin.",
+                    "Enter a unique office_id on every row of office_jp.txt.",
                 ));
                     continue;
                 }
@@ -5789,7 +5789,7 @@ fn check_gtfs_jp(
                             "office_id '{}' tekrarlanıyor (ilk görünüm: satır {}).",
                             office_id, first_line
                         ),
-                        "Her ofis kaydı için benzersiz bir office_id kullanın.",
+                        "Use a unique office_id for each office record.",
                     ));
                 }
             }
@@ -5821,7 +5821,7 @@ fn check_gtfs_jp(
                         Some(String::new()),
                         Some("routes.txt'te tanımlı route_id".to_string()),
                         "routes_jp.txt satırında route_id eksik.".to_string(),
-                        "routes_jp.txt'te routes.txt'te tanımlı bir route_id kullanın.",
+                        "Use a route_id in routes_jp.txt that is defined in routes.txt.",
                     ));
                     continue;
                 }
@@ -5841,7 +5841,7 @@ fn check_gtfs_jp(
                             "routes_jp.txt route_id '{}' tekrarlanıyor (ilk görünüm: satır {}).",
                             route_id, first_line
                         ),
-                        "Her routes_jp kaydı için benzersiz bir route_id kullanın.",
+                        "Use a unique route_id for each routes_jp record.",
                     ));
                 }
                 if !route_ids.contains(route_id) {
@@ -5860,7 +5860,7 @@ fn check_gtfs_jp(
                             "routes_jp.txt route_id '{}' routes.txt'te tanımlı değil.",
                             route_id
                         ),
-                        "route_id değerini routes.txt'te tanımlı bir rota ile eşleştirin.",
+                        "Match route_id to a route defined in routes.txt.",
                     ));
                 }
             }
@@ -5930,7 +5930,7 @@ fn check_gtfs_jp(
                     "pattern_jp.txt", Some(pattern.line), Some("jp_pattern_id"),
                     Some(String::new()), Some("dolu ve tekil".to_string()),
                     "pattern_jp.txt satırında jp_pattern_id eksik — dosya mevcutsa bu alan zorunludur.".to_string(),
-                    "pattern_jp.txt'teki her satıra benzersiz bir jp_pattern_id girin.",
+                    "Enter a unique jp_pattern_id on every row of pattern_jp.txt.",
                 ));
                     continue;
                 }
@@ -5950,7 +5950,7 @@ fn check_gtfs_jp(
                             "jp_pattern_id '{}' tekrarlanıyor (ilk görünüm: satır {}).",
                             pattern_id, first_line
                         ),
-                        "Her duruş paterni için benzersiz bir jp_pattern_id kullanın.",
+                        "Use a unique jp_pattern_id for each stop pattern.",
                     ));
                 }
             }
@@ -6151,7 +6151,7 @@ fn check_gtfs_jp(
                             "office_url '{}' geçerli bir http/https URL'si gibi görünmüyor.",
                             url
                         ),
-                        "office_url için geçerli bir http/https URL'si kullanın.",
+                        "Use a valid http/https URL for office_url.",
                     ));
                 }
             }
@@ -6182,7 +6182,7 @@ fn check_gtfs_jp(
                             "office_phone '{}' geçerli bir telefon numarası gibi görünmüyor.",
                             phone
                         ),
-                        "office_phone alanına aranabilir bir telefon numarası girin.",
+                        "Enter a callable phone number in office_phone.",
                     ));
                 }
             }
@@ -6210,7 +6210,7 @@ fn check_gtfs_jp(
                     Some(translation.translation.clone()),
                     Some("dolu Japonca kana".to_string()),
                     "GTFS-JP ja-Hrkt çevirisi boş.".to_string(),
-                    "ja-Hrkt translation alanını Hiragana veya Katakana okumasıyla doldurun.",
+                    "Fill in the ja-Hrkt translation with a Hiragana or Katakana reading.",
                 ));
                 continue;
             }
@@ -6239,7 +6239,7 @@ fn check_gtfs_jp(
                             "Aynı ja-Hrkt çeviri hedefi ilk satır {} ile çelişiyor.",
                             first_line
                         ),
-                        "Aynı çeviri hedefi için tek ve tutarlı bir kana değeri bırakın.",
+                        "Keep one consistent kana value for the same translation target.",
                     ));
                 }
             } else {
@@ -6258,7 +6258,7 @@ fn check_gtfs_jp(
                     Some(translation.translation.clone()),
                     Some("Hiragana/Katakana".to_string()),
                     "ja-Hrkt çevirisi Hiragana veya Katakana içermiyor; yalnız Kanji yeterli değildir.".to_string(),
-                    "ja-Hrkt translation alanına Japonca okunuşu yazın.",
+                    "Write the Japanese reading in the ja-Hrkt translation.",
                 ));
             }
         }
