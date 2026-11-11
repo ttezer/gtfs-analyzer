@@ -130,6 +130,7 @@ export function renderUpload(root: HTMLElement): void {
     </div>`;
 
   attachUploadListeners(root);
+  consumeQueryUrl(root);
 }
 
 // ── File rows ─────────────────────────────────────────────────────────────────
@@ -260,6 +261,21 @@ function parseConfigDelta(delta: string): ConfigOverrides {
     }
     return result;
   } catch { return {}; }
+}
+
+// ?url=<https zip>: auto-load a feed from the query string ONCE per page load
+// (re-rendering the upload page must not re-download). Same guards as the URL box
+// (https-only, no credentials, CORS fallback) because it goes through handleUrl.
+let queryUrlConsumed = false;
+function consumeQueryUrl(root: HTMLElement): void {
+  if (queryUrlConsumed || typeof location === 'undefined') return;
+  queryUrlConsumed = true;
+  const v = new URLSearchParams(location.search).get('url')?.trim();
+  if (!v) return;
+  const input = root.querySelector<HTMLInputElement>('#url-input');
+  if (input) input.value = v;
+  const errorEl = root.querySelector<HTMLElement>('#upload-error');
+  if (errorEl) void handleUrl(v, root, errorEl);
 }
 
 // ── Olay dinleyicileri ───────────────────────────────────────────────────────
