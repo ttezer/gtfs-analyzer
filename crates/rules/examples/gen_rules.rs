@@ -83,7 +83,7 @@ fn main() {
     let g_en = parse_groups(&rd("RULES.en.md"));
     let g_ja = parse_groups(&rd("RULES.ja.md"));
     let g_fr = parse_groups(&rd("RULES.fr.md"));
-    let t_tr = parse_titles(&rd("ui/src/locales/tr.ts"));
+    let t_tr = locale_titles::turkish_titles(&repo_root());
     let t_en = parse_titles(&rd("ui/src/locales/en.ts"));
     let t_ja = parse_titles(&rd("ui/src/locales/ja.ts"));
     let t_fr = parse_titles(&rd("ui/src/locales/fr.ts"));
