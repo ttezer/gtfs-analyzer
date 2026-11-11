@@ -7046,14 +7046,21 @@ fn check_data_quality(
                     .as_deref()
                     .filter(|s| !s.is_empty())
                     .unwrap_or(r.route_id.as_str());
-                notices.push(k6_notice(
+                let mut n025 = k6_notice(
                     ctr, "RTS_025", EntityType::Route,
                     Some(r.route_id.to_string()), Some(r.route_id.to_string()),
                     "routes.txt", Some(r.line), Some("agency_id"),
                     None, None,
                     format!("'{label}' hattında agency_id boş — önerilen alan; tek işletici olsa bile doldurulması iyi uygulamadır."),
                     "routes.txt'teki agency_id sütununu işleten ajansın agency_id'siyle doldurun.",
-                ));
+                );
+                // Planner context: the feed's one agency, the route's only possible operator.
+                if let Some(agency) = records.agencies.first() {
+                    n025.details
+                        .get_or_insert_with(Default::default)
+                        .insert("agency_name", agency.agency_name.clone());
+                }
+                notices.push(n025);
             }
         }
     }

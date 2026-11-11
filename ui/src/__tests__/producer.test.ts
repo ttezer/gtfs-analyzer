@@ -1751,7 +1751,7 @@ describe('Üretici kartı görünümü', () => {
     out = render(notice('a', 'RTS_019', 'LOW', { entity_type: 'Route', entity_id: 'R1', observed_value: '10 — Aynı',
       details: { ...ctx, conflicting_routes: 'R1, R2', route_0_route_id: 'R1', route_0_trips: '5', route_0_example_trip_id: 'T1', route_1_route_id: 'R2', route_1_trips: '3', route_1_example_trip_id: 'T2' } }));
     expect(out.html).toContain('„10 — Aynı“ adı 2 hatta kullanılıyor');
-    expect(out.html).toContain('<tr class="bad"><td>R2</td><td>3</td><td>Okul yönü · 07:00</td></tr>');
+    expect(out.html).toContain('<tr class="bad"><td>R2</td><td>10</td><td>—</td><td>3</td><td>Okul yönü · 07:00</td></tr>');
     expect(out.map.opts?.extraPolylines?.length).toBeGreaterThanOrEqual(2);
 
     // RTS_022: the number removed from the long name, offered.
@@ -1762,6 +1762,48 @@ describe('Üretici kartı görünümü', () => {
     // RTS_023: which name the description repeats.
     out = render(notice('a', 'RTS_023', 'LOW', { entity_type: 'Route', entity_id: 'R1', observed_value: 'Merkez', details: { ...ctx, matched_field: 'route_long_name' } }));
     expect(out.html).toContain('10 hattının açıklaması „Merkez“ uzun adıyla aynı');
+  });
+
+  it('RTS_024–031 kartları değeri, işletmeciyi ve aynı numaralı hatları planlamacı diliyle anlatır', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı' },
+      routes: { R1: '10', R2: '10' }, route_long_names: { R1: 'Birinci', R2: 'İkinci' }, trips: { T1: 'Çarşı', T2: 'Okul' }, trip_routes: { T1: 'R1', T2: 'R2' }, trip_first_dep: { T1: '06:00', T2: '07:00' },
+      trip_stops: { T1: ['S1', 'S2', 'S3'], T2: ['S3', 'S2'] }, trip_stop_sequences: { T1: [1, 2, 3], T2: [1, 2] },
+      stop_coords: { S1: [41, 29], S2: [41.01, 29], S3: [41.02, 29] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+    const ctx = { trip_count: '12', example_trip_id: 'T1' };
+
+    // RTS_025: the only agency offered.
+    let out = render(notice('a', 'RTS_025', 'INFO', { entity_type: 'Route', entity_id: 'R1', details: { ...ctx, agency_name: 'Belediye' } }));
+    expect(out.html).toContain('veri setinde tek işletmeci var („Belediye“), hat ona atanabilir.');
+
+    // RTS_026: the routes sharing a number with their names; both drawn.
+    out = render(notice('a', 'RTS_026', 'LOW', { entity_type: 'Route', entity_id: 'R1', observed_value: '10',
+      details: { ...ctx, conflicting_routes: 'R1, R2', route_0_route_id: 'R1', route_0_trips: '5', route_0_example_trip_id: 'T1', route_1_route_id: 'R2', route_1_trips: '3', route_1_example_trip_id: 'T2' } }));
+    expect(out.html).toContain('„10“ numarası farklı adlı 2 hatta kullanılıyor');
+    expect(out.html).toContain('<tr class="bad"><td>R2</td><td>10</td><td>İkinci</td><td>3</td><td>Okul yönü · 07:00</td></tr>');
+    expect(out.map.opts?.extraPolylines?.length).toBeGreaterThanOrEqual(2);
+
+    // RTS_028: the on-demand trip and which continuous setting is on.
+    out = render(notice('a', 'RTS_028', 'HIGH', { entity_type: 'Route', entity_id: 'R1', field: 'continuous_drop_off', observed_value: '0', details: { ...ctx, flex_trip_id: 'T1' } }));
+    expect(out.html).toContain('10 hattında talebe bağlı sefer var (Çarşı yönü · 06:00) ama yol boyunca iniş açık');
+
+    // RTS_030: the extended code by name and its nearest basic type.
+    out = render(notice('a', 'RTS_030', 'LOW', { entity_type: 'Route', entity_id: 'R1', observed_value: '700', details: ctx }));
+    expect(out.html).toContain('genişletilmiş bir kodla yazılmış: Otobüs (700).');
+    expect(out.html).toContain('en yakın temel tür Otobüs (3).');
+
+    // RTS_031: the code-less row by what it carries.
+    out = render(notice('a', 'RTS_031', 'CRITICAL', { entity_type: 'Route', line: 9, file: 'routes.txt', details: { route_short_name: '70', route_long_name: 'Adsız' } }));
+    expect(out.html).toContain('Hat listesinin 9. satırındaki hattın kodu boş („70 · Adsız“)');
+    expect(out.html).toContain('<td>70</td>');
   });
 
   it('STM_051–055 kartları Flex bölgesini, pencereyi, yazılan değeri ve aynı saatli durak serisini gösterir', () => {

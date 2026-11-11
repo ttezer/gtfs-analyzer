@@ -309,6 +309,8 @@ function plannerFieldName(field: string): string {
 function dqListLabel(n: Notice): string | null {
   // CAL_020 / OPR_014 / OPR_016 / OPR_025 are about a whole list: name it, not the engine's summary ("11 years").
   if (['DQ_016', 'CAL_020', 'OPR_014', 'OPR_016', 'OPR_025', 'TRP_015'].includes(n.rule_id)) return plannerListName(n.file);
+  // RTS_031: the code-less row by the number or name written on it.
+  if (n.rule_id === 'RTS_031') return n.details?.route_short_name || n.details?.route_long_name || plannerListName(n.file);
   // SHP_001: the code-less point is a row of the shape point list.
   if (n.rule_id === 'SHP_001') return plannerListName(n.file);
   // STP_002: the code-less row by the name written on it.
@@ -638,13 +640,18 @@ function trpRuleText(n: Notice, result: ValidationResult): string | null {
   }
 }
 
-/** A route type code as a mode planners name ("Otobüs"); extended codes by their mode family. */
-function routeTypeName(code: string): string {
+/** The core mode of a route type code; extended codes by their mode family. */
+function routeBaseType(code: string): number {
   const c = Number(code);
-  const base = !Number.isFinite(c) ? NaN
+  return !Number.isFinite(c) ? NaN
     : c < 100 ? c
       : c < 200 ? 2 : c < 300 ? 3 : c < 500 ? 1 : c < 800 ? 3 : c < 900 ? 11 : c < 1000 ? 0
         : c < 1200 ? 4 : c < 1400 ? 6 : c < 1500 ? 7 : NaN;
+}
+
+/** A route type code as a mode planners name ("Otobüs"); extended codes by their mode family. */
+function routeTypeName(code: string): string {
+  const base = routeBaseType(code);
   const key = `producer.route_type.${base}`;
   const text = t(key);
   return text === key ? code : `${text} (${code})`;
@@ -1075,6 +1082,12 @@ function readableTextColor(bg: string): string {
 function rtsRuleText(n: Notice, result: ValidationResult): string | null {
   const ni = result.name_index;
   const d = n.details ?? {};
+  // RTS_031: a row without a code, named by what it carries.
+  if (n.rule_id === 'RTS_031') {
+    if (n.line == null) return null;
+    const ctx = [d.route_short_name, d.route_long_name].filter(Boolean).join(' · ');
+    return t('producer.card.RTS_031.what_detail', { line: String(n.line), ctx: ctx ? ` („${ctx}“)` : '' });
+  }
   const routeId = routeIdOfNotice(n);
   if (!routeId) return null;
   const route = routeBadge(routeId, ni).label;
@@ -1143,6 +1156,24 @@ function rtsRuleText(n: Notice, result: ValidationResult): string | null {
       return value
         ? join(t((d.matched_field ?? '').includes('route_long_name') ? 'producer.card.RTS_023.what_long' : 'producer.card.RTS_023.what_short', { route, value }), use)
         : null;
+    case 'RTS_024':
+    case 'RTS_029':
+      return join(t(`producer.card.${n.rule_id}.what_detail`, { route, value: value || '—' }), use);
+    case 'RTS_025':
+      return join(t(d.agency_name ? 'producer.card.RTS_025.what_detail' : 'producer.card.RTS_025.what_plain', { route, agency: d.agency_name ?? '' }), use);
+    case 'RTS_026':
+    case 'RTS_027':
+      return d.conflicting_routes && value
+        ? t(`producer.card.${n.rule_id}.what_detail`, { name: value, n: localizedNumber(String(listOf(d.conflicting_routes).length)) })
+        : null;
+    case 'RTS_028':
+      return d.flex_trip_id && value
+        ? join(t(n.field === 'continuous_drop_off' ? 'producer.card.RTS_028.what_dropoff' : 'producer.card.RTS_028.what_pickup', { route, trip: tripShort(d.flex_trip_id, result, false), value }), use)
+        : null;
+    case 'RTS_030':
+      return value
+        ? join(t('producer.card.RTS_030.what_detail', { route, value, name: routeTypeName(value), base: routeTypeName(String(routeBaseType(value))) }), use)
+        : null;
     case 'RTS_010':
     case 'RTS_011':
       return d.name ? join(t(`producer.card.${n.rule_id}.what_detail`, { route, name: d.name, n: localizedNumber(value || String([...d.name].length)) }), use) : null;
@@ -1168,12 +1199,14 @@ function rtsTable(n: Notice, result: ValidationResult): string {
     return table(t('producer.times.rts016_services'), [t('producer.col.service_code'), t('producer.col.service')],
       listOf(d.services).map(id => ({ cells: [id, serviceText(id, result)], bad: true })));
   }
-  if (n.rule_id === 'RTS_019' && d.route_0_route_id) {
+  if (['RTS_019', 'RTS_026', 'RTS_027'].includes(n.rule_id) && d.route_0_route_id) {
+    const ni = result.name_index;
     const rows = [];
     for (let i = 0; d[`route_${i}_route_id`]; i++) {
-      rows.push({ cells: [d[`route_${i}_route_id`]!, localizedNumber(d[`route_${i}_trips`] || '0'), tripShort(d[`route_${i}_example_trip_id`], result, false)], bad: true });
+      const id = d[`route_${i}_route_id`]!;
+      rows.push({ cells: [id, ni.routes?.[id] || '—', ni.route_long_names?.[id] || '—', localizedNumber(d[`route_${i}_trips`] || '0'), tripShort(d[`route_${i}_example_trip_id`], result, false)], bad: true });
     }
-    return table(t('producer.times.rts019_routes'), [t('producer.times.rts_record_code'), t('producer.times.trip_count'), t('producer.times.example_trip')], rows);
+    return table(t(n.rule_id === 'RTS_026' ? 'producer.times.rts026_routes' : 'producer.times.rts019_routes'), [t('producer.times.rts_record_code'), t('producer.times.rts_short'), t('producer.col.route_name'), t('producer.times.trip_count'), t('producer.times.example_trip')], rows);
   }
   if (n.rule_id === 'RTS_002' && d.known_agencies) {
     return table(t('producer.times.rts002_agencies'), [t('producer.times.rts_agency_code'), t('producer.times.stp_name')],
@@ -2554,7 +2587,8 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
     }
     case 'RTS_001': case 'RTS_002': case 'RTS_003': case 'RTS_004': case 'RTS_005': case 'RTS_006': case 'RTS_007':
     case 'RTS_008': case 'RTS_010': case 'RTS_011': case 'RTS_012': case 'RTS_013': case 'RTS_016': case 'RTS_017':
-    case 'RTS_018': case 'RTS_019': case 'RTS_020': case 'RTS_021': case 'RTS_022': case 'RTS_023': {
+    case 'RTS_018': case 'RTS_019': case 'RTS_020': case 'RTS_021': case 'RTS_022': case 'RTS_023': case 'RTS_024':
+    case 'RTS_025': case 'RTS_026': case 'RTS_027': case 'RTS_028': case 'RTS_029': case 'RTS_030': case 'RTS_031': {
       const what = rtsRuleText(n, result);
       if (!what) return null;
       const mapText = dqTripMapText(dqExampleTrip(n, result.name_index), result);
@@ -2915,7 +2949,8 @@ function dqIndexKey<T>(map: Record<string, T> | undefined, key?: string): string
 
 /** Route findings whose cards draw the route's lines and an example trip with numbered stops. */
 const RTS_CONTEXT_RULES = new Set(['RTS_001', 'RTS_002', 'RTS_003', 'RTS_004', 'RTS_005', 'RTS_006', 'RTS_007', 'RTS_008', 'RTS_010', 'RTS_011',
-  'RTS_012', 'RTS_013', 'RTS_016', 'RTS_017', 'RTS_018', 'RTS_019', 'RTS_020', 'RTS_021', 'RTS_022', 'RTS_023']);
+  'RTS_012', 'RTS_013', 'RTS_016', 'RTS_017', 'RTS_018', 'RTS_019', 'RTS_020', 'RTS_021', 'RTS_022', 'RTS_023',
+  'RTS_024', 'RTS_025', 'RTS_026', 'RTS_027', 'RTS_028', 'RTS_029', 'RTS_030']);
 
 /** Shape findings whose cards draw the shape with its routes, an example trip and the faulty spot. */
 const SHP_CONTEXT_RULES = new Set(['SHP_001', 'SHP_002', 'SHP_003', 'SHP_004', 'SHP_005', 'SHP_006', 'SHP_008', 'SHP_009', 'SHP_010', 'SHP_012',
@@ -2952,6 +2987,7 @@ function dqExampleTrip(n: Notice, ni: ValidationResult['name_index']): string | 
     case 'RTS_001': case 'RTS_002': case 'RTS_003': case 'RTS_004': case 'RTS_005':
     case 'RTS_006': case 'RTS_007': case 'RTS_008': case 'RTS_010': case 'RTS_011': case 'RTS_013': case 'RTS_016':
     case 'RTS_017': case 'RTS_018': case 'RTS_019': case 'RTS_020': case 'RTS_021': case 'RTS_022': case 'RTS_023':
+    case 'RTS_024': case 'RTS_025': case 'RTS_026': case 'RTS_027': case 'RTS_028': case 'RTS_029': case 'RTS_030':
       return n.entity_type === 'Route' ? dqIndexKey(ni.trip_stops, d.example_trip_id) ?? routeExampleTrip(ni, routeIdOfNotice(n)) : undefined;
     case 'DQ_018':
     case 'DQ_019':
@@ -4153,7 +4189,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
       : n.rule_id === 'DQ_020' ? { ...n.details, ...(last ? { stop_id: last } : {}) }
         : n.details;
     const map = plannerMap({ ...n, entity_type: 'Trip', entity_id: dqTrip, details }, result);
-    if (CAL_USAGE_RULES.has(n.rule_id) || n.rule_id === 'RTS_019') addCalendarRoutes(map, n, result, dqTrip);
+    if (CAL_USAGE_RULES.has(n.rule_id) || ['RTS_019', 'RTS_026', 'RTS_027'].includes(n.rule_id)) addCalendarRoutes(map, n, result, dqTrip);
     // RTS: the route's other lines (its other directions and variants) in its colour.
     if (RTS_CONTEXT_RULES.has(n.rule_id)) {
       const ni = result.name_index;

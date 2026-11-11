@@ -2443,10 +2443,11 @@ pub fn aggregate_feed_level_notices(
 }
 
 /// Route findings whose planner card names the route's trips and draws an example trip.
-const ROUTE_CONTEXT_RULES: [&str; 19] = [
+const ROUTE_CONTEXT_RULES: [&str; 26] = [
     "RTS_001", "RTS_002", "RTS_003", "RTS_004", "RTS_005", "RTS_006", "RTS_007", "RTS_008",
     "RTS_010", "RTS_011", "RTS_013", "RTS_016", "RTS_017", "RTS_018", "RTS_019", "RTS_020",
-    "RTS_021", "RTS_022", "RTS_023",
+    "RTS_021", "RTS_022", "RTS_023", "RTS_024", "RTS_025", "RTS_026", "RTS_027", "RTS_028",
+    "RTS_029", "RTS_030",
 ];
 
 /// Planner context for route findings: how many trips the route has (`trip_count`) and an

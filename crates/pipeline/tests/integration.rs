@@ -8781,3 +8781,57 @@ fn more_route_findings_carry_planner_context() {
     }
     assert!(find(&vr, "RTS_017").get("trip_count").is_some());
 }
+
+#[test]
+fn last_route_findings_carry_planner_context() {
+    // RTS_025 the feed's one agency, RTS_026/027 each route of the group, RTS_031 the code-less
+    // row's number and name, and the trip context. Counts are unchanged.
+    let find = |vr: &gtfs_pipeline::ValidationResult, rule: &str| {
+        vr.notices
+            .iter()
+            .find(|n| n.rule_id == rule)
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor"))
+    };
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+
+    static ROUTES: &[u8] =
+        b"route_id,agency_id,route_short_name,route_long_name,route_type,route_sort_order,cemv_support\n\
+          R1,,10,First,3,,\nA1,1,20,Alpha,3,,\nA2,1,20,Beta,3,,\nB1,1,31,Same Long,3,,\nB2,1,32,Same Long,3,,\n\
+          R3,1,40,Bad Sort,3,-1,\nR4,1,50,Bad Cemv,3,,9\nR5,1,60,Extended,700,,\n,1,70,Nameless Row,3,,\n";
+    let ids = ["R1", "A1", "A2", "B1", "B2", "R3", "R4", "R5"];
+    let mut trips = String::from("route_id,service_id,trip_id\n");
+    let mut times = String::from("trip_id,arrival_time,departure_time,stop_id,stop_sequence\n");
+    for r in ids {
+        trips += &format!("{r},SVC1,T{r}\n");
+        times += &format!("T{r},08:00:00,08:00:00,S1,1\nT{r},08:05:00,08:05:00,S2,2\n");
+    }
+    let files: Vec<(&str, &[u8])> = vec![
+        ("agency.txt", AGENCY),
+        ("stops.txt", STOPS),
+        ("routes.txt", ROUTES),
+        ("trips.txt", trips.as_bytes()),
+        ("stop_times.txt", times.as_bytes()),
+        ("calendar.txt", CALENDAR),
+    ];
+    let vr = match run(&files) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+
+    let d = find(&vr, "RTS_025");
+    assert_eq!(get(&d, "agency_name").as_deref(), Some("Test"));
+    assert_eq!(get(&d, "example_trip_id").as_deref(), Some("TR1"));
+    let d = find(&vr, "RTS_026");
+    assert_eq!(get(&d, "route_1_route_id").as_deref(), Some("A2"));
+    assert_eq!(get(&d, "route_1_trips").as_deref(), Some("1"));
+    let d = find(&vr, "RTS_027");
+    assert_eq!(get(&d, "route_0_example_trip_id").as_deref(), Some("TB1"));
+    let d = find(&vr, "RTS_031");
+    assert_eq!(get(&d, "route_short_name").as_deref(), Some("70"));
+    assert_eq!(get(&d, "route_long_name").as_deref(), Some("Nameless Row"));
+    for (rule, trip) in [("RTS_024", "TR4"), ("RTS_029", "TR3"), ("RTS_030", "TR5")] {
+        let d = find(&vr, rule);
+        assert_eq!(get(&d, "example_trip_id").as_deref(), Some(trip), "{rule}");
+    }
+}

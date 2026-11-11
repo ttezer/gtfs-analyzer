@@ -1474,7 +1474,7 @@ fn check_routes(
                 None
             };
             if let Some((field, value)) = bad {
-                notices.push(notice(
+                let mut n028 = notice(
                     ctr,
                     "RTS_028",
                     EntityType::Route,
@@ -1490,7 +1490,12 @@ fn check_routes(
                         rec.route_id, sample_trip
                     ),
                     "Flex (talep-üzerine) pencereli rotalarda continuous_pickup/continuous_drop_off alanını 1 yapın veya boş bırakın.",
-                ));
+                );
+                // Planner context: the on-demand trip found on the route.
+                n028.details
+                    .get_or_insert_with(Default::default)
+                    .insert("flex_trip_id".to_string(), sample_trip.to_string());
+                notices.push(n028);
             }
         }
     }

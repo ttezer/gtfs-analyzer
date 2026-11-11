@@ -71,7 +71,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         // `RTS_001` measures DUPLICATION, and a missing identity cannot be duplicated,
         // so the empty value fell between the two rules (#153, 4 feeds in the corpus).
         if route_id.trim().is_empty() {
-            notices.push(make_k2_notice(
+            let mut n031 = make_k2_notice(
                 &mut counter,
                 "RTS_031",
                 EntityType::Route,
@@ -84,7 +84,15 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                 None,
                 "route_id zorunludur.".to_string(),
                 "routes.txt'teki her satıra benzersiz bir route_id yazın.",
-            ));
+            );
+            // Planner context: the code-less row's number and name.
+            let details = n031.details.get_or_insert_with(Default::default);
+            for field in ["route_short_name", "route_long_name"] {
+                if let Some(value) = get_trimmed_field(&row_map, field).filter(|v| !v.is_empty()) {
+                    details.insert(field.to_string(), value.to_string());
+                }
+            }
+            notices.push(n031);
         }
 
         let agency_id = get_raw_field(&row_map, "agency_id")
