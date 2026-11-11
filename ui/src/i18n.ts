@@ -1,5 +1,5 @@
 import type { Severity, RuleClass, FatalCode, FatalError } from './types';
-import tr from './locales/tr';
+import tr, { trRemediationTexts } from './locales/tr';
 import en from './locales/en';
 import ja from './locales/ja';
 import fr from './locales/fr';
@@ -156,6 +156,9 @@ export function tRemediationForLocale(locale: Locale, n: { rule_id: string; reme
     const profile = n.details?.jp_profile?.toLowerCase();
     const variant = n.details?.message_variant;
     const own = LOCALES.tr.ruleRemediations;
+    // A rule whose branches give different remediations is matched by the engine's own text.
+    const byText = trRemediationTexts[n.rule_id]?.[n.remediation ?? ''];
+    if (byText !== undefined) return byText;
     return (variant ? own[profile ? `${n.rule_id}.${profile}.${variant}` : `${n.rule_id}.${variant}`] : undefined)
       ?? (profile ? own[`${n.rule_id}.${profile}`] : undefined)
       ?? own[n.rule_id]

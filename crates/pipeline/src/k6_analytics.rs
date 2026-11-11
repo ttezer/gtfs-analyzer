@@ -2521,7 +2521,7 @@ fn check_speed_and_duration<'a>(
                             format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arası geçiş süresi sıfır ama mesafe {dist_km:.1} km — aynı dakika içinde kapatılamaz (≥ {:.0} km/h gerekirdi, eşik {threshold:.0} km/h).",
                                 a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0),
                                 dist_km * 60.0),
-                            "Verify stop_times.txt time values; two stops cannot be that far apart within the same minute.",
+                            "Check the stop_times.txt times; two stops share the same minute but are too far apart to be covered in one minute.",
                         );
                             let mut details = stm012_details(
                                 idx.stop_id_of(a),
@@ -2536,7 +2536,7 @@ fn check_speed_and_duration<'a>(
                             );
                             add_stm012_stop_context(&mut details, idx, stimes, i, i + 1);
                             n012.details = Some(details.into());
-                            notices.push(n012.with_message_variant("zero_time"));
+                            notices.push(n012);
                             // As with a zero-time interval containing untimed intermediate stops:
                             // OPR_008 counts this segment too; the lower speed bound assumes a full minute elapsed.
                             let zero_speed = dist_km * 60.0;
@@ -2735,7 +2735,7 @@ fn check_speed_and_duration<'a>(
                     Some(format!("{hav_speed:.0} km/h")), Some("<= 700 km/h".to_string()),
                     format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arası hız {hav_speed:.0} km/h (kuş uçuşu alt sınır) — fiziksel olarak imkansız.",
                         a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0)),
-                    "Verify stop_times.txt time values; two stops cannot be that far apart within the same minute.",
+                    "Check the stop_times.txt times and the stops.txt coordinates.",
                 );
                     let mut details = stm012_details(
                         idx.stop_id_of(a),
@@ -2750,7 +2750,7 @@ fn check_speed_and_duration<'a>(
                     );
                     add_stm012_stop_context(&mut details, idx, stimes, i, i + 1);
                     n012.details = Some(details.into());
-                    notices.push(n012.with_message_variant("speed"));
+                    notices.push(n012);
                     // OPR_008 counts this segment too and must see its speed and stop pair;
                     // otherwise a trip containing only an STM_012 segment would print "maximum speed 0.0".
                     if hav_speed > trip_max_speed {
@@ -2887,7 +2887,7 @@ fn check_speed_and_duration<'a>(
                         "stop_times.txt", Some(b.line as u64), Some("arrival_time"),
                         Some(observed.clone()), Some("<= 700 km/h".to_string()),
                         format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {seq_a}-{seq_b} arası (aradaki duraklar saatsiz) {observed} — fiziksel olarak imkansız."),
-                        "Verify stop_times.txt time values; two stops cannot be that far apart within the same minute.",
+                        "Check the stop_times.txt times and the stops.txt coordinates.",
                     );
                     let mut details = stm012_details(
                         idx.stop_id_of(a),
@@ -2902,7 +2902,7 @@ fn check_speed_and_duration<'a>(
                     );
                     add_stm012_stop_context(&mut details, idx, stimes, p, j);
                     n012.details = Some(details.into());
-                    notices.push(n012.with_message_variant("speed"));
+                    notices.push(n012);
                     if impossible_speed > trip_max_speed {
                         trip_max_speed = impossible_speed;
                         trip_max_speed_line = Some(b.line as u64);
@@ -7658,7 +7658,7 @@ fn check_data_quality(
                 None,
                 format!("stop_id '{dup_id}' stops.txt'de birden fazla kez tanımlanmış."),
                 "Use unique stop_id values in stops.txt.",
-            ).with_message_variant("stops"));
+            ));
         }
         if stops_usable {
             dup_lines(
@@ -7688,8 +7688,8 @@ fn check_data_quality(
                 Some(dup_id.clone()),
                 None,
                 format!("route_id '{dup_id}' routes.txt'de birden fazla kez tanımlanmış."),
-                "Use unique stop_id values in stops.txt.",
-            ).with_message_variant("routes"));
+                "Use unique route_id values in routes.txt.",
+            ));
         }
         if routes_usable {
             dup_lines(
@@ -7719,8 +7719,8 @@ fn check_data_quality(
                 Some(dup_id.clone()),
                 None,
                 format!("trip_id '{dup_id}' trips.txt'de birden fazla kez tanımlanmış."),
-                "Use unique stop_id values in stops.txt.",
-            ).with_message_variant("trips"));
+                "Use unique trip_id values in trips.txt.",
+            ));
         }
         if trips_usable {
             dup_lines(
@@ -7754,8 +7754,8 @@ fn check_data_quality(
                 format!(
                     "attribution_id '{dup_id}' attributions.txt'de birden fazla kez tanımlanmış."
                 ),
-                "Use unique stop_id values in stops.txt.",
-            ).with_message_variant("attributions"));
+                "Use unique attribution_id values in attributions.txt.",
+            ));
         }
         // route_networks.txt (route_id) — spec primary key and explicit rule:
         // "A route_id can only be defined in one network_id." If the same route is in two networks,
@@ -7772,7 +7772,7 @@ fn check_data_quality(
                 Some(dup_id.clone()), Some(dup_id.clone()),
                 "route_networks.txt", None, Some("route_id"), Some(dup_id.clone()), None,
                 format!("route_id '{dup_id}' route_networks.txt'de birden fazla kez tanımlanmış — bir hat yalnız bir ağa ait olabilir."),
-                "Use unique stop_id values in stops.txt.").with_message_variant("route_networks"));
+                "Link each route to only one network_id."));
         }
 
         // ── COMPOSITE primary keys ───────────────────────────────────────────
@@ -7833,7 +7833,7 @@ fn check_data_quality(
                 "fare_leg_rules.txt", None, Some("network_id|from_area_id|to_area_id|from_timeframe_group_id|to_timeframe_group_id|fare_product_id"),
                 Some(dup.clone()), None,
                 format!("fare_leg_rules.txt'de birincil anahtar yineleniyor: ({dup})."),
-                "Use unique stop_id values in stops.txt.").with_message_variant("fare_leg_rules"));
+                "Make the composite primary key (network_id, from_area_id, to_area_id, from_timeframe_group_id, to_timeframe_group_id, fare_product_id) unique on every row."));
         }
 
         // fare_leg_join_rules.txt — the spec primary key is all FOUR fields. A blank value is
@@ -7858,7 +7858,7 @@ fn check_data_quality(
                 Some("from_network_id|to_network_id|from_stop_id|to_stop_id"),
                 Some(dup.clone()), None,
                 format!("fare_leg_join_rules.txt'de birincil anahtar yineleniyor: ({dup})."),
-                "Use unique stop_id values in stops.txt.").with_message_variant("fare_leg_join_rules"));
+                "Make the composite primary key (from_network_id, to_network_id, from_stop_id, to_stop_id) unique on every row."));
         }
 
         for dup in composite_dups(
@@ -7881,7 +7881,7 @@ fn check_data_quality(
                 "fare_transfer_rules.txt", None, Some("from_leg_group_id|to_leg_group_id|fare_product_id|transfer_count|duration_limit"),
                 Some(dup.clone()), None,
                 format!("fare_transfer_rules.txt'de birincil anahtar yineleniyor: ({dup})."),
-                "Use unique stop_id values in stops.txt.").with_message_variant("fare_transfer_rules"));
+                "Make the composite primary key (from_leg_group_id, to_leg_group_id, fare_product_id, transfer_count, duration_limit) unique on every row."));
         }
 
         for dup_id in find_dups(
@@ -7896,7 +7896,7 @@ fn check_data_quality(
                 Some(dup_id.clone()), Some(dup_id.clone()),
                 "location_groups.txt", None, Some("location_group_id"), Some(dup_id.clone()), None,
                 format!("location_group_id '{dup_id}' location_groups.txt'de birden fazla kez tanımlanmış."),
-                "Use unique stop_id values in stops.txt.").with_message_variant("location_groups"));
+                "Use unique location_group_id values in location_groups.txt."));
         }
 
         for dup in composite_dups(
@@ -7911,7 +7911,7 @@ fn check_data_quality(
                 "location_group_stops.txt", None, Some("location_group_id|stop_id"),
                 Some(dup.clone()), None,
                 format!("location_group_stops.txt'de aynı satır yineleniyor: ({dup})."),
-                "Use unique stop_id values in stops.txt.").with_message_variant("location_group_stops"));
+                "Each (location_group_id, stop_id) pair must appear only once in location_group_stops.txt."));
         }
 
         // stop_areas.txt (*) and fare_rules.txt (*) — the spec defines the primary key as ALL
@@ -7937,8 +7937,8 @@ fn check_data_quality(
                 Some(dup.clone()),
                 None,
                 format!("stop_areas.txt'de aynı satır yineleniyor: ({dup})."),
-                "Use unique stop_id values in stops.txt.",
-            ).with_message_variant("stop_areas"));
+                "Each (area_id, stop_id) pair must appear only once in stop_areas.txt.",
+            ));
         }
 
         for dup in composite_dups(
@@ -7961,7 +7961,7 @@ fn check_data_quality(
                 "fare_rules.txt", None, Some("fare_id|route_id|origin_id|destination_id|contains_id"),
                 Some(dup.clone()), None,
                 format!("fare_rules.txt'de birincil anahtar yineleniyor: ({dup})."),
-                "Use unique stop_id values in stops.txt.").with_message_variant("fare_rules"));
+                "Do not write the same fare rule twice; a repeated row is counted twice in fare matching."));
         }
 
         // calendar_dates.txt (service_id, date) — ⚠️ THERE IS NO RECORD Vec HERE. The file is
@@ -8052,7 +8052,7 @@ fn check_data_quality(
                         "service_id '{sid}' için {} tarih calendar_dates.txt'te birden fazla kez yazılmış.{conflict_note}",
                         dates.len()
                     ),
-                    "Use unique stop_id values in stops.txt.").with_message_variant("calendar_dates"));
+                    "Each (service_id, date) pair must appear only once in calendar_dates.txt."));
             }
         }
     }
@@ -8103,7 +8103,7 @@ fn check_data_quality(
                 "Feed'de shapes.txt ve feed_info.txt dosyaları yok — her ikisi de önerilir."
                     .to_string(),
                 "Add shapes.txt for route geometry and feed_info.txt for publisher information.",
-            ).with_message_variant("both_missing"));
+            ));
         } else if missing_shapes {
             notices.push(k6_notice(
                 ctr,
@@ -8117,8 +8117,8 @@ fn check_data_quality(
                 None,
                 None,
                 "Feed'de shapes.txt dosyası yok — güzergah geometrisi için önerilir.".to_string(),
-                "Add shapes.txt for route geometry and feed_info.txt for publisher information.",
-            ).with_message_variant("shapes_missing"));
+                "Create shapes.txt to add route geometry.",
+            ));
         } else if missing_feed_info {
             notices.push(k6_notice(
                 ctr,
@@ -8133,8 +8133,8 @@ fn check_data_quality(
                 None,
                 "Feed'de feed_info.txt dosyası yok — yayıncı ve geçerlilik bilgisi için önerilir."
                     .to_string(),
-                "Add shapes.txt for route geometry and feed_info.txt for publisher information.",
-            ).with_message_variant("feed_info_missing"));
+                "Create feed_info.txt to describe the publisher.",
+            ));
         }
     }
 }
@@ -8532,7 +8532,7 @@ fn check_remaining_analytics<'a>(
                 Some(n.to_string()),
                 None,
                 format!("Feed genelinde shape_dist_traveled hiç kullanılmamış: {n_shapes} güzergaha ait {n} sefer etkileniyor — durak konumları güzergah üzerinde doğrulanamıyor."),
-                "Add shape_dist_traveled to all stop_times rows or remove it from all of them.",
+                "Add shape_dist_traveled to every stop_times row, or provide distance data per shape.",
             );
             let mut details = gtfs_core::NoticeDetails::new();
             details.insert("summary_mode".to_string(), "feed".to_string());
@@ -8552,7 +8552,7 @@ fn check_remaining_analytics<'a>(
                 add_stm017_trip_details(&mut details, idx, trip_id, &prefix);
             }
             notice.details = Some(details);
-            notices.push(notice.with_message_variant("absent_feedwide"));
+            notices.push(notice);
         } else {
             for (trip_id, line) in flagged {
                 let route = trip_to_route_rem.get(trip_id).copied().unwrap_or(trip_id);
@@ -8577,7 +8577,7 @@ fn check_remaining_analytics<'a>(
                     None,
                     None,
                     format!("'{}' hattının{dep_infix} seferinde güzergah mesafe bilgisi (shape_dist_traveled) eksik — durak konumları doğrulanamıyor.", route),
-                    "Add shape_dist_traveled to all stop_times rows or remove it from all of them.",
+                    "Add shape_dist_traveled to every stop_times row, or remove it from all of them.",
                 );
                 if let Some(service_id) =
                     trip_to_service_rem.get(trip_id).filter(|id| !id.is_empty())
@@ -8591,7 +8591,7 @@ fn check_remaining_analytics<'a>(
                 }
                 add_stm017_trip_details(&mut details, idx, trip_id, "");
                 notice.details = Some(details);
-                notices.push(notice.with_message_variant("partial"));
+                notices.push(notice);
             }
         }
     }
@@ -10315,14 +10315,14 @@ fn check_remaining_analytics<'a>(
                     "{prefix}'{}' güzergah şeklinin başlangıç noktası, en yakın seferin ilk durağı '{}' (kod: '{}') konumundan {dist_m:.0}m uzakta.",
                     shape_id, sname, stop_id
                 ),
-                "No action is needed if this endpoint extension is intentional; otherwise verify the shape endpoint and terminal stop.",
+                "If this extension is intentional no action is needed; otherwise check the shape start and the first stop.",
             );
             let mut d = std::collections::BTreeMap::new();
             d.insert("problem_stop".to_string(), stop_id.clone());
             d.insert("endpoint".to_string(), "start".to_string());
             d.insert("trip_id".to_string(), trip_id.clone());
                 n.details = Some(d.into());
-            notices.push(n.with_message_variant("start"));
+            notices.push(n);
         }
 
         let mut end_ids: Vec<&str> = end_agg.keys().copied().collect();
@@ -10354,14 +10354,14 @@ fn check_remaining_analytics<'a>(
                     "{prefix}'{}' güzergah şeklinin bitiş noktası, en yakın seferin son durağı '{}' (kod: '{}') konumundan {dist_m:.0}m uzakta.",
                     shape_id, sname, stop_id
                 ),
-                "No action is needed if this endpoint extension is intentional; otherwise verify the shape endpoint and terminal stop.",
+                "If this extension is intentional no action is needed; otherwise check the shape end and the last stop.",
             );
             let mut d = std::collections::BTreeMap::new();
             d.insert("problem_stop".to_string(), stop_id.clone());
             d.insert("endpoint".to_string(), "end".to_string());
             d.insert("trip_id".to_string(), trip_id.clone());
                 n.details = Some(d.into());
-            notices.push(n.with_message_variant("end"));
+            notices.push(n);
         }
     }
 
@@ -10611,8 +10611,8 @@ fn check_remaining_analytics<'a>(
                         "'{}' durağının adı tamamen büyük harf: '{name}'.",
                         stop.stop_id
                     ),
-                    "Write the stop name with proper capitalization (e.g., 'Central Station').",
-                ).with_message_variant("stop_name"));
+                    "Write the stop name in proper case (e.g. 'Central Station').",
+                ));
             }
         }
 
@@ -10642,8 +10642,8 @@ fn check_remaining_analytics<'a>(
                         "'{}' hattının uzun adı tamamen büyük harf: '{name}'.",
                         label
                     ),
-                    "Write the stop name with proper capitalization (e.g., 'Central Station').",
-                ).with_message_variant("route_name"));
+                    "Write the route name in proper case.",
+                ));
             }
         }
 
@@ -10673,8 +10673,8 @@ fn check_remaining_analytics<'a>(
                         "'{}' hattının açıklaması tamamen büyük harf: '{desc}'.",
                         label
                     ),
-                    "Write the stop name with proper capitalization (e.g., 'Central Station').",
-                ).with_message_variant("route_desc"));
+                    "Write the route description in proper case.",
+                ));
             }
         }
 
@@ -10699,8 +10699,8 @@ fn check_remaining_analytics<'a>(
                         "'{}' seferinin yön adı tamamen büyük harf: '{hs}'.",
                         trip.trip_id
                     ),
-                    "Write the stop name with proper capitalization (e.g., 'Central Station').",
-                ).with_message_variant("headsign"));
+                    "Write the headsign in proper case.",
+                ));
             }
         }
 
@@ -10719,8 +10719,8 @@ fn check_remaining_analytics<'a>(
                 Some(s.clone()),
                 None,
                 format!("stop_headsign değeri tamamen büyük harf: '{s}'."),
-                "Write the stop name with proper capitalization (e.g., 'Central Station').",
-            ).with_message_variant("headsign");
+                "Write the headsign in proper case.",
+            );
             headsign_row_details(&mut n, sample);
             notices.push(n);
         }
@@ -10750,8 +10750,8 @@ fn check_remaining_analytics<'a>(
                         "'{}' durağının adı tamamen küçük harf: '{name}'.",
                         stop.stop_id
                     ),
-                    "Capitalize the stop name (e.g., 'Central Station').",
-                ).with_message_variant("stop_name"));
+                    "Write the stop name in title case (e.g. 'Central Station').",
+                ));
             }
         }
         for route in &records.routes {
@@ -10774,8 +10774,8 @@ fn check_remaining_analytics<'a>(
                         "'{}' hattının uzun adı tamamen küçük harf: '{name}'.",
                         route.route_id
                     ),
-                    "Capitalize the stop name (e.g., 'Central Station').",
-                ).with_message_variant("route_name"));
+                    "Write the route name in title case.",
+                ));
             }
         }
         for route in &records.routes {
@@ -10798,8 +10798,8 @@ fn check_remaining_analytics<'a>(
                         "'{}' hattının açıklaması tamamen küçük harf: '{desc}'.",
                         route.route_id
                     ),
-                    "Capitalize the stop name (e.g., 'Central Station').",
-                ).with_message_variant("route_desc"));
+                    "Write the route description in title case.",
+                ));
             }
         }
         for trip in &records.trips {
@@ -10822,8 +10822,8 @@ fn check_remaining_analytics<'a>(
                         "'{}' seferinin yön adı tamamen küçük harf: '{hs}'.",
                         trip.trip_id
                     ),
-                    "Capitalize the stop name (e.g., 'Central Station').",
-                ).with_message_variant("headsign"));
+                    "Write the headsign in title case.",
+                ));
             }
         }
 
@@ -10842,8 +10842,8 @@ fn check_remaining_analytics<'a>(
                 Some(s.clone()),
                 None,
                 format!("stop_headsign değeri tamamen küçük harf: '{s}'."),
-                "Capitalize the stop name (e.g., 'Central Station').",
-            ).with_message_variant("headsign");
+                "Write the headsign in title case.",
+            );
             headsign_row_details(&mut n, sample);
             notices.push(n);
         }
@@ -11072,8 +11072,8 @@ fn check_remaining_analytics<'a>(
                     "trips.txt", None, Some("wheelchair_accessible"),
                     None, None,
                     format!("'{label}' kodlu hatta bazı seferler tekerlekli sandalye erişimli (1), bazıları erişimsiz (2) olarak işaretlenmiş."),
-                    "Make wheelchair accessibility consistent across all trips on the same route.",
-                ).with_message_variant("wheelchair");
+                    "Make the accessibility information consistent across all trips of the route.",
+                );
                 notice
                     .details
                     .get_or_insert_with(Default::default)
@@ -11091,8 +11091,8 @@ fn check_remaining_analytics<'a>(
                     "trips.txt", None, Some("bikes_allowed"),
                     None, None,
                     format!("'{label}' kodlu hatta bazı seferler bisiklete izin veriyor (1), bazıları vermiyor (2)."),
-                    "Make wheelchair accessibility consistent across all trips on the same route.",
-                ).with_message_variant("bikes");
+                    "Make the bike policy consistent across all trips of the route.",
+                );
                 notice
                     .details
                     .get_or_insert_with(Default::default)
@@ -11321,8 +11321,8 @@ fn check_remaining_analytics<'a>(
                 format!(
                     "{prefix}'{shape_id}' güzergahında nokta {i} ile {j} neredeyse aynı konumda ({lat:.6},{lon:.6}) — tekrarlayan nokta.{repeat_suffix}"
                 ),
-                "Remove duplicate points from the route shape.",
-            ).with_message_variant("per_shape");
+                "Remove the repeated points from the shape.",
+            );
             // Planner context: where the point repeats and its two positions in the order.
             {
                 let d = n.details.get_or_insert_with(Default::default);
@@ -11367,7 +11367,7 @@ fn check_remaining_analytics<'a>(
                 "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
                 Some(n20.to_string()), None,
                 format!("{n20} güzergah şeklinde tekrarlayan (neredeyse özdeş) nokta var — üretici kaynaklı yoğun nokta gürültüsü."),
-                "Remove duplicate points from the route shape.",
+                "Remove repeated points in the shape generation process; individual shapes do not need to be checked one by one.",
             );
             let mut d = std::collections::BTreeMap::new();
             d.insert("affected_shapes".to_string(), n20.to_string());
@@ -11375,7 +11375,7 @@ fn check_remaining_analytics<'a>(
                 d.insert("example_shapes".to_string(), examples.join(", "));
             }
             notice.details = Some(d.into());
-            notices.push(notice.with_message_variant("feed_summary"));
+            notices.push(notice);
         } else {
             notices.append(&mut shp020_pending);
         }
@@ -11476,8 +11476,8 @@ fn check_remaining_analytics<'a>(
                     "{prefix}'{shape_id}' güzergah şekli segment {i}→{} ile segment {j}→{} arasında kendisiyle kesişiyor.{repeat_suffix}",
                     i+1, j+1
                 ),
-                "Fix intersecting segments in the route shape.",
-            ).with_message_variant("per_shape");
+                "Fix the self-crossing segments in the shape.",
+            );
             // The feed-summary branch writes `affected_shapes`/`example_shapes`; the single-item branch
             // carries the same keys so one template is populated in both branches.
             {
@@ -11520,7 +11520,7 @@ fn check_remaining_analytics<'a>(
                 "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
                 Some(n09.to_string()), None,
                 format!("{n09} güzergah şekli kendisiyle kesişiyor — çoğu kavşak/durak geometrisindeki yakın-segment mikro-kesişmedir."),
-                "Fix intersecting segments in the route shape.",
+                "Review the shape generation process; individual shapes do not need to be checked one by one.",
             );
             let mut d = std::collections::BTreeMap::new();
             d.insert("affected_shapes".to_string(), n09.to_string());
@@ -11528,7 +11528,7 @@ fn check_remaining_analytics<'a>(
                 d.insert("example_shapes".to_string(), examples.join(", "));
             }
             notice.details = Some(d.into());
-            notices.push(notice.with_message_variant("feed_summary"));
+            notices.push(notice);
         } else {
             notices.append(&mut shp009_pending);
         }
@@ -12851,8 +12851,8 @@ fn check_pathway_analytics(
                         format!(
                             "Platform '{platform}' (istasyon '{station_id}') pathway ağında tanımlanmış ama istasyonda location_type=2 entrance yok.",
                         ),
-                        "Add a station entrance (location_type=2) and complete pathway connections.",
-                    ).with_message_variant("no_entrance"));
+                        "Add a station entrance (location_type=2) and complete the pathway connections.",
+                    ));
                 }
             }
             continue;
@@ -12905,8 +12905,8 @@ fn check_pathway_analytics(
                     format!(
                         "Platform '{platform}' (istasyon '{station_id}') hiçbir entrance'tan (location_type=2) pathway graph üzerinden ulaşılamıyor.",
                     ),
-                    "Add a station entrance (location_type=2) and complete pathway connections.",
-                ).with_message_variant("unreachable_platform"));
+                    "Complete the pathway connections between an entrance and this platform.",
+                ));
             }
         }
 

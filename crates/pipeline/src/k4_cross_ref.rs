@@ -940,8 +940,8 @@ fn check_agencies(
                 "Feed'de {} işletici var; {routes_without_agency} hatta agency_id belirtilmemiş — hangi işleticinin çalıştırdığı belirlenemiyor.",
                 records.agencies.len()
             ),
-            "Fill in agency_id for all routes and fare records when multiple agencies are present.",
-        ).with_message_variant("routes"));
+            "When several agencies are defined, fill in agency_id on every route.",
+        ));
     }
 
     // AGN_011 applies the same provision to fare_attributes.txt: the spec defines both fields
@@ -973,8 +973,8 @@ fn check_agencies(
                 "Feed'de {} işletici var; {fares_without_agency} ücret kaydında agency_id belirtilmemiş — hangi işleticinin ücreti olduğu belirlenemiyor.",
                 records.agencies.len()
             ),
-            "Fill in agency_id for all routes and fare records when multiple agencies are present.",
-        ).with_message_variant("fare_attributes"));
+            "When several agencies are defined, fill in agency_id on every fare_attributes record.",
+        ));
     }
 }
 
@@ -2550,8 +2550,8 @@ fn check_transfers(
                             "from_trip_id '{fti}' route_id '{}' ile ilişkili, ancak from_route_id '{fri}' belirtilmiş.",
                             ti_trf.route_id(&records.trips[tidx])
                         ),
-                        "Set from_route_id to the route_id of the referenced from_trip_id.",
-                    ).with_message_variant("from_route"));
+                        "Match from_route_id to the route_id of the related trip.",
+                    ));
                 }
             }
         }
@@ -2567,8 +2567,8 @@ fn check_transfers(
                             "to_trip_id '{tti}' route_id '{}' ile ilişkili, ancak to_route_id '{tri}' belirtilmiş.",
                             ti_trf.route_id(&records.trips[tidx])
                         ),
-                        "Set from_route_id to the route_id of the referenced from_trip_id.",
-                    ).with_message_variant("to_route"));
+                        "Match to_route_id to the route_id of the related trip.",
+                    ));
                 }
             }
         }
@@ -2591,8 +2591,8 @@ fn check_transfers(
                         None, None, "transfers.txt", Some(rec.line), Some("from_stop_id"),
                         Some(fsid.to_string()), None,
                         format!("from_stop_id '{fsid}', from_trip_id '{fti}' seferinin stop_times kayıtlarında yer almıyor."),
-                        "Replace from_stop_id/to_stop_id with a stop that is actually served by the referenced trip.",
-                    ).with_message_variant("from_stop"));
+                        "Replace from_stop_id with a stop that from_trip_id actually serves.",
+                    ));
                 }
             }
         }
@@ -2613,8 +2613,8 @@ fn check_transfers(
                         None, None, "transfers.txt", Some(rec.line), Some("to_stop_id"),
                         Some(tsid.to_string()), None,
                         format!("to_stop_id '{tsid}', to_trip_id '{tti}' seferinin stop_times kayıtlarında yer almıyor."),
-                        "Replace from_stop_id/to_stop_id with a stop that is actually served by the referenced trip.",
-                    ).with_message_variant("to_stop"));
+                        "Replace to_stop_id with a stop that to_trip_id actually serves.",
+                    ));
                 }
             }
         }
@@ -3993,8 +3993,8 @@ fn check_translations(
                     "Çeviri dili '{}' feed_lang '{}' ile aynı — orijinal dilde çeviri gereksiz.",
                     rec.language, feed_lang
                 ),
-                "Add translations only for languages different from feed_lang.",
-            ).with_message_variant("per_row"));
+                "Add translations only for languages other than feed_lang.",
+            ));
         }
 
         // TRN_005/006 need a real translation identity. If a required header
@@ -4091,8 +4091,8 @@ fn check_translations(
             Some(n.to_string()),
             Some(format!("≠ {feed_lang}")),
             format!("Feed genelinde {n} çeviri satırı feed_lang ('{feed_lang}') ile aynı dilde — orijinal dilde çeviri gereksiz."),
-            "Add translations only for languages different from feed_lang.",
-        ).with_message_variant("feed_summary"));
+            "Remove translation rows in the feed_lang language from translations.txt.",
+        ));
     } else {
         notices.append(&mut trn007_pending);
     }
@@ -6457,8 +6457,8 @@ fn check_route_networks(
                 Some(String::new()),
                 None,
                 "route_networks.txt satırında network_id zorunludur.".to_string(),
-                "Use a network_id that is defined in networks.txt.",
-            ).with_message_variant("missing"));
+                "Enter a network_id defined in networks.txt.",
+            ));
         } else if !declared.contains(rec.network_id.as_str()) {
             notices.push(notice(
                 ctr,
@@ -6475,8 +6475,8 @@ fn check_route_networks(
                     "'{}' ağ kodu networks.txt'te tanımlı değil.",
                     rec.network_id
                 ),
-                "Use a network_id that is defined in networks.txt.",
-            ).with_message_variant("unknown"));
+                "Use a network_id defined in networks.txt.",
+            ));
         }
 
         // NET_003: route_id — Required + must be defined in routes.txt.
@@ -6493,8 +6493,8 @@ fn check_route_networks(
                 Some(String::new()),
                 None,
                 "route_networks.txt satırında route_id zorunludur.".to_string(),
-                "Use a route_id that is defined in routes.txt.",
-            ).with_message_variant("missing"));
+                "Enter a route_id defined in routes.txt.",
+            ));
         } else if !map.routes.contains_key(rec.route_id.as_str()) {
             notices.push(notice(
                 ctr,
@@ -6508,8 +6508,8 @@ fn check_route_networks(
                 Some(rec.route_id.clone()),
                 None,
                 format!("'{}' hattı routes.txt'te tanımlı değil.", rec.route_id),
-                "Use a route_id that is defined in routes.txt.",
-            ).with_message_variant("unknown"));
+                "Use a route_id defined in routes.txt.",
+            ));
         }
     }
 }

@@ -31,9 +31,14 @@ export function cardsOf(locale) {
 }
 
 /** Shape embedded by the CLI. Keep in sync with `crates/core/src/i18n.rs`. */
-function payloadOf(locale, cardsOnly, lang) {
+function payloadOf(locale, cardsOnly, lang, remediationTexts) {
   if (lang === 'tr') {
-    return { remediations: locale.ruleRemediations ?? {}, titles: locale.ruleTitles ?? {}, cards: cardsOf(locale) };
+    return {
+      remediations: locale.ruleRemediations ?? {},
+      remediation_texts: remediationTexts ?? {},
+      titles: locale.ruleTitles ?? {},
+      cards: cardsOf(locale),
+    };
   }
   if (cardsOnly) return { cards: cardsOf(locale) };
   return {
@@ -51,7 +56,7 @@ export function serialize(payload) {
 
 export async function loadPayload(lang) {
   const mod = await import(`../src/locales/${lang}.ts`);
-  return payloadOf(mod.default, CARD_ONLY_LANGS.includes(lang), lang);
+  return payloadOf(mod.default, CARD_ONLY_LANGS.includes(lang), lang, mod.trRemediationTexts);
 }
 
 const check = process.argv.includes('--check');

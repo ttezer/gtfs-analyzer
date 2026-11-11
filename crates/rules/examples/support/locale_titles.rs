@@ -18,7 +18,8 @@ pub fn parse_titles(ts: &str) -> BTreeMap<String, String> {
             }
             continue;
         }
-        if t == "}," || t == "}" {
+        // The block closes with `},`, `}` or `} as Record<string, string>,`.
+        if t.starts_with('}') {
             break;
         }
         // Line format: `'ID': 'title',` — but alignment may use two spaces (`':  '`)

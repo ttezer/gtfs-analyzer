@@ -403,12 +403,6 @@ fn aggregate_stm036(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     *notices = retained;
 }
 
-/// The branch (`details.message_variant`) a notice was emitted from, read before an
-/// aggregate rewrites its details.
-fn message_variant_of(notice: &gtfs_core::Notice) -> Option<String> {
-    notice.details.as_ref()?.get("message_variant").cloned()
-}
-
 /// DQ_021 emits one notice per duplicate key. Keep file context while
 /// reducing large feeds to one deterministic summary per affected file.
 fn aggregate_dq021(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
@@ -437,8 +431,6 @@ fn aggregate_dq021(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolv
     let mut aggregates = Vec::with_capacity(grouped.len());
     for (file, mut matches) in grouped {
         let mut aggregate = take_representative(&mut matches, resolver);
-        // The summary keeps the representative's remediation, so it keeps its branch too.
-        let variant = message_variant_of(&aggregate);
         // Key → file lines (from the per-key notices), read before the aggregate is rewritten.
         let key_lines: BTreeMap<String, String> = std::iter::once(&aggregate)
             .chain(matches.iter())
@@ -484,9 +476,6 @@ fn aggregate_dq021(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolv
             }
             details.into()
         });
-        if let Some(variant) = variant {
-            aggregate = aggregate.with_message_variant(&variant);
-        }
         aggregate.service_id = None;
         aggregate.whitespace_derived = matches.iter().all(|n| n.whitespace_derived)
             && aggregate.whitespace_derived;
@@ -1347,8 +1336,6 @@ fn aggregate_pth012(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.message = format!(
         "pathways.txt grafiğinde {affected_platforms} platform entrance üzerinden erişilemiyor."
     );
-    // The summary keeps the representative's remediation, so it keeps its branch too.
-    let variant = message_variant_of(&aggregate);
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
         details.insert("affected_platforms".to_string(), affected_platforms.to_string());
@@ -1357,9 +1344,6 @@ fn aggregate_pth012(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         }
         details.into()
     });
-    if let Some(variant) = variant {
-        aggregate = aggregate.with_message_variant(&variant);
-    }
     aggregate.service_id = None;
     aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
         && aggregate.whitespace_derived;

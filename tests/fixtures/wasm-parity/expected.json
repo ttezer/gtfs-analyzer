@@ -425,6 +425,24 @@
         "title": "File size (info)"
       },
       {
+        "details": null,
+        "entity_id": null,
+        "entity_type": "Feed",
+        "expected_value": null,
+        "field": null,
+        "file": "shapes.txt/feed_info.txt",
+        "line": null,
+        "message": "Recommended file 'shapes.txt/feed_info.txt' is missing (shapes.txt or feed_info.txt).",
+        "observed_value": null,
+        "remediation": "Add shapes.txt for route geometry and feed_info.txt for publisher information.",
+        "rule_class": "QUALITY",
+        "rule_id": "ARC_020",
+        "scope_key": null,
+        "service_id": null,
+        "severity": "LOW",
+        "title": "Recommended GTFS file missing (shapes.txt or feed_info.txt)"
+      },
+      {
         "details": {
           "affected_stops": "2",
           "example_stops": "S1, S2"
@@ -678,26 +696,6 @@
       },
       {
         "details": {
-          "message_variant": "both_missing"
-        },
-        "entity_id": null,
-        "entity_type": "Feed",
-        "expected_value": null,
-        "field": null,
-        "file": "shapes.txt/feed_info.txt",
-        "line": null,
-        "message": "Recommended file 'shapes.txt/feed_info.txt' is missing (shapes.txt or feed_info.txt).",
-        "observed_value": null,
-        "remediation": "Add shapes.txt for route geometry and feed_info.txt for publisher information.",
-        "rule_class": "QUALITY",
-        "rule_id": "ARC_020",
-        "scope_key": null,
-        "service_id": null,
-        "severity": "LOW",
-        "title": "Recommended GTFS file missing (shapes.txt or feed_info.txt)"
-      },
-      {
-        "details": {
           "route_label": "101",
           "services": "SVC1"
         },
@@ -941,6 +939,24 @@
           "title": "Feed validity dates (feed_start_date/feed_end_date) missing"
         },
         {
+          "details": null,
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": null,
+          "field": null,
+          "file": "shapes.txt",
+          "line": null,
+          "message": "Recommended file 'shapes.txt' is missing (shapes.txt or feed_info.txt).",
+          "observed_value": null,
+          "remediation": "Add shapes.txt for route geometry and feed_info.txt for publisher information.",
+          "rule_class": "QUALITY",
+          "rule_id": "ARC_020",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "LOW",
+          "title": "Recommended GTFS file missing (shapes.txt or feed_info.txt)"
+        },
+        {
           "details": {
             "agency_name": "Three",
             "agency_url": "http://three.example",
@@ -987,26 +1003,6 @@
           "service_id": null,
           "severity": "INFO",
           "title": "Agency not used by any route"
-        },
-        {
-          "details": {
-            "message_variant": "shapes_missing"
-          },
-          "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": null,
-          "field": null,
-          "file": "shapes.txt",
-          "line": null,
-          "message": "Recommended file 'shapes.txt' is missing (shapes.txt or feed_info.txt).",
-          "observed_value": null,
-          "remediation": "Add shapes.txt for route geometry and feed_info.txt for publisher information.",
-          "rule_class": "QUALITY",
-          "rule_id": "ARC_020",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "LOW",
-          "title": "Recommended GTFS file missing (shapes.txt or feed_info.txt)"
         }
       ],
       "agency_breakdown": {
@@ -1403,9 +1399,7 @@
           "title": "File size (info)"
         },
         {
-          "details": {
-            "message_variant": "both_missing"
-          },
+          "details": null,
           "entity_id": null,
           "entity_type": "Feed",
           "expected_value": null,
@@ -3195,8 +3189,7 @@
           "details": {
             "affected_duplicates": "1",
             "example_0_key": "A1",
-            "example_keys": "A1",
-            "message_variant": "attributions"
+            "example_keys": "A1"
           },
           "entity_id": "attributions.txt",
           "entity_type": "File",
@@ -3219,8 +3212,7 @@
             "affected_duplicates": "1",
             "example_0_key": "S1",
             "example_0_lines": "2, 3",
-            "example_keys": "S1",
-            "message_variant": "stops"
+            "example_keys": "S1"
           },
           "entity_id": "stops.txt",
           "entity_type": "File",
@@ -5439,8 +5431,7 @@
         {
           "details": {
             "affected_platforms": "1",
-            "example_platforms": "PLAT",
-            "message_variant": "no_entrance"
+            "example_platforms": "PLAT"
           },
           "entity_id": null,
           "entity_type": "Feed",
@@ -6067,6 +6058,24 @@
           "title": "Optional GTFS file present"
         },
         {
+          "details": null,
+          "entity_id": null,
+          "entity_type": "Feed",
+          "expected_value": null,
+          "field": null,
+          "file": "feed_info.txt",
+          "line": null,
+          "message": "Recommended file 'feed_info.txt' is missing (shapes.txt or feed_info.txt).",
+          "observed_value": null,
+          "remediation": "Add shapes.txt for route geometry and feed_info.txt for publisher information.",
+          "rule_class": "QUALITY",
+          "rule_id": "ARC_020",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "LOW",
+          "title": "Recommended GTFS file missing (shapes.txt or feed_info.txt)"
+        },
+        {
           "details": {
             "affected_shapes": "2",
             "example_0_dist": "5",
@@ -6204,26 +6213,6 @@
           "service_id": null,
           "severity": "MEDIUM",
           "title": "Shape has statistically too few points"
-        },
-        {
-          "details": {
-            "message_variant": "feed_info_missing"
-          },
-          "entity_id": null,
-          "entity_type": "Feed",
-          "expected_value": null,
-          "field": null,
-          "file": "feed_info.txt",
-          "line": null,
-          "message": "Recommended file 'feed_info.txt' is missing (shapes.txt or feed_info.txt).",
-          "observed_value": null,
-          "remediation": "Add shapes.txt for route geometry and feed_info.txt for publisher information.",
-          "rule_class": "QUALITY",
-          "rule_id": "ARC_020",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "LOW",
-          "title": "Recommended GTFS file missing (shapes.txt or feed_info.txt)"
         }
       ],
       "agency_breakdown": {
@@ -6547,9 +6536,7 @@
       "publishable": false,
       "removed": [
         {
-          "details": {
-            "message_variant": "both_missing"
-          },
+          "details": null,
           "entity_id": null,
           "entity_type": "Feed",
           "expected_value": null,
@@ -8884,7 +8871,6 @@
             "distance_km": "10840.0",
             "distance_meters": "10839965",
             "distance_method": "haversine",
-            "message_variant": "speed",
             "scheduled_gap_seconds": "600",
             "speed_kmh": "65039.8",
             "stop_a": "S1",
@@ -10611,6 +10597,24 @@
           "entity_id": null,
           "entity_type": "Transfer",
           "expected_value": null,
+          "field": "to_stop_id",
+          "file": "transfers.txt",
+          "line": 2,
+          "message": "Transfer: invalid (from_trip_id/to_trip_id, stop_id) pair.",
+          "observed_value": "S2",
+          "remediation": "Replace from_stop_id/to_stop_id with a stop that is actually served by the referenced trip.",
+          "rule_class": "INTEROP",
+          "rule_id": "XFL_021",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "HIGH",
+          "title": "Invalid (from_trip_id/to_trip_id, stop_id) pair in transfers"
+        },
+        {
+          "details": null,
+          "entity_id": null,
+          "entity_type": "Transfer",
+          "expected_value": null,
           "field": "to_trip_id",
           "file": "transfers.txt",
           "line": 2,
@@ -10838,26 +10842,6 @@
           "service_id": null,
           "severity": "INFO",
           "title": "Bicycle allowance (bikes_allowed) not specified"
-        },
-        {
-          "details": {
-            "message_variant": "to_stop"
-          },
-          "entity_id": null,
-          "entity_type": "Transfer",
-          "expected_value": null,
-          "field": "to_stop_id",
-          "file": "transfers.txt",
-          "line": 2,
-          "message": "Transfer: invalid (from_trip_id/to_trip_id, stop_id) pair.",
-          "observed_value": "S2",
-          "remediation": "Replace from_stop_id/to_stop_id with a stop that is actually served by the referenced trip.",
-          "rule_class": "INTEROP",
-          "rule_id": "XFL_021",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "HIGH",
-          "title": "Invalid (from_trip_id/to_trip_id, stop_id) pair in transfers"
         },
         {
           "details": {

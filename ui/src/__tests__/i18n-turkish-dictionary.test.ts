@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import tr from '../locales/tr';
+import tr, { trRemediationTexts } from '../locales/tr';
 import { tRemediationForLocale } from '../i18n';
 
 // Issue #201: the engine's source text moves to English step by step. Rules already moved
@@ -17,14 +17,16 @@ describe('Turkish remediation dictionary', () => {
     }
   });
 
-  it('picks the branch text by message_variant', () => {
-    const variants = Object.entries(tr.ruleRemediations).filter(([key]) => key.split('.').length === 2);
-    expect(variants.length).toBeGreaterThan(0);
-    for (const [key, text] of variants) {
-      const [ruleId, variant] = key.split('.');
-      expect(tRemediationForLocale('tr', {
-        rule_id: ruleId, remediation: 'English engine text', details: { message_variant: variant },
-      })).toBe(text);
+  it('matches a branch by the engine remediation text', () => {
+    const branches = Object.entries(trRemediationTexts)
+      .flatMap(([ruleId, byText]) => Object.entries(byText).map(([engine, text]) => ({ ruleId, engine, text })));
+    expect(branches.length).toBeGreaterThan(0);
+    for (const { ruleId, engine, text } of branches) {
+      expect(tRemediationForLocale('tr', { rule_id: ruleId, remediation: engine })).toBe(text);
+    }
+    // Every branch of one rule maps to its own Turkish text.
+    for (const byText of Object.values(trRemediationTexts)) {
+      expect(new Set(Object.values(byText)).size).toBe(Object.keys(byText).length);
     }
   });
 

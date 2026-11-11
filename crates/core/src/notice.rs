@@ -217,18 +217,6 @@ pub struct Notice {
     pub agency_distribution: Option<Box<crate::agency::AgencyDistribution>>,
 }
 
-impl Notice {
-    /// Tags which branch of a rule produced this notice (`details.message_variant`), so a
-    /// dictionary can hold one text per branch under `RULE.variant`. Languages without that
-    /// key fall back to the rule's own text.
-    pub fn with_message_variant(mut self, variant: &str) -> Self {
-        self.details
-            .get_or_insert_with(NoticeDetails::new)
-            .insert("message_variant", variant);
-        self
-    }
-}
-
 /// Reference object projecting a canonical Notice into a report view.
 /// The Notice is not cloned; it is referenced through `notice_id`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
