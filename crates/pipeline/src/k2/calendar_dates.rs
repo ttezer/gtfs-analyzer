@@ -250,7 +250,7 @@ pub fn validate_calendar_dates_with_limits(
                 Some(String::new()),
                 None,
                 "service_id zorunludur.".to_string(),
-                "service_id alanını doldurun.",
+                "Fill in the service_id field.",
             ));
         }
 
@@ -271,7 +271,7 @@ pub fn validate_calendar_dates_with_limits(
                         Some(String::new()),
                         Some("YYYYMMDD".to_string()),
                         "date zorunludur.".to_string(),
-                        "YYYYMMDD formatında tarihi girin.",
+                        "Enter the date in YYYYMMDD format.",
                     ));
                 }
                 // CLD_005: date outside 2000–2099
@@ -293,7 +293,7 @@ pub fn validate_calendar_dates_with_limits(
                                  makul yıl aralığı dışında.",
                                 service_id
                             ),
-                            "GTFS tarihleri 2000–2099 yılları arasında olmalıdır.",
+                            "GTFS dates must be between 2000 and 2099.",
                         ));
                     }
                 }
@@ -312,7 +312,7 @@ pub fn validate_calendar_dates_with_limits(
                     Some(date_raw.to_string()),
                     Some("YYYYMMDD".to_string()),
                     err,
-                    "YYYYMMDD formatında tarihi girin.",
+                    "Enter the date in YYYYMMDD format.",
                 ));
                 None
             }
@@ -532,7 +532,7 @@ pub fn validate_calendar_dates_with_limits(
                 Some(count.to_string()),
                 Some("≤ 60".to_string()),
                 format!("'{sid}' servisinin {count} istisna günü var; bu çok fazla olabilir."),
-                "Çok sayıda istisna yerine calendar.txt'te normal servis periyodu tanımlayın.",
+                "Define a regular service period in calendar.txt instead of using many exceptions.",
             ));
         }
     }

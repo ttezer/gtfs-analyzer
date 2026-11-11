@@ -54,7 +54,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
                             Some(v.to_string()),
                             Some("0–5".to_string()),
                             format!("transfer_type '{v}' geçersiz."),
-                            "transfer_type'ı geçerli bir GTFS enum değerine ayarlayın (0–5).",
+                            "Set transfer_type to a valid GTFS enum value (0–5).",
                         ));
                     }
                 }
@@ -73,7 +73,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
                     get_trimmed_field(&row_map, "transfer_type").map(str::to_string),
                     Some("0–5".to_string()),
                     err,
-                    "transfer_type'ı geçerli bir GTFS enum değerine ayarlayın (0–5).",
+                    "Set transfer_type to a valid GTFS enum value (0–5).",
                 ));
                 None
             }
@@ -99,7 +99,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
                 Some(String::new()),
                 None,
                 "from_stop_id zorunludur.".to_string(),
-                "Aktarma kaydına from_stop_id ekleyin.",
+                "Add from_stop_id to the transfer record.",
             ));
         }
 
@@ -117,7 +117,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
                 Some(String::new()),
                 None,
                 "to_stop_id zorunludur.".to_string(),
-                "Aktarma kaydına to_stop_id ekleyin.",
+                "Add to_stop_id to the transfer record.",
             ));
         }
 

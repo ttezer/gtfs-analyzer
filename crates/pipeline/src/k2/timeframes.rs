@@ -42,7 +42,7 @@ pub fn validate_timeframes(file: &RawFile) -> (Vec<TimeframeRecord>, Vec<gtfs_co
                 None,
                 Some("dolu".to_string()),
                 "timeframe_group_id zorunludur.".to_string(),
-                "Her zaman dilimi kaydı için bir timeframe_group_id girin.",
+                "Enter a timeframe_group_id for each timeframe record.",
             ));
         }
 
@@ -115,7 +115,7 @@ pub fn validate_timeframes(file: &RawFile) -> (Vec<TimeframeRecord>, Vec<gtfs_co
                 &file.name, Some(line), Some(missing), Some(String::new()),
                 Some("dolu".to_string()),
                 format!("{present} tanımlıyken {missing} da tanımlanmalıdır."),
-                "timeframes.txt'te start_time ve end_time alanlarını birlikte doldurun veya ikisini de boş bırakın.",
+                "Fill in start_time and end_time together in timeframes.txt, or leave both empty.",
             ));
         }
 
@@ -141,7 +141,7 @@ pub fn validate_timeframes(file: &RawFile) -> (Vec<TimeframeRecord>, Vec<gtfs_co
                     get_trimmed_field(&row_map, field).map(str::to_string),
                     Some("<= 24:00:00".to_string()),
                     format!("{field} değeri 24:00:00'dan büyük olamaz."),
-                    "timeframes.txt'te start_time/end_time değerlerini 24:00:00 ve altına indirin.",
+                    "Lower the start_time/end_time values in timeframes.txt to 24:00:00 or below.",
                 ));
             }
         }
@@ -163,7 +163,7 @@ pub fn validate_timeframes(file: &RawFile) -> (Vec<TimeframeRecord>, Vec<gtfs_co
                     get_trimmed_field(&row_map, "end_time").map(str::to_string),
                     Some("> start_time".to_string()),
                     "end_time, start_time'dan büyük olmalıdır.".to_string(),
-                    "end_time değerini start_time'dan sonraya ayarlayın.",
+                    "Set end_time to be after start_time.",
                 ));
             }
         }
@@ -207,7 +207,7 @@ pub fn validate_timeframes(file: &RawFile) -> (Vec<TimeframeRecord>, Vec<gtfs_co
                         "timeframe_group_id '{}' service_id '{}': {prev_st}–{prev_et}s ile {cur_st}s aralıkları örtüşüyor.",
                         group_id, service_id
                     ),
-                    "Aynı grup ve service_id içindeki zaman aralıklarının örtüşmediğinden emin olun.",
+                    "Ensure time intervals within the same group and service_id do not overlap.",
                 ));
             }
         }

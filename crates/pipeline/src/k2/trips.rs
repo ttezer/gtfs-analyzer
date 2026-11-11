@@ -469,7 +469,7 @@ pub fn validate_trips_with_limits(
                 Some(String::new()),
                 None,
                 "route_id zorunludur.".to_string(),
-                "Her sefere geçerli bir route_id atayın.",
+                "Assign a valid route_id to every trip.",
             );
             row_context(
                 &mut n,
@@ -499,7 +499,7 @@ pub fn validate_trips_with_limits(
                 Some(String::new()),
                 Some("(dolu)".to_string()),
                 "service_id zorunludur; boş bırakılan sefer hiçbir takvime bağlanmaz.".to_string(),
-                "Her sefere calendar.txt veya calendar_dates.txt'te tanımlı bir service_id atayın.",
+                "Assign every trip a service_id defined in calendar.txt or calendar_dates.txt.",
             );
             row_context(
                 &mut n,
@@ -543,7 +543,7 @@ pub fn validate_trips_with_limits(
                     "trip_short_name {} karakter; 20'yi aşmamalıdır.",
                     short_name_chars
                 ),
-                "trip_short_name'i kısaltın.",
+                "Shorten trip_short_name.",
             );
             // Planner context: the trip number as written.
             n.details
@@ -634,7 +634,7 @@ pub fn validate_trips_with_limits(
                             None, &file.name, Some(line), Some("wheelchair_accessible"),
                             Some(val.to_string()), Some("0, 1 or 2".to_string()),
                             "wheelchair_accessible 0, 1 veya 2 olmalıdır.".to_string(),
-                            "wheelchair_accessible değerini 0 (bilgi yok), 1 (erişilebilir) veya 2 (erişilemez) olarak ayarlayın.",
+                            "Set wheelchair_accessible to 0 (no info), 1 (accessible) or 2 (not accessible).",
                         ));
                     }
                 }
@@ -649,7 +649,7 @@ pub fn validate_trips_with_limits(
                     None, &file.name, Some(line), Some("wheelchair_accessible"),
                     Some(wc_raw.to_string()), Some("0, 1 or 2".to_string()),
                     format!("wheelchair_accessible '{}' sayı olarak okunamıyor.", wc_raw),
-                    "wheelchair_accessible değerini 0 (bilgi yok), 1 (erişilebilir) veya 2 (erişilemez) olarak ayarlayın.",
+                    "Set wheelchair_accessible to 0 (no info), 1 (accessible) or 2 (not accessible).",
                 ));
                 None
             }
@@ -666,7 +666,7 @@ pub fn validate_trips_with_limits(
                             None, &file.name, Some(line), Some("bikes_allowed"),
                             Some(val.to_string()), Some("0, 1 or 2".to_string()),
                             "bikes_allowed 0, 1 veya 2 olmalıdır.".to_string(),
-                            "bikes_allowed değerini 0 (bilgi yok), 1 (izinli) veya 2 (izinsiz) olarak ayarlayın.",
+                            "Set bikes_allowed to 0 (no info), 1 (allowed) or 2 (not allowed).",
                         ));
                     }
                 }
@@ -681,7 +681,7 @@ pub fn validate_trips_with_limits(
                     None, &file.name, Some(line), Some("bikes_allowed"),
                     Some(ba_raw.to_string()), Some("0, 1 or 2".to_string()),
                     format!("bikes_allowed '{}' sayı olarak okunamıyor.", ba_raw),
-                    "bikes_allowed değerini 0 (bilgi yok), 1 (izinli) veya 2 (izinsiz) olarak ayarlayın.",
+                    "Set bikes_allowed to 0 (no info), 1 (allowed) or 2 (not allowed).",
                 ));
                 None
             }
@@ -712,7 +712,7 @@ pub fn validate_trips_with_limits(
                             None, &file.name, Some(line), Some("cars_allowed"),
                             Some(val.to_string()), Some("0, 1 or 2".to_string()),
                             "cars_allowed 0, 1 veya 2 olmalıdır.".to_string(),
-                            "cars_allowed değerini 0 (bilgi yok), 1 (araç izinli) veya 2 (araç izinsiz) olarak ayarlayın.",
+                            "Set cars_allowed to 0 (no info), 1 (allowed) or 2 (not allowed).",
                         ));
                     }
                 }
@@ -724,7 +724,7 @@ pub fn validate_trips_with_limits(
                     None, &file.name, Some(line), Some("cars_allowed"),
                     Some(ca_raw.to_string()), Some("0, 1 or 2".to_string()),
                     format!("cars_allowed '{}' sayı olarak okunamıyor.", ca_raw),
-                    "cars_allowed değerini 0 (bilgi yok), 1 (araç izinli) veya 2 (araç izinsiz) olarak ayarlayın.",
+                    "Set cars_allowed to 0 (no info), 1 (allowed) or 2 (not allowed).",
                 ));
                 None
             }
@@ -748,7 +748,7 @@ pub fn validate_trips_with_limits(
                         Some(raw.to_string()),
                         Some("ondalık sayı".to_string()),
                         format!("{field} '{raw}' ondalık sayı olarak okunamıyor."),
-                        "safe_duration alanlarını ondalık sayı olarak girin.",
+                        "Enter the safe_duration fields as decimal numbers.",
                     ));
                     None
                 }

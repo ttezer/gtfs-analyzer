@@ -47,7 +47,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
                 Some(String::new()),
                 None,
                 "feed_publisher_name zorunludur.".to_string(),
-                "feed_publisher_name alanını doldurun.",
+                "Fill in the feed_publisher_name field.",
             ));
         }
 
@@ -67,7 +67,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
                 Some(publisher_url.clone()),
                 None,
                 "feed_publisher_url eksik veya geçersiz.".to_string(),
-                "feed_publisher_url için geçerli bir http/https URL'si girin.",
+                "Enter a valid http/https URL for feed_publisher_url.",
             ));
         }
 
@@ -87,7 +87,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
                 Some(feed_lang.clone()),
                 None,
                 "feed_lang eksik veya geçersiz.".to_string(),
-                "feed_lang için geçerli bir IETF BCP 47 dil etiketi girin.",
+                "Enter a valid IETF BCP 47 language tag for feed_lang.",
             ));
         }
 
@@ -108,7 +108,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
                     Some(lang.clone()),
                     None,
                     "default_lang geçerli bir BCP 47 dil etiketi değil.".to_string(),
-                    "default_lang için geçerli bir IETF BCP 47 dil etiketi girin.",
+                    "Enter a valid IETF BCP 47 language tag for default_lang.",
                 );
                 if whitespace_only_format_failure(lang, looks_like_bcp47) {
                     n.whitespace_derived = true;
@@ -149,7 +149,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
                 Some(&row_map), &file.name, Some(line), None,
                 None, None,
                 "feed_start_date ve/veya feed_end_date eksik; feed geçerlilik aralığı belirlenemiyor.".to_string(),
-                "feed_start_date ve feed_end_date alanlarını YYYYMMDD formatında doldurun.",
+                "Fill in feed_start_date and feed_end_date in YYYYMMDD format.",
             ));
         }
         if let (Some(start), Some(end)) = (feed_start_date, feed_end_date) {
@@ -167,7 +167,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
                     Some(format!("≤ {}-{:02}-{:02}", end.0, end.1, end.2)),
                     format!("feed_start_date ({}-{:02}-{:02}) feed_end_date ({}-{:02}-{:02})'den sonra.",
                         start.0, start.1, start.2, end.0, end.1, end.2),
-                    "feed_start_date'i feed_end_date'den önce veya eşit olarak ayarlayın.",
+                    "Set feed_start_date to be equal to or before feed_end_date.",
                 ));
             }
         }
@@ -188,7 +188,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
                 Some(String::new()),
                 None,
                 "feed_version önerilen ancak eksik.".to_string(),
-                "Sürüm takibi için feed_version alanını doldurun.",
+                "Fill in feed_version for version tracking.",
             ));
         }
 
@@ -209,7 +209,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
                     Some(email.to_string()),
                     None,
                     "feed_contact_email geçerli bir e-posta adresi değil.".to_string(),
-                    "feed_contact_email için geçerli bir e-posta adresi kullanın; değerin başında veya sonunda boşluk bırakmayın.",
+                    "Use a valid e-mail address for feed_contact_email, with no leading or trailing spaces.",
                 ));
             }
         }
@@ -231,7 +231,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
                     Some(url.to_string()),
                     None,
                     "feed_contact_url geçerli bir URL değil.".to_string(),
-                    "feed_contact_url için geçerli bir http/https URL'si kullanın.",
+                    "Use a valid http/https URL for feed_contact_url.",
                 ));
             }
         }
@@ -267,7 +267,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
                 "feed_info.txt'de {} kayıt var; yalnızca 1 satır olmalıdır.",
                 records.len()
             ),
-            "feed_info.txt'de yalnızca bir kayıt bırakın.",
+            "Keep only one record in feed_info.txt.",
         ));
     }
 

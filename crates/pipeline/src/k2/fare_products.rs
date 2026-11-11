@@ -109,7 +109,7 @@ pub fn validate_fare_products(file: &RawFile) -> (Vec<FareProductRecord>, Vec<gt
                 Some(currency.clone()),
                 Some("ISO 4217".to_string()),
                 "currency geçerli bir ISO 4217 kodu değil.".to_string(),
-                "3 harfli büyük harf ISO 4217 para birimi kodu kullanın (örn. TRY, EUR, USD).",
+                "Use a 3-letter uppercase ISO 4217 currency code (e.g., TRY, EUR, USD).",
             ));
         }
 
@@ -147,7 +147,7 @@ pub fn validate_fare_products(file: &RawFile) -> (Vec<FareProductRecord>, Vec<gt
                 "fare_products.txt dosyasında {iso_bad} tutar, para biriminin ISO 4217 ondalık basamak \
                  sayısını taşımıyor (ör. satır {line}: {currency} {amount} — {want} basamak beklenir)."
             ),
-            "Tutarları para biriminin ondalık basamak sayısıyla yazın (ör. EUR için 0.90, JPY için 150).",
+            "Write amounts with the decimal places of their currency (for example 0.90 for EUR, 150 for JPY).",
         ));
     }
 

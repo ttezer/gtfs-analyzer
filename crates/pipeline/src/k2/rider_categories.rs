@@ -53,7 +53,7 @@ pub fn validate_rider_categories(
                 None,
                 Some("dolu".to_string()),
                 "rider_category_name zorunludur.".to_string(),
-                "Her yolcu kategorisi için bir isim girin.",
+                "Provide a name for each rider category.",
             ));
         }
 
@@ -154,7 +154,7 @@ pub fn validate_rider_categories(
                     Some(mx.to_string()),
                     Some(format!(">= {mn}")),
                     format!("max_age ({mx}) min_age ({mn}) değerinden küçük olamaz."),
-                    "max_age değerini min_age'e eşit veya daha büyük yapın.",
+                    "Set max_age to be greater than or equal to min_age.",
                 ));
             }
         }
@@ -177,7 +177,7 @@ pub fn validate_rider_categories(
                     Some(url.clone()),
                     None,
                     "eligibility_url geçerli bir URL değil.".to_string(),
-                    "eligibility_url için geçerli bir http/https URL'si kullanın.",
+                    "Use a valid http/https URL for eligibility_url.",
                 ));
             }
         }

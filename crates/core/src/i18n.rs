@@ -79,8 +79,8 @@ impl Dictionary {
     }
 }
 
-/// For Turkish only the rule titles come from the dictionary; messages and
-/// remediations are still the pipeline's own Turkish text (issue #201).
+/// For Turkish the rule titles and the remediations moved so far come from the
+/// dictionary; the rest is still the pipeline's own Turkish text (issue #201).
 pub struct Translator {
     primary: Dictionary,
     /// English, consulted when the primary locale lacks the rule.

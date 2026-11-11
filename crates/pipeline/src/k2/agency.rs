@@ -52,7 +52,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 Some(String::new()),
                 None,
                 "Birden fazla kuruluş tanımlıyken agency_id zorunludur.".to_string(),
-                "Çoklu kuruluş durumunda her agency satırına benzersiz bir agency_id girin.",
+                "Assign a unique agency_id to every agency row when multiple agencies are present.",
             ));
         }
         // AGN_018: agency_id is empty for a single agency. Spec: "Conditionally Required: Required when
@@ -72,7 +72,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 Some(String::new()),
                 None,
                 "Tek kuruluşlu feed'de agency_id boş; spec tek kuruluşta da önerir.".to_string(),
-                "agency.txt'e bir agency_id girin; ileride ikinci bir kuruluş eklenince routes ve ücretler ona bağlanabilir.",
+                "Add an agency_id to agency.txt so routes and fares can reference it once a second agency is added.",
             ));
         }
 
@@ -100,7 +100,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 Some(String::new()),
                 None,
                 "agency_name zorunludur.".to_string(),
-                "agency_name alanını doldurun.",
+                "Fill in the agency_name field.",
             ));
         }
 
@@ -175,7 +175,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                     &mut counter, "AGN_016", EntityType::Agency, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("agency_phone"), Some(phone.to_string()), None,
                     format!("agency_phone '{phone}' bilinen bir yer-tutucu/hizmet-dışı numara — gerçek iletişim numarası olmayabilir."),
-                    "agency_phone'u işleten ajansın gerçek, çalışan numarasıyla güncelleyin.",
+                    "Update agency_phone to the operating agency's real, working number.",
                 ));
             }
         }
@@ -226,7 +226,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                     &mut counter, "AGN_006", EntityType::Agency, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("agency_lang"), Some(lang.clone()), None,
                     format!("agency_lang '{lang}' geçerli bir BCP-47 dil kodu değil."),
-                    "Geçerli bir BCP-47 dil kodu kullanın (örn. tr, en-US); değerin başında veya sonunda boşluk bırakmayın.",
+                    "Use a valid BCP-47 language code (e.g., tr, en-US), with no leading or trailing spaces.",
                 ));
             }
         }
@@ -241,7 +241,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                     &mut counter, "AGN_007", EntityType::Agency, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("agency_phone"), Some(phone.clone()), None,
                     format!("agency_phone '{phone}' geçerli bir telefon numarası formatında değil."),
-                    "Çevrilebilir bir telefon numarası kullanın; numaranın dışında açıklayıcı metin bulunmasın.",
+                    "Use a dialable phone number with no other descriptive text.",
                 ));
             }
         }
@@ -264,7 +264,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                     Some(url.clone()),
                     None,
                     "agency_fare_url geçerli bir URL değil.".to_string(),
-                    "agency_fare_url için geçerli bir http/https URL'si kullanın.",
+                    "Use a valid http/https URL for agency_fare_url.",
                 );
                 if whitespace_only_format_failure(url, looks_like_url) {
                     n.whitespace_derived = true;
@@ -291,7 +291,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                     Some(email.clone()),
                     None,
                     "agency_email geçerli bir e-posta adresi değil.".to_string(),
-                    "agency_email için geçerli bir e-posta adresi kullanın.",
+                    "Use a valid e-mail address for agency_email.",
                 );
                 if whitespace_only_format_failure(email, looks_like_email) {
                     n.whitespace_derived = true;
@@ -310,7 +310,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                             &file.name, Some(line), Some("cemv_support"), Some(val.to_string()),
                             Some("0, 1 or 2".to_string()),
                             "cemv_support 0, 1 veya 2 olmalıdır.".to_string(),
-                            "cemv_support alanını 0 (bilgi yok), 1 (destekleniyor) veya 2 (desteklenmiyor) olarak ayarlayın.",
+                            "Set cemv_support to 0 (no info), 1 (supported) or 2 (not supported).",
                         ));
                     }
                 }
@@ -325,7 +325,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                     Some(&row_map), &file.name, Some(line), Some("cemv_support"),
                     get_trimmed_field(&row_map, "cemv_support").map(str::to_string), Some("0, 1 or 2".to_string()),
                     err,
-                    "cemv_support alanını 0 (bilgi yok), 1 (destekleniyor) veya 2 (desteklenmiyor) olarak ayarlayın.",
+                    "Set cemv_support to 0 (no info), 1 (supported) or 2 (not supported).",
                 ));
                 None
             }

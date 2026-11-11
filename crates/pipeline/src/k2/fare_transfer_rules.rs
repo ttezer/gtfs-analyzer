@@ -187,7 +187,7 @@ pub fn validate_fare_transfer_rules(
                 Some("dolu".to_string()),
                 "duration_limit_type tanımlandığında duration_limit de belirtilmelidir."
                     .to_string(),
-                "duration_limit alanını doldurun ya da duration_limit_type'ı kaldırın.",
+                "Fill in duration_limit or remove duration_limit_type.",
             ));
         }
 
@@ -255,7 +255,7 @@ pub fn validate_fare_transfer_rules(
                     &mut counter, "FTR_009", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("transfer_count"), None, Some("dolu".to_string()),
                     "from_leg_group_id ile to_leg_group_id aynı olduğunda transfer_count zorunludur.".to_string(),
-                    "transfer_count girin (-1 = sınırsız veya pozitif bir değer).",
+                    "Enter transfer_count (-1 unlimited or a positive value).",
                 ));
             } else if f != t && transfer_count_raw.is_some() {
                 notices.push(make_k2_notice(
@@ -263,7 +263,7 @@ pub fn validate_fare_transfer_rules(
                     &file.name, Some(line), Some("transfer_count"),
                     transfer_count_raw.clone(), Some("(boş)".to_string()),
                     "from_leg_group_id ile to_leg_group_id farklı olduğunda transfer_count tanımlanamaz.".to_string(),
-                    "transfer_count alanını kaldırın ya da leg gruplarını eşitleyin.",
+                    "Remove transfer_count or make the leg groups equal.",
                 ));
             }
         }
@@ -283,7 +283,7 @@ pub fn validate_fare_transfer_rules(
                 Some("dolu".to_string()),
                 "duration_limit tanımlandığında duration_limit_type de belirtilmelidir."
                     .to_string(),
-                "duration_limit_type alanını (0–3) doldurun ya da duration_limit'i kaldırın.",
+                "Fill duration_limit_type (0–3) or remove duration_limit.",
             ));
         }
 

@@ -69,7 +69,7 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
                 Some(String::new()),
                 None,
                 "organization_name zorunludur.".to_string(),
-                "organization_name alanını doldurun.",
+                "Fill in the organization_name field.",
             ));
         }
 
@@ -131,7 +131,7 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
                     Some(url.to_string()),
                     None,
                     "attribution_url geçerli bir URL değil.".to_string(),
-                    "attribution_url için geçerli bir http/https URL'si kullanın.",
+                    "Use a valid http/https URL for attribution_url.",
                 ));
             }
         }
@@ -153,7 +153,7 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
                     Some(email.to_string()),
                     None,
                     "attribution_email geçerli bir e-posta adresi değil.".to_string(),
-                    "attribution_email için geçerli bir e-posta adresi kullanın.",
+                    "Use a valid e-mail address for attribution_email.",
                 ));
             }
         }
@@ -199,7 +199,7 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
             format!(
                 "attributions.txt dosyasındaki {missing_id_count} kayıtta attribution_id yok                  (ör. satır {first}); bu kayıtlar tekrarda ayrılamaz."
             ),
-            "Her attribution kaydına benzersiz bir attribution_id atayın.",
+            "Assign a unique attribution_id to each attribution record.",
         ));
     }
 
@@ -219,7 +219,7 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
             format!(
                 "attributions.txt dosyasındaki {no_role_count} kayıtta hiçbir attribution rolü                  tanımlı değil (ör. satır {first})."
             ),
-            "is_producer, is_operator veya is_authority değerinden en az birini 1 olarak ayarlayın.",
+            "Set at least one of is_producer, is_operator or is_authority to 1.",
         ));
     }
 

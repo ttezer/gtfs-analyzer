@@ -103,7 +103,7 @@ pub fn validate_fare_media(file: &RawFile) -> (Vec<FareMediaRecord>, Vec<gtfs_co
                     "fare_media_type={} ({type_label}) için fare_media_name tavsiye edilir.",
                     fare_media_type.unwrap()
                 ),
-                "Kullanıcıların ödeme aracını tanıyabilmesi için fare_media_name ekleyin.",
+                "Add fare_media_name so passengers can recognise the payment method.",
             ));
         }
 

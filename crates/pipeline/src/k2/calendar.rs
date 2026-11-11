@@ -55,7 +55,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                 Some(String::new()),
                 None,
                 "service_id zorunludur.".to_string(),
-                "service_id alanını doldurun.",
+                "Fill in the service_id field.",
             ));
         }
 

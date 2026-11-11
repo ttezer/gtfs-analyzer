@@ -154,7 +154,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 Some(observed),
                 Some("0-2".to_string()),
                 message,
-                "booking_type alanını 0 (anlık), 1 (aynı gün) veya 2 (önceki gün) yapın.",
+                "Set booking_type to 0 (real time), 1 (same day) or 2 (prior day).",
             ));
         }
 
@@ -185,7 +185,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     Some(raw.to_string()), Some("HH:MM:SS".to_string()),
                     format!("{field} '{}' geçerli bir GTFS saati değil.",
                             get_trimmed_field(&row_map, field).unwrap_or("")),
-                    "Saati HH:MM:SS biçiminde yazın; gece yarısını aşan servisler için 24'ten büyük saat kullanın (örn. 25:10:00).",
+                    "Write the time as HH:MM:SS; for service past midnight use an hour above 24, such as 25:10:00.",
                 ));
             }
         }
@@ -246,7 +246,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     &file.name, Some(line), Some("prior_notice_duration_min"),
                     Some(btype_str.clone()), Some("(boş)".to_string()),
                     "booking_type=0 (anlık rezervasyon) iken prior_notice alanları dolu olmamalı.".to_string(),
-                    "Anlık rezervasyon için prior_notice alanlarını kaldırın ya da booking_type değerini düzeltin.",
+                    "Remove prior_notice fields for instant booking or correct the booking_type value.",
                 ));
             }
 
@@ -258,7 +258,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     get_trimmed_field(&row_map, "prior_notice_duration_max").map(str::to_string),
                     Some("(boş)".to_string()),
                     "booking_type=2 iken prior_notice_duration_max yasaktır.".to_string(),
-                    "prior_notice_duration_max yalnızca booking_type=1 (aynı gün) ile kullanılabilir.",
+                    "prior_notice_duration_max can only be used with booking_type=1 (same-day).",
                 ));
             }
 
@@ -273,7 +273,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     get_trimmed_field(&row_map, "prior_notice_duration_min").map(str::to_string),
                     Some("(boş)".to_string()),
                     "booking_type=2 iken prior_notice_duration_min yasaktır.".to_string(),
-                    "prior_notice_duration_min yalnızca booking_type=1 (aynı gün) ile kullanılabilir.",
+                    "prior_notice_duration_min can only be used with booking_type=1 (same-day).",
                 ));
             }
 
@@ -286,7 +286,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     &file.name, Some(line), Some("prior_notice_service_id"),
                     Some(btype_str.clone()), Some("2".to_string()),
                     format!("booking_type={btype} iken prior_notice_service_id yasaktır; bu alan yalnızca booking_type=2 ile kullanılır."),
-                    "prior_notice_service_id alanını kaldırın ya da booking_type değerini 2 (önceki gün rezervasyonu) yapın.",
+                    "Remove prior_notice_service_id or set booking_type to 2 (prior-day booking).",
                 ));
             }
 
@@ -304,7 +304,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     None,
                     Some("integer > 0".to_string()),
                     "booking_type=1 iken prior_notice_duration_min zorunludur.".to_string(),
-                    "Aynı gün rezervasyon için minimum önceden bildirim süresini (dakika) girin.",
+                    "Enter the minimum advance notice (minutes) for same-day booking.",
                 ));
             }
 
@@ -353,7 +353,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     None,
                     Some("integer ≥ 0".to_string()),
                     "booking_type=2 iken prior_notice_last_day zorunludur.".to_string(),
-                    "Önceki gün rezervasyonu için son bildirim gününü girin.",
+                    "Enter the last notice day for prior-day booking.",
                 ));
             }
 
@@ -371,7 +371,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     None,
                     Some("HH:MM:SS".to_string()),
                     "booking_type=2 iken prior_notice_last_time zorunludur.".to_string(),
-                    "Son bildirim günü için saat bilgisini girin (HH:MM:SS).",
+                    "Enter the time of the last notice day (HH:MM:SS).",
                 ));
             }
         }
@@ -426,7 +426,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 get_trimmed_field(&row_map, "prior_notice_start_day").map(str::to_string),
                 Some("(boş)".to_string()),
                 "booking_type=1 ve prior_notice_duration_max tanımlıyken prior_notice_start_day yasaktır.".to_string(),
-                "prior_notice_start_day alanını boşaltın ya da prior_notice_duration_max'i kaldırın.",
+                "Clear prior_notice_start_day, or remove prior_notice_duration_max.",
             ));
         }
 
@@ -437,7 +437,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 &file.name, Some(line), Some("prior_notice_start_time"),
                 get_trimmed_field(&row_map, "prior_notice_start_time").map(str::to_string), None,
                 "prior_notice_start_time yalnızca prior_notice_start_day ile birlikte kullanılabilir.".to_string(),
-                "prior_notice_start_day ekleyin ya da prior_notice_start_time kaldırın.",
+                "Add prior_notice_start_day or remove prior_notice_start_time.",
             ));
         }
 
@@ -451,7 +451,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 &file.name, Some(line), Some("prior_notice_last_time"),
                 get_trimmed_field(&row_map, "prior_notice_last_time").map(str::to_string), None,
                 "prior_notice_last_time yalnızca prior_notice_last_day ile birlikte kullanılabilir.".to_string(),
-                "prior_notice_last_day ekleyin ya da prior_notice_last_time kaldırın.",
+                "Add prior_notice_last_day or remove prior_notice_last_time.",
             ));
         }
 
@@ -470,7 +470,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 Some("HH:MM:SS".to_string()),
                 "prior_notice_start_day belirtilmişse prior_notice_start_time zorunludur."
                     .to_string(),
-                "Erken rezervasyon penceresi başlangıç saatini girin (HH:MM:SS).",
+                "Enter the start time of the early booking window (HH:MM:SS).",
             ));
         }
 
@@ -482,7 +482,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     &file.name, Some(line), Some("prior_notice_last_day"),
                     Some(format!("last_day={ld}, start_day={sd}")), None,
                     format!("prior_notice_last_day ({ld}) > prior_notice_start_day ({sd}): rezervasyon penceresi geçersiz."),
-                    "prior_notice_start_day değerini prior_notice_last_day değerinden büyük ya da eşit yapın.",
+                    "Set prior_notice_start_day to be greater than or equal to prior_notice_last_day.",
                 ));
             }
         }
@@ -529,7 +529,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     &mut ctr, "BKR_022", EntityType::Row, Some(id.clone()), Some(&row_map),
                     &file.name, Some(line), Some("phone_number"), Some(phone.clone()), None,
                     format!("phone_number '{phone}' geçerli bir telefon numarası formatında değil."),
-                    "Çevrilebilir bir telefon numarası kullanın; numaranın dışında açıklayıcı metin bulunmasın.",
+                    "Use a dialable phone number with no other descriptive text.",
                 ));
             }
         }

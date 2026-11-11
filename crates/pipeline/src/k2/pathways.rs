@@ -61,7 +61,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 Some(String::new()),
                 None,
                 "pathway_id zorunludur.".to_string(),
-                "Her geçide benzersiz bir pathway_id verin.",
+                "Give every pathway a unique pathway_id.",
             ));
         }
 
@@ -108,7 +108,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 Some(String::new()),
                 None,
                 "pathway_mode zorunludur.".to_string(),
-                "pathway_mode değerini 1-7 arasında girin.",
+                "Set pathway_mode to a value between 1 and 7.",
             ));
         }
         if get_trimmed_field(&row_map, "is_bidirectional") == Some("") {
@@ -124,7 +124,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 Some(String::new()),
                 None,
                 "is_bidirectional zorunludur.".to_string(),
-                "is_bidirectional değerini 0 veya 1 girin.",
+                "Set is_bidirectional to 0 or 1.",
             ));
         }
 
@@ -199,7 +199,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 Some(String::new()),
                 None,
                 "from_stop_id zorunludur.".to_string(),
-                "Geçidin başlangıç durağını girin.",
+                "Enter the pathway start stop.",
             ));
         }
         if get_raw_field(&row_map, "to_stop_id").map(str::trim) == Some("") {
@@ -215,7 +215,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 Some(String::new()),
                 None,
                 "to_stop_id zorunludur.".to_string(),
-                "Geçidin bitiş durağını girin.",
+                "Enter the pathway end stop.",
             ));
         }
         if !from_stop_id.is_empty() && from_stop_id == to_stop_id {
@@ -232,7 +232,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 Some(from_stop_id.to_string()),
                 None,
                 "from_stop_id ve to_stop_id aynı.".to_string(),
-                "Her pathway satırında iki farklı durak belirtin.",
+                "Specify two different stops in each pathway row.",
             ));
         }
 
@@ -252,7 +252,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 Some("pathway_mode=7, is_bidirectional=1".to_string()),
                 Some("is_bidirectional=0".to_string()),
                 "Çıkış kapısı geçitleri çift yönlü olamaz.".to_string(),
-                "pathway_mode=7 için is_bidirectional değerini 0 olarak ayarlayın.",
+                "Set is_bidirectional to 0 for pathway_mode=7.",
             ));
         }
 
@@ -271,7 +271,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                     get_trimmed_field(&row_map, "max_slope").map(str::to_string),
                     None,
                     err,
-                    "max_slope için geçerli bir sayısal değer girin.",
+                    "Enter max_slope as a decimal number.",
                 ));
                 None
             }
@@ -292,7 +292,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 max_slope.map(|v| v.to_string()),
                 Some("pathway_mode 1 or 3".to_string()),
                 "max_slope yalnızca pathway_mode 1 veya 3 için geçerlidir.".to_string(),
-                "max_slope yalnızca yürüme yolu veya hareketli yürüme yolu geçitlerinde kullanın.",
+                "The specification recommends max_slope only for walkways (pathway_mode=1) and moving sidewalks (3).",
             ));
         }
 
@@ -364,7 +364,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                         "signposted_as alanı {} karakter uzunluğunda; önerilen maksimum 255.",
                         sign.len()
                     ),
-                    "signposted_as değerini 255 karakterin altına kısaltın.",
+                    "Keep the signposted_as value under 255 characters.",
                 ));
             }
         }
@@ -401,7 +401,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             Some(pth009_count.to_string()),
             None,
             format!("{pth009_count} yürüme yolu geçidinde (pathway_mode=1) max_slope eksik."),
-            "İlgili pathways.txt kayıtlarına max_slope ekleyin veya veri kaynağını düzeltin.",
+            "Add max_slope to the affected pathways.txt records, or fix the data source.",
         );
         let mut d = std::collections::BTreeMap::new();
         d.insert("affected_pathways".to_string(), pth009_count.to_string());
@@ -426,7 +426,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             Some(pth008_count.to_string()),
             None,
             format!("{pth008_count} merdiven geçidinde (pathway_mode=2) stair_count eksik."),
-            "İlgili pathways.txt kayıtlarına stair_count ekleyin veya veri kaynağını düzeltin.",
+            "Add stair_count to the affected pathways.txt records, or fix the data source.",
         );
         let mut d = std::collections::BTreeMap::new();
         d.insert("affected_pathways".to_string(), pth008_count.to_string());
@@ -440,7 +440,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         let mut n = make_k2_notice(&mut counter, "PTH_029", EntityType::Feed, None, None,
             &file.name, None, Some("traversal_time"), Some(pth029_count.to_string()), None,
             format!("{pth029_count} yürüyen bant/yürüyen merdiven/asansör kaydında önerilen traversal_time eksik."),
-            "pathway_mode 3, 4 veya 5 olan kayıtlara saniye cinsinden traversal_time ekleyin.");
+            "Add traversal_time in seconds to records whose pathway_mode is 3, 4, or 5.");
         let mut d = std::collections::BTreeMap::new();
         d.insert("affected_pathways".to_string(), pth029_count.to_string());
         if !pth029_examples.is_empty() {
@@ -462,7 +462,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             Some(pth025_count.to_string()),
             None,
             format!("{pth025_count} walkway/fare gate/exit gate kaydında önerilen length eksik."),
-            "pathway_mode 1, 6 veya 7 olan kayıtlara metre cinsinden length ekleyin.",
+            "Add length in metres to records whose pathway_mode is 1, 6, or 7.",
         );
         let mut d = std::collections::BTreeMap::new();
         d.insert("affected_pathways".to_string(), pth025_count.to_string());

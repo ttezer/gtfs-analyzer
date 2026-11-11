@@ -83,7 +83,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                 Some(String::new()),
                 None,
                 "route_id zorunludur.".to_string(),
-                "routes.txt'teki her satıra benzersiz bir route_id yazın.",
+                "Give every row in routes.txt a unique route_id.",
             );
             // Planner context: the code-less row's number and name.
             let details = n031.details.get_or_insert_with(Default::default);

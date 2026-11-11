@@ -91,7 +91,7 @@ fn validate_fare_attributes_inner(
                 Some(String::new()),
                 None,
                 "fare_id zorunludur.".to_string(),
-                "Her ücret tanımına benzersiz bir fare_id verin.",
+                "Give every fare a unique fare_id.",
             ));
         }
         let entity_id = (!fare_id.is_empty()).then_some(fare_id.clone());
@@ -195,7 +195,7 @@ fn validate_fare_attributes_inner(
                         format!(
                             "ic_price '{v}' geçersiz: -1 veya sıfır/pozitif (>= 0) bir değer olmalıdır."
                         ),
-                        "ic_price değerini -1 (bilinmiyor) veya sıfır ya da pozitif bir sayı olarak ayarlayın.",
+                        "Set ic_price to -1 (unknown) or a zero-or-positive number.",
                     ));
                 }
                 Err(_) => {
@@ -211,7 +211,7 @@ fn validate_fare_attributes_inner(
                         Some(ic_price_raw.to_string()),
                         Some("-1 or >= 0".to_string()),
                         format!("ic_price '{ic_price_raw}' sayısal değil."),
-                        "ic_price değerini -1 (bilinmiyor) veya sıfır ya da pozitif bir sayı olarak ayarlayın.",
+                        "Set ic_price to -1 (unknown) or a zero-or-positive number.",
                     ));
                 }
             }
@@ -235,7 +235,7 @@ fn validate_fare_attributes_inner(
                 Some(currency_type.clone()),
                 Some("ISO 4217".to_string()),
                 "currency_type geçerli bir ISO 4217 kodu değil.".to_string(),
-                "3 harfli büyük harf ISO 4217 para birimi kodu kullanın (örn. TRY, EUR).",
+                "Use a 3-letter uppercase ISO 4217 currency code (e.g., TRY, EUR).",
             ));
         }
 
@@ -266,7 +266,7 @@ fn validate_fare_attributes_inner(
                 Some(String::new()),
                 None,
                 "payment_method zorunludur.".to_string(),
-                "payment_method değerini 0 (peşin) veya 1 (önceden) olarak girin.",
+                "Set payment_method to 0 (on board) or 1 (before boarding).",
             ));
         }
         let transfers = parse_enum_u32(
@@ -291,7 +291,7 @@ fn validate_fare_attributes_inner(
                     &file.name, Some(line), Some("transfer_duration"),
                     get_trimmed_field(&row_map, "transfer_duration").map(str::to_string),
                     Some(">= 0".to_string()), err,
-                    "transfer_duration değerini negatif olmayan bir tam sayıya ayarlayın veya boş bırakın.",
+                    "Set transfer_duration to a positive integer or leave it empty.",
                 ));
                 None
             }
@@ -329,7 +329,7 @@ fn validate_fare_attributes_inner(
                 "fare_attributes.txt dosyasında {iso_bad} tutar, para biriminin ISO 4217 ondalık basamak \
                  sayısını taşımıyor (ör. satır {line}: {currency} {amount} — {want} basamak beklenir)."
             ),
-            "Tutarları para biriminin ondalık basamak sayısıyla yazın (ör. EUR için 0.90, JPY için 150).",
+            "Write amounts with the decimal places of their currency (for example 0.90 for EUR, 150 for JPY).",
         ));
     }
 

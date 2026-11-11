@@ -129,7 +129,7 @@ pub fn validate_translations_with_profile(
                 Some(field_name.clone()),
                 None,
                 "field_name bu table_name için geçerli değil.".to_string(),
-                "Seçilen table_name için çevirilebilir geçerli bir alan adı kullanın.",
+                "Use a valid translatable field name for the selected table_name.",
             ));
         }
 
@@ -149,7 +149,7 @@ pub fn validate_translations_with_profile(
                 Some(language.clone()),
                 None,
                 "language geçerli bir BCP 47 etiketi değil.".to_string(),
-                "Geçerli bir IETF BCP 47 dil etiketi kullanın.",
+                "Use a valid IETF BCP 47 language tag.",
             ));
         }
 
@@ -169,7 +169,7 @@ pub fn validate_translations_with_profile(
                 Some(String::new()),
                 None,
                 "translation değeri boş; çeviri içeriği sağlanmamış.".to_string(),
-                "translation alanına çevrilmiş metni girin.",
+                "Enter the translated text in the translation field.",
             ));
         }
 
@@ -209,7 +209,7 @@ pub fn validate_translations_with_profile(
                 None,
                 "record_id ve field_value ikisi de boş; çevirinin hangi kayda ait olduğu belirsiz."
                     .to_string(),
-                "record_id veya field_value alanlarından birini doldurun.",
+                "Fill in either record_id or field_value.",
             ));
         }
 
@@ -227,7 +227,7 @@ pub fn validate_translations_with_profile(
                 None,
                 None,
                 "record_id ve field_value aynı anda kullanılamaz.".to_string(),
-                "record_id veya field_value alanlarından yalnızca birini kullanın.",
+                "Use only one of record_id or field_value.",
             ));
         }
 
@@ -265,7 +265,7 @@ pub fn validate_translations_with_profile(
                 Some(field_name.clone()),
                 None,
                 "field_name çevrilebilir bir metin/url/e-posta/telefon alanına benzemiyor.".to_string(),
-                "Yalnızca metin, URL, e-posta veya telefon içeriği için tasarlanmış alanları çevirin.",
+                "Only translate fields designed for text, URL, e-mail or phone content.",
             ));
         }
 
@@ -285,7 +285,7 @@ pub fn validate_translations_with_profile(
                 None,
                 None,
                 "feed_info çevirileri record_id, record_sub_id veya field_value kullanamaz.".to_string(),
-                "feed_info satırları için record_id, record_sub_id ve field_value alanlarını boş bırakın.",
+                "Leave record_id, record_sub_id and field_value empty for feed_info rows.",
             ));
         }
 
@@ -302,7 +302,7 @@ pub fn validate_translations_with_profile(
                 Some(&row_map), &file.name, Some(line), Some("record_sub_id"),
                 None, Some("stop_sequence".to_string()),
                 "stop_times çevirisinde record_id verilmiş ama record_sub_id eksik — çeviri hangi satıra ait olduğunu söylemiyor.".to_string(),
-                "record_sub_id alanına ilgili stop_sequence değerini girin.",
+                "Enter the matching stop_sequence value in record_sub_id.",
             ));
         }
 
@@ -323,7 +323,7 @@ pub fn validate_translations_with_profile(
                 record_sub_id.clone(),
                 None,
                 "record_sub_id yalnızca stop_times çevirileri için kullanılabilir.".to_string(),
-                "table_name=stop_times olmadıkça record_sub_id alanını boş bırakın.",
+                "Leave record_sub_id empty unless table_name=stop_times.",
             ));
         }
 

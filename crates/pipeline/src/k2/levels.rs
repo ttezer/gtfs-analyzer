@@ -39,7 +39,7 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
                 Some(String::new()),
                 None,
                 "level_id zorunludur.".to_string(),
-                "Her kata benzersiz bir level_id verin.",
+                "Give every level a unique level_id.",
             ));
         }
         let entity_id = (!level_id.is_empty()).then_some(level_id.clone());
@@ -60,7 +60,7 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
                         Some(String::new()),
                         None,
                         "level_index zorunludur.".to_string(),
-                        "level_index alanını sayısal bir değerle doldurun.",
+                        "Fill in the level_index field with a numeric value.",
                     ));
                 }
                 v
@@ -78,7 +78,7 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
                     get_trimmed_field(&row_map, "level_index").map(str::to_string),
                     None,
                     err,
-                    "level_index için geçerli bir sayısal değer girin.",
+                    "Enter a valid numeric value for level_index.",
                 ));
                 None
             }
@@ -100,7 +100,7 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
                 Some(String::new()),
                 None,
                 "level_name önerilen ancak eksik.".to_string(),
-                "Okunabilir bir level_name ekleyin.",
+                "Add a readable level_name.",
             ));
         }
 
@@ -123,7 +123,7 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
                         level_id,
                         name.len()
                     ),
-                    "level_name'i 255 karakterin altına kısaltın.",
+                    "Keep level_name under 255 characters.",
                 ));
             }
         }

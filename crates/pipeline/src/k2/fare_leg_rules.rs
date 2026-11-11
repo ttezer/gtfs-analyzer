@@ -47,7 +47,7 @@ pub fn validate_fare_leg_rules(file: &RawFile) -> (Vec<FareLegRuleRecord>, Vec<g
                     get_trimmed_field(&row_map, "rule_priority").map(str::to_string),
                     Some(">= 0".to_string()),
                     err,
-                    "rule_priority için negatif olmayan bir tam sayı girin.",
+                    "Enter a non-negative integer for rule_priority.",
                 ));
                 None
             }

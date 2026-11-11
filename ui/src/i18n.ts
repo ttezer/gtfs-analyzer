@@ -150,7 +150,17 @@ export function tRemediation(n: { rule_id: string; remediation?: string | null; 
 
 /** Translate remediation text without mutating the application's active locale. */
 export function tRemediationForLocale(locale: Locale, n: { rule_id: string; remediation?: string | null; details?: Record<string, string> | null }): string {
-  if (locale === 'tr') return n.remediation ?? '';
+  if (locale === 'tr') {
+    // Same order as the Rust translator: variant → profile → rule, no English fallback;
+    // rules not moved to the Turkish dictionary yet keep the engine's own text (issue #201).
+    const profile = n.details?.jp_profile?.toLowerCase();
+    const variant = n.details?.message_variant;
+    const own = LOCALES.tr.ruleRemediations;
+    return (variant ? own[profile ? `${n.rule_id}.${profile}.${variant}` : `${n.rule_id}.${variant}`] : undefined)
+      ?? (profile ? own[`${n.rule_id}.${profile}`] : undefined)
+      ?? own[n.rule_id]
+      ?? n.remediation ?? '';
+  }
   // Current locale → EN → TR (Rust message)
   const specific = n.details?.message_variant
     ? n.details.jp_profile

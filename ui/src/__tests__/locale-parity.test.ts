@@ -38,9 +38,10 @@ describe('locale parity (registry kural anahtarları)', () => {
     expect(minus(j, e)).toEqual([]);
   });
 
-  it('ruleRemediations içinde ja anahtarları en tarafından kapsanır (tr bilinçli boş)', () => {
-    expect(Object.keys(tr.ruleRemediations)).toHaveLength(0);
+  it('ruleRemediations içinde ja ve tr anahtarları en tarafından kapsanır', () => {
     const e = keys(en.ruleRemediations);
+    // tr is filled step by step (issue #201): every Turkish key must still exist in en.
+    expect(minus(keys(tr.ruleRemediations), e)).toEqual([]);
     const j = keys(ja.ruleRemediations);
     // Present in en but absent in ja: ALLOWED. When the `ja` dictionary lacks a translation,
     // it falls back to English (crates/core/src/i18n.rs `fallback`), so this is translation

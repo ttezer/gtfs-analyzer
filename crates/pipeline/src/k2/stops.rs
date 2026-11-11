@@ -66,7 +66,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                 Some(String::new()),
                 None,
                 "stop_id zorunludur.".to_string(),
-                "stop_id alanını doldurun.",
+                "Fill in the stop_id field.",
             );
             // Planner context: the code-less row's name, code and position.
             let details = notice.details.get_or_insert_with(Default::default);
