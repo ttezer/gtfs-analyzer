@@ -52,6 +52,10 @@ TOTAL_TIMEOUT_SECONDS = float(os.environ.get("GTFS_TOTAL_TIMEOUT_SECONDS", "105"
 ANALYZER_TIMEOUT_SECONDS = float(os.environ.get("GTFS_ANALYZER_TIMEOUT_SECONDS", "90"))
 MAX_REDIRECTS = int(os.environ.get("GTFS_MAX_REDIRECTS", "5"))
 STDERR_LIMIT = 64 * 1024
+# The analyzer's compact JSON stays small (findings are capped per rule and long values are
+# cut), so this is defense in depth: a pathological feed must not grow server memory without
+# bound. Past the limit the rest is drained and dropped so the child never blocks on the pipe.
+MAX_OUTPUT_BYTES = int(os.environ.get("GTFS_MAX_OUTPUT_BYTES", str(32 * 1024 * 1024)))
 MAX_CONCURRENT_ANALYSES = int(os.environ.get("GTFS_MAX_CONCURRENT_ANALYSES", "1"))
 SUBJECT_RATE_LIMIT = int(os.environ.get("GTFS_SUBJECT_RATE_LIMIT", "12"))
 SUBJECT_RATE_WINDOW_SECONDS = float(os.environ.get("GTFS_SUBJECT_RATE_WINDOW_SECONDS", "60"))
@@ -95,6 +99,36 @@ def _file_too_large_error() -> ToolError:
     )
 
 
+_NAT64_PREFIX = ipaddress.ip_network("64:ff9b::/96")
+
+
+def _embedded_ipv4(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> list[ipaddress.IPv4Address]:
+    """IPv4 addresses an IPv6 address carries (mapped, NAT64, 6to4, Teredo).
+
+    Checked explicitly so the result does not depend on how the running Python version
+    classifies these ranges (::ffff:127.0.0.1 must be rejected like 127.0.0.1)."""
+    if not isinstance(address, ipaddress.IPv6Address):
+        return []
+    found = [address.ipv4_mapped, address.sixtofour]
+    if address.teredo:
+        found.extend(address.teredo)
+    if address in _NAT64_PREFIX:
+        found.append(ipaddress.IPv4Address(int(address) & 0xFFFFFFFF))
+    return [ip for ip in found if ip is not None]
+
+
+def _is_blocked_address(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    return any(
+        not candidate.is_global
+        or candidate.is_loopback
+        or candidate.is_link_local
+        or candidate.is_multicast
+        or candidate.is_reserved
+        or candidate.is_unspecified
+        for candidate in [address, *_embedded_ipv4(address)]
+    )
+
+
 def _allowed_url(url: str) -> str:
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
@@ -110,15 +144,7 @@ def _allowed_url(url: str) -> str:
             }
         except socket.gaierror as exc:
             raise ToolError("INVALID_DOWNLOAD", f"Could not resolve download host: {host}") from exc
-    if any(
-        not address.is_global
-        or address.is_loopback
-        or address.is_link_local
-        or address.is_multicast
-        or address.is_reserved
-        or address.is_unspecified
-        for address in addresses
-    ):
+    if any(_is_blocked_address(address) for address in addresses):
         raise ToolError("PRIVATE_NETWORK_URL", "Private and local network URLs are not allowed.")
     return str(sorted(addresses, key=str)[0])
 
@@ -191,6 +217,19 @@ async def _check_subject_rate_limit(context: Context | None) -> ToolError | None
     return None
 
 
+async def _read_stdout(stream: asyncio.StreamReader) -> bytes | None:
+    """Analyzer output, or None when it exceeds MAX_OUTPUT_BYTES (the rest is drained)."""
+    chunks: list[bytes] = []
+    total = 0
+    while chunk := await stream.read(64 * 1024):
+        total += len(chunk)
+        if total <= MAX_OUTPUT_BYTES:
+            chunks.append(chunk)
+        else:
+            chunks.clear()
+    return None if total > MAX_OUTPUT_BYTES else b"".join(chunks)
+
+
 async def _write_stderr(stream: asyncio.StreamReader) -> bytes:
     data = await stream.read(STDERR_LIMIT + 1)
     return data[:STDERR_LIMIT]
@@ -199,7 +238,7 @@ async def _write_stderr(stream: asyncio.StreamReader) -> bytes:
 async def _validate_stream(response: httpx.Response, language: str, source_url: str | None) -> dict[str, Any]:
     config_path: str | None = None
     process: asyncio.subprocess.Process | None = None
-    stdout_task: asyncio.Task[bytes] | None = None
+    stdout_task: asyncio.Task[bytes | None] | None = None
     stderr_task: asyncio.Task[bytes] | None = None
     command = [_analyzer_bin(), "validate", "-", "--compact-json", "--lang", language]
     if source_url:
@@ -221,7 +260,7 @@ async def _validate_stream(response: httpx.Response, language: str, source_url: 
         )
         assert process.stdin and process.stdout and process.stderr
         stderr_task = asyncio.create_task(_write_stderr(process.stderr))
-        stdout_task = asyncio.create_task(process.stdout.read())
+        stdout_task = asyncio.create_task(_read_stdout(process.stdout))
         bytes_seen = 0
         async for chunk in response.aiter_bytes():
             if not chunk:
@@ -262,6 +301,8 @@ async def _validate_stream(response: httpx.Response, language: str, source_url: 
                 os.unlink(config_path)
             except OSError:
                 pass
+    if stdout is None:
+        raise ToolError("OUTPUT_TOO_LARGE", "The GTFS Analyzer output exceeded its size limit.")
     if not stdout:
         detail = stderr.decode("utf-8", errors="replace").strip()
         raise ToolError("INTERNAL_ERROR", "Analyzer returned no JSON output.", stderr=detail)

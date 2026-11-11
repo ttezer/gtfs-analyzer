@@ -35,8 +35,11 @@ class _Stdin:
 
 
 class _Pipe:
+    def __init__(self, data=b"{}", chunks=1):
+        self._chunks = [data] * chunks
+
     async def read(self, _limit=-1):
-        return b"{}"
+        return self._chunks.pop(0) if self._chunks else b""
 
 
 class _SlowProcess:
@@ -149,6 +152,23 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
             server._allowed_url("ftp://example.com/feed.zip")
         self.assertEqual(scheme.exception.error_type, "UNSUPPORTED_SCHEME")
 
+    def test_ipv6_forms_embedding_a_private_ipv4_are_rejected(self):
+        # Must hold on every Python version: older 3.12 releases classify some of these ranges
+        # as global, so the embedded IPv4 is checked explicitly.
+        for host in ("[::ffff:127.0.0.1]", "[::ffff:a9fe:a9fe]", "[64:ff9b::7f00:1]",
+                     "[64:ff9b::a9fe:a9fe]", "[2002:7f00:1::]", "[2002:a9fe:a9fe::]",
+                     "[2001:0:4136:e378:8000:63bf:80ff:fffe]"):
+            with self.subTest(host=host), self.assertRaises(server.ToolError) as error:
+                server._allowed_url(f"http://{host}/feed.zip")
+            self.assertEqual(error.exception.error_type, "PRIVATE_NETWORK_URL")
+
+    def test_embedded_ipv4_extraction(self):
+        import ipaddress
+        self.assertEqual(server._embedded_ipv4(ipaddress.ip_address("64:ff9b::7f00:1")),
+                         [ipaddress.ip_address("127.0.0.1")])
+        self.assertEqual(server._embedded_ipv4(ipaddress.ip_address("8.8.8.8")), [])
+        self.assertFalse(server._is_blocked_address(ipaddress.ip_address("8.8.8.8")))
+
     def test_public_hostname_is_checked_against_resolved_addresses(self):
         with patch(
             "server.socket.getaddrinfo",
@@ -197,6 +217,25 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(error.exception.error_type, "ANALYZER_TIMEOUT")
         self.assertTrue(process.killed)
         self.assertGreaterEqual(process.wait_calls, 2)
+
+    async def test_oversized_analyzer_output_is_rejected(self):
+        process = _SlowProcess()
+        process.stdout = _Pipe(b"x" * 1024, chunks=8)
+        with patch.object(server, "MAX_OUTPUT_BYTES", 4 * 1024), patch(
+            "server.asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=process
+        ):
+            with self.assertRaises(server.ToolError) as error:
+                await server._validate_stream(_Response(), "en", None)
+        self.assertEqual(error.exception.error_type, "OUTPUT_TOO_LARGE")
+
+    async def test_output_within_limit_is_parsed(self):
+        process = _SlowProcess()
+        process.stdout = _Pipe(b'{"ok": true}')
+        with patch(
+            "server.asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=process
+        ):
+            result = await server._validate_stream(_Response(), "en", None)
+        self.assertEqual(result.get("ok"), True)
 
     async def test_rules_timeout_kills_subprocess(self):
         class HangingRulesProcess(_SlowProcess):

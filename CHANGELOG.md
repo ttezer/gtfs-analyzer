@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Security:** many stops at one coordinate no longer take quadratic time and memory. `STP_016`/`STP_017` emitted one notice per stop PAIR before deduplication kept one per stop, so 10,000 stops at one point took over 90 seconds and 7.6 GB; each stop now emits only the notice deduplication would keep (0.1 seconds, 95 MB). Findings and output are unchanged.
+- **Security (ChatGPT plugin server):** URLs whose IPv6 address embeds a private IPv4 (IPv4-mapped, NAT64, 6to4, Teredo) are rejected regardless of the Python version, and the analyzer output read into memory is capped (`GTFS_MAX_OUTPUT_BYTES`, default 32 MB).
 - **Security:** a single very long CSV value no longer inflates the output. The engine copied feed values verbatim into every finding that names them (`entity_id`, `scope_key`, `observed_value`, the message, `details`…), so one 8 MB field in a 9 KB ZIP made the full `--json` output 654 MB. Every feed-derived text field of a finding is now cut at 4,096 characters and ends with `… (+N B)` (N = the bytes removed). Rule titles and remediations are not affected. Output for values up to 4,096 characters is unchanged; the longest real value seen in corpus samples is about 300 characters.
 - **Security:** CSV exports now also keep cells starting with a tab or carriage return as text (formula injection), and the compare page's CSV uses the same guard (it had none).
 - **Security:** the web app's production build carries a Content-Security-Policy (no inline scripts or event handlers), and planner calendar titles and map labels escape feed values.

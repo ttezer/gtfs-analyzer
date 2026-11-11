@@ -4337,8 +4337,35 @@ fn check_geo_stop_analytics(
             .collect();
         sorted_stops.sort_by(|a, b| a.0.total_cmp(&b.0));
 
+        // Per stop, looked up once instead of once per compared pair.
+        let parents: Vec<Option<&str>> = sorted_stops
+            .iter()
+            .map(|(_, _, s)| {
+                s.row
+                    .get("parent_station")
+                    .map(|v| v.trim())
+                    .filter(|v| !v.is_empty())
+            })
+            .collect();
+        // run_end[k]: end of the run of consecutive entries with exactly the coordinates of
+        // entry k. Lets a stop that already has its STP_016 skip the rest of an identical
+        // cluster in one step.
+        let mut run_end = vec![0usize; sorted_stops.len()];
+        for k in (0..sorted_stops.len()).rev() {
+            let same_as_next = k + 1 < sorted_stops.len()
+                && sorted_stops[k + 1].0 == sorted_stops[k].0
+                && sorted_stops[k + 1].1 == sorted_stops[k].1;
+            run_end[k] = if same_as_next { run_end[k + 1] } else { k + 1 };
+        }
+
+        // K7 dedups STP_016 and STP_017 per stop (Entity) and keeps the FIRST emitted notice
+        // (stable sort on a key equal for all of a stop's pairs). Emitting only that first
+        // notice per rule gives the same report while avoiding n² notices: 10,000 stops at
+        // one point produced ~50M pair notices and 7.6 GB before dedup (2026-11 review).
         for i in 0..sorted_stops.len() {
             let (la_i, lo_i, sa) = sorted_stops[i];
+            let mut emitted_016 = false;
+            let mut emitted_017 = false;
             // Skip Null Island (|lat|<0.1 ∧ |lon|<0.1): the coordinate is a placeholder and the
             // root cause belongs to GEO_016 (reports per stop). Comparing here causes both duplicate
             // reporting and a QUADRATIC explosion — VlakEShop: 983 stops at (0,0) produced 482,653
@@ -4346,10 +4373,23 @@ fn check_geo_stop_analytics(
             if la_i.abs() < 0.1 && lo_i.abs() < 0.1 {
                 continue;
             }
-            for &(la_j, lo_j, sb) in sorted_stops.iter().skip(i + 1) {
+            let mut j = i + 1;
+            while j < sorted_stops.len() {
+                if emitted_016 && emitted_017 {
+                    break;
+                }
+                let (la_j, lo_j, sb) = sorted_stops[j];
                 if la_j - la_i > lat_band {
                     break;
                 }
+                // Same point as `sa` with its STP_016 already out: the rest of this identical
+                // run could only repeat STP_016, which dedup drops.
+                if emitted_016 && la_j == la_i && lo_j == lo_i {
+                    j = run_end[j];
+                    continue;
+                }
+                let pb = parents[j];
+                j += 1;
                 // Compare only BOARDABLE stops (empty/0 location_type): the station skeleton
                 // (entrance=2, node=3, boarding area=4) is not a stop. Placing an entrance at
                 // the same coordinates as a street stop is a modeling choice, not a data error
@@ -4364,16 +4404,7 @@ fn check_geo_stop_analytics(
                 }
                 // Parent/child exception: a child stop may be at the same or very near location as
                 // its parent station — this is normal GTFS modeling; do not produce an FP.
-                let pa = sa
-                    .row
-                    .get("parent_station")
-                    .map(|s| s.trim())
-                    .filter(|s| !s.is_empty());
-                let pb = sb
-                    .row
-                    .get("parent_station")
-                    .map(|s| s.trim())
-                    .filter(|s| !s.is_empty());
+                let pa = parents[i];
                 if pa == Some(sb.stop_id.as_str()) || pb == Some(sa.stop_id.as_str()) {
                     continue;
                 }
@@ -4392,6 +4423,10 @@ fn check_geo_stop_analytics(
                     d
                 };
                 if dist_km == 0.0 {
+                    if emitted_016 {
+                        continue;
+                    }
+                    emitted_016 = true;
                     let mut n016 = k6_notice(
                         ctr,
                         "STP_016",
@@ -4413,6 +4448,10 @@ fn check_geo_stop_analytics(
                     n016.details = Some(pair_details(0.0).into());
                     notices.push(n016);
                 } else if dist_km < too_close_km {
+                    if emitted_017 {
+                        continue;
+                    }
+                    emitted_017 = true;
                     let dist_m = dist_km * 1000.0;
                     let mut n = k6_notice(
                         ctr,
