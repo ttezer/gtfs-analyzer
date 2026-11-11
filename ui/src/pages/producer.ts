@@ -4058,7 +4058,7 @@ function representativeTripsForDirection(ni: ValidationResult['name_index'], tri
     const routePatterns = new Map<string, Set<string>>();
     for (const [candidateId, candidateRoute] of Object.entries(ni.trip_routes ?? {})) {
       const candidateDirection = ni.trips?.[candidateId] || ni.trip_directions?.[candidateId] || '';
-      const hasShape = Boolean(ni.trip_shapes?.[candidateId] && ni.shape_coords?.[ni.trip_shapes[candidateId]]?.length);
+      const hasShape = Boolean(ni.trip_shapes?.[candidateId] && (ni.map_data_deferred || ni.shape_coords?.[ni.trip_shapes[candidateId]]?.length));
       const stops = ni.trip_stops?.[candidateId] ?? [];
       const pathStops = stops.filter(stopId => Boolean(ni.stop_coords?.[stopId]));
       const hasPath = pathStops.length > 1;
@@ -4131,22 +4131,19 @@ function stm014SampleTripId(n: Notice, result: ValidationResult): string | undef
     Boolean(id && (result.name_index.trip_shapes?.[id] || result.name_index.trip_stops?.[id]?.length)));
 }
 
-function plannerShapeId(n: Notice, result: ValidationResult): string | undefined {
+/** The drawings this notice's map reads that a large-feed result does not carry yet. The map itself
+ *  is the list: running it against a recording index covers every line it would draw. */
+export function missingMapShapes(n: Notice, result: ValidationResult): string[] {
   const ni = result.name_index;
-  const dqTrip = plannerTripRule(n.rule_id) && n.entity_type !== 'Trip' ? dqExampleTrip(n, ni) : undefined;
-  if (dqTrip) return ni.trip_shapes?.[dqTrip];
-  if (n.entity_type === 'Trip' && n.entity_id) {
-    return ni.trip_shapes?.[n.entity_id]
-      || ((n.rule_id === 'STM_015' || n.rule_id === 'STM_016' || n.rule_id === 'STM_018' || n.rule_id === 'STM_019' || n.rule_id === 'STM_020')
-        ? routeDirectionShapeId(ni, ni.trip_routes?.[n.entity_id], ni.trip_directions?.[n.entity_id])
-        : undefined);
-  }
-  if (n.rule_id === 'STM_014') {
-    const tripId = stm014SampleTripId(n, result);
-    return (tripId ? ni.trip_shapes?.[tripId] : undefined)
-      || routeDirectionShapeId(ni, routeIdOfNotice(n) ?? undefined, n.details?.direction_id);
-  }
-  return undefined;
+  const missing = new Set<string>();
+  const shape_coords = new Proxy(ni.shape_coords ?? {}, {
+    get(target, key, receiver) {
+      if (typeof key === 'string' && !(key in target)) missing.add(key);
+      return Reflect.get(target, key, receiver);
+    },
+  });
+  plannerMap(n, { ...result, name_index: { ...ni, shape_coords } });
+  return [...missing];
 }
 
 /** CAL cards: the other routes on the calendar(s) too, each as its example trip's line in the
@@ -4158,7 +4155,9 @@ function addCalendarRoutes(map: PlannerMap, n: Notice, result: ValidationResult,
   for (let i = 0; d[`route_${i}_route_id`]; i++) {
     const tripId = d[`route_${i}_example_trip_id`];
     if (!tripId || tripId === drawnTrip) continue;
-    const shape = ni.trip_shapes?.[tripId] ? ni.shape_coords?.[ni.trip_shapes[tripId]] : undefined;
+    const own = ni.trip_shapes?.[tripId] ? ni.shape_coords?.[ni.trip_shapes[tripId]] : undefined;
+    const sibling = routeDirectionShapeId(ni, ni.trip_routes?.[tripId], ni.trip_directions?.[tripId]);
+    const shape = own && own.length > 1 ? own : sibling ? ni.shape_coords?.[sibling] : undefined;
     const coords = shape && shape.length > 1
       ? shape
       : (ni.trip_stops?.[tripId] ?? []).map(id => ni.stop_coords?.[id]).filter((p): p is [number, number] => Boolean(p) && !isNullIsland(p!));
@@ -4166,6 +4165,8 @@ function addCalendarRoutes(map: PlannerMap, n: Notice, result: ValidationResult,
     lines.push({ coords, color: routeBadge(d[`route_${i}_route_id`]!, ni).bg ?? MAP_GREY, weight: 3 });
   }
 }
+
+const NO_LINE_TRIP_RULES = new Set(['DQ_006', 'TRP_004', 'TRP_019']);
 
 /** Haritayı seçili kayda göre kurar: sefer → kendi güzergâhı ve durakları, işaretli durak
  *  veya bölüm kırmızı ve ona yakınlaşılmış; durak → durağın kendisi; hat → hattın çizimleri.
@@ -4221,10 +4222,24 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   let focus: [number, number] | undefined;
   let stopRing = MAP_GREY;
 
-  const addShape = (shapeId: string | null | undefined, color: string) => {
+  const addShape = (shapeId: string | null | undefined, color: string, weight = 5) => {
     const coords = shapeId ? ni.shape_coords?.[shapeId] : undefined;
-    if (coords && coords.length > 1) lines.push({ coords, color, weight: 5, arrows: true });
+    if (coords && coords.length > 1) lines.push({ coords, color, weight, arrows: true });
     return Boolean(coords && coords.length > 1);
+  };
+  // A trip's real line: its own drawing, else the drawing of its route in the same direction.
+  // Straight between the stops only when the feed has no drawing for that route and direction.
+  const addTripLine = (tripId: string | null | undefined, color: string, weight = 5) => {
+    if (!tripId) return;
+    if (addShape(ni.trip_shapes?.[tripId], color, weight)) return;
+    if (addShape(routeDirectionShapeId(ni, ni.trip_routes?.[tripId], ni.trip_directions?.[tripId]), color, weight)) return;
+    const coords = (ni.trip_stops?.[tripId] ?? []).map(id => coord(id)).filter((p): p is [number, number] => p !== null);
+    if (coords.length > 1) lines.push({ coords, color, weight: Math.min(weight, 4), arrows: true });
+  };
+  // A stretch between two stops follows the drawn line; straight only when no line covers it.
+  const alongLine = (a: [number, number], b: [number, number]): [number, number][] => {
+    const stretch = lines.length ? segmentOnShape(lines[0].coords as [number, number][], a, b) : [];
+    return stretch.length > 1 ? stretch : [a, b];
   };
   const addStop = (stopId: string | null | undefined, primary: boolean, sequence?: string | number | null) => {
     if (!stopId) return;
@@ -4297,20 +4312,18 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     const tripStops = ni.trip_stops?.[n.entity_id] ?? [];
     const color = routeColor(ni.trip_routes?.[n.entity_id]);
     const directShape = ni.trip_shapes?.[n.entity_id];
+    // Findings about trips without a drawing keep showing them as they are: straight between stops.
     const selectedShape = directShape
-      || ((n.rule_id === 'STM_015' || n.rule_id === 'STM_016' || n.rule_id === 'STM_018' || n.rule_id === 'STM_019' || n.rule_id === 'STM_020' || n.rule_id === 'STM_021' || n.rule_id === 'STM_028' || n.rule_id === 'STM_029' || n.rule_id === 'STM_030' || n.rule_id === 'STM_032' || n.rule_id === 'STM_033' || n.rule_id === 'STM_034' || n.rule_id === 'STM_035'
-        || n.rule_id === 'STM_041' || n.rule_id === 'STM_042' || n.rule_id === 'STM_043' || n.rule_id === 'STM_045' || n.rule_id === 'STM_047'
-        || n.rule_id === 'STM_048' || n.rule_id === 'STM_049' || n.rule_id === 'STM_051' || n.rule_id === 'STM_052' || n.rule_id === 'STM_054' || n.rule_id === 'STM_055'
-        || n.rule_id === 'STM_058' || n.rule_id === 'STM_059' || n.rule_id === 'STM_060' || n.rule_id === 'STM_050')
-        ? routeDirectionShapeId(ni, ni.trip_routes?.[n.entity_id], ni.trip_directions?.[n.entity_id])
-        : undefined);
+      || (NO_LINE_TRIP_RULES.has(n.rule_id) ? undefined : routeDirectionShapeId(ni, ni.trip_routes?.[n.entity_id], ni.trip_directions?.[n.entity_id]));
     const directPath = tripStops.map(id => ni.stop_coords?.[id]).filter(Boolean).length > 1;
     const pathTripIds = n.rule_id === 'STM_006' && !directShape && !directPath
       ? representativeTripsForDirection(ni, n.entity_id)
       : [n.entity_id];
     for (const pathTripId of pathTripIds) {
       const shapeId = pathTripId === n.entity_id ? selectedShape : ni.trip_shapes?.[pathTripId];
-      if (!addShape(shapeId, color)) {
+      // A code pointing at a missing drawing falls back to the route's own line too.
+      const sibling = NO_LINE_TRIP_RULES.has(n.rule_id) ? undefined : routeDirectionShapeId(ni, ni.trip_routes?.[pathTripId], ni.trip_directions?.[pathTripId]);
+      if (!addShape(shapeId, color) && !addShape(sibling, color)) {
         if (n.rule_id === 'STM_018' || n.rule_id === 'STM_019' || n.rule_id === 'STM_020') continue;
         const pathStops = ni.trip_stops?.[pathTripId] ?? [];
         const coords = pathStops.map(id => coord(id)).filter((p): p is [number, number] => p !== null);
@@ -4495,7 +4508,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
         const a = coord(idA);
         const b = coord(idB);
         if (!a || !b) continue;
-        segments.push({ coords: [a, b], color: MAP_RED, weight: 7 });
+        segments.push({ coords: alongLine(a, b), color: MAP_RED, weight: 7 });
         addStop(idA, true);
         addStop(idB, true);
       }
@@ -4515,7 +4528,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
         if (!routeId || routesHere.has(routeId) || !tripStops.includes(n.entity_id)) continue;
         routesHere.set(routeId, tripId);
       }
-      for (const [routeId, tripId] of routesHere) addShape(ni.trip_shapes?.[tripId], routeColor(routeId));
+      for (const [routeId, tripId] of routesHere) addShape(ni.trip_shapes?.[tripId] || routeDirectionShapeId(ni, routeId, ni.trip_directions?.[tripId]), routeColor(routeId));
       const near = Object.entries(ni.stop_coords ?? {})
         .filter(([, p]) => Math.abs(p[0] - here[0]) < 0.0055 && Math.abs(p[1] - here[1]) < 0.0075)
         .slice(0, 150);
@@ -4565,7 +4578,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     const a = coord(n.details?.stop_a);
     const b = coord(n.details?.stop_b);
     if (a && b) {
-      segments.push({ coords: [a, b], color: MAP_RED, weight: 7 });
+      segments.push({ coords: alongLine(a, b), color: MAP_RED, weight: 7 });
       addStop(n.details?.stop_a, true, n.details?.stop_a_sequence);
       addStop(n.details?.stop_b, true, n.details?.stop_b_sequence);
     }
@@ -4585,9 +4598,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   }
   // TRP_022: the other trip of the block too, so both overlapping trips are on the map.
   if (n.rule_id === 'TRP_022' && n.details?.other_trip_id) {
-    const other = n.details.other_trip_id;
-    const coords = (ni.trip_stops?.[other] ?? []).map(id => coord(id)).filter((p): p is [number, number] => p !== null);
-    if (coords.length > 1) lines.push({ coords, color: MAP_RED, weight: 3, arrows: true });
+    addTripLine(n.details.other_trip_id, MAP_RED, 3);
   }
   // SHP: the shape in its route's colour (SHP_001: the shape of the rows around the point), the
   // example trip's stops grey and numbered, and the faulty spot red — the point, the stretch a
@@ -4602,10 +4613,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     if (trip) {
       const sequences = ni.trip_stop_sequences?.[trip] ?? [];
       for (const [index, stopId] of (ni.trip_stops?.[trip] ?? []).entries()) addStop(stopId, false, sequences[index]);
-      if (!c.shape || !ni.shape_coords?.[c.shape]) {
-        const coords = (ni.trip_stops?.[trip] ?? []).map(id => coord(id)).filter((p): p is [number, number] => p !== null);
-        if (coords.length > 1) lines.push({ coords, color: routeColor(ni.trip_routes?.[trip]), weight: 3, arrows: true });
-      }
+      if (!c.shape || !ni.shape_coords?.[c.shape]) addTripLine(trip, routeColor(ni.trip_routes?.[trip]), 3);
     }
     const pt = (lat?: string, lon?: string): [number, number] | null => {
       const p: [number, number] = [Number(lat), Number(lon)];
@@ -4699,17 +4707,14 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
       const tripStops = ni.trip_stops?.[trip] ?? [];
       const sequences = ni.trip_stop_sequences?.[trip] ?? [];
       const color = routeColor(ni.trip_routes?.[trip]);
-      if (!addShape(ni.trip_shapes?.[trip], color)) {
-        const coords = tripStops.map(id => coord(id)).filter((p): p is [number, number] => p !== null);
-        if (coords.length > 1) lines.push({ coords, color, weight: 4, arrows: true });
-      }
+      addTripLine(trip, color);
       if (c.stop && coord(c.stop)) addStop(c.stop, true, c.seq);
       for (const [index, stopId] of tripStops.entries()) addStop(stopId, false, sequences[index]);
     }
     const a = coord(c.prev);
     const b = coord(c.next);
     if (c.stop && !coord(c.stop) && a && b) {
-      segments.push({ coords: [a, b], color: MAP_RED, weight: 7, zoomTo: true });
+      segments.push({ coords: alongLine(a, b), color: MAP_RED, weight: 7, zoomTo: true });
       const half = metersBetween(a, b) / 2;
       highlights.push({ center: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], radiusMeters: Math.max(80, half + 60), color: MAP_RED });
       focus = undefined;
@@ -4724,9 +4729,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     const drawTrip = (tripId?: string, mark?: string, weight = 3) => {
       const key = dqIndexKey(ni.trip_stops, tripId);
       if (!key) return;
-      const color = routeColor(ni.trip_routes?.[key]);
-      const coords = (ni.trip_stops?.[key] ?? []).map(id => coord(id)).filter((p): p is [number, number] => p !== null);
-      if (coords.length > 1) lines.push({ coords, color, weight, arrows: true });
+      addTripLine(key, routeColor(ni.trip_routes?.[key]), weight);
       for (const stopId of ni.trip_stops?.[key] ?? []) addStop(stopId, stopId === mark);
     };
     const link = (from?: string | null, to?: string | null) => {
@@ -4806,8 +4809,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     const d = n.details;
     const drawTrip = (tripId: string | undefined, color: string, weight: number, mark: boolean | null) => {
       const tripStops = tripId ? ni.trip_stops?.[tripId] ?? [] : [];
-      const coords = tripStops.map(id => coord(id)).filter((p): p is [number, number] => p !== null);
-      if (coords.length > 1) lines.push({ coords, color, weight, arrows: true });
+      addTripLine(tripId, color, weight);
       if (mark !== null) for (const stopId of tripStops) addStop(stopId, mark);
     };
     // A route by its drawn lines (once each), else its example trip's stops; its stops grey.
@@ -4850,7 +4852,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
       drawRoute(routeIdOfNotice(n) ?? undefined, true);
       for (let i = 0; i < 3 && d[`other_${i}_route_id`]; i++) drawRoute(d[`other_${i}_route_id`], false);
     } else if (n.rule_id === 'VAT_008') {
-      // Each route's own stops, straight between them, so a route that leaves the shared line shows.
+      // Each route's own line, so a route that leaves the shared line shows.
       for (const routeId of listOf(d.routes).slice(0, 6)) drawTrip(routeExampleTrip(ni, routeId), routeColor(routeId), 3, false);
     }
   }
@@ -5647,15 +5649,20 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
     // Large-feed results deliberately omit shape geometry. Fetch the selected
     // trip's existing shape instead of drawing a synthetic stop-to-stop route.
     if (result.name_index.map_data_deferred) {
-      const shapeId = plannerShapeId(notice, result);
-      if (shapeId && !(shapeId in (result.name_index.shape_coords ?? {}))) {
-      const { requestShapeCoords } = await import('../validator-client');
-      const coords = await requestShapeCoords(shapeId);
-        if (coords.length > 1) {
-          result.name_index.shape_coords[shapeId] = coords;
-          map = plannerMap(notice, result);
-        }
+      // Every drawing the map uses (the trip, the route's other lines, the routes around it); a
+      // fetched line can make the map read another, so ask again until nothing new is missing.
+      const tried = new Set<string>();
+      for (let pass = 0; pass < 3; pass++) {
+        const wanted = missingMapShapes(notice, result).filter(id => !tried.has(id)).slice(0, 40);
+        if (!wanted.length) break;
+        const { requestShapeCoords } = await import('../validator-client');
+        await Promise.all(wanted.map(async shapeId => {
+          tried.add(shapeId);
+          const coords = await requestShapeCoords(shapeId);
+          if (coords.length > 1) result.name_index.shape_coords[shapeId] = coords;
+        }));
       }
+      map = plannerMap(notice, result);
     }
     if (requestId !== mapRequestId || openIndex !== index || !mapHost.isConnected) return;
     if (caption) caption.textContent = map.caption;

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { buildProducerModel, stopUsage, entityLabel, plannerArea, routeBadge } from '../pages/producer-helpers';
-import { plannerFacets, plannerMap, renderProducer } from '../pages/producer';
+import { missingMapShapes, plannerFacets, plannerMap, renderProducer } from '../pages/producer';
 import type { FacetCard, FacetFilter } from '../pages/producer';
 import type { ValidationResult, Notice, NameIndex } from '../types';
 import { tMsgForLocale } from '../i18n';
@@ -1762,6 +1762,41 @@ describe('Üretici kartı görünümü', () => {
     // RTS_023: which name the description repeats.
     out = render(notice('a', 'RTS_023', 'LOW', { entity_type: 'Route', entity_id: 'R1', observed_value: 'Merkez', details: { ...ctx, matched_field: 'route_long_name' } }));
     expect(out.html).toContain('10 hattının açıklaması „Merkez“ uzun adıyla aynı');
+  });
+
+  it('harita seferleri kuş uçuşu değil gerçek güzergâhtan çizer', () => {
+    const line: [number, number][] = [[41, 29], [41.005, 29.02], [41.01, 29], [41.015, 29.02], [41.02, 29]];
+    const other: [number, number][] = [[41.02, 29], [41.03, 29.02], [41.04, 29]];
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı', S4: 'Liman' },
+      routes: { R1: '10', R2: '20' }, trips: { T1: 'Çarşı', T2: 'Çarşı', T3: 'Liman' },
+      trip_routes: { T1: 'R1', T2: 'R1', T3: 'R2' }, trip_directions: { T1: '0', T2: '0', T3: '0' }, trip_first_dep: { T1: '06:00', T2: '07:00', T3: '08:00' },
+      trip_stops: { T1: ['S1', 'S2', 'S3'], T2: ['S1', 'S2', 'S3'], T3: ['S3', 'S4'] }, trip_stop_sequences: { T1: [1, 2, 3], T2: [1, 2, 3], T3: [1, 2] },
+      stop_coords: { S1: [41, 29], S2: [41.01, 29], S3: [41.02, 29], S4: [41.04, 29] },
+      trip_shapes: { T1: 'A', T3: 'B' }, shape_coords: { A: line, B: other }, route_shapes: { R1: ['A'], R2: ['B'] },
+      shape_routes: { A: [['R1', '0']], B: [['R2', '0']] },
+    };
+    const r = result([], [], [], true, ni);
+    const coords = (n: Notice) => plannerMap(n, r).opts.extraPolylines?.map(l => l.coords);
+
+    // TRP_022: the other trip of the block on its own line.
+    expect(coords(notice('a', 'TRP_022', 'LOW', { entity_type: 'Trip', entity_id: 'T1', details: { other_trip_id: 'T3' } }))).toContainEqual(other);
+    // VAT_008: each route on its line.
+    expect(coords(notice('a', 'VAT_008', 'LOW', { entity_type: 'Feed', details: { routes: 'R1, R2' } }))).toEqual(expect.arrayContaining([line, other]));
+    // STP_016: the other stop's trip on its line.
+    expect(coords(notice('a', 'STP_016', 'LOW', { entity_type: 'Stop', entity_id: 'S1', details: { other_stop_id: 'S4', other_example_trip_id: 'T3', example_trip_id: 'T1' } }))).toContainEqual(other);
+    // A trip without its own drawing: its route's line in the same direction.
+    expect(coords(notice('a', 'TRP_022', 'LOW', { entity_type: 'Trip', entity_id: 'T2' }))?.[0]).toEqual(line);
+    // A red stretch between two stops follows the line.
+    expect(coords(notice('a', 'OPR_008', 'LOW', { entity_type: 'Trip', entity_id: 'T1', details: { stop_a: 'S1', stop_b: 'S2' } }))).toContainEqual(line.slice(0, 3));
+    // A finding about a trip without a drawing keeps its straight line.
+    expect(coords(notice('a', 'DQ_006', 'LOW', { entity_type: 'Trip', entity_id: 'T2' }))?.[0]).toEqual([[41, 29], [41.01, 29], [41.02, 29]]);
+
+    // Large feeds: every drawing the map reads is asked for, not just the selected trip's.
+    const deferred = result([], [], [], true, { ...ni, shape_coords: {}, map_data_deferred: true });
+    expect(missingMapShapes(notice('a', 'VAT_008', 'LOW', { entity_type: 'Feed', details: { routes: 'R1, R2' } }), deferred).sort()).toEqual(['A', 'B']);
+    expect(missingMapShapes(notice('a', 'TRP_022', 'LOW', { entity_type: 'Trip', entity_id: 'T1', details: { other_trip_id: 'T3' } }), deferred).sort()).toEqual(['A', 'B']);
   });
 
   it('RTS_024–031 kartları değeri, işletmeciyi ve aynı numaralı hatları planlamacı diliyle anlatır', () => {
