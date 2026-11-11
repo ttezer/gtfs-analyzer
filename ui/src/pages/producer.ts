@@ -4252,8 +4252,8 @@ function serviceBlock(serviceId: string | null | undefined, result: ValidationRe
   const range = start || end ? `${ymd(start)} – ${ymd(end)}` : '';
   const extra = Number(exceptions) > 0 ? ` · ${t('producer.days.exceptions', { n: exceptions })}` : '';
   const title = includeCode
-    ? t('producer.calendar.title', { id: serviceId })
-    : t('producer.calendar.generic_title');
+    ? escHtml(t('producer.calendar.title', { id: serviceId }))
+    : escHtml(t('producer.calendar.generic_title'));
   return `<div class="planner-calendar"><span class="producer-card-label">${title}</span>
     <div class="planner-days">${days}</div><p class="planner-calendar-range">${escHtml(range + extra)}</p></div>`;
 }
@@ -4405,7 +4405,7 @@ export function missingMapShapes(n: Notice, result: ValidationResult): string[] 
       return Reflect.get(target, key, receiver);
     },
   });
-  plannerMap(n, { ...result, name_index: { ...ni, shape_coords } });
+  plannerMapRaw(n, { ...result, name_index: { ...ni, shape_coords } });
   return [...missing];
 }
 
@@ -4448,10 +4448,19 @@ function drawableLine(coords: [number, number][] | undefined): [number, number][
 /** Haritayı seçili kayda göre kurar: sefer → kendi güzergâhı ve durakları, işaretli durak
  *  veya bölüm kırmızı ve ona yakınlaşılmış; durak → durağın kendisi; hat → hattın çizimleri.
  *  Konuma bağlı olmayan kayıtta ağın tamamı. */
+/** Map for a planner card. Pin and legend labels are built as plain text (feed names, ids) and
+ *  map-modal renders them as HTML (fix.ts relies on that for <strong>/<code>), so escape them here once. */
 export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
+  const map = plannerMapRaw(n, result);
+  map.opts.pins = map.opts.pins.map(p => ({ ...p, label: escHtml(p.label) }));
+  if (map.opts.legendItems) map.opts.legendItems = map.opts.legendItems.map(it => ({ ...it, label: escHtml(it.label) }));
+  return map;
+}
+
+function plannerMapRaw(n: Notice, result: ValidationResult): PlannerMap {
   // STM_050 is a feed summary: its map is the first example row's trip, drawn as a trip finding.
   if (n.rule_id === 'STM_050' && n.entity_type !== 'Trip' && n.details?.example_0_trip_id) {
-    return plannerMap({ ...n, entity_type: 'Trip', entity_id: n.details.example_0_trip_id }, result);
+    return plannerMapRaw({ ...n, entity_type: 'Trip', entity_id: n.details.example_0_trip_id }, result);
   }
   // DQ cards draw one trip with its stops in order: a route record's example trip (DQ_003/004/
   // 018/019/021), a headsign row's own trip (its stop red), a summary's example trip (DQ_006
@@ -4466,7 +4475,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     const details = n.rule_id === 'DQ_021' || n.entity_type === 'Route' ? {}
       : n.rule_id === 'DQ_020' ? { ...n.details, ...(last ? { stop_id: last } : {}) }
         : n.details;
-    const map = plannerMap({ ...n, entity_type: 'Trip', entity_id: dqTrip, details }, result);
+    const map = plannerMapRaw({ ...n, entity_type: 'Trip', entity_id: dqTrip, details }, result);
     if (CAL_USAGE_RULES.has(n.rule_id) || ['RTS_019', 'RTS_026', 'RTS_027'].includes(n.rule_id)) addCalendarRoutes(map, n, result, dqTrip);
     // RTS: the route's other lines (its other directions and variants) in its colour.
     if (RTS_CONTEXT_RULES.has(n.rule_id)) {
