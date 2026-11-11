@@ -2050,7 +2050,7 @@ fn check_speed_and_duration<'a>(
                     Some(format!(">= {}", format_hms(arr_s))),
                     format!("'{route_label}' hattı '{trip_id}'{dep_suffix} seferi: {name} durağında (sıra {seq}) kalkış {} < varış {} — kalkış varıştan önce. (yön {dir_sd})",
                         format_hms(dep_s), format_hms(arr_s)),
-                    "stop_times.txt'te kalkış zamanını varış zamanından sonra (veya eşit) ayarlayın.",
+                    "Set departure_time to be equal to or after arrival_time.",
                 );
                     let mut d = std::collections::BTreeMap::new();
                     d.insert("route".to_string(), route_label.to_string());
@@ -3826,7 +3826,7 @@ fn check_calendar_analytics(
                 Some(observed),
                 Some(expected),
                 msg,
-                "Servis takvimini genişletin ya da bu servisin kısa olduğunu belgeleyin.",
+                "Enable more active days in the service calendar or document that limited operation is intentional.",
             );
             // Planner context: how many days and between which dates the calendar runs.
             let details = n.details.get_or_insert_with(Default::default);
@@ -3888,7 +3888,7 @@ fn check_calendar_analytics(
                         Some(format!("0 / {n}")),
                         Some(format!("≥ 1 / {n}")),
                         format!("'{service_id}' servisi bugünü kapsıyor ama önümüzdeki {n} günde aktif günü yok ({trip_count} sefer etkileniyor)."),
-                        "Yakın günlerde sefer olmaması kasıtlıysa yok sayın; değilse calendar/calendar_dates ile yakın tarihlere aktif gün ekleyin.",
+                        "If the lack of upcoming service is intentional, ignore; otherwise add near-term active days via calendar/calendar_dates.",
                     );
                     let details = notice.details.get_or_insert_with(Default::default);
                     details.insert("window_days", n.to_string());
@@ -3933,7 +3933,7 @@ fn check_calendar_analytics(
                 Some(format!("{gap_days}")),
                 Some(format!("< {big_gap_threshold}")),
                 format!("{gap_from}-{gap_to} arası {gap_days} günlük yakın dönem inaktif aralık {svc_suffix}."),
-                "Bu aralık planlıysa işlem gerekmez; değilse servis takvimini doğrulayın.",
+                "No action is needed if this inactive interval is planned; otherwise verify the service calendar.",
             )
         } else {
             k6_notice(
@@ -3948,7 +3948,7 @@ fn check_calendar_analytics(
                 Some(format!("{gap_days}")),
                 Some(format!("< {big_gap_threshold}")),
                 format!("{gap_from}-{gap_to} arası {gap_days} günlük boşluk {svc_suffix}."),
-                "Boşluk kasıtlıysa calendar_dates ile açıklayın; değilse takvimi düzeltin.",
+                "If the gap is intentional, document it with calendar_dates; otherwise fix the calendar.",
             )
         };
         n.details = Some({
@@ -3980,7 +3980,7 @@ fn check_calendar_analytics(
                     Some(format!("< {}0101", today_year + config.max_calendar_future_years)),
                     format!("'{}' takviminin end_date'i {end_yyyymmdd} — bugünden {} yıl veya daha fazla ileri; şüpheli/düşük-kaliteli veri (yer-tutucu tarih) olabilir.",
                         cal.service_id, config.max_calendar_future_years),
-                    "end_date'i gerçek servis bitiş tarihine güncelleyin; uzak-gelecek tarihler genelde yer-tutucu veya hatalıdır.",
+                    "Set end_date to the actual service end; far-future dates are usually placeholders or errors.",
                 ));
             }
             // CAL_008: expires soon (end_date is in the future and within the warning threshold).
@@ -4068,8 +4068,7 @@ fn check_calendar_analytics(
                         "'{service_id}' servisinin aktif tarihleri ({first}–{last}) feed_info'nun yetkili dönemi \
                          ({fs_yyyymmdd}–{fe_yyyymmdd}) dışına taşıyor: {days_before} gün önce, {days_after} gün sonra."
                     ),
-                    "Spec bu dönem dışındaki veriyi olası servis bilgisi olarak tavsiye eder; tüketiciler onu yetkili \
-                     saymaz. Dönem bilinçliyse işlem gerekmez, değilse feed_start_date/feed_end_date'i güncelleyin.",
+                    "GTFS recommends publishing schedule data outside this period as likely future service; consumers treat it as non-authoritative. No action is needed if the period is intentional; otherwise update feed_start_date/feed_end_date.",
                 );
                 let mut d = std::collections::BTreeMap::new();
                 d.insert("days_before".to_string(), days_before.to_string());
@@ -4230,7 +4229,7 @@ fn check_calendar_analytics(
                     "calendar.txt", None, Some("start_date"),
                     Some(format!("{min_svc}")), Some(format!("≤ {today_yyyymmdd}")),
                     format!("'{service_id}' takvimi henüz başlamamış; en erken aktif tarih {min_svc}. Feed'de bugün aktif olan hiçbir servis yok."),
-                    "Takvim başlangıç tarihini veya calendar_dates.txt girişlerini gözden geçirin.",
+                    "Review the calendar start date or calendar_dates.txt entries.",
                 ));
             }
         }
@@ -4256,7 +4255,7 @@ fn check_calendar_analytics(
                 Some(format!("{max_svc}")),
                 Some(format!("≥ {today_yyyymmdd}")),
                 msg,
-                "Feed'i yeni geçerlilik tarihleriyle güncelleyin veya servisleri silin.",
+                "Update the feed with current validity dates or remove the service.",
             );
             n.details = Some({
                 let mut d = std::collections::BTreeMap::new();
@@ -4283,7 +4282,7 @@ fn check_calendar_analytics(
                     None, None, "calendar.txt", None, None,
                     Some(format!("{last}")), Some("≤ +2 years".to_string()),
                     format!("Feed'in en son servis tarihi {last} — bugünden 2 yıldan fazla ileride; bu veri bozuk olabilir."),
-                    "Servis takvimini gerçekçi bir bitiş tarihiyle sınırlandırın.",
+                    "Limit the service calendar to a realistic end date.",
                 );
                 // Planner context: the calendars running beyond two years from today.
                 let mut far: Vec<&str> = derived
@@ -4512,7 +4511,7 @@ fn check_geo_stop_analytics(
                     Some(format!("≤ {threshold_km:.0}km (feed medianından)")),
                     format!("'{}' durağı (kod: '{}') feed medianından {d:.0}km uzakta (eşik {threshold_km:.0}km) — koordinat hatası olabilir.",
                         stop.stop_name.as_deref().unwrap_or(stop.stop_id.as_str()), stop.stop_id),
-                    "stop_lat ve stop_lon değerlerini doğrulayın.",
+                    "Verify stop_lat and stop_lon values.",
                 );
                 // Map reference: the rule says "distance from the median", but without the median
                 // coordinate in the notice, the UI drew one pin and left "far from what?" unanswered.
@@ -4552,7 +4551,7 @@ fn check_geo_stop_analytics(
                 Some(format!("{span_km:.0} km")),
                 None,
                 format!("Feed coğrafi kapsamı geniş: {span_km:.0}km köşegen (bbox: {min_lat:.3},{min_lon:.3} → {max_lat:.3},{max_lon:.3})."),
-                "Bu bilgi notu; büyük ağlar için beklenen bir durumdur.",
+                "Informational notice; expected for large networks.",
             );
             // Planner context: the extent both ways and the stops farthest from the network's
             // median point — the ones to check when the network is not meant to be this wide.
@@ -4632,7 +4631,7 @@ fn check_geo_stop_analytics(
                         Some(format!("{lat:.6},{lon:.6}")), None,
                         format!("'{}' durağının koordinatları ({lat:.6},{lon:.6}) Japonya sınırları dışında (lat: 20.25–45.33, lon: 122.56–153.59).",
                             name),
-                        "stop_lat ve stop_lon değerlerinin doğru olduğunu kontrol edin.",
+                        "Verify the stop coordinates; all stops in a Japanese feed (feed_lang: ja) must be within Japan.",
                     ));
                 }
             }
@@ -4659,7 +4658,7 @@ fn check_geo_stop_analytics(
                 "stops.txt", Some(stop.line), Some("stop_lat|stop_lon"),
                 Some(format!("{lat:.6},{lon:.6}")), None,
                 format!("'{name}' durağının koordinatları ({lat:.6},{lon:.6}) Null Island yakınında — olası koordinat hatası."),
-                "stop_lat ve stop_lon değerlerinin gerçek konuma karşılık geldiğini doğrulayın.",
+                "Correct the stop_lat and stop_lon values; (0,0) is in the Gulf of Guinea — likely a missing coordinate.",
             ));
         }
     }
@@ -4682,7 +4681,7 @@ fn check_geo_stop_analytics(
                 "stops.txt", Some(stop.line), Some("stop_lat"),
                 Some(format!("{lat:.6}")), None,
                 format!("'{name}' durağının enlemi ({lat:.6}) kutba aşırı yakın — olası koordinat hatası."),
-                "stop_lat değerinin gerçek konuma karşılık geldiğini doğrulayın.",
+                "Verify that stop_lat reflects the real location.",
             ));
         }
     }
@@ -4720,7 +4719,7 @@ fn check_geo_stop_analytics(
                     Some("≥200m".to_string()),
                     format!("Feed'deki tüm {} durak {}m'lik bir alan içinde — test/yer tutucu veri olabilir.",
                         coords.len(), (span_km * 1000.0) as u64),
-                    "Gerçek durak koordinatlarını stops.txt'e ekleyin.",
+                    "Replace placeholder stop coordinates with real geographic locations.",
                 );
                 // Planner context: how many stops, the area's middle, and the first stops (their
                 // trips and routes are added in the shared stop context step).
@@ -4774,7 +4773,7 @@ fn check_geo_stop_analytics(
                 "stops.txt", Some(stop.line), Some("stop_lat|stop_lon"),
                 Some(format!("{:.0},{:.0}", lat, lon)), None,
                 format!("'{name}' durağının koordinatları ({:.0},{:.0}) tam sayı — düşük hassasiyetli veya yer tutucu veri.", lat, lon),
-                "stop_lat ve stop_lon değerlerini en az 5 ondalık basamakla güncelleyin.",
+                "Update stop_lat and stop_lon with at least 5 decimal places of precision.",
             ));
         }
     }
@@ -4820,7 +4819,7 @@ fn check_geo_shape_analytics(
                     Some(format!("≤ {max_jump_km} km")),
                     format!("'{shape_id}' güzergahının {i}→{}. segmentinde {dist:.2}km atlama — eşik {max_jump_km}km.",
                         i + 1),
-                    "Aralarında koordinat eksik olan güzergah noktalarını ekleyin.",
+                    "Add intermediate shape points to close the large gap.",
                 );
                 // Planner context: which stretch of the drawing (its two points are added in
                 // the shared context step) and how long it is against the threshold.
@@ -4863,7 +4862,7 @@ fn check_geo_shape_analytics(
                 "shapes.txt", Some(pt.line as u64), Some("shape_pt_lat|shape_pt_lon"),
                 Some(format!("{lat:.6},{lon:.6}")), None,
                 format!("'{sid}' şeklinde Null Island yakınında nokta bulundu ({lat:.6},{lon:.6}) — GPS veri hatası olabilir."),
-                "shapes.txt'deki sıfır değerli koordinatları kontrol edin.",
+                "Check shapes.txt for rows with shape_pt_lat=0 and shape_pt_lon=0; these are likely GPS dropouts.",
             );
             let det = n.details.get_or_insert_with(Default::default);
             det.insert(
@@ -4941,7 +4940,7 @@ fn check_geo_shape_trip_analytics(
                     "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
                     Some(format!("{lat:.6},{lon:.6}")), None,
                     format!("'{shape_id}' şeklinin tüm {count} noktası ({lat:.6},{lon:.6}) koordinatında — dejenere geometri."),
-                    "shapes.txt'deki koordinatları gerçek güzergaha karşılık gelecek şekilde düzeltin.",
+                    "Correct the shape coordinates in shapes.txt to follow the actual route path.",
                 );
                 // Planner context: how many points and where they all are.
                 let det = n.details.get_or_insert_with(Default::default);
@@ -5163,7 +5162,7 @@ fn check_geo_shape_trip_analytics(
                     "shapes.txt", None, None,
                     Some(count.to_string()), Some("≤5000".to_string()),
                     format!("'{shape_id}' şeklinde {count} nokta var — harita render performansını olumsuz etkiler."),
-                    "shapes.txt'i basitleştirmek için Douglas-Peucker vb. bir algoritma kullanın.",
+                    "Simplify shapes.txt using a path simplification algorithm (e.g., Douglas-Peucker) to reduce the point count.",
                 );
                 // Planner context: the point count against the limit.
                 let d = n026.details.get_or_insert_with(Default::default);
@@ -5225,7 +5224,7 @@ fn check_operational_analytics(
                     let r = trip_to_route.get(trip_id).copied().unwrap_or(trip_id);
                     format!("'{r}' hattının seferinde yalnızca {count} durak var — işlevsel sefer için en az 2 durak gerekli.")
                 },
-                "En az 2 durak içeren bir sefer tanımlayın.",
+                "Define a trip with at least 2 stops.",
             ));
         }
     }
@@ -5374,7 +5373,7 @@ fn check_operational_analytics(
                     Some("0".to_string()),
                     Some("≥ 1".to_string()),
                     "Feed'deki hiçbir service_id aktif takvim günü içermiyor — tüm seferler pasif.".to_string(),
-                    "calendar.txt veya calendar_dates.txt'de en az bir servis için aktif gün tanımlayın.",
+                    "Define at least one active day for a service in calendar.txt or calendar_dates.txt.",
                 ));
             }
         }
@@ -5395,7 +5394,7 @@ fn check_operational_analytics(
                 None, None, "calendar.txt", None, None,
                 Some("0".to_string()), None,
                 "Önümüzdeki 7 günde aktif sefer bulunamadı — feed yakında devre dışı kalabilir.".to_string(),
-                "calendar.txt veya calendar_dates.txt'i güncelleyin ya da yeni bir feed yayınlayın.",
+                "Update calendar.txt or calendar_dates.txt, or publish a new feed.",
             );
             // Planner context: the next day any calendar runs, when there is one.
             let next = derived
@@ -5458,7 +5457,7 @@ fn check_operational_analytics(
                 "trips.txt", Some(line), Some("service_id"),
                 Some(count.to_string()), None,
                 format!("'{service_id}' takvimi önümüzdeki 7 günde aktif değil — {count} sefer etkileniyor."),
-                "calendar.txt veya calendar_dates.txt'i güncelleyin ya da yeni bir feed yayınlayın.",
+                "Update the service calendar or publish a new feed.",
             );
             // Planner context: the next day the calendar runs again, when there is one.
             let next_active = derived
@@ -6593,7 +6592,7 @@ fn check_route_trip_quality(
                             "'{}' hattının route_url değeri acente URL'siyle aynı: '{route_url}'.",
                             rname
                         ),
-                        "route_url'yi bu hata özgü bir sayfaya yönlendirin ya da boş bırakın.",
+                        "Point route_url to a route-specific page or leave it empty.",
                     ));
                 }
             }
@@ -6636,7 +6635,7 @@ fn check_route_trip_quality(
                         "'{}' hattının uzun adı '{}', kısa adı '{}' zaten içeriyor.",
                         route.route_id, long, short
                     ),
-                    "route_long_name'i kısa adı tekrar etmeyecek şekilde düzenleyin.",
+                    "Edit route_long_name so it does not repeat the short name.",
                 ));
             }
         }
@@ -6962,7 +6961,7 @@ fn check_data_quality(
                     Some(stop.stop_id.clone()), "stops.txt", Some(stop.line), Some("stop_name"),
                     Some(name.to_string()), None,
                     format!("stop_id '{}' adı gereksiz genel 'stop/station' sözcüğü içeriyor: '{}'.", stop.stop_id, name),
-                    "Genel sözcüğü kaldırın; sözcük resmi adın parçasıysa bu opt-in profili kapatın."));
+                    "Remove the generic word; if it is part of the official name, turn this opt-in profile off."));
             }
             if let Some(parent_id) = stop
                 .row
@@ -6978,7 +6977,7 @@ fn check_data_quality(
                             Some(stop.stop_id.clone()), "stops.txt", Some(stop.line), Some("stop_name"),
                             Some(name.to_string()), Some(format!("{} içermeli", parent_name)),
                             format!("Alt durak '{}' adı üst istasyon '{}' adını içermiyor.", name, parent_name),
-                            "Alt durak adında üst istasyon adını kullanın; yerel adlandırma farklıysa profili kapatın.");
+                            "Use the parent station name inside the child stop name, or turn the profile off if local naming differs.");
                         // Planner context: the station the stop belongs to.
                         let mut d = std::collections::BTreeMap::new();
                         d.insert("parent_station".to_string(), parent_id.trim().to_string());
@@ -7203,7 +7202,7 @@ fn check_data_quality(
                     "routes.txt", Some(r.line), Some("agency_id"),
                     None, None,
                     format!("'{label}' hattında agency_id boş — önerilen alan; tek işletici olsa bile doldurulması iyi uygulamadır."),
-                    "routes.txt'teki agency_id sütununu işleten ajansın agency_id'siyle doldurun.",
+                    "Fill the agency_id column in routes.txt with the operating agency's agency_id.",
                 );
                 // Planner context: the feed's one agency, the route's only possible operator.
                 if let Some(agency) = records.agencies.first() {
@@ -7362,7 +7361,7 @@ fn check_data_quality(
                         Some(format!("{y}-{m:02}-{d:02}")),
                         Some("≥ today".to_string()),
                         format!("Feed'in geçerlilik süresi {y}-{m:02}-{d:02} tarihinde dolmuş; mevcut veriler güncel değil."),
-                        "feed_info.txt'deki feed_end_date'i güncel tutun ve yeni bir feed yayınlayın.",
+                        "Update the feed with current validity dates or publish a new feed.",
                     ));
                 }
             }
@@ -7380,7 +7379,7 @@ fn check_data_quality(
                         Some(format!("{sy}-{sm:02}-{sd:02}")),
                         Some("≤ today".to_string()),
                         format!("feed_start_date ({sy}-{sm:02}-{sd:02}) henüz gelmedi — feed bugün için aktif değil."),
-                        "feed_start_date'i geçmiş veya bugüne ayarlayın ya da feed'i doğru zamanda yayınlayın.",
+                        "Set feed_start_date to today or an earlier date, or publish the feed at the right time.",
                     ));
                 }
             }
@@ -7397,7 +7396,7 @@ fn check_data_quality(
                         Some(format!("{ey}-{em:02}-{ed:02}")),
                         Some("≤ +2 years".to_string()),
                         format!("feed_end_date ({ey}-{em:02}-{ed:02}) bugünden 2 yıldan fazla ileride — muhtemelen yanlış değer."),
-                        "feed_end_date'i gerçekçi bir bitiş tarihiyle güncelleyin.",
+                        "Set feed_end_date to a realistic end date (within 2 years).",
                     ));
                 }
             }
@@ -7420,7 +7419,7 @@ fn check_data_quality(
                     None, None, "feed_info.txt", None, Some("feed_contact_email"),
                     None, None,
                     "feed_info.txt'te teknik iletişim bilgisi yok (feed_contact_email veya feed_contact_url).".to_string(),
-                    "Öneri: feed_info.txt'e feed_contact_email veya feed_contact_url ekleyin. Bu alanlar GTFS Spec'te isteğe bağlıdır.",
+                    "Recommended: add feed_contact_email or feed_contact_url to feed_info.txt. These fields are optional in the GTFS Spec.",
                 ));
             }
 
@@ -7448,7 +7447,7 @@ fn check_data_quality(
                                 Some(format!("{ey}-{em:02}-{ed:02}")),
                                 Some(format!("> +{warning_days}")),
                                 format!("Feed'in geçerlilik süresi {ey}-{em:02}-{ed:02} tarihinde doluyor — {days_left} gün kaldı (uyarı eşiği: {warning_days} gün)."),
-                                "Yeni bir feed versiyonu yayınlamaya hazırlanın.",
+                                "Plan to publish an updated feed before the current one expires.",
                             );
                             notice.details = Some(
                                 [
@@ -8430,7 +8429,7 @@ fn check_remaining_analytics<'a>(
                                     "shapes.txt", None, Some("shape_dist_traveled"),
                                     Some(format!("dist={da_v:.4}, ({la:.6},{loa:.6})")), None,
                                     format!("{prefix}'{shape_id}' şeklinde art arda iki noktanın shape_dist_traveled ({da_v:.4}) ve koordinatları aynı — tekrar eden nokta."),
-                                    "Yinelenen shape noktasını kaldırın.",
+                                    "Remove the duplicate shape point.",
                                 );
                                 // Planner context: where the repeated point is and its distance.
                                 let d = n023.details.get_or_insert_with(Default::default);
@@ -8452,7 +8451,7 @@ fn check_remaining_analytics<'a>(
                                         Some(format!("dist={da_v:.4}, ({la:.6},{loa:.6})→({lb:.6},{lob:.6})")),
                                         Some("artan dist".to_string()),
                                         format!("'{shape_id}' şeklinde art arda iki noktanın shape_dist_traveled ({da_v:.4}) aynı ama koordinatları farklı — mesafe artmadan konum değişmiş."),
-                                        "Ardışık shape noktalarına artan shape_dist_traveled değerleri atayın.",
+                                        "Assign increasing shape_dist_traveled values to consecutive shape points.",
                                     );
                                     // Planner context: both points, their shared distance and how far apart they are.
                                     let d = n028.details.get_or_insert_with(Default::default);
@@ -8468,7 +8467,7 @@ fn check_remaining_analytics<'a>(
                                     Some(format!("dist={da_v:.4}, Δ≈{coord_diff_m:.2}m")),
                                     Some("artan dist".to_string()),
                                     format!("'{shape_id}' şeklinde art arda iki noktanın shape_dist_traveled ({da_v:.4}) aynı, koordinat farkı çok küçük (eşik altı)."),
-                                    "Ardışık shape noktalarına artan shape_dist_traveled değerleri atayın ya da yinelenen noktayı kaldırın.",
+                                    "Assign increasing shape_dist_traveled values, or remove the near-duplicate shape point.",
                                 );
                                 let d = n029.details.get_or_insert_with(Default::default);
                                 shp_pair_details(d, (la, loa), (lb, lob), da_v, coord_diff_m);
@@ -8657,7 +8656,7 @@ fn check_remaining_analytics<'a>(
                 Some(format!("{with_sdt}/{point_count}")),
                 Some("tüm shape noktalarında değer".to_string()),
                 format!("'{shape_id}' shape'i kullanan {affected_trips} trip stop_times.txt'te shape_dist_traveled kullanıyor, ancak shape noktalarının {missing}/{point_count} tanesinde shapes.txt shape_dist_traveled değeri eksik."),
-                "İlgili shape noktalarına stop_times.txt ile aynı birimde shape_dist_traveled ekleyin veya bu alanı ilgili trip'lerin stop_times kayıtlarından tutarlı biçimde kaldırın.",
+                "Add shape_dist_traveled to every point of the referenced shape using the same units as stop_times.txt, or remove the field consistently from the affected trips.",
             );
             notice.details = Some(
                 [
@@ -8697,7 +8696,7 @@ fn check_remaining_analytics<'a>(
                         Some(format!("{dist:.2} km (segment {i}→{})", i + 1)),
                         Some(format!("≤ {severe_km:.0} km")),
                         format!("'{shape_id}' güzergahının {i}→{}. segmentinde {dist:.2}km kritik atlama (3× eşik).", i + 1),
-                        "Eksik güzergah noktaları ekleyin veya koordinatları doğrulayın.",
+                        "Add missing shape points or verify coordinates.",
                     );
                     n.details = Some(shape_jump_details(i, dist, severe_km).into());
                     notices.push(n);
@@ -8848,7 +8847,7 @@ fn check_remaining_analytics<'a>(
                     Some(format!("≤ {:.0}m", threshold_km * 1000.0)),
                     format!("'{}' kodlu '{}' durağı {ref_label} {dist_m:.1}m uzakta{dep_suffix} (eşik: {:.0}m).",
                         stop_id, stop_name, threshold_km * 1000.0),
-                    "Durak koordinatlarını veya güzergah noktalarını düzeltin.",
+                    "Fix stop coordinates or shape points.",
                 );
                 // Carry shape_id in details (2026-07-25): because the entity is a stop, the shape
                 // existed only in observed_value ("… (shape 'X')"). In large-feed mode, name_index
@@ -8968,7 +8967,7 @@ fn check_remaining_analytics<'a>(
                         Some(format!("≤ {:.0}m", threshold_km * 1000.0)),
                         format!("'{}' durağı (shape_dist_traveled={sdt:.3}) shape_dist_traveled konumundan {:.1}m uzakta (eşik: {:.0}m).",
                             stop_name, dist_km * 1000.0, threshold_km * 1000.0),
-                        "stop_times.txt'deki shape_dist_traveled değerini ya da stop koordinatlarını düzeltin.",
+                        "Fix the shape_dist_traveled value in stop_times.txt or the stop coordinates.",
                     );
                     // Planner context: the shape, the trip, the distance written and the place on
                     // the line that distance points to.
@@ -9061,7 +9060,7 @@ fn check_remaining_analytics<'a>(
                     Some(format!("≤ {shape_max:.3}")),
                     format!("'{}' hattının seferinde stop_times shape_dist_traveled ({trip_max_sdt:.3}) şeklin maksimum değerini ({shape_max:.3}) aşıyor.",
                         route),
-                    "stop_times.txt'deki shape_dist_traveled değerlerini shapes.txt ölçeğiyle eşleştirin.",
+                    "Match the shape_dist_traveled values in stop_times.txt to the scale used in shapes.txt.",
                 );
                 // Planner context: the shape and both largest distances.
                 let d = n025.details.get_or_insert_with(Default::default);
@@ -9169,7 +9168,7 @@ fn check_remaining_analytics<'a>(
                             format!("'{}' durağu (kod: '{}') çevresinde {} durak {:.0}m içinde kümelenmiş.",
                                 anchor.stop_name.as_deref().unwrap_or(anchor.stop_id.as_str()),
                                 anchor.stop_id, nearby + 1, config.stop_too_close_m),
-                            "Duraksallar aynı fiziksel noktayı temsil ediyorsa birleştirin.",
+                            "Merge stops if they represent the same physical location.",
                         );
                         // Planner context: the other stops of the cluster (their routes are
                         // added in the shared stop context step) and the distance used.
@@ -9643,7 +9642,7 @@ fn check_remaining_analytics<'a>(
                     None,
                     None,
                     format!("'{label}' hattının hiçbir seferinde shape_id tanımlı değil — harita gösterimi kısıtlı."),
-                    "Bu hat için shapes.txt tanımlayın ve trips.txt'de shape_id atayın.",
+                    "Define shapes.txt for all routes and assign shape_id in trips.txt.",
                 ));
             }
         }
@@ -10194,7 +10193,7 @@ fn check_remaining_analytics<'a>(
                         route, sname, idx.stop_id_of(st), st.stop_sequence().unwrap_or(0),
                         arc * 1000.0, prev_arc * 1000.0,
                     ),
-                    "Projeksiyon döngü veya aynı yolun tekrar kullanımında belirsiz olabilir. Haritada doğrulayın; desen bilinçliyse işlem gerekmez.",
+                    "Projection can be ambiguous on loops or reused corridors. Verify it on the map; no action is needed if the pattern is intentional.",
                 );
                 // Map context: ±3 neighboring stops + shape_id + sequence numbers.
                 let ctx_b: Vec<&str> = sorted[..pi]
@@ -10415,7 +10414,7 @@ fn check_remaining_analytics<'a>(
                         "'{}' kodlu '{}' durağı üst istasyonundan ({}) {dist_m:.0}m uzakta (eşik: {threshold_m:.0}m).",
                         stop.stop_id, sname, parent_id
                     ),
-                    "Durak koordinatlarını veya parent_station referansını düzeltin.",
+                    "Fix the stop coordinates or the parent_station reference.",
                 );
                 let mut det = std::collections::BTreeMap::new();
                 det.insert("parent_id".to_string(), parent_id.to_string());
@@ -11239,7 +11238,7 @@ fn check_remaining_analytics<'a>(
                             "'{shape_id}' güzergahı {total_km:.1} km uzunluğunda ancak yalnızca {} nokta var — yoğunluk {density:.1} nokta/10km.",
                             pts.len()
                         ),
-                        "Güzergah şekline ara noktalar ekleyin; düşük nokta yoğunluğu harita gösterimini bozar.",
+                        "Add more points to the route shape.",
                     );
                     // Planner context: how many points carry how long a line.
                     let d = n015.details.get_or_insert_with(Default::default);
@@ -11647,7 +11646,7 @@ fn check_shp012<'a>(
                 format!(
                     "'{shape_id}' güzergah şekli {viol_count} duraktan >{shp_stop_threshold_m:.0}m uzakta — güzergah doğru çizilmemiş olabilir."
                 ),
-                "shapes.txt noktalarını durak konumlarına yaklaştırın.",
+                "Move shapes.txt points closer to stop locations.",
             );
             // Planner context: each listed stop's distance to the line (m), in the same order.
             let far_m: Vec<String> = far
@@ -11876,8 +11875,7 @@ fn check_shp022<'a>(
                          shape_dist_traveled eksikken hangi bölümle eşleşeceği belirsiz.",
                         sname, stop_id, shape_id, clusters
                     ),
-                    "stop_times'a shape_dist_traveled ekleyerek durağın şekil üzerindeki \
-                     konumunu açıkça belirtin.",
+                    "Add shape_dist_traveled to stop_times to explicitly specify each stop's position on the shape.",
                 );
                 let mut det = std::collections::BTreeMap::new();
                 det.insert("shape_id".to_string(), shape_id.to_string());
@@ -12623,7 +12621,7 @@ fn check_calendar_override_analytics(
                     Some(format!("{max_gap}")),
                     Some(format!("≤ {gap_threshold}")),
                     format!("'{svc_id}' servisinde {gap_start}-{gap_end} arasında {max_gap} günlük servis boşluğu var."),
-                    "Boşluk planlanmışsa görmezden gelin; aksi hâlde eksik günleri calendar_dates.txt ile ekleyin.",
+                    "If the gap is planned, ignore; otherwise add missing days via calendar_dates.txt.",
                 );
                 n012.service_id = Some(svc_id.clone());
                 let details = n012.details.get_or_insert_with(Default::default);

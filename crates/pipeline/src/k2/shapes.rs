@@ -428,7 +428,7 @@ pub fn validate_shapes_with_limits(
                     Some(String::new()),
                     None,
                     "shape_id zorunludur.".to_string(),
-                    "shape_id alanını doldurun.",
+                    "Fill in the shape_id field.",
                 ));
             }
 
@@ -449,7 +449,7 @@ pub fn validate_shapes_with_limits(
                             Some(String::new()),
                             None,
                             "shape_pt_sequence zorunludur.".to_string(),
-                            "shape_pt_sequence negatif olmayan bir tam sayı olarak girin.",
+                            "Enter shape_pt_sequence as a non-negative integer.",
                         ));
                     }
                     v
@@ -467,7 +467,7 @@ pub fn validate_shapes_with_limits(
                         Some(seq_raw.to_string()),
                         None,
                         format!("shape_pt_sequence '{seq_raw}' geçersiz."),
-                        "shape_pt_sequence negatif olmayan bir tam sayı olarak girin.",
+                        "Enter shape_pt_sequence as a non-negative integer.",
                     ));
                     None
                 }
@@ -624,7 +624,7 @@ pub fn validate_shapes_with_limits(
                                 None, &file.name, Some(line), Some("shape_dist_traveled"),
                                 Some(d.to_string()), Some(">= 0".to_string()),
                                 "shape_dist_traveled negatif olamaz.".to_string(),
-                                "shape_dist_traveled alanını sıfır veya pozitif bir değere ayarlayın.",
+                                "Set shape_dist_traveled to zero or a positive value.",
                             ));
                         }
                     }
@@ -646,7 +646,7 @@ pub fn validate_shapes_with_limits(
                         Some(sdt_raw.to_string()),
                         Some(">= 0".to_string()),
                         format!("shape_dist_traveled '{}' sayı olarak okunamıyor.", sdt_raw),
-                        "shape_dist_traveled alanını sıfır veya pozitif bir değere ayarlayın.",
+                        "Set shape_dist_traveled to zero or a positive value.",
                     ));
                     None
                 }

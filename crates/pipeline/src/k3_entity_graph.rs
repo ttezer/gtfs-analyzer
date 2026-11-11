@@ -208,7 +208,7 @@ fn build_stops(
                     "'{}' durağı tekrarlanıyor (ilk görünüm: satır {prev_line}).",
                     sid
                 ),
-                "Her durağa benzersiz bir stop_id atayın.",
+                "Assign a unique stop_id to each stop.",
             );
             // Planner context: both rows' names and positions, so the card can show and map
             // the two places one code points to.
@@ -261,7 +261,7 @@ fn build_routes(
                     "'{}' hattı tekrarlanıyor (ilk görünüm: satır {prev_line}).",
                     rid
                 ),
-                "Her rotaya benzersiz bir route_id atayın.",
+                "Assign a unique route_id to each route record.",
             );
             // Planner context: what each of the two rows says the route is.
             let first = &records.routes[prev_idx];
@@ -359,7 +359,7 @@ fn build_services(
                     "'{}' takvim kodu tekrarlanıyor (ilk görünüm: satır {prev_line}).",
                     sid
                 ),
-                "Her hizmet kaydına benzersiz bir service_id atayın.",
+                "Assign a unique service_id to each calendar record.",
             );
             // Planner context: the line where the calendar was first written.
             n.details

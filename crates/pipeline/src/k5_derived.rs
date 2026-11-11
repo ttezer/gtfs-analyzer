@@ -323,7 +323,7 @@ fn build_shape_geometry(
                         "'{}' güzergah şekli yalnızca 1 noktadan oluşuyor; en az 2 nokta gerekir.",
                         shape_id
                     ),
-                    "shapes.txt'e bu shape_id için en az bir nokta daha ekleyin.",
+                    "Add at least one more point to the shape in shapes.txt (minimum 2 total).",
                 );
                 let mut d: std::collections::BTreeMap<String, String> = [
                     ("shape_id".to_string(), shape_id.clone()),

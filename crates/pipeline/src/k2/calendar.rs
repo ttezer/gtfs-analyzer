@@ -91,7 +91,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                                 Some(val.to_string()),
                                 Some("0 or 1".to_string()),
                                 format!("{field} alanı 0 veya 1 olmalıdır."),
-                                "Her gün alanını 0 veya 1 olarak ayarlayın.",
+                                "Set each day field to 0 or 1.",
                             ));
                         }
                         if val == 1 {
@@ -113,7 +113,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                         get_trimmed_field(&row_map, field).map(str::to_string),
                         Some("0 or 1".to_string()),
                         err,
-                        "Her gün alanını 0 veya 1 olarak ayarlayın.",
+                        "Set each day field to 0 or 1.",
                     ));
                 }
             }
@@ -130,7 +130,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                 // The rule is that all SEVEN day fields are 0 TOGETHER; all are named.
                 Some("monday|tuesday|wednesday|thursday|friday|saturday|sunday"), None, None,
                 format!("'{}' takviminde haftalık gün alanlarının tümü 0 — haftalık tekrar yok; servis yalnızca calendar_dates.txt istisnalarıyla aktif olabilir.", service_id),
-                "Bilinçli bir dates-only servisse işlem gerekmez; değilse en az bir gün alanını 1 yapın.",
+                "If this is an intentional dates-only service, no action needed; otherwise set at least one weekday field to 1.",
             ));
         }
 
@@ -150,7 +150,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                         Some(String::new()),
                         None,
                         "start_date zorunludur.".to_string(),
-                        "start_date alanını YYYYMMDD formatında doldurun.",
+                        "Fill in start_date in YYYYMMDD format.",
                     ));
                 }
                 v
@@ -168,7 +168,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                     get_trimmed_field(&row_map, "start_date").map(str::to_string),
                     Some("YYYYMMDD".to_string()),
                     err,
-                    "start_date alanını YYYYMMDD formatında doldurun.",
+                    "Fill in start_date in YYYYMMDD format.",
                 ));
                 // The decision above used the raw value; the record carries the trimmed date
                 // (when the error is whitespace-only). Rationale: `whitespace_trimmed_service_date`.
@@ -192,7 +192,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                         Some(String::new()),
                         None,
                         "end_date zorunludur.".to_string(),
-                        "end_date alanını YYYYMMDD formatında doldurun.",
+                        "Fill in end_date in YYYYMMDD format.",
                     ));
                 }
                 v
@@ -210,7 +210,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                     get_trimmed_field(&row_map, "end_date").map(str::to_string),
                     Some("YYYYMMDD".to_string()),
                     err,
-                    "end_date alanını YYYYMMDD formatında doldurun.",
+                    "Fill in end_date in YYYYMMDD format.",
                 ));
                 whitespace_trimmed_service_date(&row_map, "end_date")
             }
@@ -233,7 +233,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                     Some(format!("{}", ed)),
                     Some(format!(">= {}", sd)),
                     format!("end_date ({ed}), start_date ({sd}) tarihinden önce."),
-                    "end_date tarihini start_date tarihine eşit veya sonrasına ayarlayın.",
+                    "Set end_date to be equal to or after start_date.",
                 ));
             }
         }

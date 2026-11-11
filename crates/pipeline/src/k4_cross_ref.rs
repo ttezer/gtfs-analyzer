@@ -1037,7 +1037,7 @@ fn check_stops(
                 Some(parent.to_string()),
                 None,
                 format!("parent_station '{parent}' stops.txt'te tanımlı değil."),
-                "Geçerli bir stop_id'yi parent_station olarak kullanın.",
+                "Use a valid stop_id as parent_station.",
             );
             // Planner context: the nearest station within 1 km, a likely intended parent.
             insert_nearest_station(&mut n009, nearest_station(records, rec));
@@ -1061,7 +1061,7 @@ fn check_stops(
                         ptype.map(|v| v.to_string()),
                         Some("1".to_string()),
                         format!("'{parent}' istasyonunun location_type'ı 1 (station) olmalı."),
-                        "parent_station olarak yalnızca location_type=1 olan duraklarla referans verin.",
+                        "Only reference stops with location_type=1 as parent_station.",
                     );
                     // Planner context: the stop it is attached to (its type is the observed value).
                     n010.details
@@ -1114,7 +1114,7 @@ fn check_stops(
                 Some(parent.to_string()),
                 Some("must be empty".to_string()),
                 format!("İstasyon '{}' (location_type=1) parent_station='{}' içeriyor; istasyonlar üst varlık olarak parent_station içermemelidir.", rec.stop_id, parent),
-                "İstasyondan parent_station alanını kaldırın; sadece location_type 2/3/4 için parent_station gerekir.",
+                "Remove parent_station from the station record; only entrances, generic nodes and boarding areas may have a parent_station.",
             );
             // Planner context: the record the station is attached to.
             n036.details
@@ -1141,7 +1141,7 @@ fn check_stops(
                     rec.stop_id,
                     loc_type.unwrap_or(0)
                 ),
-                "stop_times'ta yalnızca location_type=0 (veya boş) olan durakları kullanın.",
+                "Use only location_type=0 (or empty) stops in stop_times.",
             );
             // Planner context: the platforms (stops) inside this station trips could call at.
             let mut platforms: Vec<&str> = records
@@ -1219,7 +1219,7 @@ fn check_stops(
                         "'{}' durağının level_id '{lid}' levels.txt'te tanımlı değil.",
                         rec.stop_id
                     ),
-                    "Geçerli bir level_id kullanın veya levels.txt'e bu katmanı ekleyin.",
+                    "Use a valid level_id or add the level to levels.txt.",
                 );
                 // Planner context: the levels the feed does define (code and name).
                 let mut levels: Vec<String> = records
@@ -1258,7 +1258,7 @@ fn check_stops(
                 Some(stop_access_raw.to_string()),
                 Some("0 or 1".to_string()),
                 format!("stop_access '{stop_access_raw}' geçersiz enum değeri."),
-                "stop_access için 0 veya 1 kullanın.",
+                "Use 0 or 1 for stop_access.",
             ));
         }
 
@@ -1357,7 +1357,7 @@ fn check_routes(
                     Some(aid.clone()),
                     None,
                     format!("'{}' işletici kodu agency.txt'te tanımlı değil.", aid),
-                    "Geçerli bir agency_id kullanın.",
+                    "Use a valid agency_id.",
                 );
                 // Planner context: the agencies the feed does define (code and name).
                 let mut known: Vec<String> = records
@@ -1489,7 +1489,7 @@ fn check_routes(
                         "'{}' hattının '{}' seferinde Flex penceresi tanımlı — {field}={value} yasaktır.",
                         rec.route_id, sample_trip
                     ),
-                    "Flex (talep-üzerine) pencereli rotalarda continuous_pickup/continuous_drop_off alanını 1 yapın veya boş bırakın.",
+                    "Set continuous_pickup/continuous_drop_off to 1 or leave them empty on routes whose trips use Flex windows.",
                 );
                 // Planner context: the on-demand trip found on the route.
                 n028.details
@@ -2081,7 +2081,7 @@ fn check_calendar(
                 format!(
                     "Feed'deki tüm calendar.txt servislerinin end_date'i geçmişte kaldı ({expired_services} servis)."
                 ),
-                "Feed'in geçerlilik tarihlerini güncelleyin.",
+                "Update the calendar end_date values so at least one service has future active dates.",
             );
             if let Some(last) = last_end {
                 n.details
@@ -2150,7 +2150,7 @@ fn check_calendar(
                         "'{}' takviminde haftanın tüm günleri pasif (0) ve calendar_dates.txt'te aktif gün (exception_type=1) de tanımlı değil; bu servis hiç çalışmaz.",
                         rec.service_id
                     ),
-                    "Haftalık günlerden en az birini 1 yapın ya da calendar_dates.txt'e bu servis için exception_type=1 kayıt ekleyin.",
+                    "Set at least one weekday to active (1) or add calendar_dates entries for this service.",
                 ));
             }
         }
@@ -3001,7 +3001,7 @@ fn check_fare_rules(
             "fare_rules.txt", Some(*line), Some("fare_id"),
             Some((*fare_id).to_string()), None,
             format!("'{fare_id}' ücret tarifesi fare_attributes.txt'te tanımlı değil ({rows} fare_rules satırında kullanılıyor)."),
-            "Geçerli bir fare_id kullanın ya da fare_attributes.txt'e tanımını ekleyin.",
+            "Use a valid fare_id.",
         ), *rows));
     }
     for ((rule, field, zid), (fare_id, line, rows)) in &frl_zone_bad {

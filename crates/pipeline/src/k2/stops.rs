@@ -120,7 +120,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                         stop_id,
                         code.len()
                     ),
-                    "stop_code'u 50 karakterin altında tutun.",
+                    "Keep stop_code under 50 characters.",
                 );
                 // Planner context: the code itself.
                 n028.details
@@ -147,7 +147,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                             Some(val.to_string()),
                             Some("0-4".to_string()),
                             format!("location_type {val} geçerli bir değer değil (0-4 olmalı)."),
-                            "location_type alanını 0, 1, 2, 3 veya 4 olarak ayarlayın.",
+                            "Set location_type to 0, 1, 2, 3 or 4.",
                         ));
                     }
                 }
@@ -169,7 +169,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                     get_trimmed_field(&row_map, "location_type").map(str::to_string),
                     Some("0-4".to_string()),
                     err,
-                    "location_type alanını 0, 1, 2, 3 veya 4 olarak ayarlayın.",
+                    "Set location_type to 0, 1, 2, 3 or 4.",
                 ));
                 None
             }
@@ -250,7 +250,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                         stop_id,
                         name.len()
                     ),
-                    "stop_name'i 100 karakterin altında tutun.",
+                    "Keep stop_name under 100 characters.",
                 ));
             }
         }
@@ -289,7 +289,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                         "'{}' durağının stop_name ve stop_desc değerleri aynı: '{}'.",
                         stop_id, name
                     ),
-                    "stop_desc, stop_name'den farklı ve daha açıklayıcı bir değer içermelidir.",
+                    "stop_desc should contain a value different from and more descriptive than stop_name.",
                 ));
             }
         }
@@ -311,7 +311,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                             Some(String::new()),
                             Some("[-90, 90]".to_string()),
                             format!("'{}' durağı için enlem (stop_lat) zorunludur.", stop_id),
-                            "stop_lat alanını ondalıklı enlem değeriyle doldurun.",
+                            "Fill in stop_lat with a decimal latitude value.",
                         ));
                     }
                     None
@@ -372,7 +372,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                             Some(String::new()),
                             Some("[-180, 180]".to_string()),
                             format!("'{}' durağı için boylam (stop_lon) zorunludur.", stop_id),
-                            "stop_lon alanını ondalıklı boylam değeriyle doldurun.",
+                            "Fill in stop_lon with a decimal longitude value.",
                         ));
                     }
                     None
@@ -434,7 +434,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                     Some(tz.clone()),
                     None,
                     format!("stop_timezone '{tz}' geçerli bir IANA saat dilimi değil."),
-                    "Geçerli bir IANA saat dilimi girin (örn. Europe/Istanbul).",
+                    "Enter a valid IANA timezone (e.g., Europe/Istanbul).",
                 ));
             }
         }
@@ -449,7 +449,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                             Some(&row_map), &file.name, Some(line), Some("wheelchair_boarding"),
                             Some(val.to_string()), Some("0, 1 or 2".to_string()),
                             "wheelchair_boarding 0, 1 veya 2 olmalıdır.".to_string(),
-                            "wheelchair_boarding alanını 0 (bilgi yok), 1 (erişilebilir) veya 2 (erişilemez) olarak ayarlayın.",
+                            "Set wheelchair_boarding to 0 (no info), 1 (accessible) or 2 (not accessible).",
                         ));
                     }
                 }
@@ -464,7 +464,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                     Some(&row_map), &file.name, Some(line), Some("wheelchair_boarding"),
                     get_trimmed_field(&row_map, "wheelchair_boarding").map(str::to_string), Some("0, 1 or 2".to_string()),
                     err,
-                    "wheelchair_boarding alanını 0 (bilgi yok), 1 (erişilebilir) veya 2 (erişilemez) olarak ayarlayın.",
+                    "Set wheelchair_boarding to 0 (no info), 1 (accessible) or 2 (not accessible).",
                 ));
                 None
             }
@@ -482,7 +482,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                             Some(&row_map), &file.name, Some(line), Some("stop_access"),
                             Some(val.to_string()), Some("0–2".to_string()),
                             format!("'{}' durağında stop_access '{val}' geçersiz.", stop_id),
-                            "stop_access için 0 veya 1 kullanın; 2 GTFS tarafından tanımlanmaz.",
+                            "Use 0 or 1 for stop_access; 2 is not defined by GTFS.",
                         ));
                         }
                     }
@@ -504,7 +504,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                         get_trimmed_field(&row_map, "stop_access").map(str::to_string),
                         Some("0–2".to_string()),
                         err,
-                        "stop_access için 0 veya 1 kullanın; 2 GTFS tarafından tanımlanmaz.",
+                        "Use 0 or 1 for stop_access; 2 is not defined by GTFS.",
                     ));
                     None
                 }
@@ -554,7 +554,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                     Some(&row_map), &file.name, Some(line), Some("platform_code"),
                     Some(pc.to_string()), None,
                     format!("platform_code '{pc}' gereksiz platform/track sözcüğü içeriyor; yalnız tanımlayıcı olmalı."),
-                    "platform_code'da yalnız platform tanımlayıcısını bırakın (ör. 'Gleis 5' yerine '5').",
+                    "Leave only the platform identifier in platform_code (for example '5' instead of 'Gleis 5').",
                 ));
             }
         }
@@ -593,7 +593,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                         "'{}' durağının tts_stop_name değeri '<' veya '>' karakteri içeriyor.",
                         stop_id
                     ),
-                    "tts_stop_name'de HTML/SSML işaret karakterleri kullanmayın.",
+                    "Do not use HTML/SSML markup characters in tts_stop_name.",
                 ));
             }
         }
@@ -784,7 +784,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             None,
             None,
             "stops.txt dosyasında hiç durak kaydı yok.".to_string(),
-            "stops.txt'e en az bir durak kaydı ekleyin veya geçerli bir locations.geojson bölgesini stop_times.location_id ile kullanın.",
+            "Add at least one stop record to stops.txt, or reference a valid locations.geojson zone with stop_times.location_id.",
         ));
     }
 
