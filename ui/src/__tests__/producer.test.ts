@@ -1783,6 +1783,9 @@ describe('Üretici kartı görünümü', () => {
     // RTS_025: the only agency offered.
     let out = render(notice('a', 'RTS_025', 'INFO', { entity_type: 'Route', entity_id: 'R1', details: { ...ctx, agency_name: 'Belediye' } }));
     expect(out.html).toContain('veri setinde tek işletmeci var („Belediye“), hat ona atanabilir.');
+    // Technical details: "Hat kodu" is the route's number, not its record code.
+    expect(out.html).toContain('<span>Hat kodu</span><code>10</code>');
+    expect(out.html).not.toContain('<span>Hat kodu</span><code>R1</code>');
 
     // RTS_026: the routes sharing a number with their names; both drawn.
     out = render(notice('a', 'RTS_026', 'LOW', { entity_type: 'Route', entity_id: 'R1', observed_value: '10',

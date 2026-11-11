@@ -4918,12 +4918,14 @@ function technicalValues(n: Notice): Array<[string, string | null | undefined]> 
 
 /** Bilgi işlem ekibi için seçilen kaydın künyesi: kural, dosyadaki yeri, kayıt kodları ve ham değerler.
  *  Motorun iç anahtarları (prev_arrival …) planlamacı görünümünde zaten tabloda; burada tekrar edilmez. */
-function technicalDetails(n: Notice): string {
+function technicalDetails(n: Notice, result: ValidationResult): string {
   const codeLabel: Record<string, string> = {
     Trip: 'producer.col.trip_code', Stop: 'producer.col.stop_code', Route: 'producer.col.route_code',
     Service: 'producer.col.service_code', Shape: 'producer.col.shape_code',
   };
-  const entityId = n.entity_type === 'Route' ? routeIdOfNotice(n) : n.entity_id;
+  // "Hat kodu" is the route's number riders know (route_short_name, as the badges), not route_id.
+  const routeId = n.entity_type === 'Route' ? routeIdOfNotice(n) : null;
+  const entityId = n.entity_type !== 'Route' ? n.entity_id : routeId ? routeBadge(routeId, result.name_index).label : routeId;
   const stopId = n.entity_type === 'Stop' ? null : n.details?.stop_id;
   const location = n.rule_id === 'STM_056'
     ? [n.file, n.field].filter(Boolean).join(' · ')
@@ -5235,7 +5237,7 @@ function topicCard(g: RuleGroup, result: ValidationResult, index: number): strin
         </div>
       </div>
       ${affectedRows(g, result)}
-      <details class="producer-card-details"><summary>${t('producer.card.technical')}</summary><dl>${technicalDetails(n)}</dl></details>
+      <details class="producer-card-details"><summary>${t('producer.card.technical')}</summary><dl>${technicalDetails(n, result)}</dl></details>
     </div>
   </article>`;
 }
@@ -5638,7 +5640,7 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
     const factsEl = card.querySelector<HTMLElement>('.producer-card-facts');
     if (factsEl) { const facts = factsHtml(evidenceFacts(rowCopy, notice)); factsEl.innerHTML = facts; factsEl.hidden = !facts; }
     const technicalEl = card.querySelector<HTMLElement>('.producer-card-details dl');
-    if (technicalEl) technicalEl.innerHTML = technicalDetails(notice);
+    if (technicalEl) technicalEl.innerHTML = technicalDetails(notice, result);
     const strip = card.querySelector<HTMLElement>('.planner-times-host');
     if (strip) strip.innerHTML = timeStrip(notice, result);
     let map = plannerMap(notice, result);

@@ -2638,7 +2638,7 @@ const fr: LocaleShape = {
     'producer.days.check': "Vérifiez les jours de service",
     'producer.col.stop': "Arrêt",
     'producer.col.stop_code': "Identifiant arrêt",
-    'producer.col.route_code': "Identifiant ligne",
+    'producer.col.route_code': "Code de ligne",
     'producer.trip.dir': "vers {headsign}",
     'producer.trip.dir_part': " vers « {headsign} »",
     'producer.trip.dep_part': " de {dep}",

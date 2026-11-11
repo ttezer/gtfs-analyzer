@@ -2637,7 +2637,7 @@ const ja: LocaleShape = {
     'producer.days.check': "運行日を確認してください",
     'producer.col.stop': "停留所",
     'producer.col.stop_code': "停留所ID",
-    'producer.col.route_code': "路線ID",
+    'producer.col.route_code': "路線コード",
     'producer.trip.dir': "{headsign}方面",
     'producer.trip.dir_part': "「{headsign}」方面",
     'producer.trip.dep_part': "{dep}発",

@@ -2639,7 +2639,7 @@ const en: LocaleShape = {
     'producer.days.check': "Check the service days",
     'producer.col.stop': "Stop",
     'producer.col.stop_code': "Stop ID",
-    'producer.col.route_code': "Route ID",
+    'producer.col.route_code': "Route code",
     'producer.trip.dir': "to {headsign}",
     'producer.trip.dir_part': " towards “{headsign}”",
     'producer.trip.dep_part': " {dep}",
