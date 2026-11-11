@@ -15,9 +15,16 @@ export function withLang(html: string, locale: Locale): string {
   return html.slice(0, start) + tag.replace(/^<html/i, `<html lang="${locale}"`) + html.slice(end + 1);
 }
 
+// Report tabs are blob: documents, so they inherit the app's Content-Security-Policy: inline
+// scripts run only when their exact text is hashed into script-src. vite.config.ts hashes these
+// two constants at build time; change the text here and the CSP follows. No inline on* handlers.
+export const AUTO_PRINT_SCRIPT = 'addEventListener("load",()=>{focus();print();});';
+export const PRINT_BUTTON_SCRIPT = 'document.querySelectorAll(".print-action").forEach(b=>b.addEventListener("click",()=>print()));';
+export const REPORT_INLINE_SCRIPTS = [AUTO_PRINT_SCRIPT, PRINT_BUTTON_SCRIPT];
+
 /// Insert a trigger before `</body>` so the document opens the print dialog when it loads.
 export function withAutoPrint(html: string): string {
-  const trigger = '<script>addEventListener("load",()=>{focus();print();});<\/script>';
+  const trigger = `<script>${AUTO_PRINT_SCRIPT}<\/script>`;
   return html.includes('</body>')
     ? html.replace('</body>', `${trigger}</body>`)
     : html + trigger;

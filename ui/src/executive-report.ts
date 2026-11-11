@@ -8,6 +8,7 @@ import {
   tRemediationForLocale,
 } from './i18n';
 import { escHtml } from './escape';
+import { PRINT_BUTTON_SCRIPT } from './print-doc';
 import type { Notice, R9Item, RuleClass, Severity, ValidationResult } from './types';
 
 export type ExecutivePriority = 'P0' | 'P1' | 'P2';
@@ -735,7 +736,7 @@ export function buildExecutiveReportHtml(model: ExecutiveReportModel): string {
   </style>
 </head>
 <body>
-  <button class="print-action" type="button" onclick="window.print()">${e(copy.printReport)}</button>
+  <button class="print-action" type="button">${e(copy.printReport)}</button>
   <section class="page cover">
     <div class="brand"><span class="brand-mark">GA</span>GTFS Analyzer</div>
     <p class="eyebrow" style="margin-top:24mm">${e(copy.confidential)}</p>
@@ -803,6 +804,7 @@ export function buildExecutiveReportHtml(model: ExecutiveReportModel): string {
     <p class="footer-note">${e(copy.offline)}</p>
     <div class="page-number">${pageNumber(inventoryPage)}</div>
   </section>
+<script>${PRINT_BUTTON_SCRIPT}</script>
 </body>
 </html>`;
 }
