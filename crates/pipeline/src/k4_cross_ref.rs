@@ -88,7 +88,7 @@ pub fn check_with_files_and_whitespace_roots(
                         Some(trip_id.to_string()),
                         None,
                         format!("'{}' sefer kodu trips.txt'te tanımlı değil.", trip_id),
-                        "Geçerli bir trip_id kullanın.",
+                        "Use a valid trip_id.",
                     );
                     finding.details = Some(stm001_details(idx, trip_id).into());
                     notices.push(finding);
@@ -124,7 +124,7 @@ pub fn check_with_files_and_whitespace_roots(
                         Some(stop_id.to_string()),
                         None,
                         format!("'{}' durağı stops.txt'te tanımlı değil.", stop_id),
-                        "Geçerli bir stop_id kullanın.",
+                        "Use a valid stop_id.",
                     );
                     finding.details = trip_contexts
                         .get(stop_id.as_str())
@@ -163,7 +163,7 @@ pub fn check_with_files_and_whitespace_roots(
                             "stop_times.txt", Some(st.line as u64), Some("location_group_id"),
                             Some(lg.to_string()), None,
                             format!("'{}' konum grubu location_groups.txt'te tanimli degil.", lg),
-                            "Gecerli bir location_group_id kullanin veya grubu location_groups.txt'te tanimlayin.",
+                            "Use a valid location_group_id or define the group in location_groups.txt.",
                         ));
                     }
                 }
@@ -183,7 +183,7 @@ pub fn check_with_files_and_whitespace_roots(
                             "stop_times.txt", Some(st.line as u64), Some("location_id"),
                             Some(loc.to_string()), None,
                             format!("'{}' konum locations.geojson'da tanimli degil.", loc),
-                            "Gecerli bir location_id kullanin veya konumu locations.geojson'a ekleyin.",
+                            "Use a valid location_id or add the location to locations.geojson.",
                         ));
                     }
                 }
@@ -563,7 +563,7 @@ pub fn check_with_files_and_whitespace_roots(
                         Some(r.route_id.clone()), Some(r.route_id.clone()),
                         "routes.txt", None, Some("cemv_support"), None, None,
                         format!("'{}' route'unda cEMV bayragi ile Fares v2 bilgisi farkli; GTFS precedence geregi Fares v2 bilgisi gecerlidir.", r.route_id),
-                        "Bu yalnizca bilgilendirmedir; Fares v2 bilgisi gecerlidir ve feed'in cEMV bayragini gecersiz kilar.",
+                        "This is informational only: Fares v2 takes precedence over the cEMV flag.",
                     ));
                 }
             }
@@ -847,7 +847,7 @@ fn check_agencies(
                                 "agency_lang '{}' feed_info.txt'deki feed_lang '{}' ile uyuşmuyor.",
                                 alang, feed_lang
                             ),
-                            "agency.txt'teki agency_lang değerini feed_info.feed_lang ile uyumlu hale getirin.",
+                            "Align the feed_lang value in feed_info.txt with the agency_lang value in agency.txt.",
                         ));
                     }
                 }
@@ -878,7 +878,7 @@ fn check_agencies(
                 None, None, "agency.txt", None, Some("agency_lang"),
                 Some(langs.join(", ")), None,
                 format!("Feed'deki agency'ler farklı agency_lang değerleri taşıyor ({}) — diller arası tutarsızlık.", langs.join(", ")),
-                "Aynı feed'deki agency'lerin agency_lang değerlerini tutarlı hale getirin (çok dilli ağ ise yok sayılabilir).",
+                "Make agency_lang consistent across agencies (or ignore for a genuinely multilingual network).",
             ));
         }
     }
@@ -914,7 +914,7 @@ fn check_agencies(
             Some(zones.join(", ")),
             None,
             "Birden fazla işletici farklı timezone değeri kullanıyor.".to_string(),
-            "Tüm işleticilerde aynı IANA timezone'u kullanın.",
+            "Use the same IANA timezone for all agencies.",
         ));
     }
 
@@ -1089,7 +1089,7 @@ fn check_stops(
                     "location_type={} olan durak için parent_station zorunludur.",
                     loc_type.unwrap()
                 ),
-                "Bu durak tipine bir istasyon (location_type=1) parent_station olarak atayın.",
+                "Assign a station (location_type=1) as parent_station for this stop type.",
             );
             // Planner context: the record's type and the nearest station within 1 km.
             n011.details.get_or_insert_with(Default::default).insert(
@@ -1187,7 +1187,7 @@ fn check_stops(
                             "Boarding area '{}' için parent_station '{}' platform (location_type=0) olmalı.",
                             rec.stop_id, parent
                         ),
-                        "Boarding area'nın parent_station'ını location_type=0 olan bir platform olarak ayarlayın.",
+                        "Set the boarding area's parent_station to a platform with location_type=0.",
                     );
                     // Planner context: the record it is attached to and that record's type.
                     let d = n021.details.get_or_insert_with(Default::default);
@@ -1287,7 +1287,7 @@ fn check_stops(
                     Some(stop_access_raw.to_string()),
                     Some("(boş)".to_string()),
                     format!("stop_access yalnız üst istasyonu olan platformlarda kullanılabilir ({why})."),
-                    "stop_access alanını yalnız parent_station'ı olan platformlarda (location_type 0/boş) doldurun.",
+                    "Fill in stop_access only on platforms that have a parent_station.",
                 );
                 // Planner context: why the field is out of place — the record's type, its station.
                 let d = n043.details.get_or_insert_with(Default::default);
@@ -1422,7 +1422,7 @@ fn check_routes(
                         .unwrap_or(rec.route_id.as_str());
                     format!("'{}' kodlu hattın hiçbir seferi bulunmamaktadır.", label)
                 },
-                "Kullanılmayan rotayı silin veya bu rotaya bir sefer ekleyin.",
+                "Remove the unused route or assign it a trip.",
             );
             // Planner context: routes with the same number that do have trips — often the
             // record the trips use instead of this one.
@@ -1599,7 +1599,7 @@ fn check_booking_rules(
             Some(svc.to_string()),
             None,
             format!("service_id '{svc}' calendar veya calendar_dates'te tanımlı değil."),
-            "Geçerli bir service_id kullanın ya da prior_notice_service_id alanını boş bırakın.",
+            "Reference an existing service_id or leave prior_notice_service_id empty.",
         ));
     }
 }
@@ -1644,7 +1644,7 @@ fn check_trips(
                 Some(rec_route_id.to_string()),
                 None,
                 format!("'{}' hattı routes.txt'te tanımlı değil.", rec_route_id),
-                "Geçerli bir route_id kullanın.",
+                "Use a valid route_id.",
             ));
         }
 
@@ -1730,7 +1730,7 @@ fn check_trips(
                         "trip_id '{}' için continuous_pickup/drop_off aktif — shape_id zorunludur.",
                         rec.trip_id
                     ),
-                    "Bu sefer için shapes.txt'e güzergah verisi ekleyip trips.txt'te shape_id'yi doldurun.",
+                    "Add shape geometry to shapes.txt and fill in shape_id in trips.txt.",
                 ));
             }
         }
@@ -1761,7 +1761,7 @@ fn check_trips(
             Some(sid.to_string()),
             None,
             message,
-            "Geçerli bir shape_id kullanın veya alanı boş bırakın.",
+            "Use a valid shape_id or leave the field empty.",
         );
         let mut details: BTreeMap<String, String> = BTreeMap::new();
         details.insert("affected_trips".to_string(), trips.to_string());
@@ -1934,7 +1934,7 @@ fn check_pathways(
                         "pathway_id '{}' farklı istasyonlar arası bağlantı kuruyor (from_station='{fs}', to_station='{ts}').",
                         rec.pathway_id
                     ),
-                    "İki ucun da aynı parent station'a çözüldüğünü doğrulayın. İki istasyon arasındaki geçit bilinçliyse dış ucunu giriş/çıkış (location_type=2) olarak modelleyin.",
+                    "Check that both endpoints resolve to the same parent station. If the passage between two stations is intentional, model its outer end as an entrance (location_type=2).",
                 );
                 let mut d = std::collections::BTreeMap::new();
                 d.insert("from_station".to_string(), fs.to_string());
@@ -1986,7 +1986,7 @@ fn check_pathways(
                         "stop_id '{}' (generic node, location_type=3) yalnızca 1 pathway'e bağlı — geçiş ağında çıkmaz.",
                         stop.stop_id
                     ),
-                    "Generic node en az 2 pathway ile bağlanmalıdır (giriş ve çıkış).",
+                    "Ensure all generic nodes (location_type=3) are connected to at least two pathways.",
                 ));
             }
         }
@@ -2032,7 +2032,7 @@ fn check_pathways(
                         format!(
                             "stop_id '{stop_id}' bir asansör pathway'ine bağlı ancak level_id tanımlı değil."
                         ),
-                        "stops.txt'de bu durağa level_id atayın ve levels.txt'de ilgili katı tanımlayın.",
+                        "Add a level_id to stops connected to elevator pathways.",
                     ));
                 }
             }
@@ -2199,7 +2199,7 @@ fn check_calendar_dates(
                     format!(
                         "calendar.txt yok; service_id '{sid}' için exception_type=1 (aktif gün) kaydı bulunamadı.",
                     ),
-                    "calendar.txt'i ekleyin ya da her servis için en az bir exception_type=1 kaydı tanımlayın.",
+                    "Add at least one calendar_dates.txt row with exception_type=1 for this service, or add a calendar.txt entry with at least one active day.",
                 ));
             }
         }
@@ -2258,7 +2258,7 @@ fn check_frequencies(
                     "'{}' frekans tabanlı seferin stop_times.txt'te durağı tanımlanmamış.",
                     rec.trip_id
                 ),
-                "stop_times.txt'e bu sefer için durak saatlerini ekleyin.",
+                "Add stop_times records for this frequency-based trip.",
             );
             // Planner context: the frequency window and headway as written.
             let details = n.details.get_or_insert_with(Default::default);
@@ -2316,7 +2316,7 @@ fn check_transfers(
                     Some(stop_id.to_string()),
                     None,
                     format!("{field} '{stop_id}' stops.txt'te tanımlı değil."),
-                    "Geçerli bir stop_id kullanın veya eksik durağı stops.txt'e ekleyin.",
+                    "Use a valid to_leg_group_id.",
                 ));
             }
         }
@@ -2331,7 +2331,7 @@ fn check_transfers(
                     Some(format!("{mtt}s")), Some(format!("≤ {MAX_TRANSFER_SEC}s")),
                     format!("'{}' → '{}' aktarmasının min_transfer_time değeri {}s ({:.0} dakika) çok uzun.",
                         rec.from_stop_id, rec.to_stop_id, mtt, mtt as f64 / 60.0),
-                    "min_transfer_time değerini gözden geçirin; gerçekçi bir aktarma süresi girin.",
+                    "Review min_transfer_time; enter a realistic transfer duration in seconds.",
                 ));
             }
             if mtt > 0 {
@@ -2361,7 +2361,7 @@ fn check_transfers(
                                 "transfers.txt", Some(rec.line), Some("min_transfer_time"),
                                 Some(format!("{speed:.2} m/s")), Some("≤ 2.00 m/s".to_string()),
                                 format!("'{}' → '{}' aktarması {:.0}m mesafeyi {}s içinde yürümeyi gerektiriyor ({speed:.2} m/s).", rec.from_stop_id, rec.to_stop_id, distance_m, mtt),
-                                "min_transfer_time değerini artırın veya aktarma duraklarını doğrulayın."));
+                                "Raise min_transfer_time, or check the transfer stops."));
                         }
                     }
                 }
@@ -2377,7 +2377,7 @@ fn check_transfers(
                     Some(fti.clone()), None, "transfers.txt", Some(rec.line), Some("from_trip_id"),
                     Some(fti.clone()), None,
                     format!("from_trip_id ve to_trip_id aynı sefer ('{fti}'); aktarmanın bir anlamı yok."),
-                    "from_trip_id ve to_trip_id farklı seferler olmalıdır.",
+                    "from_trip_id and to_trip_id must reference different trips.",
                 ));
             }
         }
@@ -2397,7 +2397,7 @@ fn check_transfers(
                     Some(fti.clone()),
                     None,
                     format!("from_trip_id '{fti}' trips.txt'te tanımlı değil."),
-                    "Geçerli bir trip_id kullanın.",
+                    "Use a valid trip_id from trips.txt for from_trip_id.",
                 ));
             }
         }
@@ -2417,7 +2417,7 @@ fn check_transfers(
                     Some(tti.clone()),
                     None,
                     format!("to_trip_id '{tti}' trips.txt'te tanımlı değil."),
-                    "Geçerli bir trip_id kullanın.",
+                    "Use a valid trip_id from trips.txt for to_trip_id.",
                 ));
             }
         }
@@ -2437,7 +2437,7 @@ fn check_transfers(
                     Some(fri.clone()),
                     None,
                     format!("from_route_id '{fri}' routes.txt'te tanımlı değil."),
-                    "Geçerli bir route_id kullanın.",
+                    "Use a valid route_id from routes.txt for from_route_id.",
                 ));
             }
         }
@@ -2457,7 +2457,7 @@ fn check_transfers(
                     Some(tri.clone()),
                     None,
                     format!("to_route_id '{tri}' routes.txt'te tanımlı değil."),
-                    "Geçerli bir route_id kullanın.",
+                    "Use a valid route_id from routes.txt for to_route_id.",
                 ));
             }
         }
@@ -2481,7 +2481,7 @@ fn check_transfers(
                     "transfer_type={} için from_trip_id ve to_trip_id zorunludur.",
                     ttype.unwrap()
                 ),
-                "Linked-trip transfer için her iki trip_id alanını doldurun.",
+                "Fill in both from_trip_id and to_trip_id for linked-trip transfers.",
             ));
         }
 
@@ -2499,7 +2499,7 @@ fn check_transfers(
                             None, None, "transfers.txt", Some(rec.line), Some(field),
                             Some(tid.clone()), None,
                             format!("{field} '{tid}' trips.txt'te mevcut ancak stop_times.txt'te hiç kaydı yok; in-seat aktarma gerçekleşemez."),
-                            "İlgili seferin stop_times.txt kayıtlarını ekleyin.",
+                            "Add stop_times records for the referenced trip.",
                         ));
                     }
                 }
@@ -2646,7 +2646,7 @@ fn check_transfers(
                                 "{trip_field} '{tid}' seferinin gerçek hattı '{}', ancak {route_field} '{rid}' belirtilmiş.",
                                 actual_route
                             ),
-                            "Aktarma kaydındaki route_id'yi ilgili seferin gerçek hat kodu ile güncelleyin.",
+                            "Correct the (from_trip_id/to_trip_id, route_id) pair so the route matches the referenced trip.",
                         ));
                     }
                 }
@@ -2677,7 +2677,7 @@ fn check_transfers(
                     format!(
                         "{field} '{stop_id}' location_type={lt}; aktarma yalnızca durak (0) veya istasyon (1) referansı alabilir.",
                     ),
-                    "transfers.txt'te giriş/çıkış, ara düğüm veya biniş alanı yerine durak ya da istasyon referansı kullanın.",
+                    "Reference a stop or a station in transfers.txt instead of an entrance, generic node or boarding area.",
                 ));
             }
         }
@@ -2704,7 +2704,7 @@ fn check_transfers(
                             format!(
                                 "{field} '{stop_id}' bir istasyon (location_type=1); linked-trip transfer'da durak (0) olmalı.",
                             ),
-                            "Linked-trip transfer için durak (location_type=0) referansı kullanın.",
+                            "Use a regular stop (location_type=0) for linked-trip transfers, not a station or entrance.",
                         ));
                     }
                 }
@@ -2755,7 +2755,7 @@ fn check_transfers(
                     format!(
                         "Aynı (from_stop, to_stop, trip, route) kombinasyonunda çakışan transfer kaydı (ilk görünüm: satır {prev_line}); öncelik belirsiz.",
                     ),
-                    "Çakışan transfer satırlarından birini kaldırın veya alanları farklılaştırın.",
+                    "Remove or modify one of the conflicting transfer conditions.",
                 ));
             } else {
                 seen_keys.insert(key, rec.line);
@@ -2792,7 +2792,7 @@ fn check_transfers(
                         "'{}' → '{}' aktarma çifti yineleniyor (ilk görünüm: satır {prev_line}).",
                         rec.from_stop_id, rec.to_stop_id
                     ),
-                    "Yinelenen aktarma satırını kaldırın.",
+                    "Remove the duplicate transfer record.",
                 ));
             } else {
                 seen_stops.insert(key, rec.line);
@@ -2861,7 +2861,7 @@ fn check_fare_attributes(
                     Some(format!("{missing} missing records")),
                     Some("dolu".to_string()),
                     format!("{missing} ücret tarifesinde agency_id eksik; tek kuruluşta önerilir."),
-                    "agency_id sütununu ücret tarifeleri için doldurun.",
+                    "Fill in agency_id in fare_attributes.txt to clarify which agency each fare belongs to.",
                 ));
             }
         }
@@ -2894,7 +2894,7 @@ fn check_fare_rules(
                 "fare_attributes.txt'te {} ücret tarifesi tanımlı ama fare_rules.txt kaydı yok.",
                 records.fare_attributes.len()
             ),
-            "fare_rules.txt'e ücret kuralları ekleyin veya ücret tarifelerini kaldırın.",
+            "If fares should be restricted to routes or zones, add the corresponding rules to fare_rules.txt; a general fare model may leave the file empty.",
         ));
     }
 
@@ -2934,7 +2934,7 @@ fn check_fare_rules(
                     Some(rid.clone()),
                     None,
                     format!("'{}' hattı routes.txt'te tanımlı değil.", rid),
-                    "Geçerli bir route_id kullanın.",
+                    "Use a valid route_id.",
                 ));
             }
         }
@@ -2977,7 +2977,7 @@ fn check_fare_rules(
                     "'{}' ücret kuralı için route_id, origin_id, destination_id ve contains_id alanlarının tümü boş; bu kural tüm seyahatlere uygulanır.",
                     rec.fare_id
                 ),
-                "En az bir ayrıştırıcı kriter (route_id, origin_id, destination_id veya contains_id) belirtin.",
+                "Review fare rule logic; ensure the zone combination is consistent and non-contradictory.",
             ));
         }
     }
@@ -3046,7 +3046,7 @@ fn check_fare_rules(
                         "Şu hatlar için fare_rules.txt'te ücret kuralı tanımlı değil: {}.",
                         uncovered.join(", ")
                     ),
-                    "Tüm hatlar için fare_rules.txt'e kapsayan kurallar ekleyin veya zone tabanlı ücretlendirmeye geçin.",
+                    "Add fare rules covering all routes or define a catch-all fare.",
                 ));
             }
         }
@@ -3293,7 +3293,7 @@ fn check_fare_origin_destination_coverage(
             "Seferlerin gerçekten bağladığı {} kalkış-varış bölge çifti için ücret kuralı yok (örnekler: {examples}).",
             missing_pairs.len()
         ),
-        "Her kalkış-varış bölge çifti için fare_rules.txt satırı ekleyin ya da ücreti hat bazında tek fiyat veya tüm seferleri kapsayan ücret olarak tanımlayın.",
+        "Add fare_rules.txt entries for every served origin/destination zone pair, or model the fare as a route-uniform or catch-all fare.",
     );
     finding.details = Some(BTreeMap::from([
         ("missing_pairs".to_string(), missing_pairs.len().to_string()),
@@ -3326,7 +3326,7 @@ fn check_fares_v2(
                     Some(fmid.clone()),
                     None,
                     format!("'{}' odeme araci fare_media.txt te tanimli degil.", fmid),
-                    "Gecerli bir fare_media_id kullanin.",
+                    "Use a valid fare_media_id.",
                 ));
             }
         }
@@ -3347,7 +3347,7 @@ fn check_fares_v2(
                         "'{}' yolcu kategorisi rider_categories.txt te tanimli degil.",
                         rcid
                     ),
-                    "Gecerli bir rider_category_id kullanin.",
+                    "Use a valid rider_category_id.",
                 ));
             }
         }
@@ -3441,7 +3441,7 @@ fn check_fares_v2(
                 "rider_categories.txt", None, Some("is_default_fare_category"),
                 Some(n.to_string()), None,
                 message,
-                "Bir fare_product_id icin uygun rider_category'lerden yalnizca biri is_default_fare_category=1 olmali.",
+                "Ensure each fare_product has exactly one eligible rider_category with is_default_fare_category=1.",
             );
             let mut details: std::collections::BTreeMap<String, String> =
                 std::collections::BTreeMap::new();
@@ -3482,7 +3482,7 @@ fn check_fares_v2(
                     "fare_products.txt", lines.first().copied(), None,
                     Some(default_count.to_string()), Some("1".to_string()),
                     message,
-                    "Bir fare_product_id icin uygun rider_category'lerden yalnizca biri is_default_fare_category=1 olmali.",
+                    "Ensure each fare_product has exactly one eligible rider_category with is_default_fare_category=1.",
                 ));
             }
         }
@@ -3501,7 +3501,7 @@ fn check_fares_v2(
                 "fare_leg_rules.txt", Some(rec.line), Some("fare_product_id"),
                 Some(String::new()), None,
                 "fare_product_id zorunludur.".to_string(),
-                "fare_leg_rules.txt'teki her satıra fare_products.txt'te tanımlı bir fare_product_id yazın.",
+                "Give every row in fare_leg_rules.txt a fare_product_id defined in fare_products.txt.",
             ));
         }
         if !rec.fare_product_id.is_empty()
@@ -3525,7 +3525,7 @@ fn check_fares_v2(
                     "'{}' ucret urunu fare_products.txt te tanimli degil.",
                     rec.fare_product_id
                 ),
-                "Gecerli bir fare_product_id kullanin.",
+                "Use a valid fare_product_id.",
             ));
         }
         if let Some(ref nid) = rec.network_id {
@@ -3536,7 +3536,7 @@ fn check_fares_v2(
                     "fare_leg_rules.txt", Some(rec.line), Some("network_id"),
                     Some(nid.clone()), None,
                     format!("'{}' ag kodu networks.txt/routes.txt/route_networks.txt te tanimli degil.", nid),
-                    "Gecerli bir network_id kullanin (networks.txt, routes.txt veya route_networks.txt).",
+                    "Use a valid network_id.",
                 ));
             }
         }
@@ -3555,7 +3555,7 @@ fn check_fares_v2(
                     Some(aid.clone()),
                     None,
                     format!("'{}' alan kodu areas.txt te tanimli degil.", aid),
-                    "Gecerli bir from_area_id kullanin.",
+                    "Use a valid from_area_id.",
                 ));
             }
         }
@@ -3574,7 +3574,7 @@ fn check_fares_v2(
                     Some(aid.clone()),
                     None,
                     format!("'{}' alan kodu areas.txt te tanimli degil.", aid),
-                    "Gecerli bir to_area_id kullanin.",
+                    "Use a valid to_area_id.",
                 ));
             }
         }
@@ -3593,7 +3593,7 @@ fn check_fares_v2(
                     Some(tfid.clone()),
                     None,
                     format!("'{}' zaman dilimi timeframes.txt te tanimli degil.", tfid),
-                    "Gecerli bir from_timeframe_group_id kullanin.",
+                    "Use a valid from_timeframe_group_id.",
                 ));
             }
         }
@@ -3612,7 +3612,7 @@ fn check_fares_v2(
                     Some(tfid.clone()),
                     None,
                     format!("'{}' zaman dilimi timeframes.txt te tanimli degil.", tfid),
-                    "Gecerli bir to_timeframe_group_id kullanin.",
+                    "Use a valid to_timeframe_group_id.",
                 ));
             }
         }
@@ -3637,7 +3637,7 @@ fn check_fares_v2(
                         "'{}' bacak grubu fare_leg_rules.txt te tanimli degil.",
                         lgid
                     ),
-                    "Gecerli bir from_leg_group_id kullanin.",
+                    "Use a valid from_leg_group_id.",
                 ));
             }
         }
@@ -3658,7 +3658,7 @@ fn check_fares_v2(
                         "'{}' bacak grubu fare_leg_rules.txt te tanimli degil.",
                         lgid
                     ),
-                    "Gecerli bir to_leg_group_id kullanin.",
+                    "Use a valid to_leg_group_id.",
                 ));
             }
         }
@@ -3676,7 +3676,7 @@ fn check_fares_v2(
                     Some(fpid.clone()),
                     None,
                     format!("'{}' ucret urunu fare_products.txt te tanimli degil.", fpid),
-                    "Gecerli bir fare_product_id kullanin.",
+                    "Use a valid fare_product_id.",
                 ));
             }
         }
@@ -3697,7 +3697,7 @@ fn check_fares_v2(
                 Some(rec.area_id.clone()),
                 None,
                 format!("'{}' alan kodu areas.txt te tanimli degil.", rec.area_id),
-                "Gecerli bir area_id kullanin.",
+                "Use a valid area_id.",
             ));
         }
         if !rec.stop_id.is_empty() && !map.stops.contains_key(rec.stop_id.as_str()) {
@@ -3713,7 +3713,7 @@ fn check_fares_v2(
                 Some(rec.stop_id.clone()),
                 None,
                 format!("'{}' durak stops.txt te tanimli degil.", rec.stop_id),
-                "Gecerli bir stop_id kullanin.",
+                "Use a valid stop_id.",
             ));
         }
     }
@@ -3731,7 +3731,7 @@ fn check_fares_v2(
                 "location_group_stops.txt", Some(rec.line), Some("location_group_id"),
                 Some(rec.location_group_id.clone()), None,
                 format!("'{}' konum grubu location_groups.txt'te tanimli degil.", rec.location_group_id),
-                "Gecerli bir location_group_id kullanin veya grubu location_groups.txt'te tanimlayin.",
+                "Use a valid location_group_id or define the group in location_groups.txt.",
             ));
         }
         if !rec.stop_id.is_empty() && !map.stops.contains_key(rec.stop_id.as_str()) {
@@ -3747,7 +3747,7 @@ fn check_fares_v2(
                 Some(rec.stop_id.clone()),
                 None,
                 format!("'{}' durak stops.txt'te tanimli degil.", rec.stop_id),
-                "Gecerli bir stop_id kullanin.",
+                "Use a valid stop_id.",
             ));
         }
     }
@@ -3767,7 +3767,7 @@ fn check_fares_v2(
                 Some(rec.service_id.clone()),
                 None,
                 format!("'{}' servis takvimi tanimli degil.", rec.service_id),
-                "Gecerli bir service_id kullanin.",
+                "Use a valid service_id.",
             ));
         }
     }
@@ -3807,7 +3807,7 @@ fn check_levels(
                     "level_id '{}' hiçbir durak tarafından referans edilmiyor.",
                     rec.level_id
                 ),
-                "Kullanılmayan level'ı silin veya bir durağın level_id'sini bu değere ayarlayın.",
+                "Remove the unused level or assign it to a stop.",
             ));
         }
     }
@@ -3941,7 +3941,7 @@ fn check_translations(
                 Some("stop_sequence".to_string()),
                 "record_sub_id, record_id ile belirlenen trip içindeki geçerli bir stop_sequence değil."
                     .to_string(),
-                "record_sub_id değerini ilgili trip içindeki stop_sequence değerine ayarlayın.",
+                "Set record_sub_id to the stop_sequence value.",
             ));
         }
 
@@ -3971,7 +3971,7 @@ fn check_translations(
                         "record_id '{rid}' table_name='{}' tablosunda bulunamadı.",
                         rec.table_name
                     ),
-                    "Mevcut bir kaydın ID'sini kullanın ya da satırı kaldırın.",
+                    "Use a record_id that exists in the referenced table.",
                 ));
             }
         }
@@ -4048,7 +4048,7 @@ fn check_translations(
                         "table_name='{}', field_name='{}', language='{}' için aynı çeviri değeri ('{}') birden çok satırda tekrarlanıyor.",
                         rec.table_name, rec.field_name, rec.language, rec.translation
                     ),
-                    "Yinelenen çeviri satırını kaldırın.",
+                    "Use the ID of an existing record or remove the translation row.",
                 ));
             }
             Some(_) => {
@@ -4069,7 +4069,7 @@ fn check_translations(
                         "table_name='{}', field_name='{}', language='{}' kombinasyonu farklı çeviri değerleriyle tekrarlanıyor; hangisinin geçerli olduğu belirsiz.",
                         rec.table_name, rec.field_name, rec.language
                     ),
-                    "Aynı kayıt için aynı dilde yalnızca bir çeviri tanımlayın.",
+                    "Define only one translation per record for the same language.",
                 ));
             }
         }
@@ -4340,7 +4340,7 @@ impl<'a> JpMissingReadings<'a> {
                 &file, first_line, Some(field),
                 Some(source.to_string()), Some("ja-Hrkt".to_string()),
                 format!("GTFS-JP V4: {table}.{field} = '{source}' için önerilen ja-Hrkt okuması eksik — {} satırı etkiliyor. Örnekler: {examples}.", group.count),
-                "translations.txt'e bu kaynak değeri kapsayan field_value çevirisi veya eksik kayıtların çevirilerini ekleyin.",
+                "Add the recommended matching language=ja-Hrkt translation row.",
             );
             finding.details = Some(BTreeMap::from([
                 ("message_variant".to_string(), "aggregate".to_string()),
@@ -4576,7 +4576,7 @@ fn check_jp_fare_zones(
             Some(stop_id.to_string()), Some(stop_id.to_string()),
             "stops.txt", Some(stop.line), Some("zone_id"), None, Some("zone_id".to_string()),
             format!("GTFS-JP: '{stop_id}' durağı bölgeye bağlı ücret kullanılan hatlarda ({route_examples}) hizmet görüyor ancak zone_id eksik."),
-            "Bu durağın zone_id değerini ilgili hattın fare_rules bölge tanımlarıyla eşleştirin.",
+            "Set this stop's zone_id consistently with the fare_rules zones for the affected routes.",
         );
         finding.details = Some(BTreeMap::from([(
             "example_route_ids".to_string(),
@@ -4848,7 +4848,7 @@ fn check_gtfs_jp(
                 Some("ja-Hrkt".to_string()),
                 format!("'{}' durağının adı ('{}') için kana (ja-Hrkt) okuması eksik — GTFS-JP'de zorunlu.",
                     stop.stop_id, name),
-                "translations.txt'e bu durak için language=ja-Hrkt (かな) çevirisi ekleyin.",
+                "Add a language=ja-Hrkt (kana) translation for this stop in translations.txt.",
             ));
         }
 
@@ -4883,7 +4883,7 @@ fn check_gtfs_jp(
                     "routes.txt", Some(route.line), Some(field),
                     None, Some("ja-Hrkt".to_string()),
                     format!("'{}' hattının {} değeri ('{}') için kana (ja-Hrkt) okuması eksik — seçilen GTFS-JP profilinde {kana_requirement}.", route.route_id, field, name),
-                    "translations.txt'e bu hat için language=ja-Hrkt (route adı) çevirisi ekleyin.",
+                    "Add a language=ja-Hrkt translation of route_long_name for this route in translations.txt.",
                 ));
             }
         }
@@ -4904,7 +4904,7 @@ fn check_gtfs_jp(
                 "trips.txt", Some(trip.line), Some("trip_headsign"),
                 None, Some("ja-Hrkt".to_string()),
                 format!("'{}' seferinin trip_headsign'ı ('{}') için kana (ja-Hrkt) okuması eksik — seçilen GTFS-JP profilinde {kana_requirement}.", trip.trip_id, hs),
-                "translations.txt'e bu sefer için language=ja-Hrkt (trip_headsign) çevirisi ekleyin.",
+                "Add a language=ja-Hrkt translation of trip_headsign for this trip in translations.txt.",
             ));
         }
 
@@ -4930,7 +4930,7 @@ fn check_gtfs_jp(
                 "agency.txt", Some(ag.line), Some("agency_name"),
                 None, Some("ja-Hrkt".to_string()),
                 format!("'{}' işleticisinin adı için kana (ja-Hrkt) okuması eksik — seçilen GTFS-JP profilinde {kana_requirement}.", ag.agency_name),
-                "translations.txt'e bu işletici için language=ja-Hrkt (agency_name) çevirisi ekleyin.",
+                "Add a language=ja-Hrkt translation of agency_name for this agency in translations.txt.",
             ));
         }
     }
@@ -4965,7 +4965,7 @@ fn check_gtfs_jp(
                     None,
                     format!("'{}' seferindeki jp_office_id ('{}') office_jp.txt'te tanımlı değil.",
                         trip.trip_id, oid),
-                    "jp_office_id değerini office_jp.txt'te tanımlı bir office_id ile eşleştirin.",
+                    "Point jp_office_id at an office_id defined in office_jp.txt.",
                 ));
                 }
             }
@@ -4991,7 +4991,7 @@ fn check_gtfs_jp(
                     None,
                     format!("'{}' hattındaki jp_office_id ('{}') office_jp.txt'te tanımlı değil.",
                         route.route_id, oid),
-                    "jp_office_id değerini office_jp.txt'te tanımlı bir office_id ile eşleştirin.",
+                    "Point jp_office_id at an office_id defined in office_jp.txt.",
                 ));
                 }
             }
@@ -5024,7 +5024,7 @@ fn check_gtfs_jp(
                     Some(aid.to_string()),
                     None,
                     format!("agency_jp.txt'teki agency_id ('{}') agency.txt'te tanımlı değil.", aid),
-                    "agency_jp.txt'teki agency_id değerini agency.txt'te tanımlı bir agency_id ile eşleştirin.",
+                    "Point the agency_jp.txt agency_id at an agency_id defined in agency.txt.",
                 ));
                 }
             }
@@ -5048,7 +5048,7 @@ fn check_gtfs_jp(
             None,
             None,
             "GTFS-JP feed'inde translations.txt eksik — profil bunu (özellikle stop_name kana/ja-Hrkt okumaları için) zorunlu kılar.".to_string(),
-            "translations.txt ekleyin ve en azından stop_name için language=ja-Hrkt (かな) çevirileri sağlayın.",
+            "Add translations.txt with at least language=ja-Hrkt (kana) readings for stop_name.",
         ));
     }
 
@@ -5136,7 +5136,7 @@ fn check_gtfs_jp(
                     Some(agency_id.to_string()),
                     Some("13 ASCII digits, optionally followed by '_' and a non-empty branch id".to_string()),
                     format!("GTFS-JP V3'te agency_id法人番号 biçiminde olmalı: '{agency_id}' 13 haneli ASCII gövdeyi karşılamıyor."),
-                    "agency_id'yi 13 haneli ASCII Corporate Number olarak yazın; gerekiyorsa '_' ile boş olmayan dal kimliği ekleyin.",
+                    "Use 13 ASCII digits for agency_id; append an underscore and non-empty branch id only when needed.",
                 ));
             }
         }
@@ -5250,7 +5250,7 @@ fn check_gtfs_jp(
                     Some(value.to_string()),
                     Some("ja".to_string()),
                     "Açık GTFS-JP profilinde feed_lang değeri 'ja' olmalıdır.".to_string(),
-                    "feed_info.txt içindeki feed_lang değerini ja yapın.",
+                    "Set feed_info.feed_lang to ja.",
                 ));
             }
         }
@@ -5273,7 +5273,7 @@ fn check_gtfs_jp(
                         Some(value.to_string()),
                         Some("ja".to_string()),
                         "Açık GTFS-JP profilinde agency_lang değeri 'ja' olmalıdır.".to_string(),
-                        "agency.txt içindeki agency_lang değerini ja yapın.",
+                        "Set each non-empty agency_lang value to ja.",
                     ));
                 }
             }
@@ -5292,7 +5292,7 @@ fn check_gtfs_jp(
                     Some("Asia/Tokyo".to_string()),
                     "Açık GTFS-JP profilinde agency_timezone değeri Asia/Tokyo olmalıdır."
                         .to_string(),
-                    "agency.txt içindeki agency_timezone değerini Asia/Tokyo yapın.",
+                    "Set agency_timezone to Asia/Tokyo.",
                 ));
             }
         }
@@ -5604,7 +5604,7 @@ fn check_gtfs_jp(
                 None,
                 None,
                 format!("office_jp.txt'teki '{}' ofisinin office_name değeri boş — GTFS-JP'de zorunludur.", oj.office_id),
-                "office_jp.txt'te her office_id için office_name değerini doldurun.",
+                "Fill in office_name for every office_id in office_jp.txt.",
             ));
             }
         }
@@ -5718,7 +5718,7 @@ fn check_gtfs_jp(
             None,
             None,
             "GTFS-JP feed'inde feed_info.txt eksik — profil bunu (feed_lang=ja, yayıncı bilgisi) zorunlu kılar.".to_string(),
-            "feed_info.txt ekleyin ve feed_lang=ja ile yayıncı bilgilerini doldurun.",
+            "Add feed_info.txt with feed_lang=ja and publisher information.",
         ));
     }
 
@@ -5735,7 +5735,7 @@ fn check_gtfs_jp(
                 "agency_jp.txt", Some(aj.line), Some("agency_id"),
                 Some(String::new()), Some("dolu".to_string()),
                 "agency_jp.txt satırında agency_id eksik — GTFS-JP bu alanı zorunlu kılar.".to_string(),
-                "agency_jp.txt'teki her satırı agency.txt'te tanımlı bir agency_id ile eşleştirin.",
+                "Set agency_jp.txt agency_id to an agency_id defined in agency.txt.",
             ));
             }
         }
@@ -5753,7 +5753,7 @@ fn check_gtfs_jp(
                 "agency_jp.txt", Some(aj.line), Some("agency_zip_number"),
                 Some(raw.to_string()), Some("7 ASCII rakam".to_string()),
                 format!("agency_zip_number '{}' geçersiz; GTFS-JP posta kodunu tire olmadan 7 rakam olarak ister.", raw),
-                "agency_zip_number değerini tire olmadan 7 ASCII rakam olarak girin.",
+                "Enter agency_zip_number as 7 ASCII digits without a hyphen.",
             ));
             }
         }
@@ -5888,7 +5888,7 @@ fn check_gtfs_jp(
                             "pattern_jp.txt route_update_date '{}' geçerli bir tarih değil.",
                             date
                         ),
-                        "route_update_date değerini geçerli bir YYYYMMDD tarihi olarak girin.",
+                        "Set route_update_date in pattern_jp.txt, or in a legacy routes_jp.txt feed, to a valid YYYYMMDD date.",
                     ));
                 }
             }
@@ -5912,7 +5912,7 @@ fn check_gtfs_jp(
                                 "routes_jp.txt route_update_date '{}' geçerli bir tarih değil.",
                                 date
                             ),
-                            "route_update_date değerini geçerli bir YYYYMMDD tarihi olarak girin.",
+                            "Set route_update_date in pattern_jp.txt, or in a legacy routes_jp.txt feed, to a valid YYYYMMDD date.",
                         ));
                     }
                 }
@@ -5988,7 +5988,7 @@ fn check_gtfs_jp(
                             "'{}' seferindeki jp_pattern_id '{}' pattern_jp.txt'te tanımlı değil.",
                             trip.trip_id, pattern_id
                         ),
-                        "jp_pattern_id değerini pattern_jp.txt'te tanımlı bir paterne bağlayın.",
+                        "Point trips.jp_pattern_id to a jp_pattern_id defined in pattern_jp.txt.",
                     ));
                 }
             }
@@ -6119,7 +6119,7 @@ fn check_gtfs_jp(
                     translation.record_id.clone().or_else(|| translation.field_value.clone()).or_else(|| Some(translation.field_name.clone())),
                     None,
                     "ja-Hrkt çevirisi geçerli bir tablo alanını veya mevcut GTFS kaydını göstermiyor.".to_string(),
-                    "table_name, field_name, record_id ve stop_times için record_sub_id değerlerini kaynak GTFS kayıtlarıyla eşleştirin.",
+                    "Correct the ja-Hrkt translation table, field, record_id, and record_sub_id references.",
                 ));
             }
         }
@@ -6546,7 +6546,7 @@ fn check_attributions(
                     Some(aid.clone()),
                     None,
                     format!("'{}' işletici kodu agency.txt'te tanımlı değil.", aid),
-                    "Geçerli bir agency_id kullanın.",
+                    "Use an agency_id that exists in agency.txt.",
                 ));
             }
         }
@@ -6566,7 +6566,7 @@ fn check_attributions(
                     Some(rid.clone()),
                     None,
                     format!("'{}' hattı routes.txt'te tanımlı değil.", rid),
-                    "Geçerli bir route_id kullanın.",
+                    "Use a route_id that exists in routes.txt.",
                 ));
             }
         }
@@ -6586,7 +6586,7 @@ fn check_attributions(
                     Some(tid.clone()),
                     None,
                     format!("'{}' sefer kodu trips.txt'te tanımlı değil.", tid),
-                    "Geçerli bir trip_id kullanın.",
+                    "Use a trip_id that exists in trips.txt.",
                 ));
             }
         }
@@ -6621,7 +6621,7 @@ fn check_attributions(
                 "attributions.txt dosyasındaki {both_refs_count} kayıtta agency_id, route_id ve \
                  trip_id alanlarından birden fazlası dolu (ör. satır {first})."
             ),
-            "Bu alanlardan yalnızca birini doldurun.",
+            "Fill in only one of these attribution reference fields.",
         ));
     }
 }
@@ -7013,7 +7013,7 @@ fn check_xfl(
                              boarding area'ları tanımlı — pathway'ler boarding area'lara bağlanmalıdır.",
                             rec.pathway_id
                         ),
-                        "Pathway'i platformun boarding area'sına (location_type=4) bağlayın.",
+                        "Connect the pathway to the platform's boarding area (location_type=4).",
                     ));
                 }
             }
@@ -7053,7 +7053,7 @@ fn check_xfl(
                         format!(
                             "{field} '{stop_id}' stop_access=1 ile işaretli (sokaktan doğrudan erişilir); böyle bir durak pathway uç noktası olamaz.",
                         ),
-                        "Durağın stop_access değerini 0 yapın ya da bu pathway kaydını kaldırın.",
+                        "Set the stop stop_access to 0, or remove this pathway record.",
                     ));
                 }
                 if stop.location_type == Some(1) {
@@ -7071,7 +7071,7 @@ fn check_xfl(
                         format!(
                             "{field} '{stop_id}' bir istasyon (location_type=1); pathway uç noktası peron, giriş/çıkış, ara düğüm veya biniş alanı olmalıdır.",
                         ),
-                        "pathways.txt'te istasyon yerine peron (location_type=0), giriş/çıkış (2), ara düğüm (3) veya biniş alanı (4) referansı kullanın.",
+                        "Reference a platform (location_type=0), entrance/exit (2), generic node (3) or boarding area (4) instead of a station.",
                     ));
                 }
             }
@@ -7188,7 +7188,7 @@ fn check_xfl(
                     "calendar_dates.txt'te yalnızca exception_type=2 (iptal) kaydı olan ve calendar.txt'te tanımlı olmayan service_id'ler: {}. Bu servisler hiç aktif olamaz.",
                     bad_list.join(", ")
                 ),
-                "calendar.txt'e servis ekleyin veya exception_type=1 kaydı tanımlayın.",
+                "Add exception_type=1 records in calendar_dates.txt or define the service in calendar.txt.",
             ));
         }
     }
@@ -7330,7 +7330,7 @@ fn check_xfl(
                      Gidiş → hat {fwd_routes}, takvim {fwd_services}, kalkış {fwd_deps}; \
                      Dönüş → hat {bwd_routes}, takvim {bwd_services}, kalkış {bwd_deps}.",
                 ),
-                "Gidiş ve dönüş yönleri için ayrı shape_id tanımlayın.",
+                "Define a separate shape_id for each travel direction.",
             );
             n.details = Some(details.into());
             notices.push(n);
@@ -7397,8 +7397,7 @@ fn check_xfl(
                     "{total} çeviri kaydının 'field_value' değeri hedef dosyada hiçbir satırla \
                      eşleşmiyor — bu çeviriler uygulanmaz. Örnek: {examples}."
                 ),
-                "field_value değerlerini hedef alanın gerçek içeriğiyle birebir eşleştirin \
-                 (baştaki/sondaki boşluk ve büyük/küçük harf dahil).",
+                "Match field_value exactly to the real content of the target field, including leading/trailing spaces and letter case.",
             );
             // 🔴 EXAMPLES ALSO GO INTO `details` (run-17 review, 2026-09-12).
             // Localization keeps ONE template per rule and en/fr/ja templates printed only the
@@ -7449,7 +7448,7 @@ fn check_xfl(
                     "translations.txt'te silinmiş veya tanımsız kayıtlara referans veren çeviriler: {}.",
                     bad_list.join(", ")
                 ),
-                "İlgili çeviri satırlarını kaldırın veya eksik entity'leri tekrar ekleyin.",
+                "Remove the translation rows or re-add the referenced records.",
             ));
         }
     }
@@ -7492,7 +7491,7 @@ fn check_xfl(
                     "attributions.txt'te geçersiz referanslar: {}.",
                     bad_list.join(", ")
                 ),
-                "attributions.txt'teki agency_id, route_id ve trip_id referanslarını düzeltin.",
+                "Fix the agency_id, route_id and trip_id references in attributions.txt.",
             ));
         }
     }
@@ -7516,7 +7515,7 @@ fn check_xfl(
                 Some("feed_info".to_string()),
                 None,
                 "translations.txt'te table_name='feed_info' kaydı var ama feed_info.txt dosyası yok.".to_string(),
-                "feed_info.txt ekleyin veya ilgili çeviri satırını kaldırın.",
+                "Add feed_info.txt or remove the translation rows referencing feed_info.",
             ));
         }
     }
@@ -7561,7 +7560,7 @@ fn check_xfl(
                 "location_groups.txt", None, Some("location_group_id"),
                 Some(id.clone()), None,
                 format!("'{id}' kimliği '{other}' ile çakışıyor — stop_id, locations.geojson id ve location_group_id ortak bir isim alanını paylaşır."),
-                "Çakışan kimliklerden birini yeniden adlandırın; bu üç kaynak arasında her kimlik benzersiz olmalıdır.",
+                "Rename one of the clashing IDs; every ID must be unique across these three sources.",
             ));
         }
     }
@@ -7598,7 +7597,7 @@ fn check_xfl(
                 None,
                 None,
                 format!("routes.txt'te network_id tanımlı VE {other} dosyası da mevcut — ağ tanımı iki yerde çakışıyor."),
-                "Ağ atamasını yalnızca bir yöntemle yapın: ya routes.txt'teki network_id sütununu kullanın ya da ayrı ağ dosyasını (networks.txt / route_networks.txt) kullanın.",
+                "Define the network assignment in only one place: either routes.txt network_id or networks.txt/route_networks.txt.",
             ));
         }
     }
@@ -8097,8 +8096,7 @@ fn check_flex_zone_overlap(
                     "'{trip}' seferinde {zones} eşzamanlı örtüşüyor: geojson geometrileri kesişiyor, \
                      pickup/drop-off pencereleri çakışıyor ve ikisi de aynı hizmeti sunuyor."
                 ),
-                "Pencereleri ayırın, bölge geometrilerini çakışmayacak şekilde düzeltin ya da \
-                 kayıtlardan birinde pickup/drop_off tipini kapatın.",
+                "Separate the time windows, redraw the zones so they do not intersect, or turn off pickup or drop-off on one of the records.",
             );
             n.details = Some(stm060_details(&rows[i], &rows[j], map).into());
             notices.push(n);

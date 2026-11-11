@@ -160,7 +160,7 @@ fn build_agencies(
                 "agency_id",
                 Some(aid.clone()),
                 format!("agency_id '{aid}' tekrarlanıyor (ilk görünüm: satır {prev_line})."),
-                "Her işleticiye benzersiz bir agency_id atayın.",
+                "Assign a unique agency_id to each agency.",
             ));
         } else {
             map.agencies.insert(aid.clone(), idx);
@@ -426,7 +426,7 @@ fn build_pathways(
                 "pathway_id",
                 Some(pid.clone()),
                 format!("pathway_id '{pid}' tekrarlanıyor (ilk görünüm: satır {prev_line})."),
-                "Her geçide benzersiz bir pathway_id atayın.",
+                "Assign a unique pathway_id to each pathway record.",
             ));
         } else {
             map.pathways.insert(pid.clone(), idx);
@@ -460,7 +460,7 @@ fn build_levels(
                 "level_id",
                 Some(lid.clone()),
                 format!("level_id '{lid}' tekrarlanıyor (ilk görünüm: satır {prev_line})."),
-                "Her katmana benzersiz bir level_id atayın.",
+                "Assign a unique level_id to each level.",
             ));
         } else {
             map.levels.insert(lid.clone(), idx);
@@ -497,7 +497,7 @@ fn build_fare_attrs(
                     "'{}' ücret tarifesi tekrarlanıyor (ilk görünüm: satır {prev_line}).",
                     fid
                 ),
-                "Her tarife kaydına benzersiz bir fare_id atayın.",
+                "Assign a unique fare_id to each fare record.",
             ));
         } else {
             map.fare_attrs.insert(fid.clone(), idx);
@@ -534,7 +534,7 @@ fn build_fares_v2(
                     "'{}' alan kodu tekrarlanıyor (ilk görünüm: satır {prev_line}).",
                     rec.area_id
                 ),
-                "Her alana benzersiz bir area_id atayın.",
+                "Assign a unique area_id to each area record.",
             ));
         } else {
             map.areas.insert(rec.area_id.clone(), idx);
@@ -558,7 +558,7 @@ fn build_fares_v2(
                 "network_id",
                 Some(rec.network_id.clone()),
                 format!("'{}' ağ kodu tekrarlanıyor.", rec.network_id),
-                "Her ağa benzersiz bir network_id atayın.",
+                "Assign a unique network_id to each network record.",
             ));
         } else {
             map.network_ids.insert(rec.network_id.clone());
@@ -603,7 +603,7 @@ fn build_fares_v2(
                     "'{}' yolcu kategorisi tekrarlanıyor.",
                     rec.rider_category_id
                 ),
-                "Her yolcu kategorisine benzersiz bir rider_category_id atayın.",
+                "Assign a unique rider_category_id to each rider category.",
             ));
         } else {
             map.rider_category_ids.insert(rec.rider_category_id.clone());
@@ -631,7 +631,7 @@ fn build_fares_v2(
                     "'{}' ödeme aracı tekrarlanıyor (ilk görünüm: satır {prev_line}).",
                     rec.fare_media_id
                 ),
-                "Her ödeme aracına benzersiz bir fare_media_id atayın.",
+                "Assign a unique fare_media_id to each fare media record.",
             ));
         } else {
             map.fare_media_ids.insert(rec.fare_media_id.clone(), idx);
@@ -664,7 +664,7 @@ fn build_fares_v2(
                 "fare_products.txt", rec.line, "fare_product_id|rider_category_id|fare_media_id",
                 Some(rec.fare_product_id.clone()),
                 format!("'{}' ücret ürünü aynı (rider_category_id, fare_media_id) kombinasyonuyla tekrarlanıyor (ilk görünüm: satır {prev_line}).", rec.fare_product_id),
-                "Her (fare_product_id, rider_category_id, fare_media_id) kombinasyonu benzersiz olmalıdır.",
+                "Each (fare_product_id, rider_category_id, fare_media_id) combination must be unique; the same fare_product_id may repeat with a different rider category or media.",
             ));
         } else {
             seen_pk.insert(pk, rec.line);
