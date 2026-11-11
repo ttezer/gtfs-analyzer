@@ -316,7 +316,7 @@ fn build_trips(
                     "'{}' sefer kodu tekrarlanıyor (ilk görünüm: satır {prev_line}).",
                     tid
                 ),
-                "Her sefere benzersiz bir trip_id atayın.",
+                "Assign a unique trip_id to each trip.",
             );
             // Planner context: the line where the trip code was first written.
             n.details

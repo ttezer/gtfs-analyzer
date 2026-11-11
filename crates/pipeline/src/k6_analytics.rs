@@ -2173,7 +2173,7 @@ fn check_speed_and_duration<'a>(
                             route,
                             if dep_str.is_empty() { String::new() } else { format!(" {dep_str}") },
                             duration_sec, config.min_trip_duration_sec),
-                        "stop_times zaman değerlerini kontrol edin; sefer gerçekten bu kadar kısa olmamalı.",
+                        "Check stop_times time values; the trip should not be this short.",
                     );
                         if let (Some(first), Some(last)) = (stimes.first(), stimes.last()) {
                             let mut d = trip_span_details(idx, first, last);
@@ -2671,7 +2671,7 @@ fn check_speed_and_duration<'a>(
                     Some(format!("{dt_sec}s")), Some("inceleyin".to_string()),
                     format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arası planlı süre {dt_sec}s — kısa zamanlama sinyali.",
                         a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0)),
-                    "Bu süre bilinçliyse işlem gerekmez; değilse stop_times.txt zaman değerlerini kontrol edin.",
+                    "No action is needed if this timing is intentional; otherwise verify the stop_times.txt values.",
                 );
                     let mut d = std::collections::BTreeMap::new();
                     d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
@@ -2702,7 +2702,7 @@ fn check_speed_and_duration<'a>(
                     Some(format!("{dist_km:.1} km")), Some(format!("<= {stm026_threshold:.0} km")),
                     format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arası mesafe {dist_km:.1} km.",
                         a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0)),
-                    "stops.txt koordinatlarını ve stop_times.txt sırasını doğrulayın.",
+                    "Verify stops.txt coordinates and stop_times.txt sequence.",
                 );
                     let mut d = std::collections::BTreeMap::new();
                     d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
@@ -2981,7 +2981,7 @@ fn check_speed_and_duration<'a>(
                     "'{route_label}' kodlu hattın {dir_sd} yönünde {svc_sd} çalışma takviminde \
                     '{trip_id}'{dep_suffix} seferindeki {trip_bad_seg_count} bozuk segmentte en yüksek hız {trip_max_speed:.1} km/h — eşik {threshold:.0} km/h.",
                 ),
-                "stop_times zaman ve koordinat verilerini kontrol edin.",
+                "Check stop_times timing and coordinate data.",
             );
                 // All bad segment pairs → each is a red polyline in the UI.
                 // Also put the departure time (when present) in details → available to the EN/JA message template.
@@ -3032,7 +3032,7 @@ fn check_speed_and_duration<'a>(
                     if dep_str.is_empty() { String::new() } else { format!(" {dep_str}") },
                     segment.sequence_a, segment.sequence_b, segment.distance_km * 1000.0,
                 ),
-                "Kalkış/varış zamanlarını doğrulayın; ardışık duraklar arasında geçiş süresi sıfır olamaz.",
+                "Verify departure/arrival times; travel time between consecutive stops cannot be zero.",
             );
                 let mut details = BTreeMap::from([
                     ("stop_a".to_string(), segment.stop_a.to_string()),
@@ -3101,7 +3101,7 @@ fn check_speed_and_duration<'a>(
             format!(
                 "route_id '{route}' içinde {affected_trips} seferde ardışık duraklar aynı zaman değerini kullanıyor (en uzun seri: {max_same_run}; örnek: '{example_trip}')."
             ),
-            "Ardışık stop_times zamanlarını doğrulayın; gerçek bekleme ise zamanları açıklayıcı biçimde düzenleyin.",
+            "Check the consecutive stop_times values; if the wait is real, write the times so they show it.",
         );
         n.details = Some(details.clone().into());
         notices.push(n);
@@ -3169,7 +3169,7 @@ fn check_speed_and_duration<'a>(
                 Some(observed),
                 Some(format!("≤ {threshold:.0} km/h")),
                 msg,
-                "Zaman damgalarını veya durak koordinatlarını doğrulayın; ardışık stop_times arasındaki hız eşiği aşıyor.",
+                "Verify timestamps or stop coordinates; the speed between consecutive stop_times exceeds the threshold.",
             );
             let mut d = std::collections::BTreeMap::new();
             d.insert("stop_a".to_string(), stop_a.to_string());
@@ -3303,7 +3303,7 @@ fn check_speed_and_duration<'a>(
                 Some(observed),
                 Some(format!("<= {threshold:.0} km/h")),
                 msg,
-                "Uzak durak çifti arasındaki varış/kalkış saatlerini doğrulayın; genellikle bir zaman bloğu kaymış ya da gece yarısı aşımı yanlış yazılmıştır.",
+                "Check the arrival and departure times between the distant stop pair; usually a time block has shifted or a past-midnight time was written without the 24+ hour form.",
             );
             let mut d = std::collections::BTreeMap::new();
             d.insert("stop_a".to_string(), stop_a.to_string());
@@ -3393,7 +3393,7 @@ fn check_frequency_headway(
                     "'{trip_id}' seferinde sefer aralığı {hw}sn — eşik {max_secs}sn ({} dk).",
                     config.max_headway_warning_min
                 ),
-                "Seferler arası süreyi azaltın veya ek sefer ekleyin.",
+                "Reduce the gap between trips or add extra runs.",
             ));
         }
 
@@ -3411,7 +3411,7 @@ fn check_frequency_headway(
                 Some(format!("{hw}s")),
                 Some(format!("> {}s", bunching_secs)),
                 format!("'{trip_id}' seferinde sefer aralığı {hw}sn ≤ sıkışma eşiği {bunching_secs}sn — sıkışma riski."),
-                "Sefer programını gözden geçirin; bu headway gerçekten isteniyorsa dikkate almayın.",
+                "Review the trip schedule; ignore if this headway is intentional.",
             ));
         }
     }
@@ -3593,7 +3593,7 @@ fn check_route_headway(
                 Some(format!("≤ {}", hw_threshold / 60)),
                 format!("'{route_label_hw}' kodlu hattın {dir_display} yönünde {service_id} çalışma takviminde maksimum sefer aralığı {:.0}dk — eşik {}dk.",
                     max_hw as f64 / 60.0, hw_threshold / 60),
-                "Pik/saatdışı sefer sayısını artırın ya da büyük boşlukları kapatın.",
+                "Increase peak/off-peak trip frequency or close large service gaps.",
             );
             n001.service_id = Some(service_id.to_string());
             headway_details(
@@ -3657,7 +3657,7 @@ fn check_route_headway(
                 Some(format!("> {}", config.bunching_threshold_min)),
                 format!("'{route_label_hw}' kodlu hattın {dir_display} yönünde {service_id} çalışma takviminde minimum sefer aralığı {:.0}dk ≤ sıkışma eşiği {}dk.",
                     min_hw as f64 / 60.0, config.bunching_threshold_min),
-                "Sefer programını düzenleyin; çok sık gelen seferler sıkışmaya yol açabilir.",
+                "Adjust the trip schedule; very frequent trips may cause congestion.",
             );
             n.service_id = Some(service_id.to_string());
             headway_details(&mut n, &trips, pair.0, pair.1, direction_key, deps.len());
@@ -4130,7 +4130,7 @@ fn check_calendar_analytics(
                 Some(format!("{count} exception")),
                 None,
                 format!("'{service_id}' takviminde {count} özel gün tanımı — temel programdan çok sapma."),
-                "calendar.txt base schedule'ı güncellemeyi tercih edin; calendar_dates'i istisnalar için kullanın.",
+                "Prefer updating the calendar.txt base schedule; use calendar_dates for exceptions only.",
             ));
         }
     }
@@ -4994,7 +4994,7 @@ fn check_geo_shape_trip_analytics(
                 None, None, "stops.txt", None, None,
                 Some(format!("{pct:.0}%")), Some("≤30%".to_string()),
                 format!("{shared}/{total_stops} durak ({pct:.0}%) koordinatını başka bir durakla paylaşıyor — sistematik koordinat sorunu."),
-                "stops.txt'deki tekrar eden koordinatları düzeltin.",
+                "Fix duplicate stop coordinates in stops.txt; each physical stop should have a unique location.",
             );
             // Planner context: the counts and the most crowded shared positions with their stops.
             let mut groups: Vec<(&(i64, i64), &Vec<&str>)> =
@@ -5023,7 +5023,7 @@ fn check_geo_shape_trip_analytics(
                 None, None, "stop_times.txt", None, None,
                 Some(format!("{total_st}")), Some("≤2.000.000".to_string()),
                 format!("stop_times.txt'de {total_st} satır var — WASM tüketicileri için ciddi bellek/performans riski."),
-                "Büyük feed'leri zaman veya coğrafi bölgeye göre parçalara bölün.",
+                "Split the feed into smaller geographic or time-based partitions.",
             ));
         }
     }
@@ -5062,7 +5062,7 @@ fn check_geo_shape_trip_analytics(
                         "stop_times.txt", Some(st.line as u64), Some("departure_time"),
                         Some(format!("{h:02}:{m:02}:{s:02}")), Some(format!("≤{max_dep_h}:00:00")),
                         format!("'{trip_id}' seferinde {h:02}:{m:02}:{s:02} kalkış saati — servis günü penceresini ({max_dep_h} saat) aşıyor."),
-                        "departure_time ve service_day_start_hour ayarını kontrol edin; bu pencereyi aşan değerler genellikle veri hatasıdır.",
+                        "Check stop_times.txt and service_day_start_hour for this trip; departure times beyond the service day window usually indicate a data error.",
                     );
                     // Let the planner see which stop has the departure beyond the window, with
                     // its sequence and times and the previous and next row.
@@ -5111,7 +5111,7 @@ fn check_geo_shape_trip_analytics(
                     "stop_times.txt", None, None,
                     Some(count.to_string()), Some("≤200".to_string()),
                     format!("'{trip_id}'{dep_suffix} seferinde {count} durak var — olası veri birleştirme hatası."),
-                    "Bu sefer için stop_times.txt'i gözden geçirin; seferler mantıksal segmentlere ayrılabilir.",
+                    "Review stop_times.txt for this trip; consider splitting into logical segments if routes share a single trip_id.",
                 );
                 // Planner context: the trip's ends and how many distinct stops it visits (a trip
                 // that passes the same stops again is the usual sign of merged trips).
@@ -5298,7 +5298,7 @@ fn check_operational_analytics(
                     None,
                     format!("'{}' hattının {}seferinde '{}' durağı (kod: '{}') {}× geçiyor — tekrarlayan operasyon deseni.",
                         route, dep, stop_name, dup_stop, count),
-                    "Bu rota deseni bilinçliyse işlem gerekmez; değilse stop_times.txt durak sırasını doğrulayın.",
+                    "No action is needed if this route pattern is intentional; otherwise verify the stop order.",
                 );
                 // Ordered stop list + repeated stop for the map.
                 let stop_list: Vec<&str> = stimes
@@ -5548,7 +5548,7 @@ fn check_operational_analytics(
                     "trips.txt", None, Some("wheelchair_accessible"),
                     Some(format!("{total}")), Some("1 or 2".to_string()),
                     format!("{total} seferin hiçbirinde wheelchair_accessible bilgisi girilmemiş."),
-                    "Tekerlekli sandalye erişilebilirliğini wheelchair_accessible alanıyla bildirin (1=erişilebilir, 2=erişilemez).",
+                    "Report wheelchair accessibility using the wheelchair_accessible field (1=accessible, 2=not accessible).",
                 );
                 wheelchair_details(&mut n029);
                 notices.push(n029);
@@ -5560,7 +5560,7 @@ fn check_operational_analytics(
                     Some(format!("{unset}/{total}")), Some("0".to_string()),
                     format!("{total} seferin {unset} tanesinde wheelchair_accessible bilgisi eksik ({:.0}%).",
                         unset as f64 / total as f64 * 100.0),
-                    "Tüm seferlerin wheelchair_accessible alanını doldurun (1=erişilebilir, 2=erişilemez).",
+                    "Fill the wheelchair_accessible field for all trips (1=accessible, 2=not accessible).",
                 );
                 wheelchair_details(&mut n028);
                 notices.push(n028);
@@ -5646,7 +5646,7 @@ fn check_operational_analytics(
                     "stops.txt", None, Some("wheelchair_boarding"),
                     Some(format!("{total}")), Some("1 or 2".to_string()),
                     format!("{total} fiziksel durağın hiçbirinde wheelchair_boarding bilgisi girilmemiş."),
-                    "Durakların tekerlekli sandalye erişilebilirliğini wheelchair_boarding ile bildirin (1=erişilebilir, 2=erişilemez).",
+                    "Report stop wheelchair accessibility using wheelchair_boarding (1=accessible, 2=not accessible).",
                 );
                 wheelchair_stop_details(&mut n038);
                 notices.push(n038);
@@ -5658,7 +5658,7 @@ fn check_operational_analytics(
                     Some(format!("{unset}/{total}")), Some("0".to_string()),
                     format!("{total} fiziksel durağın {unset} tanesinde wheelchair_boarding bilgisi eksik ({:.0}%).",
                         unset as f64 / total as f64 * 100.0),
-                    "Eksik duraklarda wheelchair_boarding alanını 1 (erişilebilir) veya 2 (erişilemez) olarak doldurun.",
+                    "Fill wheelchair_boarding (1=accessible, 2=not accessible) on the stops that are missing it.",
                 );
                 wheelchair_stop_details(&mut n037);
                 notices.push(n037);
@@ -5746,7 +5746,7 @@ fn check_operational_analytics(
                 Some(format!("route_type={}", type_list.join("/"))),
                 Some(format!("route_type={first_type}")),
                 msg,
-                "Aynı block içindeki tüm seferlerin aynı rota tipine sahip olmasını sağlayın.",
+                "Ensure all trips in the same block have the same route type.",
             );
             let mut d = std::collections::BTreeMap::new();
             d.insert("block_id".to_string(), bid.to_string());
@@ -5843,7 +5843,7 @@ fn check_operational_analytics(
                             Some(format!("{tid_a} / {tid_b}")),
                             None,
                             format!("block_id '{block_id}' içinde '{tid_a}' ve '{tid_b}' seferlerinin saatleri çakışıyor."),
-                            "Aynı araç bloğundaki seferlerin saatlerini örtüşmeyecek şekilde düzenleyin.",
+                            "Arrange trips in the same vehicle block so their times do not overlap.",
                         );
                         // Planner context: the block, the other trip and both trips' start and end.
                         let hm = |s: u32| format!("{:02}:{:02}", s / 3600, s / 60 % 60);
@@ -5887,7 +5887,7 @@ fn check_operational_analytics(
                     Some("≤ 80%".to_string()),
                     format!("Seferlerin %{:.0}'ında wheelchair_accessible bilgisi eksik veya bilinmiyor (0) — erişilebilirlik verisi yetersiz.",
                         ratio * 100.0),
-                    "trips.txt'deki wheelchair_accessible alanını 1 (erişilebilir) veya 2 (erişilemez) olarak doldurun.",
+                    "Fill the wheelchair_accessible field in trips.txt with 1 (accessible) or 2 (not accessible).",
                 );
                 // Planner context: counts and the first trips (file order) without the information.
                 let mut unknown_trips: Vec<(u64, &str)> = records
@@ -6114,7 +6114,7 @@ fn check_stoptimes_derived(idx: &StopTimesIndex<'_>, notices: &mut Vec<Notice>, 
                     None,
                     Some("HH:MM:SS".to_string()),
                     format!("trip_id '{trip_id}' seferinin ilk durağında arrival_time eksik."),
-                    "İlk stop_times satırına arrival_time girin.",
+                    "Enter an arrival_time for the first stop_times row.",
                 );
                 let mut details = edge_time_details(idx, stimes, first, "next");
                 if let Some(sequence) = first.stop_sequence() {
@@ -6141,7 +6141,7 @@ fn check_stoptimes_derived(idx: &StopTimesIndex<'_>, notices: &mut Vec<Notice>, 
                     "stop_times.txt", Some(last.line as u64),
                     Some("arrival_time"), None, Some("HH:MM:SS".to_string()),
                     format!("trip_id '{trip_id}'{dep_suffix} seferinin son durağında arrival_time eksik."),
-                    "Son stop_times satırına arrival_time girin.",
+                    "Enter an arrival_time for the last stop_times row.",
                 );
                 let mut details = edge_time_details(idx, stimes, last, "prev");
                 if let Some(sequence) = last.stop_sequence() {
@@ -6227,7 +6227,7 @@ fn check_route_trip_quality(
                     let rname = route_short.get(*route_id).copied().unwrap_or(route_id);
                     format!("'{rname}' hattında yalnızca 1 sefer var — düşük frekans sinyali.")
                 },
-                "Bu rotaya ek seferler ekleyin ya da frekans bazlı tanım kullanın.",
+                "Add more trips to this route or use frequency-based definitions.",
             );
             // Planner context: the route's one trip.
             if let Some(trip) = trips.first() {
@@ -6517,7 +6517,7 @@ fn check_route_trip_quality(
                         "'{}' hattının{dep} seferinde yön adı '{}' terminal durak değil, ara durak adıyla eşleşiyor.",
                         rname, headsign
                     ),
-                    "Headsign bilinçli bir ana hedefi gösteriyorsa işlem gerekmez; değilse yön adını doğrulayın.",
+                    "No action is needed if the headsign intentionally names a major destination; otherwise verify the direction label.",
                 );
                 // Planner context: the intermediate stop the headsign names and the real last stop.
                 let details = n020.details.get_or_insert_with(Default::default);
@@ -6806,7 +6806,7 @@ fn check_route_trip_quality(
                     "stop_times.txt", Some(cl), Some("start_pickup_drop_off_window"),
                     None, None,
                     format!("trip_id '{}' için zone '{}' içinde aynı biniş/iniş rolüyle örtüşen pickup/drop-off pencereleri var.", trip_id, zone),
-                    "Aynı trip+zone içinde biniş (veya iniş) açık satırların zaman pencerelerinin örtüşmediğinden emin olun.",
+                    "Ensure rows open for pickup (or for drop-off) in the same trip+zone do not have overlapping time windows.",
                 ));
             }
         }
@@ -6938,7 +6938,7 @@ fn check_data_quality(
                 Some(source_url.to_string()),
                 Some("kalıcı URL .../dosya.zip".to_string()),
                 format!("GTFS yayın URL'si bir .zip dosya adıyla bitmiyor: '{source_url}'."),
-                "Feed'i kalıcı ve açık bir .zip dosya adı içeren URL'de yayımlayın.",
+                "Publish the feed at a permanent URL that ends with an explicit .zip filename.",
             ));
         }
     }
@@ -7013,7 +7013,7 @@ fn check_data_quality(
             None,
             None,
             "Feed'de bugün itibarıyla aktif seferi olan servis bulunamadı.".to_string(),
-            "calendar.txt veya calendar_dates.txt verilerini güncelleyin.",
+            "Update calendar.txt or calendar_dates.txt data.",
         ));
         // Planner context: how many calendars exist and the last day any of them runs (tie → the
         // smallest service_id, so native and WASM agree on the shown calendar).
@@ -7069,7 +7069,7 @@ fn check_data_quality(
                 Some("≤ %80".to_string()),
                 format!("Seferlerin %{:.0}'ında shape_id eksik — harita gösterimi ve coğrafi analiz kısıtlı.",
                     ratio * 100.0),
-                "shapes.txt dosyasını oluşturun ve trips.txt'deki shape_id alanlarını doldurun.",
+                "Create shapes.txt and populate the shape_id fields in trips.txt.",
             ));
             if let Some(n) = notices.last_mut() {
                 let details = n.details.get_or_insert_with(Default::default);
@@ -7100,7 +7100,7 @@ fn check_data_quality(
             Some("0".to_string()),
             None,
             "Feed'de sefer var ancak hiç stop_times kaydı yok.".to_string(),
-            "stop_times.txt dosyasını oluşturun ve doldurun.",
+            "Create and populate stop_times.txt.",
         ));
         if let Some(n) = notices.last_mut() {
             let details = n.details.get_or_insert_with(Default::default);
@@ -7124,7 +7124,7 @@ fn check_data_quality(
             Some("1".to_string()),
             Some("≥ 2".to_string()),
             "Feed'de yalnızca 1 durak var — işlevsel transit verisi oluşturulamaz.".to_string(),
-            "stops.txt'e en az 2 durak ekleyin.",
+            "Add at least 2 stops to stops.txt.",
         ));
         // The one stop, so the planner sees which record it is and where it sits on the map.
         if let (Some(n), Some(stop)) = (notices.last_mut(), records.stops.first()) {
@@ -7166,7 +7166,7 @@ fn check_data_quality(
                     "Feed'de {} işletici var ancak hiçbir rotada agency_id atanmamış.",
                     records.agencies.len()
                 ),
-                "routes.txt'deki agency_id sütununu doldurun.",
+                "Fill in the agency_id column in routes.txt.",
             ));
             // Planner context: the counts and the first agencies in file order.
             if let Some(n) = notices.last_mut() {
@@ -7225,7 +7225,7 @@ fn check_data_quality(
                 None, None, "trips.txt", None, None,
                 Some(format!("{trip_count}")), Some("≥ 3".to_string()),
                 format!("Feed'de yalnızca {trip_count} sefer var — işlevsel transit veri için en az 3 sefer önerilir."),
-                "trips.txt'e daha fazla sefer ekleyin.",
+                "Add more trips to trips.txt.",
             ));
             if let Some(n) = notices.last_mut() {
                 let details = n.details.get_or_insert_with(Default::default);
@@ -7268,7 +7268,7 @@ fn check_data_quality(
                     "routes.txt", Some(route.line), Some("route_desc"),
                     Some(route.route_id.clone()), None,
                     format!("'{}' ({}) hattında route_desc alanı boş; kullanıcılar hat hakkında ek bilgi alamıyor.", route.route_id, label),
-                    "routes.txt'e route_desc açıklaması ekleyin.",
+                    "Add route_desc descriptions to routes.txt.",
                 ));
             }
         }
@@ -7298,7 +7298,7 @@ fn check_data_quality(
                     "routes.txt", Some(route.line), Some("route_url"),
                     Some(route.route_id.clone()), None,
                     format!("'{}' ({}) hattında route_url alanı boş; yolcular hat web sayfasına yönlendirilemiyor.", route.route_id, label),
-                    "routes.txt'e route_url bağlantısı ekleyin.",
+                    "Add route_url links to routes.txt.",
                 ));
             }
         }
@@ -7321,7 +7321,7 @@ fn check_data_quality(
                 None, None, "stops.txt", None, Some("stop_lat/stop_lon"),
                 Some(format!("{suspicious}")), None,
                 format!("{suspicious} durağın koordinatı (0°, 0°) civarında — bu Afrika kıyısı açıklarıdır; muhtemelen yanlış değer."),
-                "Durak koordinatlarını gerçek konuma göre düzeltin.",
+                "Correct stop coordinates to the actual location.",
             ));
             // Planner context: the first such stops in file order with the written position.
             if let Some(n) = notices.last_mut() {
@@ -7480,7 +7480,7 @@ fn check_data_quality(
                         None, None, "feed_info.txt", None, None,
                         Some(format!("{span_days}")), Some("≥7".to_string()),
                         format!("Feed geçerlilik penceresi yalnızca {span_days} gün ({sy}-{sm:02}-{sd:02} → {ey}-{em:02}-{ed:02}) — operasyonel kullanım için çok kısa."),
-                        "feed_start_date ve feed_end_date değerlerini gerçek hizmet dönemiyle güncelleyin.",
+                        "Extend the feed validity window to cover at least one full service cycle.",
                     ));
                 }
             }
@@ -7502,7 +7502,7 @@ fn check_data_quality(
                         Some(format!("{} years", span_days / 365)), Some("≤5 years".to_string()),
                         format!("Feed geçerlilik penceresi {} gün (~{} yıl) — gerçekçi olmayan zaman dilimi.",
                             span_days, span_days / 365),
-                        "feed_start_date ve feed_end_date değerlerini gerçekçi hizmet dönemine göre düzenleyin.",
+                        "Limit feed_start_date and feed_end_date to a realistic service period (typically 1–2 years).",
                     );
                     // Planner context: the validity window as written and its length.
                     let details = notice.details.get_or_insert_with(Default::default);
@@ -7562,7 +7562,7 @@ fn check_data_quality(
                         Some(format!("{:.0}%", most_count as f64 / total_named as f64 * 100.0)),
                         Some("≤80%".to_string()),
                         format!("Durakların {most_count}/{total_named} tanesinin adı '{most_common_name}' — yer tutucu veya test verisi olabilir."),
-                        "Her durağa gerçek konumunu yansıtan benzersiz bir stop_name verin.",
+                        "Assign unique, descriptive stop_name values to each stop.",
                     ));
                     // Planner context: the shared name, the counts and the first stops carrying it.
                     if let Some(n) = notices.last_mut() {
@@ -9210,7 +9210,7 @@ fn check_remaining_analytics<'a>(
                 Some(format!("{n_stops_with_coords}")),
                 None,
                 format!("Feed {n_stops_with_coords} koordinatlı durak içeriyor."),
-                "Bu bilgi notu; aksiyona gerek yoktur.",
+                "Informational notice; no action required.",
             );
             // Planner context: how far the stops spread both ways (placeholders at 0,0 left out).
             let coords: Vec<(f64, f64)> = records
@@ -9370,7 +9370,7 @@ fn check_remaining_analytics<'a>(
                 None,
                 format!("'{route_label}' hattının {} yönünde {} takviminde ortalama sefer aralığı {hw_min:.0}dk — aynı tür hatların feed medyanı {med_min:.0}dk ({yon_str}).",
                     g.dir, g.svc),
-                "Bu bilgi notu; sefer sıklığı aynı tür hatlara göre sıradışı.",
+                "Informational notice; this route's frequency is unusual for its mode.",
             );
             n.service_id = Some(g.svc.to_string());
             {
@@ -9437,7 +9437,7 @@ fn check_remaining_analytics<'a>(
                     None,
                     format!("'{label}' kodlu hatta yalnızca {} yönlü seferler var — karşı yön tanımlı değil.",
                         if dir == 0 { "gidiş" } else { "dönüş" }),
-                    "Bu bilgi notu; tek yönlü hatlar için beklenen bir durumdur.",
+                    "Informational notice; expected for one-way routes.",
                 );
                 // en/ja/fr templates are filled with `{route_label}`.
                 let details = notice.details.get_or_insert_with(Default::default);
@@ -9470,7 +9470,7 @@ fn check_remaining_analytics<'a>(
                     None,
                     None,
                     "Feed'deki hiçbir sefer için stop_times kaydı bulunamadı.".to_string(),
-                    "stop_times.txt dosyasını oluşturun.",
+                    "Create stop_times.txt with arrival/departure_time and stop_sequence entries.",
                 ));
                 if let Some(n) = notices.last_mut() {
                     let details = n.details.get_or_insert_with(Default::default);
@@ -9507,7 +9507,7 @@ fn check_remaining_analytics<'a>(
                         "Duraksaların %{:.0}'ında koordinat eksik — coğrafi analiz kısıtlı.",
                         ratio * 100.0
                     ),
-                    "stop_lat ve stop_lon alanlarını tüm duraklara ekleyin.",
+                    "Add stop_lat and stop_lon coordinates to all stops in stops.txt.",
                 ));
                 // Planner context: the counts and the first stops without a position in file
                 // order, with the type and parent station that tell where the stop belongs.
@@ -9585,7 +9585,7 @@ fn check_remaining_analytics<'a>(
                             ag.agency_name.as_str()
                         }
                     ),
-                    "Kullanılmayan agency kaydını kaldırın ya da routes.txt'de agency_id atayın.",
+                    "Remove the unused agency record or assign agency_id in routes.txt.",
                 ));
                 // Planner context: the agency's own name and site, and which agencies the
                 // routes do point at (most routes first, tie → agency_id).
@@ -9719,7 +9719,7 @@ fn check_remaining_analytics<'a>(
                 Some(count.to_string()),
                 None,
                 format!("'{label}' kodlu hattın {count} seferinde yön bilgisi (direction_id) girilmemiş — hat çift yönlü."),
-                "Bu seferlerin direction_id alanını 0 veya 1 olarak doldurun.",
+                "Fill direction_id with 0 or 1.",
             );
             notice
                 .details
@@ -9789,7 +9789,7 @@ fn check_remaining_analytics<'a>(
                     "block_id taşıyan {trips_with_block} seferin her biri kendi bloğunda tek — {} blok kodunun hiçbiri iki seferi gruplamıyor, alan fiilen trip_id kopyası.",
                     block_count.len()
                 ),
-                "block_id'yi aynı araçla ardışık yapılan seferlere ORTAK verin; her sefere ayrı kod vermek alanı bilgisiz bırakır (tek seferlik blok spec'e göre geçerlidir, bulgu onun için değildir).",
+                "Share one block_id across trips run consecutively by the same vehicle. A single-trip block is valid per the specification, so this finding is not about that.",
             );
             notice
                 .details
@@ -10495,7 +10495,7 @@ fn check_remaining_analytics<'a>(
                          onu parent_station olarak kullanmıyor; yalnız giriş/düğüm kayıtları bağlı olabilir.",
                         stop.stop_id, sname
                     ),
-                    "İstasyona bağlı peronlarda (location_type=0) parent_station alanını doldurun veya istasyonu kaldırın.",
+                    "Populate parent_station for physical stops belonging to this station, or remove the station.",
                 );
                 // Planner context: stops nearby that belong to no station — the likely platforms.
                 if let Some((la, lo)) = recoverable_stop_coord(stop) {
@@ -10879,7 +10879,7 @@ fn check_remaining_analytics<'a>(
                 None, None, "trips.txt", None, Some("trip_headsign"),
                 Some(format!("{missing}/{total}")), None,
                 format!("trips.txt'te önerilen trip_headsign alanı {missing}/{total} satırda boş — yolcu bilgi sistemleri için doldurulması önerilir."),
-                "trips.txt'teki trip_headsign sütununu doldurun.",
+                "Add a trip_headsign column to trips.txt.",
             ));
             if let Some(n) = notices.last_mut() {
                 let details = n.details.get_or_insert_with(Default::default);
@@ -10935,7 +10935,7 @@ fn check_remaining_analytics<'a>(
                     hm(min),
                     hm(max)
                 ),
-                "Bu bilgi notu; gece servisleri için beklenen bir durumdur.",
+                "Informational notice; expected for overnight services.",
             );
             // Planner context: the night trips' count and window, and the latest one for the map.
             let details = n.details.get_or_insert_with(Default::default);
@@ -11009,7 +11009,7 @@ fn check_remaining_analytics<'a>(
                         Some(format!("{dist_m:.0}m")),
                         Some(format!("> {:.0}m", MIN_TRIP_KM * 1000.0)),
                         format!("'{route}' hattının seferi yalnızca {dist_m:.0}m mesafe kapsıyor.",),
-                        "Sefer güzergahını veya güzergah şekli verilerini kontrol edin.",
+                        "Check the trip route or shape data.",
                     ));
                 }
             }
@@ -11134,7 +11134,7 @@ fn check_remaining_analytics<'a>(
                     Some(format!("{avg}s ({count})")),
                     Some(format!("≤ {AVG_TRANSFER_THRESHOLD_SEC}s")),
                     format!("Feed genelinde {count} zamanlı aktarmanın ortalama min_transfer_time değeri {avg}s ({avg_min:.1} dakika)."),
-                    "Aktarma sürelerini gözden geçirin; uzun aktarmalar yolcu deneyimini olumsuz etkiler.",
+                    "Review transfer times; long transfers negatively affect passenger experience.",
                 );
                 let details = n.details.get_or_insert_with(Default::default);
                 details.insert("transfer_count", count.to_string());
@@ -11206,7 +11206,7 @@ fn check_remaining_analytics<'a>(
                     TRF_DIST_THRESHOLD_M as u32,
                     if rows > 1 { format!(" Bu çift {rows} aktarma satırında tekrarlanıyor.") } else { String::new() }
                 ),
-                "Aktarma tanımını gözden geçirin; çok uzak duraklar arasındaki aktarma yolcular için zorlayıcı olabilir.",
+                "Review the transfer definition; transfers between very distant stops may be challenging for passengers.",
             );
             if rows > 1 {
                 let mut details: BTreeMap<String, String> = BTreeMap::new();
@@ -12097,8 +12097,7 @@ fn check_linked_trip_continuations(
                 "'{trip}' seferi birden çok sefere bağlanıyor ama devam seferlerinin takvimleri \
                  çelişiyor: '{ta}' → {sa}, '{tb}' → {sb}; ikisi de {day} günü aktif."
             ),
-            "1-to-n devamlılıkta tüm to_trip_id seferleri aynı service_id'yi kullanmalıdır. \
-             Bunlar ayrı devamlılıklarsa takvimleri hiçbir günde çakışmamalıdır.",
+            "In a 1-to-n continuation every to_trip_id must share one service_id. If these are separate continuations, their calendars must not overlap on any day.",
         ));
     }
 
@@ -12123,8 +12122,7 @@ fn check_linked_trip_continuations(
                 "'{trip}' seferine birden çok sefer bağlanıyor ama gelen seferlerin takvimleri \
                  çelişiyor: '{ta}' → {sa}, '{tb}' → {sb}; ikisi de {day} günü aktif."
             ),
-            "n-to-1 devamlılıkta tüm from_trip_id seferleri aynı service_id'yi kullanmalıdır. \
-             Bunlar ayrı devamlılıklarsa takvimleri hiçbir günde çakışmamalıdır.",
+            "In an n-to-1 continuation every from_trip_id must share one service_id. If these are separate continuations, their calendars must not overlap on any day.",
         ));
     }
 }
@@ -12321,7 +12319,7 @@ fn check_calendar_override_analytics(
                 Some(format!("{count}")),
                 Some("≤ 1/day".to_string()),
                 msg,
-                "Her takvim günü için yalnızca bir servis aktif olacak şekilde düzenleyin.",
+                "Arrange schedules so only one service is active per calendar day.",
             );
             n.details = Some({
                 let mut d = std::collections::BTreeMap::new();
@@ -12379,7 +12377,7 @@ fn check_calendar_override_analytics(
                 Some(format!("{count}")),
                 Some("≤ 1/day".to_string()),
                 msg,
-                "Override günlerinde base servisi calendar_dates.txt ile kaldırın (exception_type=2).",
+                "Remove the base service on override days via calendar_dates.txt (exception_type=2).",
             );
             n.details = Some({
                 let mut d = std::collections::BTreeMap::new();
@@ -12463,7 +12461,7 @@ fn check_calendar_override_analytics(
                 None,
                 None,
                 msg,
-                "Override gününde base servisi calendar_dates.txt ile kaldırın (exception_type=2).",
+                "Remove the base service on the override day via calendar_dates.txt (exception_type=2).",
             );
             n.details = Some(build_override_details(
                 count,
@@ -12484,7 +12482,7 @@ fn check_calendar_override_analytics(
                 ctr, "OPR_022", EntityType::Route,
                 Some(rule.route_id.clone()), Some(rule.route_id.clone()),
                 "calendar_dates.txt", None, None, None, None, msg,
-                "Override günü için override servisini calendar_dates.txt ile ekleyin (exception_type=1).",
+                "Add the override service on the override day via calendar_dates.txt (exception_type=1).",
             );
             n.details = Some(build_override_details(
                 count,
@@ -12513,7 +12511,7 @@ fn check_calendar_override_analytics(
                 None,
                 None,
                 msg,
-                "Override penceresinde hem base hem override servisini aktif tutun.",
+                "Keep both base and override services active during the override window.",
             );
             n.details = Some(build_override_details(
                 count,
@@ -12696,7 +12694,7 @@ fn check_calendar_override_analytics(
                     "trips.txt", None, Some("shape_id"),
                     Some(format!("1 shape ({shape_id})")), None,
                     format!("'{}' kodlu hattın tüm seferleri tek bir güzergah şekli kullanıyor ({shape_id}).", route_short_o15.get(*route_id).copied().unwrap_or(*route_id)),
-                    "Bu bilgi notu; gidiş-dönüş için ayrı shape_id kullanılması önerilir.",
+                    "Informational notice; separate shape_id for each direction is recommended.",
                 );
                 let mut d = std::collections::BTreeMap::new();
                 d.insert("shape_id".to_string(), shape_id.to_string());
@@ -12962,7 +12960,7 @@ fn check_pathway_analytics(
                 format!(
                     "İstasyon '{station_id}' — entrance'tan platforma tekerlekli sandalye ile erişilebilir pathway rotası yok (tüm pathlarda max_slope > 8% veya min_width < 0.9m).",
                 ),
-                "Accessibility koşullarını (max_slope ≤ 0.08, min_width ≥ 0.9) sağlayan bir entrance-to-platform rotası oluşturun.",
+                "Create an entrance-to-platform route meeting accessibility conditions (max_slope ≤ 0.08, min_width ≥ 0.9).",
             ));
         }
     }
@@ -12994,7 +12992,7 @@ fn check_pathway_analytics(
                             "pathway_id '{}' length={length}m ve traversal_time={tt}s'den türetilen hız {speed:.2} m/s — makul sınır {MAX_PATHWAY_SPEED_MS} m/s.",
                             pw.pathway_id
                         ),
-                        "traversal_time ve length değerlerini gerçekçi olarak güncelleyin.",
+                        "Update traversal_time and length to realistic values.",
                     ));
                 }
             }
@@ -13223,7 +13221,7 @@ fn check_vat_analytics(
                         None,
                         format!("{} ve {} hatları %{:.0} oranda aynı durağı paylaşıyor — muhtemel kopya hat.",
                             disp(rid_a, la), disp(rid_b, lb), jaccard * 100.0),
-                        "İki hattı birleştirin ya da güzergahları ayırt edilir biçimde farklılaştırın.",
+                        "Merge the two routes or differentiate them with distinct alignments.",
                     );
                     // Map: provide both routes so they can be drawn in different colors.
                     // route_b: lets the EN/JA message template name the second route (details
@@ -13394,7 +13392,7 @@ fn check_vat_analytics(
                 None,
                 format!("'{name}' (kod: '{stop_id}') durağından {} hat geçiyor ({routes_label_str}); transfers.txt'te aktarma tanımlı değil.",
                     routes.len()),
-                "transfers.txt'e bu durak için aktarma kayıtları ekleyin (transfer_type=2 ile bekleme süresi belirtin).",
+                "Review whether an explicit transfer in transfers.txt is needed for this stop.",
             );
             n002.details = Some({
                 let mut d = std::collections::BTreeMap::new();
@@ -13609,7 +13607,7 @@ fn check_vat_analytics(
                     Some(format!("{dur_min}min (hour-based expected {ref_min}min)")),
                     None,
                     format!("'{label}' hattının '{trip_id}'{dep_suffix} seferinin süresi {dur_min}dk — bu saatte beklenen ~{ref_min}dk ({sigma_str}).{repeat_suffix}"),
-                    "stop_times.txt zaman değerlerini ve sefer güzergahını doğrulayın.",
+                    "Review the stop_times.txt values and trip routes for this statistical outlier.",
                 );
                 let mut d = std::collections::BTreeMap::new();
                 if repeats > 1 {
@@ -13784,7 +13782,7 @@ fn check_vat_analytics(
                     Some(format!("{isolated_count} / {comp_count}")),
                     None,
                     format!("Ağ grafında ana şebekeden (seferlerle bağlı en büyük durak kümesi) kopuk {comp_count} izole durak kümesi var ({isolated_count} durak) — bu duraklar kendi aralarında seferlerle bağlı ama ana şebekeye hiçbir seferle bağlanmıyor. Örnek: '{ex_name}' ('{example}')."),
-                    "Ayrı bir servis bölgesi değilse, ortak durakların başka rotalarla aynı stop_id'yi paylaştığını veya bağlantı seferlerinin tanımlı olduğunu kontrol edin (sık neden: aynı yerin platform-özel ayrı stop_id'lerle modellenmesi).",
+                    "Verify that disconnected stops are linked to trips and that stop_times records are correct.",
                 );
                 let mut d = std::collections::BTreeMap::new();
                 d.insert("isolated_stops".to_string(), isolated_all.join(","));
@@ -13889,7 +13887,7 @@ fn check_vat_analytics(
                         None,
                         format!("'{label}' hattı feed'deki {total_trips} seferin {count}'ini (%{:.0}) oluşturuyor — hizmet yoğunluğu dengesiz.",
                             ratio * 100.0),
-                        "Yüksek sefer yoğunluğu operasyonel bir gerçeği yansıtıyorsa bu bilgi notudur. Değilse diğer hatlara sefer ekleyin.",
+                        "Informational notice if high trip density reflects operational reality. Otherwise, add trips to other routes.",
                     );
                     // Planner context: the trip counts and the next busiest routes.
                     let mut d = std::collections::BTreeMap::new();
@@ -13982,7 +13980,7 @@ fn check_vat_analytics(
                 None,
                 format!("'{name}' (kod: '{stop_id}') {} hattın terminal durağı; transfers.txt'te aktarma tanımlı değil. Hatlar: {}.",
                     routes.len(), labels.join(", ")),
-                "transfers.txt'e bu terminus durağı için aktarma kaydı ekleyin.",
+                "Review whether an explicit transfer in transfers.txt is needed at this terminus.",
             );
             let mut d = std::collections::BTreeMap::new();
             d.insert("routes".to_string(), route_ids.join(","));
@@ -14028,7 +14026,7 @@ fn check_vat_analytics(
                     "trips.txt", None, None,
                     Some(count.to_string()), Some(format!("≤{}", config.max_trips_per_route)),
                     format!("'{}' kodlu hat '{service_id}' çalışma takviminde {count} sefer içeriyor — veri birleştirme sorunu olabilir.", route_short_o24.get(*route_id).copied().unwrap_or(*route_id)),
-                    "Bu seferlerin doğru route_id ve service_id'ye atandığını kontrol edin.",
+                    "Check that trips are correctly assigned to routes; consider splitting very large routes.",
                 );
                 n.service_id = Some((*service_id).to_string());
                 n.details.get_or_insert_with(Default::default).insert(
@@ -14074,7 +14072,7 @@ fn check_vat_analytics(
                     None, None, "stop_times.txt", None, None,
                     Some(format!("{avg}s")), Some("≥60s".to_string()),
                     format!("Ortalama sefer süresi {avg} saniye — bu kadar kısa süreler genellikle veri hatasını gösterir."),
-                    "stop_times.txt'deki departure_time ve arrival_time değerlerini kontrol edin.",
+                    "Review departure_time and arrival_time values in stop_times.txt for data errors.",
                 );
                 timed_trips.sort_unstable();
                 let details = n.details.get_or_insert_with(Default::default);
@@ -14118,7 +14116,7 @@ fn check_vat_analytics(
                         Some(format!("≤{threshold} routes")),
                         format!("'{shape_id}' shape'i {} hatta ({pct:.0}%) kullanılıyor — olası yanlış shape ataması.",
                             route_set.len()),
-                        "Her hat ve yön için ayrı shape_id tanımlayın.",
+                        "Define a separate shape_id for each route and direction.",
                     );
                     // Planner context: the routes drawn with this shape.
                     let mut routes: Vec<&str> = route_set.iter().copied().collect();

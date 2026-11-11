@@ -970,7 +970,7 @@ pub fn arc013_unclosed_stream(file: &str, counter: &mut u32) -> gtfs_core::Notic
         Some("issue=unclosed_quote".to_string()),
         None,
         format!("'{file}' CSV tokenization hatası: {msg} — kaydın kalanı okunamadı."),
-        "CSV formatını kontrol edin; tırnak işaretlerinin doğru kapandığından emin olun.",
+        "Check the CSV format; ensure all quoted fields are properly closed.",
     )
 }
 

@@ -338,7 +338,7 @@ pub fn validate_trips_with_limits(
                 &mut counter, "ARC_034", EntityType::File, Some(file.name.clone()),
                 None, &file.name, Some(line), None, None, None,
                 format!("'{}' {line}. satırı başlık satırının tekrarı — veri olarak okunuyor.", file.name),
-                "Dosyanın ortasındaki tekrar eden başlık satırını kaldırın; genellikle iki dosyanın uç uca eklenmesinden doğar.",
+                "Remove the repeated header row in the middle of the file; it usually comes from two files being concatenated.",
             ));
             return;
         }
@@ -358,7 +358,7 @@ pub fn validate_trips_with_limits(
                 None,
                 None,
                 format!("'{}' {line}. satırı tamamen boş.", file.name),
-                "Boş satırları kaldırın.",
+                "Remove empty rows from the file.",
             ));
             return;
         }
@@ -423,7 +423,7 @@ pub fn validate_trips_with_limits(
                 Some(String::new()),
                 None,
                 "trip_id zorunludur.".to_string(),
-                "Her sefere benzersiz bir trip_id atayın.",
+                "Assign a unique trip_id to each trip.",
             );
             // A row without an identity cannot say which trip is its root: if scope_key remains
             // None, `blocks` suppresses ALL STM_001/FRQ_001/XFL_002/OPR_006/OPR_007 findings in

@@ -72,7 +72,10 @@ describe('detailed export report', () => {
     expect(html).toContain('route_long_name');
     expect(html).toContain('&lt;missing&gt;');
     expect(html).toContain('non-empty');
-    expect(html).toContain('Add route_desc to routes.txt.');
+    // DQ_003's remediation is in the Turkish dictionary (#201): the Turkish report shows it,
+    // not the engine's English text.
+    expect(html).toContain('routes.txt&#39;e route_desc açıklaması ekleyin.');
+    expect(html).not.toContain('Add route_desc to routes.txt.');
     expect(html).toContain('value is absent');
     expect(html).toContain('GTFS-JP profili');
     expect(html).toContain('v4');

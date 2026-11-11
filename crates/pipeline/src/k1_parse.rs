@@ -2196,7 +2196,7 @@ pub fn parse_with_limits(
                 Some(&entry_name), None, None,
                 Some(entry_name.clone()),
                 format!("'{entry_name}' alt dizinde bulunuyor — GTFS dosyaları ZIP kök dizininde düz olmalıdır."),
-                "Dosyayı ZIP'in kök dizinine taşıyın.",
+                "Move the file to the root of the ZIP archive.",
             ));
         }
         if raw_name.ends_with(".txt") && zf.unix_mode().is_some_and(|mode| mode & 0o400 == 0) {
@@ -2210,7 +2210,7 @@ pub fn parse_with_limits(
                 None,
                 zf.unix_mode().map(|m| format!("{m:o}")),
                 format!("'{raw_name}' ZIP girdisinde kullanıcı okuma izni bulunmuyor."),
-                "ZIP girdisinin Unix izinlerine user-read (0400) bitini ekleyin.",
+                "Add the user-read (0400) bit to the ZIP entry's Unix permissions.",
             ));
         }
 
@@ -2227,7 +2227,7 @@ pub fn parse_with_limits(
                 Some(&raw_name), None, None,
                 Some(raw_name.clone()),
                 format!("'{raw_name}' GTFS ZIP içinde başka bir ZIP dosyası — GTFS bu formatı desteklemiyor."),
-                "İç içe ZIP dosyasını kaldırın; GTFS dosyaları tek bir ZIP içinde düz yapıda bulunmalıdır.",
+                "Remove the nested ZIP file; GTFS files must be directly inside a single flat ZIP archive.",
             ));
             continue;
         }
@@ -2293,7 +2293,7 @@ pub fn parse_with_limits(
                 Some(&raw_name), None, None,
                 Some(raw_name.clone()),
                 format!("'{raw_name}' alt dizinde bulunuyor — GTFS dosyaları ZIP kök dizininde düz olmalıdır."),
-                "Dosyayı ZIP'in kök dizinine taşıyın.",
+                "Move the file to the root of the ZIP archive.",
             ));
             continue;
         }
@@ -2321,7 +2321,7 @@ pub fn parse_with_limits(
                     None,
                     Some(raw_name.clone()),
                     format!("'{raw_name}' GTFS spesifikasyonunda tanımlı değil."),
-                    "GTFS dışı dosyaları ZIP'ten kaldırın.",
+                    "Remove non-GTFS files from the ZIP.",
                 ));
             }
             continue;
@@ -2428,7 +2428,7 @@ pub fn parse_with_limits(
                         None,
                         Some("CR not followed by LF".to_string()),
                         format!("'{raw_name}' CRLF veya LF dışında satır sonu içeriyor."),
-                        "Satır sonlarını LF ya da CRLF olarak yeniden yazın.",
+                        "Rewrite the line endings as LF or CRLF.",
                     ));
                 }
                 // The 8192-byte cut can split a multibyte UTF-8 character.
@@ -2450,7 +2450,7 @@ pub fn parse_with_limits(
                 None,
                 Some("CR not followed by LF".to_string()),
                 format!("'{raw_name}' CRLF veya LF dışında satır sonu içeriyor."),
-                "Satır sonlarını LF ya da CRLF olarak yeniden yazın.",
+                "Rewrite the line endings as LF or CRLF.",
             ));
         }
 
@@ -2472,7 +2472,7 @@ pub fn parse_with_limits(
             None,
             Some(format!("{file_size_bytes} bytes")),
             format!("'{raw_name}' boyutu: {file_size_bytes} bayt."),
-            "Bilgi amaçlı; düzeltme gerekmez.",
+            "Informational notice; no action required.",
         ));
 
         // ARC_007: unknown file — skip after recording its size.
@@ -2501,7 +2501,7 @@ pub fn parse_with_limits(
                 None,
                 Some(raw_name.clone()),
                 format!("'{raw_name}' GTFS spesifikasyonunda tanımlı değil."),
-                "GTFS dışı dosyaları ZIP'ten kaldırın.",
+                "Remove non-GTFS files from the ZIP.",
             ));
             continue;
         }
@@ -2518,7 +2518,7 @@ pub fn parse_with_limits(
                 None,
                 None,
                 format!("İsteğe bağlı dosya mevcut: '{raw_name}'."),
-                "Bilgi amaçlı; düzeltme gerekmez.",
+                "Informational notice; no action required.",
             ));
         }
 
@@ -2533,7 +2533,7 @@ pub fn parse_with_limits(
                 Some(&raw_name), None, None,
                 Some("UTF-8 BOM (EF BB BF)".to_string()),
                 format!("'{raw_name}' dosyasında UTF-8 BOM var — bazı parser'lar BOM'u ilk alan adının parçası olarak okur."),
-                "Dosyayı BOM olmadan UTF-8 olarak kaydedin (UTF-8 without BOM).",
+                "Re-save the file as UTF-8 without BOM.",
             ));
         }
 
@@ -2554,7 +2554,7 @@ pub fn parse_with_limits(
                     None,
                     None,
                     format!("'{raw_name}' UTF-8 kodlamasıyla okunamıyor."),
-                    "Dosyayı UTF-8 kodlamasıyla yeniden kaydedin.",
+                    "Re-save the file with UTF-8 encoding.",
                 ));
                 partial.mark_unavailable(raw_name.clone());
                 if !is_required {
@@ -2568,7 +2568,7 @@ pub fn parse_with_limits(
                         None,
                         None,
                         format!("'{raw_name}' UTF-8 dışı olduğu için dosya atlandı."),
-                        "Tüm GTFS dosyalarını UTF-8 kodlamasıyla kaydedin.",
+                        "Save all GTFS files with UTF-8 encoding.",
                     ));
                 }
                 continue;
@@ -2611,7 +2611,7 @@ pub fn parse_with_limits(
                     Some(&raw_name), None, None,
                     Some("issue=unclosed_quote".to_string()),
                     format!("'{raw_name}' CSV tokenization hatası: {msg}"),
-                    "CSV formatını kontrol edin; tırnak işaretlerinin doğru kapandığından emin olun.",
+                    "Check the CSV format; ensure all quoted fields are properly closed.",
                 ));
                 partial.mark_unavailable(raw_name.clone());
                 continue;
@@ -2675,7 +2675,7 @@ pub fn parse_with_limits(
                     Some(hdr.as_str()),
                     Some(format!("{hdr:?}")),
                     format!("'{raw_name}' başlığında '{hdr}' sütununda gereksiz boşluk var."),
-                    "CSV başlıklarındaki baştaki/sondaki boşlukları kaldırın.",
+                    "Remove leading and trailing whitespace from CSV header field names.",
                 ));
                 let _ = col_i;
             }
@@ -2697,7 +2697,7 @@ pub fn parse_with_limits(
                     None,
                     Some("\"\"".to_string()),
                     format!("'{raw_name}' başlığında boş sütun adı var."),
-                    "Tüm sütun adlarının dolu olduğundan emin olun.",
+                    "Ensure all header column names are non-empty.",
                 ));
                 break; // Once per file is enough.
             }
@@ -2717,7 +2717,7 @@ pub fn parse_with_limits(
                     Some(hdr.as_str()),
                     Some(hdr.clone()),
                     format!("'{raw_name}' dosyasında '{hdr}' sütunu tekrarlanıyor."),
-                    "Tekrar eden sütunu kaldırın.",
+                    "Remove the duplicate column from the header row.",
                 ));
             }
         }
@@ -2739,7 +2739,7 @@ pub fn parse_with_limits(
                         format!(
                             "'{raw_name}' dosyasında '{hdr}' GTFS spesifikasyonunda tanımlı değil."
                         ),
-                        "GTFS standardı dışındaki sütunları kaldırın.",
+                        "Remove columns not defined in the GTFS specification.",
                     ));
                 }
             }
@@ -2771,7 +2771,7 @@ pub fn parse_with_limits(
                     Some(f),
                     Some(String::new()),
                     format!("'{raw_name}' dosyasında zorunlu '{f}' sütunu başlıkta yok."),
-                    "Zorunlu sütunu başlığa ekleyin.",
+                    "Add the required column to the header.",
                 ));
             }
         }
@@ -2824,7 +2824,7 @@ pub fn parse_with_limits(
                     None,
                     None,
                     format!("'{raw_name}' {line_num}. satırı tamamen boş."),
-                    "Boş satırları kaldırın.",
+                    "Remove empty rows from the file.",
                 ));
                 continue; // Do not store the empty row.
             }
@@ -2851,7 +2851,7 @@ pub fn parse_with_limits(
                     Some(&raw_name), Some(line_num), None,
                     None,
                     format!("'{raw_name}' {line_num}. satırı başlık satırının tekrarı — veri olarak okunuyor."),
-                    "Dosyanın ortasındaki tekrar eden başlık satırını kaldırın; genellikle iki dosyanın uç uca eklenmesinden doğar.",
+                    "Remove the repeated header row in the middle of the file; it usually comes from two files being concatenated.",
                 ));
                 continue; // Do not STORE the repeated header as data.
             }
@@ -3001,7 +3001,7 @@ pub fn parse_with_limits(
                     rows.len(),
                     max_rows
                 ),
-                "Bilgi amaçlıdır; düzeltme gerekmez. Çok büyük dosyalar tüketicilerde işlem süresini ve bellek kullanımını artırabilir.",
+                "Informational; no fix required. Very large files can increase processing time and memory use for consumers.",
             ));
         }
 
@@ -3143,8 +3143,7 @@ pub fn parse_with_limits(
                 "ZIP arşivinde {inconsistent_stream_entries} girdinin akış başlığı merkez diziniyle çelişiyor; \
                  arşivi akıştan okuyan araçlar dosyayı açamaz."
             ),
-            "Arşivi standart bir ZIP aracıyla yeniden paketleyin; \
-             data-descriptor bayrağı ile yerel başlıktaki boyutlar tutarlı olmalıdır.",
+            "Repack the archive with a standard ZIP tool; the data-descriptor flag and the sizes in the local header must be consistent.",
         ));
     }
 
@@ -3161,7 +3160,7 @@ pub fn parse_with_limits(
             None,
             None,
             "calendar.txt ve calendar_dates.txt dosyalarının ikisi de eksik.".to_string(),
-            "En az birini (calendar.txt veya calendar_dates.txt) ZIP'e ekleyin.",
+            "Include at least one of calendar.txt or calendar_dates.txt in the ZIP.",
         ));
     }
 
@@ -3174,7 +3173,7 @@ pub fn parse_with_limits(
             None, None, None,
             None,
             "translations.txt var ama feed_info.txt eksik; spec bu durumda feed_info.txt'i zorunlu kılar.".to_string(),
-            "feed_info.txt ekleyin ve feed_lang alanını doldurun — çevirilerin hangi dile göre yorumlanacağı buradan okunur.",
+            "Add feed_info.txt and fill in feed_lang — it says which language the translations are relative to.",
         ));
     }
 
@@ -3215,7 +3214,7 @@ fn validate_locations_geojson(
                 None,
                 None,
                 format!("'{fname}' UTF-8 kodlamasıyla okunamıyor."),
-                "Dosyayı UTF-8 kodlamasıyla yeniden kaydedin.",
+                "Re-save the file with UTF-8 encoding.",
             ));
             return false;
         }
@@ -3283,7 +3282,7 @@ fn validate_locations_geojson(
             Some("features"),
             None,
             format!("'{fname}' FeatureCollection'ı boş — hiç feature yok."),
-            "GTFS Flex için en az bir Polygon veya MultiPolygon feature ekleyin.",
+            "Add at least one Polygon or MultiPolygon feature to locations.geojson.",
         ));
         return false;
     }
@@ -3312,7 +3311,7 @@ fn validate_locations_geojson(
                         counter, "LOC_007", EntityType::File, Some(fname.to_string()),
                         Some(fname), Some((i + 1) as u64), Some("id"), Some(id_str.clone()),
                         format!("'{fname}' özellik {} ve {} aynı 'id' değerine sahip ({id_str}) — GTFS Flex referansı belirsizleşir.", first_idx + 1, i + 1),
-                        "Her feature'a benzersiz bir 'id' değeri verin.",
+                        "Assign a unique \"id\" to each feature in locations.geojson.",
                     ));
                 } else {
                     seen_ids.insert(id_str, i);
@@ -3346,7 +3345,7 @@ fn validate_locations_geojson(
                     format!(
                         "'{fname}' özellik {feat_num} için 'type' eksik veya \"Feature\" değil."
                     ),
-                    "Her feature nesnesine \"type\": \"Feature\" ekleyin.",
+                    "Add \"type\": \"Feature\" to every feature object.",
                 ));
             }
         }
@@ -3364,7 +3363,7 @@ fn validate_locations_geojson(
                 Some("properties"),
                 None,
                 format!("'{fname}' özellik {feat_num} için 'properties' nesnesi eksik."),
-                "Her feature'a bir 'properties' nesnesi ekleyin (boş nesne de geçerlidir).",
+                "Add a 'properties' object to every feature; an empty object is valid.",
             ));
         }
 
@@ -3374,7 +3373,7 @@ fn validate_locations_geojson(
                 counter, "LOC_003", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("id"), None,
                 format!("'{fname}' özellik {feat_num} için 'id' property eksik — stop_times çapraz referansı için zorunlu."),
-                "Her feature'a stop_times.txt'deki location_id değeriyle eşleşen benzersiz bir 'id' ekleyin.",
+                "Add a unique \"id\" property to each feature that matches the location_id referenced in stop_times.txt.",
             ));
         }
 
@@ -3397,7 +3396,7 @@ fn validate_locations_geojson(
                 counter, "LOC_002", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("geometry"), None,
                 format!("'{fname}' özellik {feat_num} için geometry null veya eksik — GTFS Flex gerektiriyor."),
-                "Her feature için geçerli bir Polygon veya MultiPolygon geometrisi tanımlayın.",
+                "Add a valid Polygon or MultiPolygon geometry to each feature in locations.geojson.",
             ));
             continue;
         }
@@ -3501,7 +3500,7 @@ fn missing_coordinates(counter: &mut u32, fname: &str, feat_num: u64, notices: &
         Some("coordinates"),
         None,
         format!("'{fname}' özellik {feat_num} için geometry 'coordinates' eksik veya dizi değil."),
-        "Geometriye geçerli bir 'coordinates' dizisi ekleyin.",
+        "Add a valid 'coordinates' array to the geometry.",
     ));
 }
 
@@ -3550,7 +3549,7 @@ fn check_polygon_rings(
                         counter, "LOC_004", EntityType::File, Some(fname.to_string()),
                         Some(fname), Some(feat_num), Some("coordinates"), None,
                         format!("'{fname}' özellik {feat_num} Polygon ring'i kapalı değil — ilk nokta [{fl},{fa}] son nokta [{ll},{la}] ile eşleşmiyor."),
-                        "GeoJSON Polygon ring'inin ilk ve son koordinatı aynı olmalıdır.",
+                        "Close the Polygon ring by making the last coordinate equal to the first coordinate.",
                     ));
                     already_reported_closure = true;
                     structurally_valid = false;
@@ -3683,7 +3682,7 @@ fn check_polygon_rings(
                 counter, "LOC_011", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("coordinates"), Some(failure.observed),
                 format!("'{fname}' özellik {feat_num} poligonu OpenGIS Simple Features 6.1.11'e göre geçersiz: {}.", failure.explanation),
-                "Poligon halkalarını kendini kesmeyecek şekilde düzeltin; delikleri dış ring'in içinde tutun.",
+                "Fix the polygon rings so they do not self-intersect, and keep holes inside the outer ring.",
             ));
         }
     }
@@ -3705,7 +3704,7 @@ fn check_polygon_rings(
                 counter, "LOC_006", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("coordinates"), Some(format!("{area_km2:.0}km²")),
                 format!("'{fname}' özellik {feat_num} Polygon alanı çok büyük (~{area_km2:.0}km²) — GTFS Flex bölgesi için gerçekçi değil."),
-                "Bölge geometrisini gerçek hizmet alanını kapsayacak şekilde küçültün.",
+                "Reduce the polygon extent to a realistic service zone; large polygons are likely coordinate errors.",
             ));
         }
     }
