@@ -2521,16 +2521,19 @@ fn annotate_route_context(all: &mut [gtfs_core::Notice], records: &EntityRecords
 const ROUTE_GROUP_LISTED: usize = 10;
 
 /// Shape findings whose planner card names the routes drawn with the shape and an example trip.
-const SHAPE_CONTEXT_RULES: [&str; 26] = [
+const SHAPE_CONTEXT_RULES: [&str; 30] = [
     "SHP_001", "SHP_002", "SHP_003", "SHP_004", "SHP_005", "SHP_006", "SHP_008", "SHP_009",
     "SHP_010", "SHP_012", "SHP_014", "SHP_015", "SHP_016", "SHP_017", "SHP_018", "SHP_019",
     "SHP_020", "SHP_021", "SHP_022", "SHP_023", "SHP_024", "SHP_025", "SHP_026", "SHP_028",
-    "SHP_029", "SHP_030",
+    "SHP_029", "SHP_030", "GEO_006", "GEO_007", "GEO_017", "GEO_020",
 ];
 /// Shape point findings (one row of the point list): the row's neighbours in the file.
-const SHAPE_POINT_RULES: [&str; 6] = [
-    "SHP_001", "SHP_002", "SHP_003", "SHP_004", "SHP_008", "SHP_021",
+const SHAPE_POINT_RULES: [&str; 7] = [
+    "SHP_001", "SHP_002", "SHP_003", "SHP_004", "SHP_008", "SHP_021", "GEO_017",
 ];
+/// Shape jump findings: `details.segment_index` names a stretch between two points with a
+/// position, in order; its two points are added as `from_*` and `to_*`.
+const SHAPE_JUMP_RULES: [&str; 2] = ["GEO_006", "GEO_007"];
 /// How far up and down the file a point's neighbours with a position are looked for.
 const SHAPE_NEIGHBOUR_SCAN: usize = 50;
 
@@ -2542,6 +2545,9 @@ const SHAPE_NEIGHBOUR_SCAN: usize = 50;
 /// (`prev_lat`, `prev_lon`, `prev_line`, `next_*`); SHP_001 (no shape code) the shape codes of
 /// the rows around it (`prev_shape_id`, `next_shape_id`) and that shape's routes (`shape_`);
 /// SHP_008 the row that first used the order number (`first_line`, `first_lat`, `first_lon`).
+/// GEO_006/007 the two points of the long stretch (`from_lat`, `from_lon`, `from_seq`,
+/// `from_line`, `to_*`), counted as the geometry step counts them: in order, points without a
+/// position break the line.
 /// Shared native/WASM step; details only, counts are unchanged.
 fn annotate_shape_context(all: &mut [gtfs_core::Notice], records: &EntityRecords) {
     use rustc_hash::FxHashMap;
@@ -2609,6 +2615,53 @@ fn annotate_shape_context(all: &mut [gtfs_core::Notice], records: &EntityRecords
         .filter(|(_, p)| wanted_lines.contains(&p.line_u64()))
         .map(|(i, p)| (p.line_u64(), i))
         .collect();
+    // Jump findings: shape → wanted segment indexes; then each shape's points in order.
+    let mut jumps: FxHashMap<&str, Vec<usize>> = FxHashMap::default();
+    for n in all.iter() {
+        if !SHAPE_JUMP_RULES.contains(&n.rule_id.as_str()) {
+            continue;
+        }
+        let seg = n
+            .details
+            .as_ref()
+            .and_then(|d| d.get("segment_index"))
+            .and_then(|v| v.as_str().parse::<usize>().ok());
+        if let (Some(shape), Some(seg)) = (n.entity_id.as_deref(), seg) {
+            jumps.entry(shape).or_default().push(seg);
+        }
+    }
+    // (shape, segment) → (from point, to point) as record indexes.
+    let mut jump_points: FxHashMap<(String, usize), (usize, usize)> = FxHashMap::default();
+    if !jumps.is_empty() {
+        let mut points: FxHashMap<&str, Vec<usize>> = FxHashMap::default();
+        for (i, p) in records.shapes.iter().enumerate() {
+            let id = records.shape_interns.id(p);
+            if let Some((&key, _)) = jumps.get_key_value(id) {
+                points.entry(key).or_default().push(i);
+            }
+        }
+        for (shape, mut idx) in points {
+            // Same order as the geometry step (sequence, then file order).
+            idx.sort_by_key(|&i| records.shapes[i].shape_pt_sequence().unwrap_or(0));
+            let wanted = &jumps[shape];
+            let mut prev: Option<usize> = None;
+            let mut seg = 0usize;
+            for i in idx {
+                let p = &records.shapes[i];
+                if p.shape_pt_lat().is_none() || p.shape_pt_lon().is_none() {
+                    prev = None;
+                    continue;
+                }
+                if let Some(j) = prev {
+                    if wanted.contains(&seg) {
+                        jump_points.insert((shape.to_string(), seg), (j, i));
+                    }
+                    seg += 1;
+                }
+                prev = Some(i);
+            }
+        }
+    }
     let shape_of = |i: usize| records.shape_interns.id(&records.shapes[i]);
     let coord_of = |i: usize| {
         let p = &records.shapes[i];
@@ -2710,6 +2763,29 @@ fn annotate_shape_context(all: &mut [gtfs_core::Notice], records: &EntityRecords
                 }
             }
         }
+        if SHAPE_JUMP_RULES.contains(&n.rule_id.as_str()) {
+            let seg = n
+                .details
+                .as_ref()
+                .and_then(|d| d.get("segment_index"))
+                .and_then(|v| v.as_str().parse::<usize>().ok());
+            let pair = shape_id
+                .as_deref()
+                .zip(seg)
+                .and_then(|(shape, seg)| jump_points.get(&(shape.to_string(), seg)));
+            if let Some(&(a, b)) = pair {
+                for (prefix, i) in [("from", a), ("to", b)] {
+                    let p = &records.shapes[i];
+                    let (la, lo) = coord_of(i).unwrap_or_default();
+                    adds.push((format!("{prefix}_lat"), la.to_string()));
+                    adds.push((format!("{prefix}_lon"), lo.to_string()));
+                    adds.push((format!("{prefix}_line"), p.line_u64().to_string()));
+                    if let Some(seq) = p.shape_pt_sequence() {
+                        adds.push((format!("{prefix}_seq"), seq.to_string()));
+                    }
+                }
+            }
+        }
         if adds.is_empty() {
             continue;
         }
@@ -2721,11 +2797,12 @@ fn annotate_shape_context(all: &mut [gtfs_core::Notice], records: &EntityRecords
 }
 
 /// Stop findings whose planner card names the trips, routes and neighbouring stops of the stop.
-const STOP_CONTEXT_RULES: [&str; 27] = [
+const STOP_CONTEXT_RULES: [&str; 34] = [
     "STP_001", "STP_003", "STP_006", "STP_007", "STP_008", "STP_009", "STP_010", "STP_012",
     "STP_013", "STP_014", "STP_015", "STP_016", "STP_017", "STP_019", "STP_022", "STP_023",
     "STP_024", "STP_026", "STP_028", "STP_029", "STP_031", "STP_033", "STP_036", "STP_039",
-    "STP_040", "STP_041", "STP_044",
+    "STP_040", "STP_041", "STP_044", "GEO_002", "GEO_009", "GEO_012", "GEO_015", "GEO_016",
+    "GEO_019", "GEO_022",
 ];
 /// STP_032 summary: per example platform, the nearest station within this distance (a likely
 /// parent).
@@ -2746,8 +2823,10 @@ const STOP_CONTEXT_OTHER: [(&str, &str, &str); 4] = [
     (STP039_RULE, "other_stop_id", "other_"),
     ("STP_020", "nearest_used_stop_id", "nearest_"),
 ];
-/// Feed summaries (one per feed) whose example stops get the same context, per example.
-const STOP_CONTEXT_SUMMARIES: [&str; 2] = ["STP_004", "STP_005"];
+/// Findings whose example stops (`example_stop_ids`) get the same context, per example: the
+/// STP_004/005 feed summaries, the other stops of a GEO_012 cluster (its own stop gets the
+/// plain context too), the far stops of GEO_014 and the first stops of GEO_018.
+const STOP_CONTEXT_SUMMARIES: [&str; 5] = ["STP_004", "STP_005", "GEO_012", "GEO_014", "GEO_018"];
 /// Routes listed per stop (most trips first).
 const STOP_CONTEXT_ROUTES: usize = 5;
 
@@ -2788,7 +2867,8 @@ fn annotate_stop_context(all: &mut [gtfs_core::Notice], records: &EntityRecords)
             if let Some(id) = n.entity_id.as_deref().filter(|v| !v.is_empty()) {
                 wanted.insert(id.to_string());
             }
-        } else if STOP_CONTEXT_SUMMARIES.contains(&n.rule_id.as_str()) {
+        }
+        if STOP_CONTEXT_SUMMARIES.contains(&n.rule_id.as_str()) {
             wanted.extend(summary_stops(n));
         }
     }
@@ -2972,27 +3052,38 @@ fn annotate_stop_context(all: &mut [gtfs_core::Notice], records: &EntityRecords)
         }
         out
     };
+    let examples = |n: &gtfs_core::Notice| -> Vec<(String, String)> {
+        summary_stops(n)
+            .iter()
+            .enumerate()
+            .flat_map(|(i, sid)| {
+                let mut v = vec![(format!("example_{i}_stop_id"), sid.clone())];
+                v.extend(describe(sid, &format!("example_{i}_")));
+                v
+            })
+            .collect()
+    };
     for n in all.iter_mut() {
         let other: Vec<(String, String)> = other_stop(n)
             .map(|(id, prefix)| describe(&id, prefix))
             .unwrap_or_default();
+        let summary = STOP_CONTEXT_SUMMARIES.contains(&n.rule_id.as_str());
         let adds: Vec<(String, String)> = if STOP_CONTEXT_RULES.contains(&n.rule_id.as_str()) {
             match n.entity_id.as_deref() {
-                Some(id) => describe(id, "").into_iter().chain(other).collect(),
+                Some(id) => {
+                    let mut v: Vec<(String, String)> =
+                        describe(id, "").into_iter().chain(other).collect();
+                    if summary {
+                        v.extend(examples(n));
+                    }
+                    v
+                }
                 None => continue,
             }
         } else if n.rule_id == "STP_020" {
             other
-        } else if STOP_CONTEXT_SUMMARIES.contains(&n.rule_id.as_str()) {
-            summary_stops(n)
-                .iter()
-                .enumerate()
-                .flat_map(|(i, sid)| {
-                    let mut v = vec![(format!("example_{i}_stop_id"), sid.clone())];
-                    v.extend(describe(sid, &format!("example_{i}_")));
-                    v
-                })
-                .collect()
+        } else if summary {
+            examples(n)
         } else {
             continue;
         };

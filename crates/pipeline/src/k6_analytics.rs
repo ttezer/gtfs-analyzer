@@ -1395,6 +1395,38 @@ fn recoverable_stop_coord(stop: &crate::k2::stops::StopRecord) -> Option<(f64, f
     parse("stop_lat").zip(parse("stop_lon"))
 }
 
+/// GEO_006/007 planner context: the stretch's index among the drawing's segments (its two
+/// points are looked up in the shared context step), its length and the threshold.
+fn shape_jump_details(
+    segment: usize,
+    dist_km: f64,
+    threshold_km: f64,
+) -> std::collections::BTreeMap<String, String> {
+    [
+        ("segment_index".to_string(), segment.to_string()),
+        ("dist_km".to_string(), format!("{dist_km:.2}")),
+        ("threshold_km".to_string(), format!("{threshold_km}")),
+    ]
+    .into_iter()
+    .collect()
+}
+
+/// Stops listed per GEO_012 cluster and per GEO_014 far-stop list.
+const GEO_LISTED_STOPS: usize = 10;
+
+/// North–south and east–west extent of the stops in km (GEO_013/014 planner context).
+fn stop_extent_km(coords: &[(f64, f64)]) -> (f64, f64) {
+    let min_lat = coords.iter().map(|c| c.0).fold(f64::INFINITY, f64::min);
+    let max_lat = coords.iter().map(|c| c.0).fold(f64::NEG_INFINITY, f64::max);
+    let min_lon = coords.iter().map(|c| c.1).fold(f64::INFINITY, f64::min);
+    let max_lon = coords.iter().map(|c| c.1).fold(f64::NEG_INFINITY, f64::max);
+    let mid_lat = (min_lat + max_lat) / 2.0;
+    (
+        haversine_km(min_lat, min_lon, max_lat, min_lon),
+        haversine_km(mid_lat, min_lon, mid_lat, max_lon),
+    )
+}
+
 /// shape → consecutive-point jump threshold (km). For rail shapes, `max_shape_jump_km_rail`.
 fn shape_jump_threshold_km(
     shape_id: &str,
@@ -4508,7 +4540,7 @@ fn check_geo_stop_analytics(
         let span_km = haversine_km(min_lat, min_lon, max_lat, max_lon);
         if span_km > 500.0 {
             // Very wide feed → informational notice.
-            notices.push(k6_notice(
+            let mut n = k6_notice(
                 ctr,
                 "GEO_014",
                 EntityType::Feed,
@@ -4521,7 +4553,53 @@ fn check_geo_stop_analytics(
                 None,
                 format!("Feed coğrafi kapsamı geniş: {span_km:.0}km köşegen (bbox: {min_lat:.3},{min_lon:.3} → {max_lat:.3},{max_lon:.3})."),
                 "Bu bilgi notu; büyük ağlar için beklenen bir durumdur.",
-            ));
+            );
+            // Planner context: the extent both ways and the stops farthest from the network's
+            // median point — the ones to check when the network is not meant to be this wide.
+            let real: Vec<(f64, f64)> = coords
+                .iter()
+                .copied()
+                .filter(|(la, lo)| !(la.abs() < 0.1 && lo.abs() < 0.1))
+                .collect();
+            let (ns_km, ew_km) = stop_extent_km(if real.is_empty() { &coords } else { &real });
+            let mut lats: Vec<f64> = coords.iter().map(|c| c.0).collect();
+            let mut lons: Vec<f64> = coords.iter().map(|c| c.1).collect();
+            lats.sort_by(f64::total_cmp);
+            lons.sort_by(f64::total_cmp);
+            let (med_lat, med_lon) = (lats[lats.len() / 2], lons[lons.len() / 2]);
+            let mut far: Vec<(f64, &str)> = records
+                .stops
+                .iter()
+                .filter(|s| !s.stop_id.is_empty())
+                .filter_map(|s| {
+                    let (la, lo) = recoverable_stop_coord(s)?;
+                    // A placeholder at 0,0 is GEO_016's finding, not a far stop.
+                    (!(la.abs() < 0.1 && lo.abs() < 0.1))
+                        .then(|| (haversine_km(med_lat, med_lon, la, lo), s.stop_id.as_str()))
+                })
+                .collect();
+            far.sort_by(|a, b| b.0.total_cmp(&a.0).then(a.1.cmp(b.1)));
+            // Only the stops that are actually far: at least half the farthest one's distance.
+            let cut = far.first().map(|f| f.0 / 2.0).unwrap_or(0.0);
+            far.retain(|f| f.0 >= cut);
+            far.truncate(GEO_LISTED_STOPS / 2);
+            let ids: Vec<&str> = far.iter().map(|f| f.1).collect();
+            let kms: Vec<String> = far.iter().map(|f| format!("{:.0}", f.0)).collect();
+            n.details = Some(
+                [
+                    ("span_km".to_string(), format!("{span_km:.0}")),
+                    ("ns_km".to_string(), format!("{ns_km:.1}")),
+                    ("ew_km".to_string(), format!("{ew_km:.1}")),
+                    ("med_lat".to_string(), format!("{med_lat:.6}")),
+                    ("med_lon".to_string(), format!("{med_lon:.6}")),
+                    ("example_stop_ids".to_string(), ids.join(",")),
+                    ("example_km".to_string(), kms.join(",")),
+                ]
+                .into_iter()
+                .collect::<std::collections::BTreeMap<String, String>>()
+                .into(),
+            );
+            notices.push(n);
         }
     }
     // GEO_015: Japan coordinate bounds — when feed_lang=ja, stop coordinates must be in Japan.
@@ -4635,7 +4713,7 @@ fn check_geo_stop_analytics(
                 .fold(f64::NEG_INFINITY, f64::max);
             let span_km = haversine_km(min_lat, min_lon, max_lat, max_lon);
             if span_km < 0.2 {
-                notices.push(k6_notice(
+                let mut n = k6_notice(
                     ctr, "GEO_018", EntityType::Feed,
                     None, None, "", None, None,
                     Some(format!("{:.0}m", span_km * 1000.0)),
@@ -4643,7 +4721,29 @@ fn check_geo_stop_analytics(
                     format!("Feed'deki tüm {} durak {}m'lik bir alan içinde — test/yer tutucu veri olabilir.",
                         coords.len(), (span_km * 1000.0) as u64),
                     "Gerçek durak koordinatlarını stops.txt'e ekleyin.",
-                ));
+                );
+                // Planner context: how many stops, the area's middle, and the first stops (their
+                // trips and routes are added in the shared stop context step).
+                let ids: Vec<&str> = records
+                    .stops
+                    .iter()
+                    .filter(|s| !s.stop_id.is_empty() && recoverable_stop_coord(s).is_some())
+                    .map(|s| s.stop_id.as_str())
+                    .take(GEO_LISTED_STOPS)
+                    .collect();
+                let det = n.details.get_or_insert_with(Default::default);
+                det.insert("stop_count".to_string(), coords.len().to_string());
+                det.insert("span_m".to_string(), format!("{:.0}", span_km * 1000.0));
+                det.insert(
+                    "mid_lat".to_string(),
+                    format!("{:.6}", (min_lat + max_lat) / 2.0),
+                );
+                det.insert(
+                    "mid_lon".to_string(),
+                    format!("{:.6}", (min_lon + max_lon) / 2.0),
+                );
+                det.insert("example_stop_ids".to_string(), ids.join(","));
+                notices.push(n);
             }
         }
     }
@@ -4707,7 +4807,7 @@ fn check_geo_shape_analytics(
                 continue; // → GEO_007
             }
             if dist > max_jump_km {
-                notices.push(k6_notice(
+                let mut n = k6_notice(
                     ctr,
                     "GEO_006",
                     EntityType::Shape,
@@ -4721,35 +4821,59 @@ fn check_geo_shape_analytics(
                     format!("'{shape_id}' güzergahının {i}→{}. segmentinde {dist:.2}km atlama — eşik {max_jump_km}km.",
                         i + 1),
                     "Aralarında koordinat eksik olan güzergah noktalarını ekleyin.",
-                ));
+                );
+                // Planner context: which stretch of the drawing (its two points are added in
+                // the shared context step) and how long it is against the threshold.
+                n.details = Some(shape_jump_details(i, dist, max_jump_km).into());
+                notices.push(n);
             }
         }
     }
 
     drop(_tg6);
 
-    // GEO_017: shape point near Null Island — at most one notice per shape.
+    // GEO_017: shape point near Null Island — at most one notice per shape, on its first such
+    // row (file order); the notice counts the shape's points at (0,0) and names the first one's
+    // order number (the points around it are added in the shared context step).
     {
-        let mut flagged: HashSet<u32> = HashSet::new();
-        for pt in &records.shapes {
-            if flagged.contains(&pt.shape_idx()) {
-                continue;
-            }
+        let mut first: Vec<(u32, usize)> = Vec::new();
+        let mut count: HashMap<u32, usize> = HashMap::new();
+        for (i, pt) in records.shapes.iter().enumerate() {
             let (Some(lat), Some(lon)) = (pt.shape_pt_lat(), pt.shape_pt_lon()) else {
                 continue;
             };
             if lat.abs() < 0.1 && lon.abs() < 0.1 {
-                flagged.insert(pt.shape_idx());
-                let sid = records.shape_interns.id(pt);
-                notices.push(k6_notice(
-                    ctr, "GEO_017", EntityType::Shape,
-                    Some(sid.to_string()), Some(sid.to_string()),
-                    "shapes.txt", Some(pt.line as u64), Some("shape_pt_lat|shape_pt_lon"),
-                    Some(format!("{lat:.6},{lon:.6}")), None,
-                    format!("'{sid}' şeklinde Null Island yakınında nokta bulundu ({lat:.6},{lon:.6}) — GPS veri hatası olabilir."),
-                    "shapes.txt'deki sıfır değerli koordinatları kontrol edin.",
-                ));
+                let c = count.entry(pt.shape_idx()).or_insert(0);
+                if *c == 0 {
+                    first.push((pt.shape_idx(), i));
+                }
+                *c += 1;
             }
+        }
+        for (sidx, i) in first {
+            let pt = &records.shapes[i];
+            let (lat, lon) = (
+                pt.shape_pt_lat().unwrap_or_default(),
+                pt.shape_pt_lon().unwrap_or_default(),
+            );
+            let sid = records.shape_interns.id(pt);
+            let mut n = k6_notice(
+                ctr, "GEO_017", EntityType::Shape,
+                Some(sid.to_string()), Some(sid.to_string()),
+                "shapes.txt", Some(pt.line as u64), Some("shape_pt_lat|shape_pt_lon"),
+                Some(format!("{lat:.6},{lon:.6}")), None,
+                format!("'{sid}' şeklinde Null Island yakınında nokta bulundu ({lat:.6},{lon:.6}) — GPS veri hatası olabilir."),
+                "shapes.txt'deki sıfır değerli koordinatları kontrol edin.",
+            );
+            let det = n.details.get_or_insert_with(Default::default);
+            det.insert(
+                "null_point_count".to_string(),
+                count.get(&sidx).copied().unwrap_or(1).to_string(),
+            );
+            if let Some(seq) = pt.shape_pt_sequence() {
+                det.insert("shape_pt_sequence".to_string(), seq.to_string());
+            }
+            notices.push(n);
         }
     }
 }
@@ -4810,7 +4934,7 @@ fn check_geo_shape_trip_analytics(
             }
             let count = shape_counts.get(shape_idx).copied().unwrap_or(0);
             if count >= 2 {
-                notices.push(k6_notice(
+                let mut n = k6_notice(
                     ctr, "GEO_020", EntityType::Shape,
                     Some(shape_id.to_string()), Some(shape_id.to_string()),
                     // The violation is in the coordinate pair.
@@ -4818,7 +4942,13 @@ fn check_geo_shape_trip_analytics(
                     Some(format!("{lat:.6},{lon:.6}")), None,
                     format!("'{shape_id}' şeklinin tüm {count} noktası ({lat:.6},{lon:.6}) koordinatında — dejenere geometri."),
                     "shapes.txt'deki koordinatları gerçek güzergaha karşılık gelecek şekilde düzeltin.",
-                ));
+                );
+                // Planner context: how many points and where they all are.
+                let det = n.details.get_or_insert_with(Default::default);
+                det.insert("point_count".to_string(), count.to_string());
+                det.insert("lat".to_string(), lat.to_string());
+                det.insert("lon".to_string(), lon.to_string());
+                notices.push(n);
             }
         }
     }
@@ -4829,6 +4959,8 @@ fn check_geo_shape_trip_analytics(
         // (lt=1) and child platform is NORMAL (hierarchy); counting them creates a false
         // "systematic coordinate problem" in feeds modeling stations/platforms such as Tokyo Toei.
         let mut coord_counts: HashMap<(i64, i64), u32> = HashMap::new();
+        // Planner context: the stops at each shared position (file order).
+        let mut coord_stops: HashMap<(i64, i64), Vec<&str>> = HashMap::new();
         for stop in &records.stops {
             if stop.location_type.unwrap_or(0) != 0 {
                 continue;
@@ -4838,6 +4970,10 @@ fn check_geo_shape_trip_analytics(
             };
             let key = ((lat * 1e6).round() as i64, (lon * 1e6).round() as i64);
             *coord_counts.entry(key).or_default() += 1;
+            coord_stops
+                .entry(key)
+                .or_default()
+                .push(stop.stop_id.as_str());
         }
         let total_stops = records
             .stops
@@ -4853,13 +4989,28 @@ fn check_geo_shape_trip_analytics(
             .sum();
         if total_stops >= 5 && shared as f64 / total_stops as f64 > 0.3 {
             let pct = shared as f64 / total_stops as f64 * 100.0;
-            notices.push(k6_notice(
+            let mut n = k6_notice(
                 ctr, "GEO_021", EntityType::Feed,
                 None, None, "stops.txt", None, None,
                 Some(format!("{pct:.0}%")), Some("≤30%".to_string()),
                 format!("{shared}/{total_stops} durak ({pct:.0}%) koordinatını başka bir durakla paylaşıyor — sistematik koordinat sorunu."),
                 "stops.txt'deki tekrar eden koordinatları düzeltin.",
-            ));
+            );
+            // Planner context: the counts and the most crowded shared positions with their stops.
+            let mut groups: Vec<(&(i64, i64), &Vec<&str>)> =
+                coord_stops.iter().filter(|(_, v)| v.len() > 1).collect();
+            groups.sort_by(|a, b| b.1.len().cmp(&a.1.len()).then(a.0.cmp(b.0)));
+            let det = n.details.get_or_insert_with(Default::default);
+            det.insert("shared_stops".to_string(), shared.to_string());
+            det.insert("total_stops".to_string(), total_stops.to_string());
+            for (i, ((la, lo), ids)) in groups.into_iter().take(GEO_LISTED_STOPS / 2).enumerate() {
+                det.insert(format!("group_{i}_lat"), format!("{:.6}", *la as f64 / 1e6));
+                det.insert(format!("group_{i}_lon"), format!("{:.6}", *lo as f64 / 1e6));
+                det.insert(format!("group_{i}_count"), ids.len().to_string());
+                let listed: Vec<&str> = ids.iter().copied().take(GEO_LISTED_STOPS / 2).collect();
+                det.insert(format!("group_{i}_stops"), listed.join(","));
+            }
+            notices.push(n);
         }
     }
 
@@ -8534,7 +8685,7 @@ fn check_remaining_analytics<'a>(
             let severe_km = shape_jump_threshold_km(shape_id, rail_shapes, config) * 3.0;
             for (i, &dist) in seg.segment_distances_km.iter().enumerate() {
                 if dist > severe_km {
-                    notices.push(k6_notice(
+                    let mut n = k6_notice(
                         ctr,
                         "GEO_007",
                         EntityType::Shape,
@@ -8547,7 +8698,9 @@ fn check_remaining_analytics<'a>(
                         Some(format!("≤ {severe_km:.0} km")),
                         format!("'{shape_id}' güzergahının {i}→{}. segmentinde {dist:.2}km kritik atlama (3× eşik).", i + 1),
                         "Eksik güzergah noktaları ekleyin veya koordinatları doğrulayın.",
-                    ));
+                    );
+                    n.details = Some(shape_jump_details(i, dist, severe_km).into());
+                    notices.push(n);
                 }
             }
         }
@@ -8967,7 +9120,7 @@ fn check_remaining_analytics<'a>(
                         .get("parent_station")
                         .map(|s| s.trim())
                         .filter(|s| !s.is_empty());
-                    let nearby = cell_stops
+                    let nearby_ids: Vec<&str> = cell_stops
                         .iter()
                         .filter(|&&i| {
                             i != first_idx
@@ -8998,9 +9151,11 @@ fn check_remaining_analytics<'a>(
                                     })
                                     .unwrap_or(false)
                         })
-                        .count();
+                        .map(|&i| records.stops[i].stop_id.as_str())
+                        .collect();
+                    let nearby = nearby_ids.len();
                     if nearby >= 2 {
-                        notices.push(k6_notice(
+                        let mut n = k6_notice(
                             ctr,
                             "GEO_012",
                             EntityType::Stop,
@@ -9015,7 +9170,20 @@ fn check_remaining_analytics<'a>(
                                 anchor.stop_name.as_deref().unwrap_or(anchor.stop_id.as_str()),
                                 anchor.stop_id, nearby + 1, config.stop_too_close_m),
                             "Duraksallar aynı fiziksel noktayı temsil ediyorsa birleştirin.",
-                        ));
+                        );
+                        // Planner context: the other stops of the cluster (their routes are
+                        // added in the shared stop context step) and the distance used.
+                        let mut ids: Vec<&str> = nearby_ids.clone();
+                        ids.sort_unstable();
+                        ids.dedup();
+                        ids.truncate(GEO_LISTED_STOPS);
+                        let det = n.details.get_or_insert_with(Default::default);
+                        det.insert("example_stop_ids".to_string(), ids.join(","));
+                        det.insert(
+                            "cluster_m".to_string(),
+                            format!("{:.0}", config.stop_too_close_m),
+                        );
+                        notices.push(n);
                     }
                 }
             }
@@ -9030,7 +9198,7 @@ fn check_remaining_analytics<'a>(
             .filter(|s| s.stop_lat.is_some())
             .count();
         if n_stops_with_coords > 0 {
-            notices.push(k6_notice(
+            let mut n = k6_notice(
                 ctr,
                 "GEO_013",
                 EntityType::Feed,
@@ -9043,7 +9211,21 @@ fn check_remaining_analytics<'a>(
                 None,
                 format!("Feed {n_stops_with_coords} koordinatlı durak içeriyor."),
                 "Bu bilgi notu; aksiyona gerek yoktur.",
-            ));
+            );
+            // Planner context: how far the stops spread both ways (placeholders at 0,0 left out).
+            let coords: Vec<(f64, f64)> = records
+                .stops
+                .iter()
+                .filter_map(recoverable_stop_coord)
+                .filter(|(la, lo)| !(la.abs() < 0.1 && lo.abs() < 0.1))
+                .collect();
+            if !coords.is_empty() {
+                let (ns_km, ew_km) = stop_extent_km(&coords);
+                let det = n.details.get_or_insert_with(Default::default);
+                det.insert("ns_km".to_string(), format!("{ns_km:.1}"));
+                det.insert("ew_km".to_string(), format!("{ew_km:.1}"));
+            }
+            notices.push(n);
         }
     }
 

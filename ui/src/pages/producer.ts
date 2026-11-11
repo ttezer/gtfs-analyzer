@@ -1427,6 +1427,247 @@ function shpTable(n: Notice, result: ValidationResult): string {
   return '';
 }
 
+/** GEO findings about one stop: the stop on an example trip (its routes and trips). */
+const GEO_STOP_RULES = new Set(['GEO_002', 'GEO_009', 'GEO_012', 'GEO_015', 'GEO_016', 'GEO_019', 'GEO_022']);
+/** GEO findings about one drawing: the line with its routes, an example trip and the faulty spot. */
+const GEO_SHAPE_RULES = new Set(['GEO_006', 'GEO_007', 'GEO_017', 'GEO_020']);
+/** GEO findings with planner text, tables and maps. */
+const GEO_CONTEXT_RULES = new Set([...GEO_STOP_RULES, ...GEO_SHAPE_RULES, 'GEO_013', 'GEO_014', 'GEO_018', 'GEO_021']);
+/** GEO stop findings whose stop belongs between its neighbours on the trip (no usable position). */
+const GEO_PLACE_RULES = new Set(['GEO_016', 'GEO_019', 'GEO_022']);
+
+/** A distance in km as planners read it: "7.919 km", "20,0 km", "0,2 km". */
+function kmText(value?: string | number): string {
+  const v = Number(value);
+  if (value === undefined || value === '' || !Number.isFinite(v)) return '—';
+  return `${localizedNumber(String(v >= 100 ? Math.round(v) : v))} km`;
+}
+
+/** A likely typing slip behind a stop placed far away: latitude and longitude swapped, or one
+ *  sign flipped — the first correction that brings the stop where it belongs (`fits`). */
+function geoSlip(p: [number, number] | undefined, fits: (q: [number, number]) => boolean): { kind: 'swap' | 'sign_lat' | 'sign_lon'; at: [number, number] } | null {
+  if (!p || fits(p)) return null;
+  const options: Array<['swap' | 'sign_lat' | 'sign_lon', [number, number]]> = [
+    ['swap', [p[1], p[0]]], ['sign_lat', [-p[0], p[1]]], ['sign_lon', [p[0], -p[1]]],
+  ];
+  const hit = options.find(([, q]) => Math.abs(q[0]) <= 90 && Math.abs(q[1]) <= 180 && fits(q));
+  return hit ? { kind: hit[0], at: hit[1] } : null;
+}
+
+/** GEO_002/015: the correction that brings the stop back — near the network's middle (within
+ *  200 km), or inside Japan's bounds. */
+function geoStopSlip(n: Notice, result: ValidationResult): ReturnType<typeof geoSlip> {
+  const d = n.details ?? {};
+  const p = n.entity_id ? result.name_index.stop_coords?.[n.entity_id] : undefined;
+  if (n.rule_id === 'GEO_002' && d.med_lat && d.med_lon) {
+    const mid: [number, number] = [Number(d.med_lat), Number(d.med_lon)];
+    return geoSlip(p, q => metersBetween(q, mid) <= 200_000);
+  }
+  if (n.rule_id === 'GEO_015') return geoSlip(p, q => q[0] >= 20.25 && q[0] <= 45.33 && q[1] >= 122.56 && q[1] <= 153.59);
+  return null;
+}
+
+/** The point on a drawn line closest to a stop (for the stop–line link on the map). */
+function nearestOnLine(line: [number, number][], p: [number, number]): [number, number] | null {
+  let best: [number, number] | null = null;
+  let bestD = Infinity;
+  for (let i = 1; i < line.length; i++) {
+    const [a, b] = [line[i - 1], line[i]];
+    const k = Math.cos(p[0] * Math.PI / 180);
+    const ax = a[1] * k, ay = a[0], bx = b[1] * k, by = b[0], px = p[1] * k, py = p[0];
+    const len = (bx - ax) ** 2 + (by - ay) ** 2;
+    const t = len ? Math.max(0, Math.min(1, ((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / len)) : 0;
+    const q: [number, number] = [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])];
+    const dist = metersBetween(p, q);
+    if (dist < bestD) { bestD = dist; best = q; }
+  }
+  return best;
+}
+
+/** Each GEO rule's own sentence: the stop by name and its use, the drawing by its routes. */
+function geoRuleText(n: Notice, result: ValidationResult): string | null {
+  const ni = result.name_index;
+  const d = n.details ?? {};
+  const stop = (id?: string | null) => (id ? ni.stops?.[id] || id : '—');
+  const join = (...parts: string[]) => parts.filter(Boolean).join(' ');
+  const use = GEO_STOP_RULES.has(n.rule_id) ? stpUseText(n, result) : '';
+  const slip = geoStopSlip(n, result);
+  const slipText = slip ? t(`producer.card.geo_slip_${slip.kind}`) : '';
+  const pos = n.entity_id && ni.stop_coords?.[n.entity_id]
+    ? `${coordText(ni.stop_coords[n.entity_id][0])}, ${coordText(ni.stop_coords[n.entity_id][1])}` : (n.observed_value ?? '—');
+  switch (n.rule_id) {
+    case 'GEO_002':
+      if (!d.dist_km) return null;
+      return join(t('producer.card.GEO_002.what_detail', { stop: stop(n.entity_id), km: kmText(d.dist_km) }), slipText, use);
+    case 'GEO_015':
+      return join(t('producer.card.GEO_015.what_detail', { stop: stop(n.entity_id), pos }), slipText, use);
+    case 'GEO_016': case 'GEO_019': case 'GEO_022': {
+      const c = stpContext(n);
+      const place = c.prev && ni.stop_coords?.[c.prev] && c.next && ni.stop_coords?.[c.next] ? t('producer.card.stp_place') : '';
+      const p = n.entity_id ? ni.stop_coords?.[n.entity_id] : undefined;
+      return join(t(`producer.card.${n.rule_id}.what_detail`, {
+        stop: stop(n.entity_id), pos, lat: p ? coordText(p[0]) : (n.observed_value ?? '—'),
+      }), use, place);
+    }
+    case 'GEO_018':
+      if (!d.stop_count) return null;
+      return t('producer.card.GEO_018.what_detail', { n: localizedNumber(d.stop_count), m: metersText(d.span_m) });
+    case 'GEO_021': {
+      if (!d.shared_stops) return null;
+      const groups: string[] = [];
+      for (let i = 0; d[`group_${i}_count`]; i++) {
+        groups.push(t('producer.card.GEO_021.group', { n: localizedNumber(d[`group_${i}_count`]!), stops: listOf(d[`group_${i}_stops`]).map(id => `„${stop(id)}“`).join(', ') }));
+      }
+      const pct = Math.round(Number(d.shared_stops) / Number(d.total_stops) * 100);
+      return t('producer.card.GEO_021.what_detail', {
+        total: localizedNumber(d.total_stops || '0'), n: localizedNumber(d.shared_stops), pct: localizedNumber(String(pct)), groups: groups.join('; ') || '—',
+      });
+    }
+    case 'GEO_020': {
+      if (!d.point_count) return null;
+      const c = shpContext(n);
+      return t('producer.card.GEO_020.what_detail', {
+        shape: shapeText(c.shape, c.routes, result), n: localizedNumber(d.point_count), pos: `${coordText(Number(d.lat))}, ${coordText(Number(d.lon))}`,
+      });
+    }
+    case 'GEO_009': {
+      const m = /([\d.]+)\s*m/.exec(n.observed_value ?? '')?.[1];
+      const limit = /([\d.]+)/.exec(n.expected_value ?? '')?.[1];
+      if (!m || !d.shape_id) return null;
+      return join(t('producer.card.GEO_009.what_detail', {
+        stop: stop(n.entity_id), shape: shapeText(d.shape_id, [], result), dist: metersText(m), limit: metersText(limit),
+      }), use);
+    }
+    case 'GEO_012': {
+      const others: string[] = [];
+      for (let i = 0; d[`example_${i}_stop_id`]; i++) others.push(stop(d[`example_${i}_stop_id`]));
+      if (!others.length) return null;
+      return join(t('producer.card.GEO_012.what_detail', {
+        stop: stop(n.entity_id), m: metersText(d.cluster_m), n: localizedNumber(String(others.length)), stops: others.map(x => `„${x}“`).join(', '),
+      }), use);
+    }
+    case 'GEO_013':
+      if (!d.ns_km) return null;
+      return t('producer.card.GEO_013.what_detail', { n: localizedNumber(n.observed_value ?? '0'), ns: kmText(d.ns_km), ew: kmText(d.ew_km) });
+    case 'GEO_014': {
+      if (!d.span_km) return null;
+      const kms = listOf(d.example_km);
+      const far = listOf(d.example_stop_ids).map((id, i) => t('producer.card.GEO_014.far', { stop: stop(id), km: kmText(kms[i]) }));
+      return t('producer.card.GEO_014.what_detail', {
+        ns: kmText(d.ns_km), ew: kmText(d.ew_km), far: far.join(', ') || '—',
+      });
+    }
+    case 'GEO_006': case 'GEO_007': {
+      if (!d.dist_km) return null;
+      const c = shpContext(n);
+      return t(`producer.card.${n.rule_id}.what_detail`, {
+        shape: shapeText(c.shape, c.routes, result), from: d.from_seq || '—', to: d.to_seq || '—', km: kmText(d.dist_km), limit: kmText(d.threshold_km),
+      });
+    }
+    case 'GEO_017': {
+      const c = shpContext(n);
+      const count = Number(d.null_point_count || '1');
+      return join(t('producer.card.GEO_017.what_detail', { shape: shapeText(c.shape, c.routes, result), seq: d.shape_pt_sequence || '—' }),
+        count > 1 ? t('producer.card.GEO_017.more', { n: localizedNumber(String(count)) }) : '');
+    }
+    default:
+      return null;
+  }
+}
+
+/** GEO tables: the stop with its position and use, a cluster's stops, the far stops, the two
+ *  points of a long stretch, the 0,0 point between its neighbours. */
+function geoTable(n: Notice, result: ValidationResult): string {
+  const ni = result.name_index;
+  const d = n.details ?? {};
+  const table = (caption: string, head: string[], rows: Array<{ cells: string[]; bad?: boolean }>) =>
+    `<p class="producer-card-label">${escHtml(caption)}</p><table class="planner-times planner-stop-times"><thead><tr>${head.map(h => `<th>${escHtml(h)}</th>`).join('')}</tr></thead><tbody>${
+      rows.map(r => `<tr${r.bad ? ' class="bad"' : ''}>${r.cells.map(c => `<td>${escHtml(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  const stopLabel = (id?: string) => (id ? (ni.stops?.[id] ? `${ni.stops[id]} (${id})` : id) : '—');
+  const posOf = (id?: string) => {
+    const p = id ? ni.stop_coords?.[id] : undefined;
+    return p ? `${coordText(p[0])}, ${coordText(p[1])}` : '—';
+  };
+  const pt = (lat?: string, lon?: string) => (lat && lon ? `${coordText(Number(lat))}, ${coordText(Number(lon))}` : '—');
+  if (n.rule_id === 'GEO_002' || n.rule_id === 'GEO_015' || GEO_PLACE_RULES.has(n.rule_id)) {
+    const c = stpContext(n);
+    const pos = n.rule_id === 'GEO_016' ? '0, 0' : posOf(n.entity_id ?? undefined);
+    const head = [t('producer.col.stop'), t('producer.times.stp_position'),
+      ...(n.rule_id === 'GEO_002' ? [t('producer.times.geo_middle_distance')] : []), t('producer.times.trip_count'), t('producer.col.route')];
+    const rows = [{ cells: [stopLabel(n.entity_id ?? undefined), pos, ...(n.rule_id === 'GEO_002' ? [kmText(d.dist_km)] : []),
+      localizedNumber(c.trips || '0'), routeLabels(c.routes, result)], bad: true }];
+    const slip = geoStopSlip(n, result);
+    if (slip) {
+      rows.push({ cells: [t('producer.times.geo_slip_position'), `${coordText(slip.at[0])}, ${coordText(slip.at[1])}`,
+        ...(n.rule_id === 'GEO_002' && d.med_lat ? [kmText(metersBetween(slip.at, [Number(d.med_lat), Number(d.med_lon)]) / 1000)] : []), '', ''], bad: false });
+    }
+    return table(t('producer.times.geo_stop'), head, rows);
+  }
+  if (n.rule_id === 'GEO_009' && d.shape_id) {
+    const c = stpContext(n);
+    const m = /([\d.]+)\s*m/.exec(n.observed_value ?? '')?.[1];
+    return table(t('producer.times.geo_stop'), [t('producer.col.stop'), t('producer.times.geo_shape'), t('producer.times.shp_distance'), t('producer.col.route')],
+      [{ cells: [stopLabel(n.entity_id ?? undefined), shapeText(d.shape_id, [], result), metersText(m), routeLabels(c.routes, result)], bad: true }]);
+  }
+  if (n.rule_id === 'GEO_012' && d.example_0_stop_id) {
+    const here = n.entity_id ? ni.stop_coords?.[n.entity_id] : undefined;
+    const ids = [n.entity_id ?? '', ...Array.from({ length: 20 }, (_, i) => d[`example_${i}_stop_id`]).filter((v): v is string => Boolean(v))];
+    const ctxOf = (i: number) => (i === 0
+      ? { trips: d.trip_count, routes: listOf(d.routes) }
+      : { trips: d[`example_${i - 1}_trip_count`], routes: listOf(d[`example_${i - 1}_routes`]) });
+    return table(t('producer.times.geo_cluster'), [t('producer.col.stop'), t('producer.times.stp_position'), t('producer.times.geo_first_distance'), t('producer.times.trip_count'), t('producer.col.route')],
+      ids.map((id, i) => {
+        const p = ni.stop_coords?.[id];
+        const c = ctxOf(i);
+        return { cells: [stopLabel(id), posOf(id), i && here && p ? metersText(String(metersBetween(here, p))) : '—', localizedNumber(c.trips || '0'), routeLabels(c.routes, result)], bad: true };
+      }));
+  }
+  if (n.rule_id === 'GEO_014' && d.example_0_stop_id) {
+    const kms = listOf(d.example_km);
+    const rows = [];
+    for (let i = 0; d[`example_${i}_stop_id`]; i++) {
+      const id = d[`example_${i}_stop_id`]!;
+      rows.push({ cells: [stopLabel(id), posOf(id), kmText(kms[i]), localizedNumber(d[`example_${i}_trip_count`] || '0'), routeLabels(listOf(d[`example_${i}_routes`]), result)], bad: i === 0 });
+    }
+    return table(t('producer.times.geo_far'), [t('producer.col.stop'), t('producer.times.stp_position'), t('producer.times.geo_middle_distance'), t('producer.times.trip_count'), t('producer.col.route')], rows);
+  }
+  if ((n.rule_id === 'GEO_006' || n.rule_id === 'GEO_007') && d.from_lat) {
+    return table(t('producer.times.geo_jump'), [t('producer.times.shp_seq'), t('producer.col.row'), t('producer.times.stp_position'), t('producer.times.geo_from_previous')], [
+      { cells: [d.from_seq || '—', d.from_line || '—', pt(d.from_lat, d.from_lon), '—'], bad: true },
+      { cells: [d.to_seq || '—', d.to_line || '—', pt(d.to_lat, d.to_lon), kmText(d.dist_km)], bad: true },
+    ]);
+  }
+  if (n.rule_id === 'GEO_018' && d.example_0_stop_id) {
+    const rows = [];
+    for (let i = 0; d[`example_${i}_stop_id`]; i++) {
+      const id = d[`example_${i}_stop_id`]!;
+      rows.push({ cells: [stopLabel(id), posOf(id), localizedNumber(d[`example_${i}_trip_count`] || '0'), routeLabels(listOf(d[`example_${i}_routes`]), result)] });
+    }
+    return table(t('producer.times.geo_area_stops'), [t('producer.col.stop'), t('producer.times.stp_position'), t('producer.times.trip_count'), t('producer.col.route')], rows);
+  }
+  if (n.rule_id === 'GEO_021' && d.group_0_count) {
+    const rows = [];
+    for (let i = 0; d[`group_${i}_count`]; i++) {
+      const more = Number(d[`group_${i}_count`]) - listOf(d[`group_${i}_stops`]).length;
+      rows.push({ cells: [pt(d[`group_${i}_lat`], d[`group_${i}_lon`]), localizedNumber(d[`group_${i}_count`]!),
+        listOf(d[`group_${i}_stops`]).map(stopLabel).join(', ') + (more > 0 ? ` +${localizedNumber(String(more))}` : '')], bad: true });
+    }
+    return table(t('producer.times.geo_groups'), [t('producer.times.stp_position'), t('producer.times.geo_stop_count'), t('producer.times.geo_stops')], rows);
+  }
+  if (n.rule_id === 'GEO_020' && d.lat) {
+    return table(t('producer.times.geo_shape_points'), [t('producer.times.geo_shape'), t('producer.times.stp_position'), t('producer.times.geo_point_count')],
+      [{ cells: [shapeText(shpContext(n).shape, shpContext(n).routes, result), pt(d.lat, d.lon), localizedNumber(d.point_count || '—')], bad: true }]);
+  }
+  if (n.rule_id === 'GEO_017') {
+    const rows = [];
+    if (d.prev_line) rows.push({ cells: [d.prev_line, pt(d.prev_lat, d.prev_lon)] });
+    rows.push({ cells: [String(n.line ?? '—'), '0, 0'], bad: true });
+    if (d.next_line) rows.push({ cells: [d.next_line, pt(d.next_lat, d.next_lon)] });
+    return table(t('producer.times.geo_null_rows'), [t('producer.col.row'), t('producer.times.stp_position')], rows);
+  }
+  return '';
+}
+
 /** Route numbers as riders know them, comma-separated ("S8, S9 +3"). */
 function routeLabels(ids: string[], result: ValidationResult, max = 6): string {
   const shown = ids.slice(0, max).map(id => routeBadge(id, result.name_index).label);
@@ -2607,6 +2848,17 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       const mapText = trip ? dqTripMapText(dqIndexKey(result.name_index.trip_stops, trip), result) : '';
       return { title: t(`producer.card.${g.ruleId}.title`), what: [what, mapText].filter(Boolean).join(' '), action: t(`producer.card.${g.ruleId}.action`) };
     }
+    case 'GEO_002': case 'GEO_006': case 'GEO_007': case 'GEO_009': case 'GEO_012': case 'GEO_013': case 'GEO_014':
+    case 'GEO_015': case 'GEO_016': case 'GEO_017': case 'GEO_018': case 'GEO_019': case 'GEO_020': case 'GEO_021':
+    case 'GEO_022': {
+      const raw = geoRuleText(n, result);
+      if (!raw) return null;
+      const what = raw.charAt(0).toLocaleUpperCase(intlLocale()) + raw.slice(1);
+      // Drawing findings: the example trip whose stops the map numbers.
+      const trip = GEO_SHAPE_RULES.has(g.ruleId) ? shpContext(n).at('example_trip_id') : undefined;
+      const mapText = trip ? dqTripMapText(dqIndexKey(result.name_index.trip_stops, trip), result) : '';
+      return { title: t(`producer.card.${g.ruleId}.title`), what: [what, mapText].filter(Boolean).join(' '), action: t(`producer.card.${g.ruleId}.action`) };
+    }
     case 'VAT_001': case 'VAT_002': case 'VAT_003': case 'VAT_005': case 'VAT_006': case 'VAT_007': case 'VAT_008': {
       const what = vatRuleText(n, result);
       if (!what) return null;
@@ -3178,6 +3430,13 @@ function timeStrip(n: Notice, result: ValidationResult): string {
     const mark = (trip ? result.name_index.trip_stops?.[trip] ?? [] : []).find(id => marked.includes(id));
     return trip ? body + tripItineraryTable(trip, result, mark) : body;
   }
+  // GEO cards: the stop's example trip (the stop red), a drawing's example trip.
+  if (GEO_STOP_RULES.has(n.rule_id) || GEO_SHAPE_RULES.has(n.rule_id)) {
+    const c = stpContext(n);
+    const shapeTrip = GEO_SHAPE_RULES.has(n.rule_id) ? shpContext(n).at('example_trip_id') : undefined;
+    const trip = dqIndexKey(result.name_index.trip_stops, shapeTrip ?? c.trip);
+    return trip ? body + tripItineraryTable(trip, result, shapeTrip ? undefined : c.stop, shapeTrip ? undefined : c.seq) : body;
+  }
   // STP cards: the example trip through the stop, the stop red in its stop list.
   if (STP_CONTEXT_RULES.has(n.rule_id)) {
     const c = stpContext(n, n.rule_id === 'STP_020' ? 'nearest' : undefined);
@@ -3435,6 +3694,10 @@ function timeStripBody(n: Notice, result: ValidationResult): string {
   }
   if (STP_CONTEXT_RULES.has(n.rule_id)) {
     const table = stpTable(n, result);
+    if (table) return table;
+  }
+  if (GEO_CONTEXT_RULES.has(n.rule_id)) {
+    const table = geoTable(n, result);
     if (table) return table;
   }
   if (SHP_CONTEXT_RULES.has(n.rule_id)) {
@@ -4155,9 +4418,9 @@ function addCalendarRoutes(map: PlannerMap, n: Notice, result: ValidationResult,
   for (let i = 0; d[`route_${i}_route_id`]; i++) {
     const tripId = d[`route_${i}_example_trip_id`];
     if (!tripId || tripId === drawnTrip) continue;
-    const own = ni.trip_shapes?.[tripId] ? ni.shape_coords?.[ni.trip_shapes[tripId]] : undefined;
+    const own = ni.trip_shapes?.[tripId] ? drawableLine(ni.shape_coords?.[ni.trip_shapes[tripId]]) : undefined;
     const sibling = routeDirectionShapeId(ni, ni.trip_routes?.[tripId], ni.trip_directions?.[tripId]);
-    const shape = own && own.length > 1 ? own : sibling ? ni.shape_coords?.[sibling] : undefined;
+    const shape = own && own.length > 1 ? own : sibling ? drawableLine(ni.shape_coords?.[sibling]) : undefined;
     const coords = shape && shape.length > 1
       ? shape
       : (ni.trip_stops?.[tripId] ?? []).map(id => ni.stop_coords?.[id]).filter((p): p is [number, number] => Boolean(p) && !isNullIsland(p!));
@@ -4167,6 +4430,20 @@ function addCalendarRoutes(map: PlannerMap, n: Notice, result: ValidationResult,
 }
 
 const NO_LINE_TRIP_RULES = new Set(['DQ_006', 'TRP_004', 'TRP_019']);
+
+/** A drawing as the map shows it: its 0,0 points (GEO_017's finding) left out, so a line with a
+ *  placeholder point does not run out to the ocean on every card. The same array comes back for
+ *  the same drawing (lines are compared by identity). */
+const drawableLines = new WeakMap<object, [number, number][]>();
+function drawableLine(coords: [number, number][] | undefined): [number, number][] | undefined {
+  if (!coords || !coords.some(p => isNullIsland(p))) return coords;
+  let kept = drawableLines.get(coords);
+  if (!kept) {
+    kept = coords.filter(p => !isNullIsland(p));
+    drawableLines.set(coords, kept);
+  }
+  return kept;
+}
 
 /** Haritayı seçili kayda göre kurar: sefer → kendi güzergâhı ve durakları, işaretli durak
  *  veya bölüm kırmızı ve ona yakınlaşılmış; durak → durağın kendisi; hat → hattın çizimleri.
@@ -4198,7 +4475,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
       const color = routeId ? routeBadge(routeId, ni).bg ?? MAP_GREY : MAP_GREY;
       const drawn = map.opts.extraPolylines ?? [];
       for (const shapeId of (routeId ? ni.route_shapes?.[routeId] ?? [] : []).slice(0, 4)) {
-        const coords = ni.shape_coords?.[shapeId];
+        const coords = drawableLine(ni.shape_coords?.[shapeId]);
         if (coords && coords.length > 1 && !drawn.some(l => l.coords === coords)) drawn.push({ coords, color, weight: 3, arrows: true });
       }
       map.opts.extraPolylines = drawn;
@@ -4210,6 +4487,8 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   const coord = (stopId?: string | null): [number, number] | null => {
     const p = stopId ? ni.stop_coords?.[stopId] : undefined;
     if (p && isNullIsland(p)) { zeroStops.add(stopId!); return null; }
+    // Beyond ±85° the web map cannot show a point (GEO_022 is about such stops).
+    if (p && Math.abs(p[0]) > 85) return null;
     return p ? [p[0], p[1]] : null;
   };
   const routeColor = (routeId?: string) => (routeId ? routeBadge(routeId, ni).bg : null) ?? MAP_GREY;
@@ -4223,8 +4502,9 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   let stopRing = MAP_GREY;
 
   const addShape = (shapeId: string | null | undefined, color: string, weight = 5) => {
-    const coords = shapeId ? ni.shape_coords?.[shapeId] : undefined;
-    if (coords && coords.length > 1) lines.push({ coords, color, weight, arrows: true });
+    const coords = shapeId ? drawableLine(ni.shape_coords?.[shapeId]) : undefined;
+    // A line already drawn (the stop's own routes and its example trip often share one) once.
+    if (coords && coords.length > 1 && !lines.some(l => l.coords === coords)) lines.push({ coords, color, weight, arrows: true });
     return Boolean(coords && coords.length > 1);
   };
   // A trip's real line: its own drawing, else the drawing of its route in the same direction.
@@ -4366,7 +4646,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
       addStop(n.details?.next_stop_id, false, n.details?.next_stop_sequence);
       const current = coord(n.details?.stop_id);
       const next = coord(n.details?.next_stop_id);
-      const shape = selectedShape ? ni.shape_coords?.[selectedShape] ?? [] : [];
+      const shape = selectedShape ? drawableLine(ni.shape_coords?.[selectedShape]) ?? [] : [];
       if (current && next) {
         const actualSegment = segmentOnShape(shape, current, next);
         if (actualSegment.length > 1) {
@@ -4423,7 +4703,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
         const from = coord(d.gap_stop_a);
         const to = coord(d.gap_stop_b);
         if (from && to) {
-          const shape = selectedShape ? ni.shape_coords?.[selectedShape] ?? [] : [];
+          const shape = selectedShape ? drawableLine(ni.shape_coords?.[selectedShape]) ?? [] : [];
           const onShape = segmentOnShape(shape, from, to);
           segments.push({ coords: onShape.length > 1 ? onShape : [from, to], color: MAP_RED, weight: 8, zoomTo: true });
         }
@@ -4459,7 +4739,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
       addStop(n.details?.stop_b, true, n.details?.stop_b_sequence);
       const from = coord(n.details?.stop_a);
       const to = coord(n.details?.stop_b);
-      const shape = selectedShape ? ni.shape_coords?.[selectedShape] ?? [] : [];
+      const shape = selectedShape ? drawableLine(ni.shape_coords?.[selectedShape]) ?? [] : [];
       if (from && to) {
         const actualSegment = segmentOnShape(shape, from, to);
         if (actualSegment.length > 1) {
@@ -4482,7 +4762,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
       const previous = coord(n.details?.prev_stop_id);
       const current = coord(n.details?.stop_id);
       if (previous && current) {
-        const shape = selectedShape ? ni.shape_coords?.[selectedShape] ?? [] : [];
+        const shape = selectedShape ? drawableLine(ni.shape_coords?.[selectedShape]) ?? [] : [];
         const onShape = segmentOnShape(shape, previous, current);
         segments.push({ coords: onShape.length > 1 ? onShape : [previous, current], color: MAP_RED, weight: 8, zoomTo: true });
         // Circle the step: two stops at (almost) one point make the red line invisible.
@@ -4607,7 +4887,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     const d = n.details ?? {};
     const c = shpContext(n);
     const routeId = c.routes[0] || (c.shape ? ni.shape_routes?.[c.shape]?.[0]?.[0] : undefined);
-    if (c.shape && !lines.some(l => l.coords === ni.shape_coords?.[c.shape!])) addShape(c.shape, routeColor(routeId));
+    if (c.shape && !lines.some(l => l.coords === drawableLine(ni.shape_coords?.[c.shape!]))) addShape(c.shape, routeColor(routeId));
     const ownTrip = n.entity_type === 'Trip' ? n.entity_id ?? undefined : ['SHP_014', 'SHP_016', 'SHP_024'].includes(n.rule_id) ? d.trip_id : undefined;
     const trip = dqIndexKey(ni.trip_stops, ownTrip || c.at('example_trip_id'));
     if (trip) {
@@ -4653,7 +4933,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
       focus = undefined;
     } else if (n.rule_id === 'SHP_014' || n.rule_id === 'SHP_016') {
       // The stop and the line's end it should meet (SHP_016: the line's start), linked in red.
-      const shapePts = c.shape ? ni.shape_coords?.[c.shape] ?? [] : [];
+      const shapePts = c.shape ? drawableLine(ni.shape_coords?.[c.shape]) ?? [] : [];
       const end = n.rule_id === 'SHP_014' && d.endpoint === 'end' ? shapePts[shapePts.length - 1] : shapePts[0];
       const stopId = n.rule_id === 'SHP_014' ? d.problem_stop : d.first_stop;
       addStop(stopId, true);
@@ -4804,6 +5084,104 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
       if (here && there) segments.push({ coords: [here, there], color: MAP_RED, weight: 3 });
     }
   }
+  // GEO: a stop on its example trip (the network's middle and a likely correct position for a
+  // far-off stop; the stretch where a 0,0 stop belongs; the nearest point of the line; the
+  // cluster's stops), a drawing with its long stretch or its 0,0 point (left out of the line),
+  // the network with its farthest stops.
+  if (GEO_CONTEXT_RULES.has(n.rule_id)) {
+    const d = n.details ?? {};
+    const mark = (p: [number, number] | null, label: string, color = MAP_RED) => {
+      if (p) pins.push({ lat: p[0], lon: p[1], label, primary: true, color, stroke: '#ffffff' });
+    };
+    const num = (a?: string, b?: string): [number, number] | null => {
+      const p: [number, number] = [Number(a), Number(b)];
+      return a && b && p.every(Number.isFinite) && !isNullIsland(p) ? p : null;
+    };
+    if (GEO_STOP_RULES.has(n.rule_id)) {
+      const c = stpContext(n);
+      const trip = dqIndexKey(ni.trip_stops, c.trip);
+      if (trip) {
+        addTripLine(trip, routeColor(ni.trip_routes?.[trip]));
+        const sequences = ni.trip_stop_sequences?.[trip] ?? [];
+        for (const [index, stopId] of (ni.trip_stops?.[trip] ?? []).entries()) addStop(stopId, stopId === c.stop, sequences[index]);
+      }
+      const here = coord(n.entity_id);
+      const a = coord(c.prev);
+      const b = coord(c.next);
+      // A stop without a usable position (0,0, rounded, near the pole): its place on the trip.
+      if (GEO_PLACE_RULES.has(n.rule_id) && a && b) {
+        segments.push({ coords: alongLine(a, b), color: MAP_RED, weight: 7, zoomTo: true });
+        highlights.push({ center: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], radiusMeters: Math.max(80, metersBetween(a, b) / 2 + 60), color: MAP_RED });
+        focus = undefined;
+      }
+      const middle = num(d.med_lat, d.med_lon);
+      if (n.rule_id === 'GEO_002' && middle) {
+        pins.push({ lat: middle[0], lon: middle[1], label: t('producer.map.geo_middle'), primary: false, color: MAP_GREY, stroke: '#ffffff' });
+        focus = undefined;
+      }
+      const slip = geoStopSlip(n, result);
+      if (slip) mark(slip.at, t('producer.map.geo_slip'), '#f59e0b');
+      if (n.rule_id === 'GEO_009' && here && d.shape_id) {
+        const routeId = ni.shape_routes?.[d.shape_id]?.[0]?.[0];
+        addShape(d.shape_id, routeColor(routeId));
+        const line = drawableLine(ni.shape_coords?.[d.shape_id]);
+        const near = line ? nearestOnLine(line, here) : null;
+        if (near) {
+          segments.push({ coords: [here, near], color: MAP_RED, weight: 4 });
+          mark(near, t('producer.map.geo_nearest'));
+        }
+      }
+      if (n.rule_id === 'GEO_012') {
+        for (let i = 0; d[`example_${i}_stop_id`]; i++) addStop(d[`example_${i}_stop_id`], true);
+        // The stops sit metres apart: a ring shows where the cluster is.
+        if (here) highlights.push({ center: here, radiusMeters: Math.max(25, Number(d.cluster_m || '5') * 4), color: MAP_RED });
+      }
+    }
+    if (GEO_SHAPE_RULES.has(n.rule_id)) {
+      const c = shpContext(n);
+      const routeId = c.routes[0] || (c.shape ? ni.shape_routes?.[c.shape]?.[0]?.[0] : undefined);
+      const color = routeColor(routeId);
+      // (GEO_017: the line as it should run, without its 0,0 points — as on every card.)
+      addShape(c.shape, color);
+      const trip = dqIndexKey(ni.trip_stops, c.at('example_trip_id'));
+      if (trip) {
+        const sequences = ni.trip_stop_sequences?.[trip] ?? [];
+        for (const [index, stopId] of (ni.trip_stops?.[trip] ?? []).entries()) addStop(stopId, false, sequences[index]);
+      }
+      const [p, q] = n.rule_id === 'GEO_017'
+        ? [num(d.prev_lat, d.prev_lon), num(d.next_lat, d.next_lon)]
+        : [num(d.from_lat, d.from_lon), num(d.to_lat, d.to_lon)];
+      if (p && q) {
+        segments.push({ coords: [p, q], color: MAP_RED, weight: 7, zoomTo: true });
+        highlights.push({ center: [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2], radiusMeters: Math.max(80, metersBetween(p, q) / 2 + 60), color: MAP_RED });
+        focus = undefined;
+      }
+    }
+    if (n.rule_id === 'GEO_020') {
+      // All points in one place: that place red (the trip's stops stay grey around it).
+      mark(num(d.lat, d.lon), t('producer.map.geo_shape_point'));
+    }
+    if (n.rule_id === 'GEO_018') {
+      for (let i = 0; d[`example_${i}_stop_id`]; i++) addStop(d[`example_${i}_stop_id`], true);
+      const mid = num(d.mid_lat, d.mid_lon);
+      if (mid) highlights.push({ center: mid, radiusMeters: Math.max(30, Number(d.span_m || '0') / 2 + 20), color: MAP_RED });
+      focus = undefined;
+    }
+    if (n.rule_id === 'GEO_021') {
+      for (let i = 0; d[`group_${i}_count`]; i++) {
+        const names = listOf(d[`group_${i}_stops`]).map(id => ni.stops?.[id] || id).join(', ');
+        mark(num(d[`group_${i}_lat`], d[`group_${i}_lon`]), t('producer.map.geo_group', { n: localizedNumber(d[`group_${i}_count`]!), stops: names }));
+      }
+      focus = undefined;
+    }
+    if (n.rule_id === 'GEO_014') {
+      for (const routeId of Object.keys(ni.route_shapes ?? {}).slice(0, 40)) addShape(ni.route_shapes[routeId][0], routeColor(routeId), 3);
+      for (const id of listOf(d.example_stop_ids)) addStop(id, true);
+      const middle = num(d.med_lat, d.med_lon);
+      if (middle) pins.push({ lat: middle[0], lon: middle[1], label: t('producer.map.geo_middle'), primary: false, color: MAP_GREY, stroke: '#ffffff' });
+      focus = undefined;
+    }
+  }
   // VAT: the routes in question in their own colours, the stops the finding is about in red.
   if (n.rule_id.startsWith('VAT_') && n.details) {
     const d = n.details;
@@ -4818,7 +5196,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
       const color = routeColor(routeId);
       let drawn = false;
       for (const shapeId of (ni.route_shapes?.[routeId] ?? []).slice(0, 2)) {
-        const coords = ni.shape_coords?.[shapeId];
+        const coords = drawableLine(ni.shape_coords?.[shapeId]);
         drawn = lines.some(l => l.coords === coords) || addShape(shapeId, color) || drawn;
       }
       const tripId = routeExampleTrip(ni, routeId);
@@ -4878,7 +5256,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
         extraPolylines: [...lines, ...segments],
         ...(highlights.length ? { highlights } : {}),
         focus,
-        focusZoom: n.rule_id === 'STM_015' || n.rule_id === 'STM_016' ? 14 : n.rule_id === 'STM_021' ? 17 : undefined,
+        focusZoom: n.rule_id === 'STM_015' || n.rule_id === 'STM_016' ? 14 : n.rule_id === 'STM_021' || n.rule_id === 'GEO_012' ? 17 : n.rule_id === 'GEO_009' ? 16 : undefined,
       },
       caption: focusCaption(),
     };

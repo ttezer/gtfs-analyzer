@@ -8835,3 +8835,161 @@ fn last_route_findings_carry_planner_context() {
         assert_eq!(get(&d, "example_trip_id").as_deref(), Some(trip), "{rule}");
     }
 }
+
+#[test]
+fn geo_findings_carry_planner_context() {
+    // GEO_002/009/012/015/016 the stop's trips and routes, GEO_012/014 their listed stops,
+    // GEO_006/007 the two points of the long stretch, GEO_017 the 0,0 point and its
+    // neighbours, GEO_013/014 the extent. Counts are unchanged.
+    let find = |vr: &gtfs_pipeline::ValidationResult, rule: &str, entity: Option<&str>| {
+        vr.notices
+            .iter()
+            .find(|n| n.rule_id == rule && (entity.is_none() || n.entity_id.as_deref() == entity))
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor"))
+    };
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+
+    // GEO_012 looks around the first eligible stop of each 0.5° cell: the cluster comes first.
+    static STOPS_GEO: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
+        C1,Cluster A,35.630000,139.700000\nC2,Cluster B,35.630010,139.700010\nC3,Cluster C,35.630020,139.700000\n\
+        S1,One,35.600000,139.700000\nS2,Two,35.610000,139.702000\nS3,Three,35.620000,139.700000\n\
+        FAR,Far,-35.600000,139.700000\nZ,Zero,0,0\n";
+    static TRIPS_GEO: &[u8] =
+        b"route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\nR1,SVC1,T2,SH2\nR1,SVC1,T3,\n";
+    static TIMES_GEO: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+        T1,08:00:00,08:00:00,S1,1\nT1,08:05:00,08:05:00,S2,2\nT1,08:10:00,08:10:00,S3,3\n\
+        T2,09:00:00,09:00:00,S1,1\nT2,09:05:00,09:05:00,Z,2\nT2,09:10:00,09:10:00,S3,3\n\
+        T3,10:00:00,10:00:00,S3,1\nT3,23:00:00,23:00:00,FAR,2\n";
+    static SHAPES_GEO: &[u8] = b"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n\
+        SH1,35.600000,139.700000,1\nSH1,35.610000,139.700000,2\nSH1,35.620000,139.700000,3\n\
+        SH1,35.800000,139.700000,4\nSH1,36.500000,139.700000,5\n\
+        SH2,35.600000,139.700000,1\nSH2,0,0,2\nSH2,35.610000,139.700000,3\n";
+    static FEED_INFO_JA: &[u8] =
+        b"feed_publisher_name,feed_publisher_url,feed_lang\nTest,http://test.example,ja\n";
+    let files: Vec<(&str, &[u8])> = vec![
+        ("agency.txt", AGENCY),
+        ("stops.txt", STOPS_GEO),
+        ("routes.txt", ROUTES),
+        ("trips.txt", TRIPS_GEO),
+        ("stop_times.txt", TIMES_GEO),
+        ("shapes.txt", SHAPES_GEO),
+        ("calendar.txt", CALENDAR),
+        ("feed_info.txt", FEED_INFO_JA),
+    ];
+    let vr = match run(&files) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+
+    let d = find(&vr, "GEO_002", Some("FAR"));
+    assert_eq!(get(&d, "example_trip_id").as_deref(), Some("T3"));
+    assert!(get(&d, "med_lat").is_some());
+    let d = find(&vr, "GEO_015", Some("FAR"));
+    assert_eq!(get(&d, "prev_stop_id").as_deref(), Some("S3"));
+    let d = find(&vr, "GEO_016", Some("Z"));
+    assert_eq!(get(&d, "prev_stop_id").as_deref(), Some("S1"));
+    assert_eq!(get(&d, "next_stop_id").as_deref(), Some("S3"));
+    let d = find(&vr, "GEO_009", Some("S2"));
+    assert_eq!(get(&d, "trip_count").as_deref(), Some("1"));
+    assert_eq!(get(&d, "shape_id").as_deref(), Some("SH1"));
+    let d = find(&vr, "GEO_012", Some("C1"));
+    assert_eq!(get(&d, "example_stop_ids").as_deref(), Some("C2,C3"));
+    assert_eq!(get(&d, "example_0_stop_id").as_deref(), Some("C2"));
+    assert_eq!(get(&d, "cluster_m").as_deref(), Some("5"));
+    let d = find(&vr, "GEO_006", Some("SH1"));
+    assert_eq!(get(&d, "from_seq").as_deref(), Some("3"));
+    assert_eq!(get(&d, "to_seq").as_deref(), Some("4"));
+    assert_eq!(get(&d, "example_trip_id").as_deref(), Some("T1"));
+    let d = find(&vr, "GEO_007", Some("SH1"));
+    assert_eq!(get(&d, "from_seq").as_deref(), Some("4"));
+    assert_eq!(get(&d, "to_lat").as_deref(), Some("36.5"));
+    let d = find(&vr, "GEO_017", Some("SH2"));
+    assert_eq!(get(&d, "shape_pt_sequence").as_deref(), Some("2"));
+    assert_eq!(get(&d, "null_point_count").as_deref(), Some("1"));
+    assert_eq!(get(&d, "prev_lat").as_deref(), Some("35.6"));
+    assert_eq!(get(&d, "example_trip_id").as_deref(), Some("T2"));
+    let d = find(&vr, "GEO_013", None);
+    assert!(get(&d, "ns_km").is_some());
+    let d = find(&vr, "GEO_014", None);
+    assert_eq!(get(&d, "example_0_stop_id").as_deref(), Some("FAR"));
+    assert_eq!(get(&d, "example_0_example_trip_id").as_deref(), Some("T3"));
+    assert!(
+        !get(&d, "example_stop_ids")
+            .unwrap_or_default()
+            .contains('Z'),
+        "0,0 is GEO_016's"
+    );
+    assert!(get(&d, "ew_km").is_some());
+}
+
+#[test]
+fn geo_feed_and_point_findings_carry_planner_context() {
+    // GEO_018/021 the stops and shared positions, GEO_019/022 the stop's trip context, GEO_020
+    // the drawing's point count and position. Counts are unchanged.
+    let find = |vr: &gtfs_pipeline::ValidationResult, rule: &str| {
+        vr.notices
+            .iter()
+            .find(|n| n.rule_id == rule)
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor"))
+    };
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+    let ok = |files: &[(&str, &[u8])]| match run(files) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+
+    // All stops within a few metres, four of five sharing two positions.
+    static STOPS_TINY: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
+        A,A,35.600000,139.700000\nB,B,35.600000,139.700000\nC,C,35.600100,139.700100\n\
+        D,D,35.600100,139.700100\nE,E,35.600200,139.700000\n";
+    static TIMES_TINY: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+        T1,08:00:00,08:00:00,A,1\nT1,08:05:00,08:05:00,C,2\nT1,08:10:00,08:10:00,E,3\n";
+    let vr = ok(&[
+        ("agency.txt", AGENCY),
+        ("stops.txt", STOPS_TINY),
+        ("routes.txt", ROUTES),
+        ("trips.txt", TRIPS),
+        ("stop_times.txt", TIMES_TINY),
+        ("calendar.txt", CALENDAR),
+    ]);
+    let d = find(&vr, "GEO_018");
+    assert_eq!(get(&d, "stop_count").as_deref(), Some("5"));
+    assert_eq!(get(&d, "example_0_stop_id").as_deref(), Some("A"));
+    assert_eq!(get(&d, "example_0_example_trip_id").as_deref(), Some("T1"));
+    assert!(get(&d, "mid_lat").is_some());
+    let d = find(&vr, "GEO_021");
+    assert_eq!(get(&d, "shared_stops").as_deref(), Some("4"));
+    assert_eq!(get(&d, "group_0_count").as_deref(), Some("2"));
+    assert_eq!(get(&d, "group_0_stops").as_deref(), Some("A,B"));
+
+    // A rounded stop, a stop near the pole and a drawing whose points all coincide.
+    static STOPS_PTS: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
+        S1,One,35.600000,139.700000\nS2,Two,35.610000,139.700000\nI,Round,36,140\nP,Pole,89.500000,139.700000\n";
+    static TRIPS_PTS: &[u8] =
+        b"route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SHD\nR1,SVC1,T2,\n";
+    static TIMES_PTS: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+        T1,08:00:00,08:00:00,S1,1\nT1,08:05:00,08:05:00,I,2\nT1,08:10:00,08:10:00,S2,3\n\
+        T2,09:00:00,09:00:00,S1,1\nT2,09:05:00,09:05:00,P,2\nT2,09:10:00,09:10:00,S2,3\n";
+    static SHAPES_PTS: &[u8] = b"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n\
+        SHD,35.600000,139.700000,1\nSHD,35.600000,139.700000,2\nSHD,35.600000,139.700000,3\n";
+    let vr = ok(&[
+        ("agency.txt", AGENCY),
+        ("stops.txt", STOPS_PTS),
+        ("routes.txt", ROUTES),
+        ("trips.txt", TRIPS_PTS),
+        ("stop_times.txt", TIMES_PTS),
+        ("shapes.txt", SHAPES_PTS),
+        ("calendar.txt", CALENDAR),
+    ]);
+    let d = find(&vr, "GEO_019");
+    assert_eq!(get(&d, "prev_stop_id").as_deref(), Some("S1"));
+    assert_eq!(get(&d, "next_stop_id").as_deref(), Some("S2"));
+    let d = find(&vr, "GEO_022");
+    assert_eq!(get(&d, "example_trip_id").as_deref(), Some("T2"));
+    let d = find(&vr, "GEO_020");
+    assert_eq!(get(&d, "point_count").as_deref(), Some("3"));
+    assert_eq!(get(&d, "lat").as_deref(), Some("35.6"));
+    assert_eq!(get(&d, "example_trip_id").as_deref(), Some("T1"));
+}

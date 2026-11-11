@@ -1764,6 +1764,110 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('10 hattının açıklaması „Merkez“ uzun adıyla aynı');
   });
 
+  it('GEO kartları durağı, çizimi ve ağı planlamacı diliyle anlatır', () => {
+    const line: [number, number][] = [[35.6, 139.7], [35.61, 139.7], [35.62, 139.7], [35.8, 139.7]];
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Bir', S2: 'İki', S3: 'Üç', FAR: 'Uzak', Z: 'Sıfır', C1: 'Küme A', C2: 'Küme B' },
+      routes: { R1: '10' }, trips: { T1: 'Üç', T3: 'Uzak' }, trip_routes: { T1: 'R1', T3: 'R1' }, trip_directions: { T1: '0', T3: '0' },
+      trip_first_dep: { T1: '08:00', T3: '10:00' },
+      trip_stops: { T1: ['S1', 'S2', 'S3'], T3: ['S3', 'FAR'], T2: ['S1', 'Z', 'S3'] }, trip_stop_sequences: { T1: [1, 2, 3], T3: [1, 2], T2: [1, 2, 3] },
+      stop_coords: { S1: [35.6, 139.7], S2: [35.61, 139.702], S3: [35.62, 139.7], FAR: [-35.6, 139.7], Z: [0, 0], C1: [35.63, 139.7], C2: [35.63001, 139.70001] },
+      trip_shapes: { T1: 'SH1' }, shape_coords: { SH1: line }, route_shapes: { R1: ['SH1'] }, shape_routes: { SH1: [['R1', '0']] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+    const stopCtx = { trip_count: '1', route_count: '1', routes: 'R1' };
+
+    // GEO_002: the distance, the sign slip, the use; the middle and the likely position on the map.
+    let out = render(notice('a', 'GEO_002', 'HIGH', { entity_type: 'Stop', entity_id: 'FAR', details: { ...stopCtx, example_trip_id: 'T3', prev_stop_id: 'S3', med_lat: '35.61', med_lon: '139.7', dist_km: '7919.3' } }));
+    expect(out.html).toContain('„Uzak“ durağı ağın orta noktasından 7.919 km uzakta görünüyor');
+    expect(out.html).toContain('Enlemin işareti çevrilirse');
+    expect(out.html).toContain('<td>Olası doğru konum</td><td>35.6, 139.7</td>');
+    expect(out.map.opts.pins.some(p => p.label === 'Olası doğru konum')).toBe(true);
+    expect(out.map.opts.pins.some(p => p.label === 'Ağın orta noktası')).toBe(true);
+
+    // GEO_016: the 0,0 stop's place between its neighbours, red on the line.
+    out = render(notice('a', 'GEO_016', 'HIGH', { entity_type: 'Stop', entity_id: 'Z', details: { ...stopCtx, example_trip_id: 'T2', prev_stop_id: 'S1', next_stop_id: 'S3' } }));
+    expect(out.html).toContain('„Sıfır“ durağının konumu 0,0 girilmiş');
+    expect(out.html).toContain('Durak haritada bu iki durak arasında olmalı');
+    expect(out.map.opts.extraPolylines?.some(l => l.zoomTo && l.color === '#dc2626')).toBe(true);
+
+    // GEO_009: the distance to the line, the nearest point linked in red.
+    out = render(notice('a', 'GEO_009', 'HIGH', { entity_type: 'Stop', entity_id: 'S2', observed_value: "180.3m (shape 'SH1')", expected_value: '≤ 100m',
+      details: { ...stopCtx, example_trip_id: 'T1', shape_id: 'SH1' } }));
+    expect(out.html).toContain('„İki“ durağı güzergâh çizgisinden 180 m uzakta');
+    expect(out.map.opts.pins.some(p => p.label === 'Çizginin en yakın noktası')).toBe(true);
+
+    // GEO_012: the cluster's other stops by name, all red, with their distance.
+    out = render(notice('a', 'GEO_012', 'MEDIUM', { entity_type: 'Stop', entity_id: 'C1', details: { cluster_m: '5', example_stop_ids: 'C2', example_0_stop_id: 'C2', example_0_trip_count: '0' } }));
+    expect(out.html).toContain('„Küme A“ durağının 5 m yakınında 1 durak daha var: „Küme B“');
+    expect(out.map.opts.pins.filter(p => p.color === '#dc2626').length).toBe(2);
+
+    // GEO_006: the long stretch between two numbered points, red and circled.
+    out = render(notice('a', 'GEO_006', 'HIGH', { entity_type: 'Shape', entity_id: 'SH1',
+      details: { routes: 'R1', example_trip_id: 'T1', dist_km: '20.02', threshold_km: '10', from_seq: '3', to_seq: '4', from_lat: '35.62', from_lon: '139.7', to_lat: '35.8', to_lon: '139.7', from_line: '4', to_line: '5' } }));
+    expect(out.html).toContain('10 hattının „SH1“ güzergâh çizimi: 3. ve 4. noktalar arasında çizgi 20 km boyunca düz gidiyor (sınır 10 km)');
+    expect(out.map.opts.extraPolylines?.some(l => l.zoomTo && l.coords.length === 2)).toBe(true);
+    expect(out.map.opts.highlights?.length).toBe(1);
+
+    // GEO_017: the 0,0 point left out of the line; its neighbours' stretch red.
+    const withZero = { ...ni, shape_coords: { SH1: [[35.6, 139.7], [0, 0], [35.61, 139.7]] as [number, number][] } };
+    const r17 = result([], [], [], true, withZero);
+    const n17 = notice('a', 'GEO_017', 'HIGH', { entity_type: 'Shape', entity_id: 'SH1', line: 8,
+      details: { routes: 'R1', shape_pt_sequence: '2', null_point_count: '3', prev_lat: '35.6', prev_lon: '139.7', prev_line: '7', next_lat: '35.61', next_lon: '139.7', next_line: '9' } });
+    const m17 = plannerMap(n17, r17);
+    expect(m17.opts.extraPolylines?.[0].coords).toEqual([[35.6, 139.7], [35.61, 139.7]]);
+    out = render(n17);
+    expect(out.html).toContain('2. nokta 0,0 konumunda');
+    expect(out.html).toContain('Çizimde toplam 3 nokta 0,0 konumunda.');
+
+    // GEO_014: the extent and the farthest stops by name and distance.
+    out = render(notice('a', 'GEO_014', 'INFO', { entity_type: 'Feed', details: { span_km: '7920', ns_km: '7918', ew_km: '0', med_lat: '35.61', med_lon: '139.7', example_stop_ids: 'FAR', example_km: '7919', example_0_stop_id: 'FAR', example_0_trip_count: '1', example_0_routes: 'R1' } }));
+    expect(out.html).toContain('Ağın orta noktasına en uzak duraklar: „Uzak“ (7.919 km).');
+    expect(out.map.opts.pins.some(p => p.label.startsWith('Uzak'))).toBe(true);
+
+    // A drawing with a 0,0 point never runs out to the ocean, here nor on another card.
+    const zeroLine = { ...ni, shape_coords: { SH1: [[35.6, 139.7], [0, 0], [35.61, 139.702], [35.62, 139.7]] as [number, number][] } };
+    const n16 = notice('a', 'GEO_016', 'HIGH', { entity_type: 'Stop', entity_id: 'Z', details: { ...stopCtx, example_trip_id: 'T1', prev_stop_id: 'S1', next_stop_id: 'S3' } });
+    const m16 = plannerMap(n16, result([], [], [], true, { ...zeroLine, trip_stops: { ...ni.trip_stops, T1: ['S1', 'Z', 'S3'] } }));
+    expect(m16.opts.extraPolylines?.every(l => l.coords.every(p => Math.abs(p[0]) > 0.1 || Math.abs(p[1]) > 0.1))).toBe(true);
+
+    // GEO_019: the rounded stop and the stretch where it belongs.
+    const rounded = { ...ni, stop_coords: { ...ni.stop_coords, I: [36, 140] as [number, number] }, stops: { ...ni.stops, I: 'Yuvarlak' }, trip_stops: { ...ni.trip_stops, T1: ['S1', 'I', 'S3'] } };
+    const n19 = notice('a', 'GEO_019', 'MEDIUM', { entity_type: 'Stop', entity_id: 'I', details: { ...stopCtx, example_trip_id: 'T1', prev_stop_id: 'S1', next_stop_id: 'S3' } });
+    const root19 = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root19, result([n19], [], [['GEO_019', 1, 1]], true, rounded));
+    expect(root19.innerHTML).toContain('„Yuvarlak“ durağının konumu tam sayıya yuvarlanmış (36, 140)');
+    expect(plannerMap(n19, result([], [], [], true, rounded)).opts.extraPolylines?.some(l => l.zoomTo)).toBe(true);
+
+    // GEO_022: a stop near the pole is not pinned; its place on the trip is shown.
+    const pole = { ...ni, stop_coords: { ...ni.stop_coords, P: [89.5, 139.7] as [number, number] }, stops: { ...ni.stops, P: 'Kutup' }, trip_stops: { ...ni.trip_stops, T1: ['S1', 'P', 'S3'] } };
+    const m22 = plannerMap(notice('a', 'GEO_022', 'HIGH', { entity_type: 'Stop', entity_id: 'P', details: { ...stopCtx, example_trip_id: 'T1', prev_stop_id: 'S1', next_stop_id: 'S3' } }), result([], [], [], true, pole));
+    expect(m22.opts.pins.every(p => Math.abs(p.lat) <= 85)).toBe(true);
+    expect(m22.opts.extraPolylines?.some(l => l.zoomTo)).toBe(true);
+
+    // GEO_021: the crowded positions with their stops, red on the map.
+    out = render(notice('a', 'GEO_021', 'HIGH', { entity_type: 'Feed', details: { shared_stops: '4', total_stops: '5', group_0_lat: '35.6', group_0_lon: '139.7', group_0_count: '2', group_0_stops: 'S1,S2' } }));
+    expect(out.html).toContain('5 duraktan 4 tanesi (%80) başka bir durakla aynı konumda');
+    expect(out.html).toContain('2 durak („Bir“, „İki“)');
+    expect(out.map.opts.pins.some(p => p.label === '2 durak aynı yerde: Bir, İki')).toBe(true);
+
+    // GEO_018: all stops in a small area, ringed.
+    out = render(notice('a', 'GEO_018', 'HIGH', { entity_type: 'Feed', details: { stop_count: '5', span_m: '25', mid_lat: '35.6', mid_lon: '139.7', example_stop_ids: 'S1', example_0_stop_id: 'S1', example_0_trip_count: '1', example_0_routes: 'R1' } }));
+    expect(out.html).toContain('Veri setindeki 5 durağın hepsi 25 m genişliğinde bir alanın içinde');
+    expect(out.map.opts.highlights?.length).toBe(1);
+
+    // GEO_020: the one place of all points, red.
+    out = render(notice('a', 'GEO_020', 'HIGH', { entity_type: 'Shape', entity_id: 'SH1', details: { routes: 'R1', example_trip_id: 'T1', point_count: '3', lat: '35.6', lon: '139.7' } }));
+    expect(out.html).toContain('10 hattının „SH1“ güzergâh çizimi: 3 noktanın hepsi aynı yerde (35.6, 139.7)');
+    expect(out.map.opts.pins.some(p => p.label === 'Çizimin bütün noktaları burada')).toBe(true);
+  });
+
   it('harita seferleri kuş uçuşu değil gerçek güzergâhtan çizer', () => {
     const line: [number, number][] = [[41, 29], [41.005, 29.02], [41.01, 29], [41.015, 29.02], [41.02, 29]];
     const other: [number, number][] = [[41.02, 29], [41.03, 29.02], [41.04, 29]];
