@@ -897,17 +897,17 @@ fn compact_reports(
 
     let translator = Translator::new(lang)
         .map_err(|err| format!("failed to load compact result translator: {err}"))?;
-    // Turkish is emitted natively for concrete notices, but the registry has no
-    // Turkish message/remediation dictionary because it has no context-free
-    // templates. Keep the compact rule-level contract populated by using the
-    // canonical English catalog for that one case.
-    let english_catalog = if translator.is_none() {
+    // Turkish messages are emitted natively for concrete notices, but there is no
+    // Turkish message/remediation dictionary because they have no context-free
+    // templates yet (issue #201). Keep the compact rule-level contract populated by
+    // using the canonical English catalog for that one case.
+    let english_catalog = if lang == gtfs_core::i18n::Lang::Tr {
         Translator::new(gtfs_core::i18n::Lang::En)
             .map_err(|err| format!("failed to load compact English catalog: {err}"))?
     } else {
         None
     };
-    let catalog = translator.as_ref().or(english_catalog.as_ref());
+    let catalog = english_catalog.as_ref().or(translator.as_ref());
     let cards = RuleCards::new(lang)
         .map_err(|err| format!("failed to load compact planner cards: {err}"))?;
     let items = vr
@@ -1174,7 +1174,7 @@ fn run_rules(args: RulesArgs) -> ExitCode {
     } else {
         None
     };
-    let catalog = translator.as_ref().or(english_catalog.as_ref());
+    let catalog = english_catalog.as_ref().or(translator.as_ref());
     let cards = match RuleCards::new(args.lang.into()) {
         Ok(cards) => cards,
         Err(err) => return cli_error(err),

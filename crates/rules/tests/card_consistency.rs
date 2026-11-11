@@ -16,6 +16,9 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[path = "../examples/support/locale_titles.rs"]
+mod locale_titles;
+
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
@@ -100,6 +103,8 @@ fn code_refs(text: &str) -> Vec<String> {
 #[test]
 fn every_rule_has_card_with_matching_metadata() {
     let mut problems: Vec<String> = Vec::new();
+    // Cards are Turkish: the R9 line carries the Turkish title (the registry title is English).
+    let tr_titles = locale_titles::turkish_titles(&repo_root());
 
     for rule in RULES {
         let path = card_path(rule.id);
@@ -115,12 +120,13 @@ fn every_rule_has_card_with_matching_metadata() {
             }
         };
 
-        // R9 message == title.
+        // R9 message == Turkish title.
+        let tr_title = tr_titles.get(rule.id).map_or(rule.title, String::as_str);
         match r9_message(&text) {
-            Some(msg) if msg == rule.title => {}
+            Some(msg) if msg == tr_title => {}
             Some(msg) => problems.push(format!(
-                "{}: R9 mesajı ≠ title\n    kart:     '{}'\n    registry: '{}'",
-                rule.id, msg, rule.title
+                "{}: R9 mesajı ≠ Türkçe başlık\n    kart:  '{}'\n    tr.ts: '{}'",
+                rule.id, msg, tr_title
             )),
             None => problems.push(format!("{}: R9 'Kural mesajı:' satırı bulunamadı", rule.id)),
         }

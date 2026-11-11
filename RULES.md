@@ -34,8 +34,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ARC_020 | Önerilen GTFS dosyası eksik (shapes.txt veya feed_info.txt) | DÜŞÜK | Quality |
 | ARC_021 | Alanda yazdırılamaz veya sorunlu karakter | DÜŞÜK | Quality |
 | ARC_022 | Dosya satır sayısı 1.000.000 bilgi eşiğini aşıyor | BİLGİ | Analytics |
-| ARC_023 | ZIP içinde nested ZIP dosyası — GTFS formatında desteklenmez | ORTA | Quality |
-| ARC_024 | GTFS .txt dosyası ZIP içinde alt dizinde — standart parser'lar tarafından atlanır | ORTA | Spec |
+| ARC_023 | ZIP içinde iç içe ZIP dosyası | ORTA | Quality |
+| ARC_024 | GTFS .txt dosyası alt dizinde (parse edilemez) | ORTA | Spec |
 | ARC_026 | Dosyada hatalı satır sonu karakteri | ORTA | Spec |
 | ARC_027 | ZIP girdisinde kullanıcı okuma izni yok | BİLGİ | Quality |
 | ARC_028 | GTFS yayın URL'si .zip dosya adıyla bitmiyor | DÜŞÜK | Quality |
@@ -91,12 +91,12 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | AGN_009 | agency_email geçersiz | DÜŞÜK | Spec |
 | AGN_010 | agency_id yineleniyor | KRİTİK | Spec |
 | AGN_011 | Birden fazla kuruluşta agency_id yok | KRİTİK | Spec |
-| AGN_012 | agency_cemv_support geçersiz | DÜŞÜK | Spec |
+| AGN_012 | cemv_support geçersiz (agency) | DÜŞÜK | Spec |
 | AGN_013 | Feed dili ve ajans dili uyuşmuyor | DÜŞÜK | Interop |
-| AGN_014 | Birden fazla kuruluş var ama agency.txt'de agency_id eksik | KRİTİK | Spec |
-| AGN_015 | agency_url güvensiz http kullanıyor (https önerilir) | BİLGİ | Quality |
-| AGN_016 | agency_phone bilinen yer-tutucu/şüpheli numara | BİLGİ | Quality |
-| AGN_017 | Birden çok agency farklı agency_lang taşıyor — diller arası tutarsızlık | DÜŞÜK | Interop |
+| AGN_014 | Birden fazla kuruluş var ama agency.txt agency_id eksik | KRİTİK | Spec |
+| AGN_015 | agency_url güvensiz http (https önerilir) | BİLGİ | Quality |
+| AGN_016 | agency_phone şüpheli/yer-tutucu numara | BİLGİ | Quality |
+| AGN_017 | Agency'ler arası agency_lang tutarsız | DÜŞÜK | Interop |
 | AGN_018 | Tek kuruluşta agency_id boş | BİLGİ | Quality |
 
 ## STP — Stops (Duraklar)
@@ -126,7 +126,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STP_021 | Boarding area parent'ı platform değil | YÜKSEK | Quality |
 | STP_022 | stop_code eksik | ORTA | Quality |
 | STP_023 | tts_stop_name geçersiz | DÜŞÜK | Quality |
-| STP_024 | stop_access K2 uyumluluk aralığı dışında değer | BİLGİ | Quality |
+| STP_024 | stop_access enum aralığı dışında değer (K2 ham alan kontrolü) | BİLGİ | Quality |
 | STP_026 | stop_access geçersiz değer | DÜŞÜK | Spec |
 | STP_028 | stop_code çok uzun | BİLGİ | Quality |
 | STP_029 | Durak istasyon içinde ama koordinat çok uzakta | ORTA | Quality |
@@ -136,7 +136,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STP_033 | Durak zone_id eksik (ücret hesabı için gerekli) | BİLGİ | Quality |
 | STP_034 | stop_url acente URL'siyle aynı | DÜŞÜK | Quality |
 | STP_035 | stop_url hat URL'siyle aynı | DÜŞÜK | Quality |
-| STP_036 | İstasyonun (location_type=1) parent_station'ı var | DÜŞÜK | Spec |
+| STP_036 | İstasyonun (location_type=1) parent_station değeri var | DÜŞÜK | Spec |
 | STP_037 | Bazı duraklar tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş | BİLGİ | Quality |
 | STP_038 | Hiçbir durak tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş | BİLGİ | Quality |
 | STP_039 | stop_code birden fazla durakta kullanılıyor | DÜŞÜK | Quality |
@@ -171,8 +171,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | RTS_021 | Kısa hat adı Google Transit eşiğini (6 karakter) aşıyor | DÜŞÜK | Quality |
 | RTS_022 | Uzun hat adı kısa adı içeriyor | DÜŞÜK | Quality |
 | RTS_023 | Hat açıklaması hat adının kopyası | BİLGİ | Quality |
-| RTS_024 | route_cemv_support geçersiz | DÜŞÜK | Spec |
-| RTS_025 | routes.txt'te agency_id boş (önerilen alan) | BİLGİ | Quality |
+| RTS_024 | cemv_support geçersiz (route) | DÜŞÜK | Spec |
+| RTS_025 | routes.txt agency_id boş (önerilen) | BİLGİ | Quality |
 | RTS_026 | Yinelenen kısa hat adı | BİLGİ | Quality |
 | RTS_027 | Yinelenen uzun hat adı | BİLGİ | Quality |
 | RTS_028 | Flex pencereli rotada continuous_pickup/drop_off yasak | YÜKSEK | Spec |
@@ -248,28 +248,28 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_035 | Aynı durak ardışık iki kez ziyaret ediliyor (terminal/döngü) | BİLGİ | Analytics |
 | STM_036 | stop_times trip_id + stop_sequence'a göre sıralı değil (unsorted_stop_times) | BİLGİ | Quality |
 | STM_037 | Flex penceresinde arrival_time/departure_time yasak | YÜKSEK | Spec |
-| STM_038 | start_pickup_drop_off_window > end_pickup_drop_off_window | YÜKSEK | Interop |
+| STM_038 | start_pickup_drop_off_window >= end_pickup_drop_off_window | YÜKSEK | Interop |
 | STM_039 | Flex bağlamında pickup/drop_off penceresi eksik | KRİTİK | Spec |
 | STM_040 | Flex stop_times'ta pickup/drop_off_booking_rule_id eksik (spec'te Optional) | ORTA | Quality |
-| STM_060 | Aynı seferde geojson bölgesi + zaman penceresi + pickup/drop_off eşzamanlı örtüşüyor | YÜKSEK | Spec |
+| STM_060 | Aynı seferde bölge, pencere ve pickup/drop_off eşzamanlı örtüşüyor | YÜKSEK | Spec |
 | STM_061 | Ardışık olmayan uzak duraklar arası imkânsız hız | YÜKSEK | Interop |
 | STM_059 | pickup_type/drop_off_type=2 iken booking_rule_id önerilir | DÜŞÜK | Quality |
 | STM_041 | stop_id ile location_id/group_id aynı anda kullanılamaz | YÜKSEK | Spec |
 | STM_042 | stop_headsign Google Transit tarafından desteklenmeyen karakter içeriyor | DÜŞÜK | Interop |
-| STM_043 | Sefer aşırı fazla durağa sahip (>200) — olası veri birleştirme hatası | BİLGİ | Analytics |
-| STM_044 | Feed stop_times satır sayısı 2 milyonu aşıyor — WASM bellek/performans uyarısı | BİLGİ | Analytics |
-| STM_045 | Seferin hareket saati servis günü penceresini aşıyor — olası veri anomalisi | BİLGİ | Analytics |
+| STM_043 | Sefer aşırı fazla durağa sahip (>200) | BİLGİ | Analytics |
+| STM_044 | Feed stop_times satır sayısı 2 milyonu aşıyor | BİLGİ | Analytics |
+| STM_045 | Sefer kalkış saati servis günü penceresini aşıyor | BİLGİ | Analytics |
 | STM_046 | trip_id eksik | KRİTİK | Spec |
-| STM_047 | Kesin zaman noktasında (timepoint=1) arrival_time/departure_time eksik | KRİTİK | Spec |
-| STM_048 | Gece yarısı sonrası saatler 00:xx yazılmış (GTFS servis günü için 24:xx kullanılmalı) | YÜKSEK | Spec |
-| STM_049 | Aynı satırda gece yarısı sonrası kalkış 00:xx yazılmış (GTFS servis günü için 24:xx kullanılmalı) | YÜKSEK | Spec |
-| STM_050 | timepoint sütunu mevcut ama satırda boş — değer açıkça belirtilmeli (0 yaklaşık / 1 kesin) | DÜŞÜK | Quality |
-| STM_051 | Flex penceresi tanımlıyken pickup_type=0/3 yasak (talep-üzerine değerler gerekli) | YÜKSEK | Spec |
-| STM_052 | Flex penceresi tanımlıyken drop_off_type=0 yasak (talep-üzerine değer gerekli) | YÜKSEK | Spec |
+| STM_047 | timepoint=1 ama arrival_time/departure_time eksik | KRİTİK | Spec |
+| STM_048 | GTFS servis gününde gece yarısı sonrası saatler 00:xx yazılmış | YÜKSEK | Spec |
+| STM_049 | GTFS servis gününde aynı satırda gece yarısı sonrası kalkış 00:xx | YÜKSEK | Spec |
+| STM_050 | timepoint sütunu var ama değer boş | DÜŞÜK | Quality |
+| STM_051 | Flex penceresinde pickup_type=0/3 yasak | YÜKSEK | Spec |
+| STM_052 | Flex penceresinde drop_off_type=0 yasak | YÜKSEK | Spec |
 | STM_053 | Çok sayıda ardışık durakta aynı zaman | BİLGİ | Analytics |
-| STM_054 | Flex penceresi tanımlıyken continuous_pickup 1/boş dışında yasak | YÜKSEK | Spec |
-| STM_055 | Flex penceresi tanımlıyken continuous_drop_off 1/boş dışında yasak | YÜKSEK | Spec |
-| STM_056 | shape_dist_traveled artmıyor | KRİTİK | Spec |
+| STM_054 | Flex penceresinde continuous_pickup yasak | YÜKSEK | Spec |
+| STM_055 | Flex penceresinde continuous_drop_off yasak | YÜKSEK | Spec |
+| STM_056 | Güzergâh mesafesi artmıyor | KRİTİK | Spec |
 | STM_058 | Flex pickup/drop-off penceresi saati geçersiz | KRİTİK | Spec |
 
 ## PDW — Pickup/Drop-off Window
@@ -284,12 +284,12 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 |---|---|---|---|
 | LOC_001 | locations.geojson'da bilinmeyen veya geçersiz geometri tipi | YÜKSEK | Spec |
 | LOC_012 | locations.geojson geçerli bir GeoJSON FeatureCollection değil | YÜKSEK | Spec |
-| LOC_002 | Feature'da geometry null veya eksik — GTFS Flex gerektiriyor | KRİTİK | Spec |
-| LOC_003 | Feature'da 'id' property eksik — stop_times çapraz referansı için zorunlu | KRİTİK | Spec |
-| LOC_004 | Polygon ring kapalı değil (ilk != son nokta) | ORTA | Spec |
-| LOC_005 | FeatureCollection boş — hiç feature yok | DÜŞÜK | Quality |
-| LOC_006 | Polygon alanı 500km²'yi aşıyor — gerçekçi olmayan Flex bölge | BİLGİ | Quality |
-| LOC_007 | FeatureCollection içinde yinelenen 'id' değeri — Flex referansı belirsizleşir | ORTA | Spec |
+| LOC_002 | Feature'da geometry null veya eksik | KRİTİK | Spec |
+| LOC_003 | Feature'da 'id' property eksik | KRİTİK | Spec |
+| LOC_004 | Polygon ring kapalı değil | ORTA | Spec |
+| LOC_005 | FeatureCollection tamamen boş | DÜŞÜK | Quality |
+| LOC_006 | Polygon alanı 500km²'yi aşıyor | BİLGİ | Quality |
+| LOC_007 | FeatureCollection içinde yinelenen feature 'id' | ORTA | Spec |
 | LOC_008 | Feature 'type' alanı eksik veya "Feature" değil | ORTA | Spec |
 | LOC_009 | Feature 'properties' nesnesi eksik | ORTA | Spec |
 | LOC_011 | Poligon geçersiz: ring kendini kesiyor veya delik dışarıda | YÜKSEK | Spec |
@@ -317,10 +317,10 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | CAL_016 | Servis çok uzak bir gelecek tarihine kadar uzanıyor | BİLGİ | Quality |
 | CAL_017 | Takvim henüz başlamamış (tüm aktif tarihler gelecekte) | BİLGİ | Analytics |
 | CAL_018 | Servisin aktif haftanın günü yok (tüm günler 0, calendar_dates ile geçersiz kılınan yok) | BİLGİ | Quality |
-| CAL_020 | Feed geçerlilik penceresi 5 yılı aşıyor — gerçekçi olmayan zaman dilimi | BİLGİ | Quality |
+| CAL_020 | Feed geçerlilik penceresi 5 yılı aşıyor | BİLGİ | Quality |
 | CAL_021 | Servis bugünü kapsıyor ama yakın günlerde aktif sefer yok | BİLGİ | Analytics |
 | CAL_022 | service_id eksik | KRİTİK | Spec |
-| CAL_023 | end_date çok ileri (şüpheli uzak-gelecek tarih) | ORTA | Quality |
+| CAL_023 | Takvim end_date çok ileri (şüpheli) | ORTA | Quality |
 | CAL_024 | Takvim önümüzdeki 7 günde aktif değil | BİLGİ | Analytics |
 | CAL_025 | Takvim gün alanı boş (değer verilmemiş) | KRİTİK | Spec |
 
@@ -362,9 +362,9 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | SHP_023 | shape_dist_traveled aynı değere sahip art arda iki nokta aynı koordinatta | ORTA | Quality |
 | SHP_024 | Duraktan şekle mesafe shape_dist_traveled ile tutarsız | ORTA | Quality |
 | SHP_025 | Sefer stop_times mesafesi şeklin toplam mesafesini aşıyor | ORTA | Quality |
-| SHP_026 | Shape aşırı fazla noktaya sahip (>5000) — tüketici render performansını etkiler | BİLGİ | Analytics |
-| SHP_028 | Ardışık iki shape noktası aynı shape_dist_traveled ama farklı koordinat (mesafe artmadan konum değişmiş) | YÜKSEK | Spec |
-| SHP_029 | Aynı shape_dist_traveled, farklı ama çok yakın koordinatlı ardışık shape noktaları (eşik altı) | BİLGİ | Quality |
+| SHP_026 | Shape aşırı fazla noktaya sahip (>5000) | BİLGİ | Analytics |
+| SHP_028 | Aynı shape_dist_traveled, farklı koordinat | YÜKSEK | Spec |
+| SHP_029 | Aynı shape_dist_traveled, çok küçük koordinat farkı (eşik altı) | BİLGİ | Quality |
 | SHP_030 | stop_times shape_dist_traveled kullanıyor ancak shapes.txt'te shape mesafeleri eksik | ORTA | Quality |
 
 ## FRQ — Frequencies (Frekanslar)
@@ -381,7 +381,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | FRQ_008 | headway_secs sıfır (geçersiz frekans) | KRİTİK | Spec |
 | FRQ_009 | Frekans aralığı çok kısa | ORTA | Quality |
 | FRQ_010 | Çok sık frekans (sıkışma riski) | BİLGİ | Analytics |
-| FRQ_011 | Aynı trip için frequencies dönemleri zaman aralığı çakışıyor | YÜKSEK | Spec |
+| FRQ_011 | Frequencies dönemleri zaman aralığı çakışıyor | YÜKSEK | Spec |
 | FRQ_012 | exact_times=1 iken end_time headway sınırına denk geliyor | DÜŞÜK | Spec |
 
 ## TRF — Transfers (Aktarmalar)
@@ -447,7 +447,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | FRL_006 | Ücret kuralı tanımlı değil | BİLGİ | Quality |
 | FRL_007 | Ücret kuralı mantıksal tutarsızlık | ORTA | Quality |
 | FRL_008 | Tüm hatlar için ücret tanımlı değil | BİLGİ | Quality |
-| FRL_009 | Origin/destination ücret kapsamı eksik | ORTA | Quality |
+| FRL_009 | Bazı kalkış-varış bölge çiftleri için ücret eksik | ORTA | Quality |
 
 ## RCT — Rider Categories (Yolcu Kategorileri, Fares v2)
 
@@ -629,7 +629,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | FIN_017 | Feed çok uzak gelecekte sona eriyor | BİLGİ | Quality |
 | FIN_018 | feed_contact_email ve feed_contact_url ikisi de eksik | DÜŞÜK | Quality |
 | FIN_019 | Feed'in geçerlilik süresi 7 gün içinde dolacak | DÜŞÜK | Quality |
-| FIN_020 | Feed geçerlilik penceresi 7 günden kısa — operasyonel kullanım için çok kısa | BİLGİ | Quality |
+| FIN_020 | Feed geçerlilik penceresi 7 günden kısa | BİLGİ | Quality |
 
 ## TRN — Translations (Çeviriler)
 
@@ -664,7 +664,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ATR_006 | is_authority geçersiz | KRİTİK | Spec |
 | ATR_007 | attribution_url geçersiz | KRİTİK | Spec |
 | ATR_008 | attribution_email geçersiz | DÜŞÜK | Spec |
-| ATR_009 | attribution hedef alanları (agency/route/trip) birlikte kullanılmış | YÜKSEK | Spec |
+| ATR_009 | attribution hedef alanları birlikte kullanılmış | YÜKSEK | Spec |
 | ATR_010 | agency_id bulunamadı | DÜŞÜK | Spec |
 | ATR_011 | route_id bulunamadı | DÜŞÜK | Spec |
 | ATR_012 | trip_id bulunamadı | DÜŞÜK | Spec |
@@ -675,7 +675,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 |---|---|---|---|
 | XFL_002 | Seferin stop_times kaydı yok | YÜKSEK | Interop |
 | XFL_006 | service_id yalnızca iptal istisnası içeriyor (aktif gün yok) | ORTA | Analytics |
-| XFL_012 | Çalıştırılabilir seferi olmayan hat (stop_times veya aktif servis bağlamı eksik) | YÜKSEK | Quality |
+| XFL_012 | Çalıştırılabilir seferi olmayan hat | YÜKSEK | Quality |
 | XFL_013 | shape_id birden fazla yönde kullanılıyor | YÜKSEK | Quality |
 | XFL_014 | Geçersiz çeviri referansı (kaynak kayıt bulunamadı) | ORTA | Quality |
 | XFL_015 | Attribution'da geçersiz referans | KRİTİK | Spec |
@@ -692,9 +692,9 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | XFL_033 | location_group_stops'ta location_group_id boş | KRİTİK | Spec |
 | XFL_034 | location_group_stops'ta stop_id boş | KRİTİK | Spec |
 | XFL_027 | cEMV bayrağı ile Fares v2 bilgisi farklı; Fares v2 bilgisi geçerlidir | BİLGİ | Interop |
-| XFL_028 | agency cemv_support=1 ama Fares v2'de contactless media yok | BİLGİ | Quality |
-| XFL_029 | route cemv_support=1 ama Fares v2'de contactless media yok | BİLGİ | Quality |
-| XFL_030 | contactless fare media var ama hiç cemv_support=1 yok | BİLGİ | Quality |
+| XFL_028 | agency cemv_support=1 ama contactless media yok | BİLGİ | Quality |
+| XFL_029 | route cemv_support=1 ama contactless media yok | BİLGİ | Quality |
+| XFL_030 | contactless media var ama cemv_support=1 yok | BİLGİ | Quality |
 
 ## OPR — Operasyonel Tutarlılık
 
@@ -721,8 +721,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | OPR_021 | Takvim override çakışması: override ve base eş zamanlı aktif | YÜKSEK | Analytics |
 | OPR_022 | Takvim override uygulanmamış: override gününde base servis çalışıyor | YÜKSEK | Analytics |
 | OPR_023 | Takvim override boşluğu: pencere içinde hiçbir servis aktif değil | ORTA | Analytics |
-| OPR_024 | Hat çok fazla sefer içeriyor — olası veri birleştirme sorunu | BİLGİ | Analytics |
-| OPR_025 | Feed genelinde ortalama sefer süresi 60 saniyeden kısa — veri kalitesi sorunu | YÜKSEK | Analytics |
+| OPR_024 | Hat çok fazla sefer içeriyor | BİLGİ | Analytics |
+| OPR_025 | Ortalama sefer süresi 60 saniyeden kısa | YÜKSEK | Analytics |
 
 ## GEO — Coğrafi / Uzamsal
 
@@ -736,13 +736,13 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | GEO_013 | Feed coğrafi kapsam özeti | BİLGİ | Analytics |
 | GEO_014 | Feed coğrafi kapsamı çok geniş | BİLGİ | Analytics |
 | GEO_015 | Durak koordinatları Japonya sınırları dışında (feed_lang: ja) | ORTA | Quality |
-| GEO_016 | Durak Null Island yakınında (\|lat\|<0.1 VE \|lon\|<0.1) — olası koordinat hatası | YÜKSEK | Quality |
-| GEO_017 | Shape noktası Null Island yakınında — GPS verisi hatası | YÜKSEK | Quality |
-| GEO_018 | Tüm feed durağları 200m yarıçap içinde — test/yer tutucu veri | YÜKSEK | Analytics |
-| GEO_019 | Durak koordinatları tam sayı (ondalık basamak yok) — düşük hassasiyetli veya yer tutucu | ORTA | Quality |
-| GEO_020 | Shape'in tüm noktaları aynı koordinatta — dejenere geometri | YÜKSEK | Quality |
-| GEO_021 | Durakların %30'undan fazlası koordinatlarını başka bir durakla paylaşıyor — sistematik hata | YÜKSEK | Analytics |
-| GEO_022 | Durak enlemi kutba aşırı yakın (\|lat\|>89) — olası koordinat hatası | YÜKSEK | Quality |
+| GEO_016 | Durak Null Island yakınında (\|lat\|<0.1 VE \|lon\|<0.1) | YÜKSEK | Quality |
+| GEO_017 | Shape noktası Null Island yakınında | YÜKSEK | Quality |
+| GEO_018 | Tüm feed durakları 200m içinde (test verisi) | YÜKSEK | Analytics |
+| GEO_019 | Durak tam sayı koordinatlara sahip (hassasiyet sıfır) | ORTA | Quality |
+| GEO_020 | Shape dejenere — tüm noktalar aynı koordinatta | YÜKSEK | Quality |
+| GEO_021 | Durakların %30+ koordinatı paylaşıyor (sistematik hata) | YÜKSEK | Analytics |
+| GEO_022 | Durak enlemi kutba aşırı yakın (\|lat\| > 89) | YÜKSEK | Quality |
 
 ## DQ — Veri Kalitesi / Kullanıcı Deneyimi
 
@@ -764,8 +764,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | DQ_018 | Önerilen alanda tamamen büyük harf (all-caps) | ORTA | Quality |
 | DQ_019 | Önerilen alanda tamamen küçük harf (all-lowercase) | ORTA | Quality |
 | DQ_020 | Önerilen alan eksik veya boş | DÜŞÜK | Quality |
-| DQ_021 | Birincil anahtar yineleniyor — genel ikincil sinyal (STP_001/RTS_001 gibi entity-level kurallarla örtüşebilir) | YÜKSEK | Spec |
-| DQ_022 | Durakların %80'inden fazlası aynı stop_name değerini paylaşıyor — yer tutucu/test verisi | YÜKSEK | Quality |
+| DQ_021 | Birincil anahtar yineleniyor — genel ikincil sinyal (STP_001/RTS_001 ile örtüşebilir) | YÜKSEK | Spec |
+| DQ_022 | Durakların %80+'i aynı stop_name değerini paylaşıyor | YÜKSEK | Quality |
 
 ## VAT — Varlık Analitik Tespiti
 
@@ -777,42 +777,42 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | VAT_005 | İzole durak kümesi — ağ grafiğinde ana bileşenden kopuk duraklar | ORTA | Analytics |
 | VAT_006 | Hizmet yoğunluğu dengesizliği — tek hat feed sefer sayısının büyük bölümünü oluşturuyor | BİLGİ | Analytics |
 | VAT_007 | Terminus aktarma eksikliği — terminal durağa başka hat geliyor ama aktarma tanımlı değil | BİLGİ | Analytics |
-| VAT_008 | Aynı shape feed hatlarının %30'undan fazlasında kullanılıyor — olası yanlış shape ataması | BİLGİ | Analytics |
+| VAT_008 | Aynı shape feed hatlarının %30+'ında kullanılıyor | BİLGİ | Analytics |
 
 ## JPN
 
 | Kural | Başlık | Önem | Sınıf |
 |---|---|---|---|
-| JPN_001 | GTFS-JP: durak adının kana (ja-Hrkt) okuması eksik | ORTA | Quality |
+| JPN_001 | GTFS-JP: durak adında kana (ja-Hrkt) okuması eksik | ORTA | Quality |
 | JPN_002 | GTFS-JP: jp_office_id office_jp.txt'te tanımlı değil | YÜKSEK | Interop |
 | JPN_003 | GTFS-JP: agency_jp.agency_id agency.txt'te tanımlı değil | YÜKSEK | Interop |
-| JPN_004 | GTFS-JP: translations.txt eksik (profil zorunlu kılar) | YÜKSEK | Interop |
-| JPN_005 | GTFS-JP: office_jp.office_name boş (zorunlu alan) | YÜKSEK | Interop |
+| JPN_004 | GTFS-JP: translations.txt eksik | YÜKSEK | Interop |
+| JPN_005 | GTFS-JP: office_jp.office_name boş | YÜKSEK | Interop |
 | JPN_006 | GTFS-JP: fare_attributes eksik veya farklı ücret profilleri için fare_rules eksik | ORTA | Quality |
-| JPN_007 | GTFS-JP: feed_info.txt eksik (profil zorunlu kılar) | ORTA | Quality |
-| JPN_008 | GTFS-JP: hat adının (route_short_name/route_long_name) kana (ja-Hrkt) okuması eksik | ORTA | Quality |
-| JPN_009 | GTFS-JP: trip_headsign kana (ja-Hrkt) okuması eksik | ORTA | Quality |
-| JPN_010 | GTFS-JP: işletici adının (agency_name) kana (ja-Hrkt) okuması eksik | ORTA | Quality |
+| JPN_007 | GTFS-JP: feed_info.txt eksik | ORTA | Quality |
+| JPN_008 | GTFS-JP: hat adının kana okuması eksik | ORTA | Quality |
+| JPN_009 | GTFS-JP: trip_headsign kana okuması eksik | ORTA | Quality |
+| JPN_010 | GTFS-JP: işletici adının kana okuması eksik | ORTA | Quality |
 | JPN_011 | GTFS-JP: tek işletici olsa bile agency_id zorunlu | YÜKSEK | Interop |
 | JPN_012 | GTFS-JP: agency_jp.agency_id eksik | YÜKSEK | Interop |
 | JPN_013 | GTFS-JP: agency_zip_number biçimi geçersiz | ORTA | Quality |
 | JPN_014 | GTFS-JP: office_jp.office_id eksik veya tekrarlı | YÜKSEK | Interop |
-| JPN_015 | GTFS-JP legacy: routes_jp.route_id eksik, tekrarlı veya routes.txt'te yok | YÜKSEK | Interop |
+| JPN_015 | GTFS-JP legacy: routes_jp.route_id eksik, tekrarlı veya routes.txt içinde tanımsız | YÜKSEK | Interop |
 | JPN_016 | GTFS-JP: pattern_jp veya legacy routes_jp route_update_date geçersiz | ORTA | Quality |
-| JPN_017 | GTFS-JP: pattern_jp.jp_pattern_id eksik veya tekrarlı | YÜKSEK | Interop |
-| JPN_018 | GTFS-JP: trips.jp_pattern_id pattern_jp.txt'te tanımlı değil | YÜKSEK | Interop |
-| JPN_019 | GTFS-JP: kana çevirisinin kaydı veya alt kaydı geçersiz | ORTA | Interop |
-| JPN_020 | GTFS-JP: office_url veya office_phone biçimi şüpheli | ORTA | Quality |
-| JPN_021 | GTFS-JP: kana çevirisi boş, çakışmalı veya tutarsız | ORTA | Quality |
+| JPN_017 | GTFS-JP: jp_pattern_id eksik veya tekrarlı | YÜKSEK | Interop |
+| JPN_018 | GTFS-JP: jp_pattern_id tanımsız | YÜKSEK | Interop |
+| JPN_019 | GTFS-JP: kana çeviri referansı geçersiz | ORTA | Interop |
+| JPN_020 | GTFS-JP: ofis iletişim biçimi şüpheli | ORTA | Quality |
+| JPN_021 | GTFS-JP: kana çevirisi tutarsız | ORTA | Quality |
 | JPN_022 | GTFS-JP v4: ana alan zorunluluğu eksik | ORTA | Interop |
-| JPN_023 | GTFS-JP: feed_lang değeri ja değil | YÜKSEK | Interop |
-| JPN_024 | GTFS-JP: agency_lang değeri ja değil | YÜKSEK | Interop |
-| JPN_025 | GTFS-JP: agency_timezone değeri Asia/Tokyo değil | YÜKSEK | Interop |
-| JPN_026 | GTFS-JP: fare_attributes.currency_type değeri JPY değil | YÜKSEK | Interop |
+| JPN_023 | GTFS-JP: feed_lang ja değil | YÜKSEK | Interop |
+| JPN_024 | GTFS-JP: agency_lang ja değil | YÜKSEK | Interop |
+| JPN_025 | GTFS-JP: agency_timezone Asia/Tokyo değil | YÜKSEK | Interop |
+| JPN_026 | GTFS-JP: ücret para birimi JPY değil | YÜKSEK | Interop |
 | JPN_027 | GTFS-JP V3: route_type 3 değil | YÜKSEK | Interop |
 | JPN_028 | GTFS-JP v3: zorunlu kana çevirisi eksik | ORTA | Quality |
 | JPN_029 | GTFS-JP v4: önerilen kana çevirisi eksik | DÜŞÜK | Quality |
-| JPN_030 | GTFS-JP v3: zorunlu language=ja çevirisi eksik | ORTA | Quality |
+| JPN_030 | GTFS-JP v3: zorunlu Japonca çeviri eksik | ORTA | Quality |
 | JPN_031 | GTFS-JP: bölgeye bağlı ücret kullanılan durakta zone_id eksik | YÜKSEK | Interop |
 | JPN_032 | GTFS-JP V3: agency_id Corporate Number biçiminde değil | ORTA | Interop |
 | JPN_033 | GTFS-JP: özel dosya veya alan adında ayrılmış jp ad alanı kullanılmış | ORTA | Interop |

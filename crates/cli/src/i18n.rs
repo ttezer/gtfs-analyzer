@@ -8,7 +8,7 @@ pub use gtfs_core::i18n::Translator;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum LangArg {
-    /// Turkish — the pipeline's native text, no translation applied.
+    /// Turkish — titles from the dictionary; messages are the pipeline's native text.
     Tr,
     En,
     Ja,

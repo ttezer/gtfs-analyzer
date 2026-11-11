@@ -1,8 +1,8 @@
 //! Regenerates RULES.md / RULES.en.md / RULES.ja.md from the registry.
 //!
-//! The single source of truth is `registry.rs` (`RULES`). Rule titles come from:
-//! - TR: the registry `title` field.
-//! - EN/JA: the `ruleTitles:` block in `ui/src/locales/{en,ja}.ts`.
+//! The single source of truth is `registry.rs` (`RULES`). Rule titles come from the
+//! `ruleTitles:` block in `ui/src/locales/{tr,en,ja,fr}.ts` (the registry `title` is
+//! English and is used only when a locale lacks a rule).
 //!
 //! Group descriptions (`## ARC — ...`) are preserved from the existing RULES files (they are not in the registry).
 //!
@@ -10,6 +10,10 @@
 //! This permanently resolves manually maintained RULES drift (rule counts + missing rules).
 
 use gtfs_rules::{RuleMeta, RULES};
+
+#[path = "support/locale_titles.rs"]
+mod locale_titles;
+use locale_titles::parse_titles;
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -60,39 +64,6 @@ fn parse_groups(md: &str) -> BTreeMap<String, String> {
     m
 }
 
-/// Reads the `ruleTitles: { 'ID': 'title', ... }` block from a locale .ts file.
-fn parse_titles(ts: &str) -> BTreeMap<String, String> {
-    let mut m = BTreeMap::new();
-    let mut in_block = false;
-    for line in ts.lines() {
-        let t = line.trim();
-        if !in_block {
-            if t.starts_with("ruleTitles:") {
-                in_block = true;
-            }
-            continue;
-        }
-        if t == "}," || t == "}" {
-            break;
-        }
-        // Line format: `'ID': 'title',` — but alignment may use two spaces (`':  '`)
-        // and some values may use double quotes (`"..."`). Parse without depending on spacing or quote style.
-        if let Some((idp, valp)) = t.split_once(':') {
-            let id = idp.trim().trim_matches(|c| c == '\'' || c == '"').trim();
-            let v = valp.trim().trim_end_matches(',').trim();
-            let val = if v.starts_with('"') {
-                v.trim_matches('"')
-            } else {
-                v.trim_matches('\'')
-            };
-            if !id.is_empty() && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
-                m.insert(id.to_string(), val.to_string());
-            }
-        }
-    }
-    m
-}
-
 struct Lang {
     file: &'static str,
     idx: usize,
@@ -101,7 +72,7 @@ struct Lang {
     intro: &'static str,     // Three lines containing {n}/{g} placeholders.
     table_hdr: &'static str, // `| Rule | Title | Severity | Class |`
     groups: BTreeMap<String, String>,
-    titles: Option<BTreeMap<String, String>>, // None = registry.title (TR)
+    titles: Option<BTreeMap<String, String>>, // None = registry.title (English)
 }
 
 fn main() {
@@ -112,6 +83,7 @@ fn main() {
     let g_en = parse_groups(&rd("RULES.en.md"));
     let g_ja = parse_groups(&rd("RULES.ja.md"));
     let g_fr = parse_groups(&rd("RULES.fr.md"));
+    let t_tr = parse_titles(&rd("ui/src/locales/tr.ts"));
     let t_en = parse_titles(&rd("ui/src/locales/en.ts"));
     let t_ja = parse_titles(&rd("ui/src/locales/ja.ts"));
     let t_fr = parse_titles(&rd("ui/src/locales/fr.ts"));
@@ -136,7 +108,7 @@ fn main() {
             nav: "🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)",
             intro: "{N} kural, {G} grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.\nÖnem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**\nSınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)",
             table_hdr: "| Kural | Başlık | Önem | Sınıf |",
-            groups: g_tr, titles: None,
+            groups: g_tr, titles: Some(t_tr),
         },
         Lang {
             file: "RULES.en.md", idx: 1,

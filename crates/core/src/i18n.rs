@@ -31,7 +31,7 @@ const ES_JSON: &str = include_str!("../locales/es.json");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Lang {
-    /// Turkish — the pipeline's native text, no translation applied.
+    /// Turkish — titles from the dictionary; messages are the pipeline's native text.
     Tr,
     En,
     Ja,
@@ -79,7 +79,8 @@ impl Dictionary {
     }
 }
 
-/// Absent for Turkish: the notices already carry Turkish text.
+/// For Turkish only the rule titles come from the dictionary; messages and
+/// remediations are still the pipeline's own Turkish text (issue #201).
 pub struct Translator {
     primary: Dictionary,
     /// English, consulted when the primary locale lacks the rule.
@@ -89,7 +90,10 @@ pub struct Translator {
 impl Translator {
     pub fn new(lang: Lang) -> Result<Option<Self>, String> {
         match lang {
-            Lang::Tr => Ok(None),
+            Lang::Tr => Ok(Some(Self {
+                primary: Dictionary::parse(TR_JSON, "tr")?,
+                fallback: None,
+            })),
             Lang::En => Ok(Some(Self {
                 primary: Dictionary::parse(EN_JSON, "en")?,
                 fallback: None,
@@ -466,8 +470,17 @@ mod tests {
     }
 
     #[test]
-    fn turkish_needs_no_dictionary() {
-        assert!(Translator::new(Lang::Tr).unwrap().is_none());
+    fn turkish_takes_titles_from_the_dictionary_and_keeps_native_messages() {
+        let translator = Translator::new(Lang::Tr).unwrap().unwrap();
+        let mut n = notice();
+        n.title = "English title from the registry".to_string().into();
+        translator.translate(&mut n);
+
+        assert_eq!(&*n.title, translator.rule_title("STM_004", ""));
+        assert!(!n.title.is_empty() && &*n.title != "English title from the registry");
+        // Messages and remediations stay the pipeline's Turkish text (issue #201).
+        assert_eq!(n.message, "Türkçe mesaj");
+        assert_eq!(&*n.remediation, "Türkçe çözüm");
     }
 
     #[test]

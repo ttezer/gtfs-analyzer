@@ -290,7 +290,7 @@
 | LOC_005 | FeatureCollectionが空 | 低 | 品質 |
 | LOC_006 | Polygonの面積が500km²超 | 情報 | 品質 |
 | LOC_007 | FeatureCollection内でフィーチャー'id'が重複 | 中 | 仕様 |
-| LOC_008 | Featureの'type'が欠落または\"Feature\"でない | 中 | 仕様 |
+| LOC_008 | Featureの'type'が欠落または"Feature"でない | 中 | 仕様 |
 | LOC_009 | Featureの'properties'オブジェクトが欠落 | 中 | 仕様 |
 | LOC_011 | 不正なポリゴン: リングが自己交差、または穴が外側にあります | 高 | 仕様 |
 | LOC_010 | Geometryの'coordinates'が欠落または配列でない | 致命的 | 仕様 |

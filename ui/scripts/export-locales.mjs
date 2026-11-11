@@ -5,9 +5,9 @@
 // them, and `src/__tests__/locale-export-drift.test.ts` fails the build if the
 // derived JSON drifts. Run `npm run locales:export` after touching any locale.
 //
-// TR and ES export only the planner cards. Turkish message/remediation text is
-// what the Rust pipeline emits natively; ES is a cards-only locale whose other
-// texts fall back to English.
+// TR exports its rule titles and planner cards: Turkish message/remediation text
+// is still what the Rust pipeline emits natively (issue #201 moves it step by
+// step). ES is a cards-only locale whose other texts fall back to English.
 
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -31,7 +31,8 @@ export function cardsOf(locale) {
 }
 
 /** Shape embedded by the CLI. Keep in sync with `crates/core/src/i18n.rs`. */
-function payloadOf(locale, cardsOnly) {
+function payloadOf(locale, cardsOnly, lang) {
+  if (lang === 'tr') return { titles: locale.ruleTitles ?? {}, cards: cardsOf(locale) };
   if (cardsOnly) return { cards: cardsOf(locale) };
   return {
     messages: locale.ruleMessages ?? {},
@@ -48,7 +49,7 @@ export function serialize(payload) {
 
 export async function loadPayload(lang) {
   const mod = await import(`../src/locales/${lang}.ts`);
-  return payloadOf(mod.default, CARD_ONLY_LANGS.includes(lang));
+  return payloadOf(mod.default, CARD_ONLY_LANGS.includes(lang), lang);
 }
 
 const check = process.argv.includes('--check');

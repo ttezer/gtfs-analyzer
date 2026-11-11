@@ -290,7 +290,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | LOC_005 | FeatureCollection has no features | LOW | Quality |
 | LOC_006 | Polygon area exceeds 500km² | INFO | Quality |
 | LOC_007 | Duplicate feature 'id' in FeatureCollection | MEDIUM | Spec |
-| LOC_008 | Feature 'type' member missing or not \"Feature\ | MEDIUM | Spec |
+| LOC_008 | Feature 'type' member missing or not "Feature" | MEDIUM | Spec |
 | LOC_009 | Feature 'properties' object missing | MEDIUM | Spec |
 | LOC_011 | Invalid polygon: a ring self-intersects or a hole lies outside | HIGH | Spec |
 | LOC_010 | Geometry 'coordinates' missing or not an array — the zone geometry cannot be resolved | CRITICAL | Spec |

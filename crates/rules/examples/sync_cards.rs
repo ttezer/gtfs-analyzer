@@ -1,6 +1,6 @@
 //! Synchronizes rule cards with the registry and source (one-time maintenance tool).
 //!
-//! - Makes the R9 "Rule message:" line equal to the registry `title`.
+//! - Makes the R9 "Rule message:" line equal to the rule's Turkish title (`ui/src/locales/tr.ts`; cards are Turkish).
 //! - Makes the metadata `Önem`/`Sınıf` values equal to the registry severity/rule_class.
 //!
 //! Code references in cards link files without line numbers (since 2026-11-02), so there is
@@ -102,7 +102,12 @@ fn severity_display(dbg: &str) -> &str {
     }
 }
 
+#[path = "support/locale_titles.rs"]
+mod locale_titles;
+
 fn main() {
+    let tr_titles =
+        locale_titles::turkish_titles(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."));
     let mut r9_fix = 0usize;
     let mut meta_fix = 0usize;
 
@@ -123,8 +128,9 @@ fn main() {
             if let Some(idx) = line.find("**Kural mesajı:**") {
                 let prefix = &line[..idx + "**Kural mesajı:**".len()];
                 let cur = line[idx + "**Kural mesajı:**".len()..].trim();
-                if cur != rule.title {
-                    new_line = format!("{prefix} {}", rule.title);
+                let title = tr_titles.get(rule.id).map_or(rule.title, String::as_str);
+                if cur != title {
+                    new_line = format!("{prefix} {title}");
                     r9_fix += 1;
                 }
             }

@@ -19,6 +19,9 @@ use std::path::{Path, PathBuf};
 
 use gtfs_rules::RULES;
 
+#[path = "../examples/support/locale_titles.rs"]
+mod locale_titles;
+
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
@@ -181,7 +184,7 @@ fn rules_docs_match_registry() {
     );
 }
 
-/// Turkish table titles come directly from `registry.title` → they must match exactly.
+/// Turkish table titles come from `ui/src/locales/tr.ts` (the registry title is English) → they must match exactly.
 /// (EN/JA titles come from locale files and are checked in a separate test.)
 /// Turkish-leak gate for translated RULES files.
 ///
@@ -212,16 +215,18 @@ fn translated_rules_docs_carry_no_turkish_titles() {
 }
 
 #[test]
-fn turkish_rules_doc_titles_match_registry_titles() {
+fn turkish_rules_doc_titles_match_turkish_locale_titles() {
     let rows = parse_rows(&read("RULES.md"));
+    let tr_titles = locale_titles::turkish_titles(&repo_root());
     let mut problems: Vec<String> = vec![];
 
     for rule in RULES {
         if let Some(row) = rows.get(rule.id) {
-            if row.title != rule.title {
+            let tr_title = tr_titles.get(rule.id).map_or(rule.title, String::as_str);
+            if row.title != tr_title {
                 problems.push(format!(
-                    "{}: başlık '{}' ≠ registry.title '{}'",
-                    rule.id, row.title, rule.title
+                    "{}: başlık '{}' ≠ tr.ts başlığı '{}'",
+                    rule.id, row.title, tr_title
                 ));
             }
         }
@@ -229,7 +234,7 @@ fn turkish_rules_doc_titles_match_registry_titles() {
 
     assert!(
         problems.is_empty(),
-        "RULES.md başlıkları registry.title ile uyuşmuyor ({} sorun) — düzeltmek için:\n  \
+        "RULES.md başlıkları tr.ts başlıklarıyla uyuşmuyor ({} sorun) — düzeltmek için:\n  \
          cargo run -p gtfs-rules --example gen_rules\n\n{}",
         problems.len(),
         problems.join("\n")
