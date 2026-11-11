@@ -2900,6 +2900,10 @@ const fr: LocaleShape = {
     'upload.url_blocked'      : 'Le navigateur n’a pas pu lire le fichier à cette adresse — la source est peut-être injoignable, ou le serveur n’autorise pas l’accès depuis un navigateur (CORS).',
     'upload.url_open_link'    : 'Ouvrir le lien',
     'upload.url_then_drop'    : '— puis déposez ici le ZIP téléchargé.',
+    'upload.url_confirm_title': "Analyser le flux de ce lien ?",
+    'upload.url_confirm_body': "Ce lien souhaite ouvrir un flux GTFS depuis l'adresse ci-dessous. Si vous confirmez, le fichier est téléchargé dans votre navigateur et analysé uniquement sur cet appareil ; les flux volumineux peuvent demander du temps et de la mémoire.",
+    'upload.url_confirm_ok': "Analyser",
+    'upload.url_confirm_cancel': "Annuler",
     'upload.default_for'      : 'par défaut : {val}',
     // Stages
     'stage.K1' : 'K1 — Analyse des fichiers',

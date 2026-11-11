@@ -266,6 +266,7 @@ function parseConfigDelta(delta: string): ConfigOverrides {
 // ?url=<https zip>: auto-load a feed from the query string ONCE per page load
 // (re-rendering the upload page must not re-download). Same guards as the URL box
 // (https-only, no credentials, CORS fallback) because it goes through handleUrl.
+// The download starts only after the user confirms.
 let queryUrlConsumed = false;
 function consumeQueryUrl(root: HTMLElement): void {
   if (queryUrlConsumed || typeof location === 'undefined') return;
@@ -275,7 +276,37 @@ function consumeQueryUrl(root: HTMLElement): void {
   const input = root.querySelector<HTMLInputElement>('#url-input');
   if (input) input.value = v;
   const errorEl = root.querySelector<HTMLElement>('#upload-error');
-  if (errorEl) void handleUrl(v, root, errorEl);
+  if (!errorEl) return;
+  // A shared link must not start a (possibly large) download on its own: ask first.
+  // On cancel the URL stays in the box, so "Load from URL" still works.
+  confirmQueryUrl(v, () => { void handleUrl(v, root, errorEl); });
+}
+
+function confirmQueryUrl(url: string, onOk: () => void): void {
+  const overlay = document.createElement('div');
+  overlay.className = 'mm-overlay';
+  overlay.innerHTML = `
+    <div class="mm-box" role="dialog" aria-modal="true" aria-labelledby="url-confirm-title">
+      <div class="mm-header"><span class="mm-title" id="url-confirm-title">${escHtml(t('upload.url_confirm_title'))}</span></div>
+      <div class="pm-body">
+        <p>${escHtml(t('upload.url_confirm_body'))}</p>
+        <p><code style="word-break:break-all">${escHtml(url)}</code></p>
+        <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem">
+          <button type="button" class="btn btn-secondary btn-sm" data-act="cancel">${escHtml(t('upload.url_confirm_cancel'))}</button>
+          <button type="button" class="btn btn-primary btn-sm" data-act="ok">${escHtml(t('upload.url_confirm_ok'))}</button>
+        </div>
+      </div>
+    </div>`;
+  const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+  overlay.addEventListener('click', e => {
+    const act = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset['act'];
+    if (e.target === overlay || act === 'cancel') close();
+    else if (act === 'ok') { close(); onOk(); }
+  });
+  document.addEventListener('keydown', onKey);
+  document.body.appendChild(overlay);
+  overlay.querySelector<HTMLButtonElement>('[data-act="ok"]')?.focus();
 }
 
 // ── Olay dinleyicileri ───────────────────────────────────────────────────────

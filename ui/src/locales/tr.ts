@@ -2899,6 +2899,10 @@ const tr = {
     'upload.url_blocked'      : 'Tarayıcı bu adresteki dosyayı okuyamadı — kaynak erişilemiyor olabilir veya sunucu tarayıcı erişimine (CORS) izin vermiyor olabilir.',
     'upload.url_open_link'    : 'Bağlantıyı aç',
     'upload.url_then_drop'    : '— sonra indirdiğiniz ZIP’i buraya sürükleyin.',
+    'upload.url_confirm_title': "Bağlantıdaki feed analiz edilsin mi?",
+    'upload.url_confirm_body': "Bu bağlantı aşağıdaki adresten bir GTFS feed'i açmak istiyor. Onaylarsanız dosya tarayıcınıza indirilir ve yalnızca bu cihazda analiz edilir; büyük feed'ler zaman ve bellek gerektirebilir.",
+    'upload.url_confirm_ok': "Analiz et",
+    'upload.url_confirm_cancel': "Vazgeç",
     'upload.default_for'      : 'varsayılan: {val}',
     // Stages
     'stage.K1' : 'K1 — Dosya Ayrıştırma',

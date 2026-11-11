@@ -2900,6 +2900,10 @@ const en: LocaleShape = {
     'upload.url_blocked'      : 'The browser could not read the file at this address — the source may be unreachable, or the server may not allow browser (CORS) access.',
     'upload.url_open_link'    : 'Open the link',
     'upload.url_then_drop'    : '— then drop the downloaded ZIP here.',
+    'upload.url_confirm_title': "Analyze the feed from this link?",
+    'upload.url_confirm_body': "This link wants to open a GTFS feed from the address below. If you confirm, the file is downloaded into your browser and analyzed only on this device; large feeds may take time and memory.",
+    'upload.url_confirm_ok': "Analyze",
+    'upload.url_confirm_cancel': "Cancel",
     'upload.default_for'      : 'default: {val}',
     // Stages
     'stage.K1' : 'K1 — File Parsing',
