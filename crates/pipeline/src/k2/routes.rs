@@ -126,13 +126,18 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             // positives in Turkish/Japanese feeds.
             let char_len = s.chars().count();
             if char_len > 12 {
-                notices.push(make_k2_notice(
+                let mut n010 = make_k2_notice(
                     &mut counter, "RTS_010", EntityType::Route, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("route_short_name"),
                     Some(char_len.to_string()), Some("≤12".to_string()),
                     format!("'{}' hattının route_short_name değeri {} karakter; kısa isimler 12 karakteri aşmamalıdır.", route_id, char_len),
                     "route_short_name'i 12 karakterin altında tutun.",
-                ));
+                );
+                // Planner context: the name itself.
+                n010.details
+                    .get_or_insert_with(Default::default)
+                    .insert("name".to_string(), s.clone());
+                notices.push(n010);
             } else if char_len > 6 && route_long_name.as_ref().is_none_or(|l| l.trim().is_empty()) {
                 // RTS_021: longer than 6 characters (Google Transit threshold).
                 // Google's own exemption: if `route_long_name` is populated, the warning may be
@@ -152,7 +157,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         if let Some(ref l) = route_long_name {
             let char_len = l.chars().count(); // characters, not bytes — see RTS_010/021 note
             if char_len > 100 {
-                notices.push(make_k2_notice(
+                let mut n011 = make_k2_notice(
                     &mut counter,
                     "RTS_011",
                     EntityType::Route,
@@ -168,7 +173,12 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                         route_id, char_len
                     ),
                     "route_long_name'i 100 karakterin altında tutun.",
-                ));
+                );
+                // Planner context: the name itself.
+                n011.details
+                    .get_or_insert_with(Default::default)
+                    .insert("name".to_string(), l.clone());
+                notices.push(n011);
             }
         }
 
@@ -330,13 +340,18 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             if is_hex_color_6(fg) && is_hex_color_6(bg) {
                 if let Some(ratio) = wcag_contrast_ratio(fg, bg) {
                     if ratio < 3.0 {
-                        notices.push(make_k2_notice(
+                        let mut n008 = make_k2_notice(
                             &mut counter, "RTS_008", EntityType::Route, entity_id.clone(), Some(&row_map),
                             &file.name, Some(line), Some("route_text_color"),
                             Some(format!("{ratio:.2}")), Some(">= 3.0".to_string()),
                             format!("route_text_color ile route_color arasındaki kontrast oranı düşük ({ratio:.2})."),
                             "En az 3:1 WCAG kontrast oranına sahip renkler kullanın.",
-                        ));
+                        );
+                        // Planner context: the two colours, to preview the badge.
+                        let d = n008.details.get_or_insert_with(Default::default);
+                        d.insert("color".to_string(), bg.to_string());
+                        d.insert("text_color".to_string(), fg.to_string());
+                        notices.push(n008);
                     }
                 }
             }

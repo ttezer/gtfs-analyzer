@@ -1667,6 +1667,59 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('<tr><td>10 · Çarşı yönü · 06:00</td><td>T1</td></tr>');
   });
 
+  it('RTS_001–011 kartları hattı numarasıyla anlatır, hattın çizimlerini ve örnek seferini haritada gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul', S3: 'Çarşı' },
+      routes: { R1: '10' }, trips: { T1: 'Çarşı' }, trip_routes: { T1: 'R1' }, trip_first_dep: { T1: '06:00' },
+      trip_stops: { T1: ['S1', 'S2', 'S3'] }, trip_stop_sequences: { T1: [1, 2, 3] }, trip_shapes: { T1: 'SA' },
+      stop_coords: { S1: [41, 29], S2: [41.01, 29], S3: [41.02, 29] },
+      shape_coords: { SA: [[41, 29], [41.02, 29]], SB: [[41.02, 29], [41, 29]] }, route_shapes: { R1: ['SA', 'SB'] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+    const ctx = { trip_count: '12', example_trip_id: 'T1' };
+
+    // RTS_001: both rows; the trip numbered on the map and both directions drawn.
+    let out = render(notice('a', 'RTS_001', 'CRITICAL', { entity_type: 'Route', entity_id: 'R1', line: 5,
+      details: { ...ctx, first_line: '2', first_short_name: '10', first_long_name: 'İlk', first_type: '3', short_name: '11', long_name: 'İkinci', type: '0' } }));
+    expect(out.html).toContain('„R1“ hat kodu hat listesinde iki kez yazılmış: 2. satırda „10 · İlk“, 5. satırda „11 · İkinci“.');
+    expect(out.html).toContain('<tr class="bad"><td>5</td><td>11</td><td>İkinci</td><td>Tramvay (0)</td></tr>');
+    expect(out.html).toContain('Haritadaki sefer: 10 · Çarşı yönü · 06:00 — durak sırası');
+    expect(out.map.opts?.extraPolylines).toHaveLength(2);
+    expect(out.map.opts?.pins).toHaveLength(3);
+
+    // RTS_002: the defined agencies.
+    out = render(notice('a', 'RTS_002', 'CRITICAL', { entity_type: 'Route', entity_id: 'R1', observed_value: '99', details: { ...ctx, known_agencies: '1=Belediye' } }));
+    expect(out.html).toContain('10 hattı „99“ kodlu işletmeciye bağlanmış');
+    expect(out.html).toContain('Listedeki işletmeciler: Belediye (1).');
+
+    // RTS_003: a name offered from the first and last stops.
+    out = render(notice('a', 'RTS_003', 'CRITICAL', { entity_type: 'Route', entity_id: 'R1', details: ctx }));
+    expect(out.html).toContain('hat adı olarak „Hastane - Çarşı“ yazılabilir.');
+
+    // RTS_004: the valid types by name.
+    out = render(notice('a', 'RTS_004', 'CRITICAL', { entity_type: 'Route', entity_id: 'R1', observed_value: '99', details: ctx }));
+    expect(out.html).toContain('10 hattının araç türü „99“, tanımlı bir tür değil. Geçerli türler: Tramvay (0)');
+
+    // RTS_008: the badge previewed now and with a readable text colour.
+    out = render(notice('a', 'RTS_008', 'LOW', { entity_type: 'Route', entity_id: 'R1', observed_value: '1.07', details: { ...ctx, color: 'FFFF00', text_color: 'FFFFFF' } }));
+    expect(out.html).toContain('zemin FFFF00, yazı FFFFFF; kontrast 1,1:1');
+    expect(out.html).toContain('Yazı rengi 000000 yapılırsa kontrast 19,6:1 olur.');
+    expect(out.html).toContain('background:#FFFF00;border-color:#FFFF00;color:#000000');
+    // An abbreviation does not end a step: "(ör. koyu zemine beyaz yazı)" stays in its sentence.
+    expect(out.html).toContain('açık seçin (ör. koyu zemine beyaz yazı).');
+    expect(out.html).not.toContain('<li>koyu zemine beyaz yazı).</li>');
+
+    // RTS_011: the name itself.
+    out = render(notice('a', 'RTS_011', 'LOW', { entity_type: 'Route', entity_id: 'R1', observed_value: '101', details: { ...ctx, name: 'Uzun ad' } }));
+    expect(out.html).toContain('10 hattının adı 101 karakter: „Uzun ad“.');
+  });
+
   it('STM_051–055 kartları Flex bölgesini, pencereyi, yazılan değeri ve aynı saatli durak serisini gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,

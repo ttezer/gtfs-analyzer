@@ -1345,7 +1345,7 @@ fn check_routes(
         let eid = Some(rec.route_id.clone());
         if let Some(ref aid) = rec.agency_id {
             if !map.agencies.contains_key(aid.as_str()) {
-                notices.push(notice(
+                let mut n002 = notice(
                     ctr,
                     "RTS_002",
                     EntityType::Route,
@@ -1358,7 +1358,19 @@ fn check_routes(
                     None,
                     format!("'{}' işletici kodu agency.txt'te tanımlı değil.", aid),
                     "Geçerli bir agency_id kullanın.",
-                ));
+                );
+                // Planner context: the agencies the feed does define (code and name).
+                let mut known: Vec<String> = records
+                    .agencies
+                    .iter()
+                    .map(|a| format!("{}={}", a.agency_id.as_deref().unwrap_or(""), a.agency_name))
+                    .collect();
+                known.sort_unstable();
+                known.truncate(STP_CONTEXT_LIST);
+                n002.details
+                    .get_or_insert_with(Default::default)
+                    .insert("known_agencies".to_string(), known.join("|"));
+                notices.push(n002);
             }
         }
     }

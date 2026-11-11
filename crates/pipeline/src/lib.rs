@@ -2436,6 +2436,62 @@ pub fn aggregate_feed_level_notices(
         let _t = crate::timing::Timer::start("aggregate::shape_context");
         annotate_shape_context(all, records);
     }
+    {
+        let _t = crate::timing::Timer::start("aggregate::route_context");
+        annotate_route_context(all, records);
+    }
+}
+
+/// Route findings whose planner card names the route's trips and draws an example trip.
+const ROUTE_CONTEXT_RULES: [&str; 10] = [
+    "RTS_001", "RTS_002", "RTS_003", "RTS_004", "RTS_005", "RTS_006", "RTS_007", "RTS_008",
+    "RTS_010", "RTS_011",
+];
+
+/// Planner context for route findings: how many trips the route has (`trip_count`) and an
+/// `example_trip_id` to draw (smallest trip code with stop times and a shape, then with stop
+/// times). Shared native/WASM step; details only, counts are unchanged.
+fn annotate_route_context(all: &mut [gtfs_core::Notice], records: &EntityRecords) {
+    use rustc_hash::FxHashMap;
+    if !all
+        .iter()
+        .any(|n| ROUTE_CONTEXT_RULES.contains(&n.rule_id.as_str()))
+    {
+        return;
+    }
+    let ti = &records.trip_interns;
+    let has_times = &records.stop_times_index.trip_id_set;
+    // route → (trips, best example (rank, trip)); rank 2 = times + shape, 1 = times, 0 = neither.
+    type RouteUse<'a> = (usize, Option<(u8, &'a str)>);
+    let mut usage: FxHashMap<&str, RouteUse<'_>> = FxHashMap::default();
+    for t in &records.trips {
+        let e = usage.entry(ti.route_id(t)).or_default();
+        e.0 += 1;
+        let timed = has_times.contains(t.trip_id.as_str());
+        let shaped = ti.shape_id(t).is_some_and(|s| !s.is_empty());
+        let rank = u8::from(timed) + u8::from(timed && shaped);
+        let better = match e.1 {
+            None => true,
+            Some((r, id)) => rank > r || (rank == r && t.trip_id.as_str() < id),
+        };
+        if better {
+            e.1 = Some((rank, t.trip_id.as_str()));
+        }
+    }
+    for n in all.iter_mut() {
+        if !ROUTE_CONTEXT_RULES.contains(&n.rule_id.as_str()) {
+            continue;
+        }
+        let Some((trips, example)) = n.entity_id.as_deref().and_then(|id| usage.get(id)) else {
+            continue;
+        };
+        let (trips, example) = (*trips, *example);
+        let d = n.details.get_or_insert_with(Default::default);
+        d.insert("trip_count".to_string(), trips.to_string());
+        if let Some((_, trip)) = example {
+            d.insert("example_trip_id".to_string(), trip.to_string());
+        }
+    }
 }
 
 /// Shape findings whose planner card names the routes drawn with the shape and an example trip.

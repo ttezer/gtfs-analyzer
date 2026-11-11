@@ -247,7 +247,7 @@ fn build_routes(
         }
         if let Some(&prev_idx) = map.routes.get(rid.as_str()) {
             let prev_line = records.routes[prev_idx].line;
-            notices.push(make_notice(
+            let mut n = make_notice(
                 ctr,
                 "RTS_001",
                 EntityType::Route,
@@ -262,7 +262,24 @@ fn build_routes(
                     rid
                 ),
                 "Her rotaya benzersiz bir route_id atayın.",
-            ));
+            );
+            // Planner context: what each of the two rows says the route is.
+            let first = &records.routes[prev_idx];
+            let mut d = std::collections::BTreeMap::new();
+            d.insert("first_line".to_string(), prev_line.to_string());
+            for (prefix, route) in [("first_", first), ("", rec)] {
+                if let Some(v) = route.route_short_name.as_deref() {
+                    d.insert(format!("{prefix}short_name"), v.to_string());
+                }
+                if let Some(v) = route.route_long_name.as_deref() {
+                    d.insert(format!("{prefix}long_name"), v.to_string());
+                }
+                if let Some(v) = route.route_type {
+                    d.insert(format!("{prefix}type"), v.to_string());
+                }
+            }
+            n.details = Some(d.into());
+            notices.push(n);
         } else {
             map.routes.insert(rid.clone(), idx);
         }

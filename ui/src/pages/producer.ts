@@ -1056,6 +1056,99 @@ function stpTable(n: Notice, result: ValidationResult): string {
   return '';
 }
 
+/** WCAG contrast ratio of two 6-digit hex colours. */
+function contrastRatio(a: string, b: string): number {
+  const lum = (hex: string) => {
+    const c = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16) / 255).map(v => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  };
+  const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
+  return (x + 0.05) / (y + 0.05);
+}
+
+/** The readable text colour on a route colour: black or white, whichever contrasts more. */
+function readableTextColor(bg: string): string {
+  return contrastRatio(bg, '000000') >= contrastRatio(bg, 'FFFFFF') ? '000000' : 'FFFFFF';
+}
+
+/** Each RTS rule's own sentence: the route by its number, what is wrong, how many trips it has. */
+function rtsRuleText(n: Notice, result: ValidationResult): string | null {
+  const ni = result.name_index;
+  const d = n.details ?? {};
+  const routeId = routeIdOfNotice(n);
+  if (!routeId) return null;
+  const route = routeBadge(routeId, ni).label;
+  const value = (n.observed_value ?? '').trim();
+  const join = (...parts: string[]) => parts.filter(Boolean).join(' ');
+  const use = d.trip_count ? t('producer.card.rts_use', { n: localizedNumber(d.trip_count) }) : '';
+  const label = (short?: string, long?: string) => [short, long].filter(Boolean).join(' · ') || '—';
+  switch (n.rule_id) {
+    case 'RTS_001':
+      if (!d.first_line || n.line == null) return null;
+      return join(t('producer.card.RTS_001.what_detail', {
+        code: routeId, first_line: d.first_line, line: String(n.line), first: label(d.first_short_name, d.first_long_name), second: label(d.short_name, d.long_name),
+      }), use);
+    case 'RTS_002': {
+      if (!value) return null;
+      const known = (d.known_agencies ?? '').split('|').filter(Boolean).map(v => { const i = v.indexOf('='); return `${v.slice(i + 1)} (${v.slice(0, i)})`; });
+      return join(t('producer.card.RTS_002.what_detail', { route, agency: value }), known.length ? t('producer.card.RTS_002.what_known', { agencies: known.join(', ') }) : '', use);
+    }
+    case 'RTS_003': {
+      const trip = dqIndexKey(ni.trip_stops, d.example_trip_id);
+      const stops = trip ? ni.trip_stops?.[trip] ?? [] : [];
+      const name = (id?: string) => (id ? ni.stops?.[id] || id : '');
+      const from = name(stops[0]);
+      const to = name(stops[stops.length - 1]);
+      return join(t('producer.card.RTS_003.what_detail', { code: routeId }), use, from && to && from !== to ? t('producer.card.RTS_003.what_suggest', { from, to }) : '');
+    }
+    case 'RTS_004': {
+      const types = [0, 1, 2, 3, 4, 5, 6, 7, 11, 12].map(c => routeTypeName(String(c))).join(', ');
+      return join(t(value ? 'producer.card.RTS_004.what_detail' : 'producer.card.RTS_004.what_empty', { route, value, types }), use);
+    }
+    case 'RTS_005':
+    case 'RTS_006':
+    case 'RTS_007':
+      return value ? join(t(`producer.card.${n.rule_id}.what_detail`, { route, value }), use) : null;
+    case 'RTS_008': {
+      if (!d.color || !d.text_color || !value) return null;
+      const better = readableTextColor(d.color);
+      return join(t('producer.card.RTS_008.what_detail', { route, color: d.color, text: d.text_color, ratio: localizedNumber(Number(value).toFixed(1)) }),
+        t('producer.card.RTS_008.what_suggest', { text: better, ratio: localizedNumber(contrastRatio(d.color, better).toFixed(1)) }), use);
+    }
+    case 'RTS_010':
+    case 'RTS_011':
+      return d.name ? join(t(`producer.card.${n.rule_id}.what_detail`, { route, name: d.name, n: localizedNumber(value || String([...d.name].length)) }), use) : null;
+    default:
+      return null;
+  }
+}
+
+/** RTS tables: the two rows of a repeated code, the defined agencies, the badge preview. */
+function rtsTable(n: Notice): string {
+  const d = n.details ?? {};
+  const table = (caption: string, head: string[], rows: Array<{ cells: string[]; bad?: boolean }>) =>
+    `<p class="producer-card-label">${escHtml(caption)}</p><table class="planner-times planner-stop-times"><thead><tr>${head.map(h => `<th>${escHtml(h)}</th>`).join('')}</tr></thead><tbody>${
+      rows.map(r => `<tr${r.bad ? ' class="bad"' : ''}>${r.cells.map(c => `<td>${escHtml(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  if (n.rule_id === 'RTS_001' && d.first_line && n.line != null) {
+    const type = (v?: string) => (v ? routeTypeName(v) : '—');
+    return table(t('producer.times.rts001_rows'), [t('producer.col.row'), t('producer.times.rts_short'), t('producer.col.route_name'), t('producer.times.rts_type')], [
+      { cells: [d.first_line, d.first_short_name || '—', d.first_long_name || '—', type(d.first_type)], bad: true },
+      { cells: [String(n.line), d.short_name || '—', d.long_name || '—', type(d.type)], bad: true },
+    ]);
+  }
+  if (n.rule_id === 'RTS_002' && d.known_agencies) {
+    return table(t('producer.times.rts002_agencies'), [t('producer.times.rts_agency_code'), t('producer.times.stp_name')],
+      d.known_agencies.split('|').filter(Boolean).map(v => { const i = v.indexOf('='); return { cells: [v.slice(0, i) || '—', v.slice(i + 1)] }; }));
+  }
+  if (n.rule_id === 'RTS_008' && d.color && d.text_color && /^[0-9a-f]{6}$/i.test(d.color) && /^[0-9a-f]{6}$/i.test(d.text_color)) {
+    const badge = (fg: string, caption: string) =>
+      `<span class="planner-route-badge" style="background:#${d.color};border-color:#${d.color};color:#${fg}">${escHtml(caption)}</span>`;
+    const better = readableTextColor(d.color);
+    return `<p class="producer-card-label">${escHtml(t('producer.times.rts008_preview'))}</p><p>${badge(d.text_color, t('producer.times.rts_now'))} → ${badge(better, t('producer.times.rts_suggested'))}</p>`;
+  }
+  return '';
+}
+
 /** SHP findings: the shape a row is about and its context; a summary row reads its own
  *  example's keys (`example_<i>_*`), SHP_001 the shape of the rows around it (`shape_*`). */
 function shpContext(n: Notice): { shape?: string; at: (key: string) => string | undefined; routes: string[] } {
@@ -2420,6 +2513,13 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         action: t(`producer.card.${g.ruleId}.action`),
       };
     }
+    case 'RTS_001': case 'RTS_002': case 'RTS_003': case 'RTS_004': case 'RTS_005': case 'RTS_006': case 'RTS_007':
+    case 'RTS_008': case 'RTS_010': case 'RTS_011': {
+      const what = rtsRuleText(n, result);
+      if (!what) return null;
+      const mapText = dqTripMapText(dqExampleTrip(n, result.name_index), result);
+      return { title: t(`producer.card.${g.ruleId}.title`), what: [what, mapText].filter(Boolean).join(' '), action: t(`producer.card.${g.ruleId}.action`) };
+    }
     case 'SHP_001': case 'SHP_002': case 'SHP_003': case 'SHP_004': case 'SHP_005': case 'SHP_006': case 'SHP_008':
     case 'SHP_009': case 'SHP_010': case 'SHP_012': case 'SHP_014': case 'SHP_015': case 'SHP_016': case 'SHP_017':
     case 'SHP_018': case 'SHP_019': case 'SHP_020': case 'SHP_021': case 'SHP_022': case 'SHP_023': case 'SHP_024':
@@ -2773,6 +2873,9 @@ function dqIndexKey<T>(map: Record<string, T> | undefined, key?: string): string
   return key in map ? key : key.trim() in map ? key.trim() : undefined;
 }
 
+/** Route findings whose cards draw the route's lines and an example trip with numbered stops. */
+const RTS_CONTEXT_RULES = new Set(['RTS_001', 'RTS_002', 'RTS_003', 'RTS_004', 'RTS_005', 'RTS_006', 'RTS_007', 'RTS_008', 'RTS_010', 'RTS_011']);
+
 /** Shape findings whose cards draw the shape with its routes, an example trip and the faulty spot. */
 const SHP_CONTEXT_RULES = new Set(['SHP_001', 'SHP_002', 'SHP_003', 'SHP_004', 'SHP_005', 'SHP_006', 'SHP_008', 'SHP_009', 'SHP_010', 'SHP_012',
   'SHP_014', 'SHP_015', 'SHP_016', 'SHP_017', 'SHP_018', 'SHP_019', 'SHP_020', 'SHP_021', 'SHP_022', 'SHP_023',
@@ -2786,7 +2889,7 @@ const STP_CONTEXT_RULES = new Set(['STP_001', 'STP_002', 'STP_003', 'STP_004', '
 
 /** Rule groups whose cards draw one example trip with numbered stops and list it stop by stop. */
 function plannerTripRule(ruleId: string): boolean {
-  return ruleId.startsWith('DQ_') || ruleId.startsWith('CAL_') || ruleId.startsWith('OPR_') || ruleId.startsWith('TRP_') || ruleId === 'VAT_003';
+  return ruleId.startsWith('DQ_') || ruleId.startsWith('CAL_') || ruleId.startsWith('OPR_') || ruleId.startsWith('TRP_') || ruleId === 'VAT_003' || RTS_CONTEXT_RULES.has(ruleId);
 }
 
 /** CAL findings (but CAL_020/022) carry the trips and routes on their calendar(s); the map draws the example trip. */
@@ -2802,6 +2905,9 @@ function dqExampleTrip(n: Notice, ni: ValidationResult['name_index']): string | 
     case 'DQ_003':
     case 'DQ_004':
       return n.entity_type === 'Route' ? routeExampleTrip(ni, routeIdOfNotice(n)) : undefined;
+    case 'RTS_001': case 'RTS_002': case 'RTS_003': case 'RTS_004': case 'RTS_005':
+    case 'RTS_006': case 'RTS_007': case 'RTS_008': case 'RTS_010': case 'RTS_011':
+      return n.entity_type === 'Route' ? dqIndexKey(ni.trip_stops, d.example_trip_id) ?? routeExampleTrip(ni, routeIdOfNotice(n)) : undefined;
     case 'DQ_018':
     case 'DQ_019':
       if (n.entity_type === 'Route') return routeExampleTrip(ni, routeIdOfNotice(n));
@@ -3252,6 +3358,10 @@ function timeStripBody(n: Notice, result: ValidationResult): string {
   }
   if (SHP_CONTEXT_RULES.has(n.rule_id)) {
     const table = shpTable(n, result);
+    if (table) return table;
+  }
+  if (RTS_CONTEXT_RULES.has(n.rule_id)) {
+    const table = rtsTable(n);
     if (table) return table;
   }
   if (n.rule_id === 'CAL_020' && d.feed_start_date && d.feed_end_date) {
@@ -3822,7 +3932,8 @@ function searchView(n: Notice, result: ValidationResult): string {
 
 /** "Ne yapmalı" cümlelerini numaralı adımlara böler. */
 function stepsHtml(action: string): string {
-  const parts = action.split(/(?<=[.。])\s+/).map(p => p.trim()).filter(Boolean);
+  // A sentence ends at a full stop, but not at an abbreviation ("(ör. FF0000)", "e.g. 5").
+  const parts = action.split(/(?<=[.。])(?<!(?:^|[\s(])(?:ör|örn|vb|e\.g|i\.e|ex|p\.ex)\.)\s+/).map(p => p.trim()).filter(Boolean);
   return parts.length > 1
     ? `<ol class="planner-steps">${parts.map(p => `<li>${escHtml(p)}</li>`).join('')}</ol>`
     : `<p class="producer-card-remediation">${escHtml(action)}</p>`;
@@ -3998,6 +4109,18 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
         : n.details;
     const map = plannerMap({ ...n, entity_type: 'Trip', entity_id: dqTrip, details }, result);
     if (CAL_USAGE_RULES.has(n.rule_id)) addCalendarRoutes(map, n, result, dqTrip);
+    // RTS: the route's other lines (its other directions and variants) in its colour.
+    if (RTS_CONTEXT_RULES.has(n.rule_id)) {
+      const ni = result.name_index;
+      const routeId = routeIdOfNotice(n);
+      const color = routeId ? routeBadge(routeId, ni).bg ?? MAP_GREY : MAP_GREY;
+      const drawn = map.opts.extraPolylines ?? [];
+      for (const shapeId of (routeId ? ni.route_shapes?.[routeId] ?? [] : []).slice(0, 4)) {
+        const coords = ni.shape_coords?.[shapeId];
+        if (coords && coords.length > 1 && !drawn.some(l => l.coords === coords)) drawn.push({ coords, color, weight: 3, arrows: true });
+      }
+      map.opts.extraPolylines = drawn;
+    }
     return map;
   }
   const ni = result.name_index;

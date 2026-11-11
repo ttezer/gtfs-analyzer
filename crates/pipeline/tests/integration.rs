@@ -8648,3 +8648,70 @@ fn last_shape_findings_carry_planner_context() {
     let d = find(&vr, "SHP_030");
     assert_eq!(get(&d, "routes").as_deref(), Some("R3"));
 }
+
+#[test]
+fn route_findings_carry_planner_context() {
+    // RTS_001 both rows, RTS_002 the defined agencies, RTS_008 the two colours, RTS_010/011 the
+    // name, and for route findings the trip count and an example trip. Counts are unchanged.
+    let find = |vr: &gtfs_pipeline::ValidationResult, rule: &str| {
+        vr.notices
+            .iter()
+            .find(|n| n.rule_id == rule)
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor"))
+    };
+    let get = |d: &gtfs_core::NoticeDetails, key: &str| d.get(key).map(|v| v.to_string());
+
+    let long = "L".repeat(101);
+    let routes = format!(
+        "route_id,agency_id,route_short_name,route_long_name,route_type,route_url,route_color,route_text_color\n\
+         R1,1,10,First,3,,,\nR1,1,11,Second,0,,,\nR2,99,20,Two,3,,,\nR3,1,,,3,,,\nR4,1,40,Four,99,,,\n\
+         R5,1,50,Five,3,not a url,,\nR6,1,60,Six,3,,GGHHII,\nR7,1,70,Seven,3,,FF0000,XYZ\n\
+         R8,1,80,Eight,3,,FFFF00,FFFFFF\nR9,1,ABCDEFGHIJKLMN,Nine,3,,,\nRA,1,A,{long},3,,,\n"
+    );
+    let ids = ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "RA"];
+    let mut trips = String::from("route_id,service_id,trip_id\n");
+    let mut times = String::from("trip_id,arrival_time,departure_time,stop_id,stop_sequence\n");
+    for r in ids {
+        trips += &format!("{r},SVC1,T{r}\n");
+        times += &format!("T{r},08:00:00,08:00:00,S1,1\nT{r},08:05:00,08:05:00,S2,2\n");
+    }
+    let files: Vec<(&str, &[u8])> = vec![
+        ("agency.txt", AGENCY),
+        ("stops.txt", STOPS),
+        ("routes.txt", routes.as_bytes()),
+        ("trips.txt", trips.as_bytes()),
+        ("stop_times.txt", times.as_bytes()),
+        ("calendar.txt", CALENDAR),
+    ];
+    let vr = match run(&files) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+
+    let d = find(&vr, "RTS_001");
+    assert_eq!(get(&d, "first_short_name").as_deref(), Some("10"));
+    assert_eq!(get(&d, "short_name").as_deref(), Some("11"));
+    assert_eq!(get(&d, "type").as_deref(), Some("0"));
+    assert_eq!(get(&d, "example_trip_id").as_deref(), Some("TR1"));
+    let d = find(&vr, "RTS_002");
+    assert_eq!(get(&d, "known_agencies").as_deref(), Some("1=Test"));
+    assert_eq!(get(&d, "trip_count").as_deref(), Some("1"));
+    for (rule, trip) in [
+        ("RTS_003", "TR3"),
+        ("RTS_004", "TR4"),
+        ("RTS_005", "TR5"),
+        ("RTS_006", "TR6"),
+        ("RTS_007", "TR7"),
+    ] {
+        let d = find(&vr, rule);
+        assert_eq!(get(&d, "example_trip_id").as_deref(), Some(trip), "{rule}");
+    }
+    let d = find(&vr, "RTS_008");
+    assert_eq!(get(&d, "color").as_deref(), Some("FFFF00"));
+    assert_eq!(get(&d, "text_color").as_deref(), Some("FFFFFF"));
+    let d = find(&vr, "RTS_010");
+    assert_eq!(get(&d, "name").as_deref(), Some("ABCDEFGHIJKLMN"));
+    let d = find(&vr, "RTS_011");
+    assert_eq!(get(&d, "name").map(|v| v.len()), Some(101));
+}
