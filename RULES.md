@@ -137,7 +137,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STP_034 | stop_url acente URL'siyle aynı | DÜŞÜK | Quality |
 | STP_035 | stop_url hat URL'siyle aynı | DÜŞÜK | Quality |
 | STP_036 | İstasyonun (location_type=1) parent_station'ı var | DÜŞÜK | Spec |
-| STP_037 | Bazı duraklar tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş | ORTA | Quality |
+| STP_037 | Bazı duraklar tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş | BİLGİ | Quality |
 | STP_038 | Hiçbir durak tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş | BİLGİ | Quality |
 | STP_039 | stop_code birden fazla durakta kullanılıyor | DÜŞÜK | Quality |
 | STP_040 | Durak adı gereksiz genel stop/station sözcüğü içeriyor | DÜŞÜK | Quality |
@@ -206,7 +206,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRP_024 | Block içinde tutarsız rota tipi | DÜŞÜK | Quality |
 | TRP_025 | Tekerlekli sandalye erişilebilirlik bilgisi eksik seferlerin oranı yüksek | BİLGİ | Quality |
 | TRP_026 | Aktif tarihi olmayan sefer (service_id geçerli ama aktif gün seti boş) | ORTA | Analytics |
-| TRP_028 | Bazı seferler tekerlekli sandalye erişilebilirliği işaretlememiş | ORTA | Quality |
+| TRP_028 | Bazı seferler tekerlekli sandalye erişilebilirliği işaretlememiş | BİLGİ | Quality |
 | TRP_029 | Hiçbir sefer tekerlekli sandalye erişilebilirliği bildirmemiş | BİLGİ | Quality |
 | TRP_031 | route_id eksik | KRİTİK | Spec |
 | TRP_034 | safe_duration alanı sayı değil | ORTA | Spec |
@@ -306,7 +306,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | CAL_005 | start_date end_date'den sonra | KRİTİK | Interop |
 | CAL_006 | Haftalık bazda tüm günler pasif (calendar_dates ile override mümkün) | BİLGİ | Quality |
 | CAL_007 | Servis döneminde boşluk | BİLGİ | Analytics |
-| CAL_008 | Servis tarihi yakında sona eriyor | YÜKSEK | Analytics |
+| CAL_008 | Servis tarihi yakında sona eriyor | BİLGİ | Analytics |
 | CAL_009 | Feed'deki tüm takvim dönemleri sona ermiş | BİLGİ | Analytics |
 | CAL_010 | Serviste aktif gün sayısı çok az | ORTA | Analytics |
 | CAL_011 | Kullanılmayan servis | DÜŞÜK | Quality |

@@ -137,7 +137,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | STP_034 | stop_url identique à l’URL de l’agence | FAIBLE | Quality |
 | STP_035 | stop_url identique à l’URL de la ligne | FAIBLE | Quality |
 | STP_036 | La station possède un parent_station (invalide) | FAIBLE | Spec |
-| STP_037 | Certains arrêts n’indiquent pas l’accessibilité en fauteuil roulant | MOYENNE | Quality |
+| STP_037 | Certains arrêts n’indiquent pas l’accessibilité en fauteuil roulant | INFO | Quality |
 | STP_038 | Aucun arrêt n’indique l’accessibilité en fauteuil roulant | INFO | Quality |
 | STP_039 | stop_code en double | FAIBLE | Quality |
 | STP_040 | Le nom de l’arrêt contient un mot redondant (arrêt ou station) | FAIBLE | Quality |
@@ -206,7 +206,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | TRP_024 | Type de ligne incohérent au sein de l’enchaînement | FAIBLE | Quality |
 | TRP_025 | Forte proportion de courses sans information d’accessibilité en fauteuil roulant | INFO | Quality |
 | TRP_026 | Course dont l’ensemble des dates actives est vide | MOYENNE | Analytics |
-| TRP_028 | Certaines courses n’indiquent pas l’accessibilité en fauteuil roulant | MOYENNE | Quality |
+| TRP_028 | Certaines courses n’indiquent pas l’accessibilité en fauteuil roulant | INFO | Quality |
 | TRP_029 | Aucune course n’indique l’accessibilité en fauteuil roulant | INFO | Quality |
 | TRP_031 | route_id manquant | CRITIQUE | Spec |
 | TRP_034 | Le champ safe_duration n’est pas un nombre | MOYENNE | Spec |
@@ -306,7 +306,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | CAL_005 | start_date postérieure à end_date | CRITIQUE | Interop |
 | CAL_006 | Tous les jours de la grille hebdomadaire sont désactivés | INFO | Quality |
 | CAL_007 | Interruption dans la période de service | INFO | Analytics |
-| CAL_008 | Le service expire prochainement | ÉLEVÉE | Analytics |
+| CAL_008 | Le service expire prochainement | INFO | Analytics |
 | CAL_009 | Tous les services du jeu de données ont expiré | INFO | Analytics |
 | CAL_010 | Le service compte trop peu de jours actifs | MOYENNE | Analytics |
 | CAL_011 | Service inutilisé | FAIBLE | Quality |

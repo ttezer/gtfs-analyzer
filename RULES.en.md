@@ -137,7 +137,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STP_034 | stop_url matches agency URL | LOW | Quality |
 | STP_035 | stop_url matches route URL | LOW | Quality |
 | STP_036 | Station has parent_station (invalid) | LOW | Spec |
-| STP_037 | Some stops have not set wheelchair boarding | MEDIUM | Quality |
+| STP_037 | Some stops have not set wheelchair boarding | INFO | Quality |
 | STP_038 | No stops report wheelchair boarding | INFO | Quality |
 | STP_039 | stop_code is duplicated | LOW | Quality |
 | STP_040 | Stop name contains a redundant stop/station word | LOW | Quality |
@@ -206,7 +206,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRP_024 | Inconsistent route type within block | LOW | Quality |
 | TRP_025 | High proportion of trips without wheelchair accessibility information | INFO | Quality |
 | TRP_026 | Trip with empty active-date set | MEDIUM | Analytics |
-| TRP_028 | Some trips have not set wheelchair accessibility | MEDIUM | Quality |
+| TRP_028 | Some trips have not set wheelchair accessibility | INFO | Quality |
 | TRP_029 | No trips report wheelchair accessibility | INFO | Quality |
 | TRP_031 | route_id missing | CRITICAL | Spec |
 | TRP_034 | safe_duration field is not a number | MEDIUM | Spec |
@@ -306,7 +306,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | CAL_005 | start_date is after end_date | CRITICAL | Interop |
 | CAL_006 | Weekly schedule has all days disabled | INFO | Quality |
 | CAL_007 | Gap in service period | INFO | Analytics |
-| CAL_008 | Service expires soon | HIGH | Analytics |
+| CAL_008 | Service expires soon | INFO | Analytics |
 | CAL_009 | All feed services have expired | INFO | Analytics |
 | CAL_010 | Service has too few active days | MEDIUM | Analytics |
 | CAL_011 | Unused service | LOW | Quality |

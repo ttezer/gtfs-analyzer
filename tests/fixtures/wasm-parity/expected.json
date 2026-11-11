@@ -2051,7 +2051,7 @@
           "rule_id": "CAL_008",
           "scope_key": null,
           "service_id": null,
-          "severity": "HIGH",
+          "severity": "INFO",
           "title": "Service expires soon"
         },
         {
@@ -2379,7 +2379,7 @@
           "title": "No weekend service"
         }
       ],
-      "score": 97.6
+      "score": 98.2
     },
     "CLD_003": {
       "added": [
