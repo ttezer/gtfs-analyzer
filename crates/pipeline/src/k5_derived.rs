@@ -452,7 +452,7 @@ fn build_shape_geometry(
                             "shape_id '{shape_id}' satır {} ile {} arasında ardışık özdeş koordinat.",
                             prev_line, pt.line
                         ),
-                        "Tekrarlanan güzergah noktasını kaldırın.",
+                        "Remove the repeated shape point.",
                     );
                     // The rule emits at two scopes (per shape / feed summary) but has one message
                     // template. The single-shape branch also includes count+example so the en/ja/fr
@@ -506,7 +506,7 @@ fn build_shape_geometry(
             "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
             Some(n10.to_string()), None,
             format!("{n10} güzergah şeklinde ardışık özdeş koordinat var — tekrarlanan güzergah noktaları."),
-            "İlgili shape'lerdeki tekrarlanan güzergah noktalarını kaldırın.",
+            "Remove the repeated shape points in the affected shapes.",
         );
         let mut d = std::collections::BTreeMap::new();
         d.insert("affected_shapes".to_string(), n10.to_string());

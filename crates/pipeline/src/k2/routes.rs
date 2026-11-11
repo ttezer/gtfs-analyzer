@@ -214,7 +214,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                                 Some(String::new()),
                                 None,
                                 "route_type zorunludur.".to_string(),
-                                "Geçerli bir route_type girin (0-7, 11, 12).",
+                                "Enter a valid route_type (0-7, 11, 12).",
                             ));
                         }
                         None
@@ -250,7 +250,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                                 Some(val.to_string()),
                                 Some("0-7,11,12".to_string()),
                                 format!("route_type {val} geçerli bir GTFS hat tipi değil."),
-                                "Geçerli bir route_type kullanın (0-7, 11, 12).",
+                                "Use a valid route_type (0-7, 11, 12).",
                             ));
                         }
                         Some(val)
@@ -270,7 +270,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                     get_trimmed_field(&row_map, "route_type").map(str::to_string),
                     None,
                     err,
-                    "Geçerli bir sayısal route_type girin.",
+                    "Enter a numeric route_type.",
                 ));
                 None
             }

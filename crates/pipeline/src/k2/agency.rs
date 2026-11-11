@@ -126,7 +126,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 Some(String::new()),
                 None,
                 "agency_url zorunludur.".to_string(),
-                "Geçerli bir http/https URL'si girin.",
+                "Enter a valid http/https URL.",
             )),
             Some(_) if !looks_like_url(&agency_url) => notices.push(make_k2_notice(
                 &mut counter,
@@ -140,7 +140,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 Some(agency_url.clone()),
                 None,
                 "agency_url geçerli bir URL değil.".to_string(),
-                "Geçerli bir http/https URL'si kullanın.",
+                "Use a valid http/https URL.",
             )),
             _ => {}
         }
@@ -197,7 +197,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 Some(String::new()),
                 None,
                 "agency_timezone zorunludur.".to_string(),
-                "Geçerli bir IANA saat dilimi girin.",
+                "Enter a valid IANA time zone.",
             )),
             Some(_) if !looks_like_iana_timezone(&agency_timezone) => notices.push(make_k2_notice(
                 &mut counter,
@@ -211,7 +211,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 Some(agency_timezone.clone()),
                 None,
                 format!("agency_timezone '{agency_timezone}' geçerli bir IANA saat dilimi değil."),
-                "Geçerli bir IANA saat dilimi kullanın (örn. Europe/Istanbul).",
+                "Use a valid IANA time zone (e.g. Europe/Istanbul).",
             )),
             _ => {}
         }

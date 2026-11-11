@@ -37,7 +37,7 @@ pub fn validate_fare_media(file: &RawFile) -> (Vec<FareMediaRecord>, Vec<gtfs_co
                             &file.name, Some(line), Some("fare_media_type"), Some(v.to_string()),
                             Some("0–4".to_string()),
                             "fare_media_type geçerli bir enum değeri değil.".to_string(),
-                            "0 (yok), 1 (fiziksel kağıt bilet), 2 (fiziksel transit kartı), 3 (cEMV), 4 (mobil uygulama) kullanın.",
+                            "Use 0 (none), 1 (physical paper ticket), 2 (physical transit card), 3 (cEMV) or 4 (mobile app).",
                         ));
                     }
                 } else if get_trimmed_field(&row_map, "fare_media_type") == Some("") {
@@ -53,7 +53,7 @@ pub fn validate_fare_media(file: &RawFile) -> (Vec<FareMediaRecord>, Vec<gtfs_co
                         None,
                         Some("0–4".to_string()),
                         "fare_media_type zorunludur.".to_string(),
-                        "Geçerli bir fare_media_type değeri girin.",
+                        "Enter a valid fare_media_type value.",
                     ));
                 }
                 value
@@ -71,7 +71,7 @@ pub fn validate_fare_media(file: &RawFile) -> (Vec<FareMediaRecord>, Vec<gtfs_co
                     get_trimmed_field(&row_map, "fare_media_type").map(str::to_string),
                     Some("0–4".to_string()),
                     err,
-                    "Geçerli bir fare_media_type değeri girin.",
+                    "Enter a valid fare_media_type value.",
                 ));
                 None
             }

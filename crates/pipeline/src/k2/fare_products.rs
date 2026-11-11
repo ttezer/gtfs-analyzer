@@ -67,7 +67,7 @@ pub fn validate_fare_products(file: &RawFile) -> (Vec<FareProductRecord>, Vec<gt
                         None,
                         Some("sayısal değer".to_string()),
                         "amount zorunludur.".to_string(),
-                        "Fare ürünü için bir amount (tutar) girin.",
+                        "Enter an amount for the fare product.",
                     ));
                 }
                 value
@@ -85,7 +85,7 @@ pub fn validate_fare_products(file: &RawFile) -> (Vec<FareProductRecord>, Vec<gt
                     get_trimmed_field(&row_map, "amount").map(str::to_string),
                     None,
                     err,
-                    "amount için geçerli bir sayısal değer girin.",
+                    "Enter a valid numeric value for amount.",
                 ));
                 None
             }

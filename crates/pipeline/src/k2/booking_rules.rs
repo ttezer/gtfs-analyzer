@@ -104,7 +104,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     Some(String::new()),
                     None,
                     "booking_rule_id zorunludur.".to_string(),
-                    "Her rezervasyon kuralına benzersiz bir booking_rule_id verin.",
+                    "Give every booking rule a unique booking_rule_id.",
                 ));
             }
         } else if !seen_ids.insert(id.clone()) {
@@ -122,7 +122,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 format!(
                     "booking_rule_id '{id}' yineleniyor; bu alan dosyanın birincil anahtarıdır."
                 ),
-                "Her satıra benzersiz bir booking_rule_id verin.",
+                "Give every row a unique booking_rule_id.",
             ));
         }
 
@@ -316,7 +316,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     &file.name, Some(line), Some("prior_notice_last_day"),
                     Some(btype_str.clone()), Some("2".to_string()),
                     format!("booking_type={btype} iken prior_notice_last_day yasaktır; bu alan yalnızca booking_type=2 ile kullanılır."),
-                    "prior_notice_last_day alanını yalnızca booking_type=2 ile kullanın ya da booking_type değerini düzeltin.",
+                    "Use prior_notice_last_day only with booking_type=2, or correct booking_type.",
                 ));
             }
             // BKR_001: prior_notice_start_day is forbidden ONLY for booking_type=0, or for booking_type=1
@@ -335,7 +335,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     &file.name, Some(line), Some("prior_notice_start_day"),
                     Some(btype_str.clone()), Some("(boş)".to_string()),
                     format!("{neden} iken prior_notice_start_day yasaktır."),
-                    "prior_notice_start_day alanını kaldırın ya da booking_type / prior_notice_duration_max değerlerini düzeltin.",
+                    "Remove prior_notice_start_day, or correct booking_type / prior_notice_duration_max.",
                 ));
             }
 
@@ -392,7 +392,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                         Some(v.to_string()),
                         Some("> 0".to_string()),
                         "prior_notice_duration_min sıfır veya negatif olamaz.".to_string(),
-                        "Minimum bildirim süresini pozitif bir dakika değeri olarak girin.",
+                        "Enter the minimum notice period as a positive number of minutes.",
                     ));
                 }
                 None => {
@@ -409,7 +409,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                             .map(str::to_string),
                         Some("integer > 0".to_string()),
                         "prior_notice_duration_min sayısal bir değer değil.".to_string(),
-                        "Geçerli bir tam sayı (dakika) girin.",
+                        "Enter a valid integer (minutes).",
                     ));
                 }
                 _ => {}

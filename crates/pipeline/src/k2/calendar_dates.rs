@@ -335,7 +335,7 @@ pub fn validate_calendar_dates_with_limits(
                         Some(String::new()),
                         Some("1 or 2".to_string()),
                         "exception_type zorunludur.".to_string(),
-                        "exception_type değerini 1 (eklendi) veya 2 (kaldırıldı) olarak ayarlayın.",
+                        "Set exception_type to 1 (added) or 2 (removed).",
                     ));
                 }
                 None
@@ -348,8 +348,7 @@ pub fn validate_calendar_dates_with_limits(
                         None, &file.name, Some(line), Some("exception_type"),
                         Some(val.to_string()), Some("1 or 2".to_string()),
                         "exception_type 1 veya 2 olmalıdır.".to_string(),
-                        "exception_type değerini 1 (hizmet eklendi) veya 2 (hizmet kaldırıldı) \
-                         olarak ayarlayın.",
+                        "Set exception_type to 1 (service added) or 2 (service removed).",
                     ));
                         Some(val)
                     }
@@ -359,8 +358,7 @@ pub fn validate_calendar_dates_with_limits(
                         None, &file.name, Some(line), Some("exception_type"),
                         Some(et_raw.to_string()), Some("1 or 2".to_string()),
                         format!("exception_type '{et_raw}' geçersiz; 1 veya 2 olmalıdır."),
-                        "exception_type değerini 1 (hizmet eklendi) veya 2 (hizmet kaldırıldı) \
-                         olarak ayarlayın.",
+                        "Set exception_type to 1 (service added) or 2 (service removed).",
                     ));
                         None
                     }
@@ -421,7 +419,7 @@ pub fn validate_calendar_dates_with_limits(
                     None,
                     None,
                     format!("'{}' ZIP yeniden açılamadı: {e}.", file.name),
-                    "ZIP arşivini kontrol edin.",
+                    "Check the ZIP archive.",
                 ));
             }
             Ok(mut archive) => {
@@ -439,7 +437,7 @@ pub fn validate_calendar_dates_with_limits(
                             None,
                             None,
                             format!("'{}' ZIP girdisi bulunamadı: {e}.", file.name),
-                            "ZIP arşivini kontrol edin.",
+                            "Check the ZIP archive.",
                         ));
                     }
                     Ok(entry) => {

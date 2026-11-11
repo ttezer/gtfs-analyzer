@@ -123,7 +123,7 @@ fn validate_fare_attributes_inner(
                         Some(String::new()),
                         Some("sayısal değer".to_string()),
                         "price zorunludur ve boş bırakılamaz.".to_string(),
-                        "price alanına geçerli bir sayısal değer girin.",
+                        "Enter a valid numeric value in price.",
                     ));
                 }
                 if let Some(v) = value {
@@ -140,7 +140,7 @@ fn validate_fare_attributes_inner(
                             Some(v.to_string()),
                             Some(">= 0".to_string()),
                             "price negatif olamaz.".to_string(),
-                            "price alanını sıfır veya pozitif bir değere ayarlayın.",
+                            "Set price to zero or a positive value.",
                         ));
                     }
                 }
@@ -165,7 +165,7 @@ fn validate_fare_attributes_inner(
                         observed.map(str::to_string),
                         None,
                         err,
-                        "price için geçerli bir sayısal değer girin.",
+                        "Enter a valid numeric value for price.",
                     ));
                 }
                 None

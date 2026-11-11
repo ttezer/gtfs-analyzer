@@ -306,7 +306,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                     Some(&row_map), &file.name, Some(line), Some("stair_count"),
                     Some("0".to_string()), Some("0 dışında tam sayı".to_string()),
                     "stair_count sıfır olamaz — pozitif değer yukarı, negatif aşağı yönü gösterir.".to_string(),
-                    "stair_count değerini gerçek basamak sayısıyla (yukarı için pozitif, aşağı için negatif) değiştirin ya da alanı boş bırakın.",
+                    "Change stair_count to the real number of steps (positive going up, negative going down) or leave the field empty.",
                 ));
                 None
             }
@@ -317,7 +317,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                     Some(&row_map), &file.name, Some(line), Some("stair_count"),
                     get_trimmed_field(&row_map, "stair_count").map(str::to_string),
                     Some("0 dışında tam sayı".to_string()), err,
-                    "stair_count değerini tam sayı olarak girin (yukarı için pozitif, aşağı için negatif).",
+                    "Enter stair_count as an integer (positive going up, negative going down).",
                 ));
                 None
             }

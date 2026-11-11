@@ -806,7 +806,7 @@ pub fn validate_trips_with_limits(
                     None,
                     None,
                     format!("'{}' ZIP yeniden açılamadı: {e}.", file.name),
-                    "ZIP arşivini kontrol edin.",
+                    "Check the ZIP archive.",
                 ));
             }
             Ok(mut archive) => {
@@ -824,7 +824,7 @@ pub fn validate_trips_with_limits(
                             None,
                             None,
                             format!("'{}' ZIP girdisi bulunamadı: {e}.", file.name),
-                            "ZIP arşivini kontrol edin.",
+                            "Check the ZIP archive.",
                         ));
                     }
                     Ok(entry) => {
@@ -970,7 +970,7 @@ pub fn validate_trips_with_limits(
                 None, &file.name, None, Some("bikes_allowed"),
                 Some(format!("{trp021_missing_count}/{total}")), Some("1|2".to_string()),
                 format!("Bu feed'de hiçbir seferde bisiklet bilgisi yok: bikes_allowed boş veya 0 ({trp021_missing_count} sefer)."),
-                "bikes_allowed değerini 1 (bisiklet izinli) veya 2 (bisiklet izinsiz) olarak ayarlayın; 0 ve boş 'bilgi yok' demektir.",
+                "Set bikes_allowed to 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty mean no information.",
             );
             trp021_details(&mut n);
             notices.push(n);
@@ -994,7 +994,7 @@ pub fn validate_trips_with_limits(
                 Some(format!("{trp021_missing_count}/{total}")), Some("1|2".to_string()),
                 format!("{total} seferin {trp021_missing_count} tanesinde bisiklet bilgisi yok: bikes_allowed boş veya 0 ({:.0}%).{examples}",
                     trp021_missing_count as f64 / total as f64 * 100.0),
-                "Tüm seferlerin bikes_allowed alanını 1 (bisiklet izinli) veya 2 (bisiklet izinsiz) olarak doldurun; 0 ve boş 'bilgi yok' demektir.",
+                "Fill in bikes_allowed on every trip with 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty mean no information.",
             );
             trp021_details(&mut n);
             notices.push(n);

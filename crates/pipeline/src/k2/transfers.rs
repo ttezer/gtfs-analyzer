@@ -137,7 +137,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
                     get_trimmed_field(&row_map, "min_transfer_time").map(str::to_string),
                     Some(">= 0".to_string()),
                     err,
-                    "min_transfer_time için sıfır veya pozitif bir tamsayı girin.",
+                    "Enter zero or a positive integer for min_transfer_time.",
                 ));
                 None
             }
@@ -156,7 +156,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
                 Some(String::new()),
                 None,
                 "transfer_type=2 için min_transfer_time zorunludur.".to_string(),
-                "min_transfer_time alanını doldurun.",
+                "Fill in min_transfer_time.",
             ));
         }
 

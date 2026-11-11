@@ -510,7 +510,7 @@ pub fn validate_shapes_with_limits(
                             Some(String::new()),
                             Some("[-90, 90]".to_string()),
                             "shape_pt_lat zorunludur.".to_string(),
-                            "shape_pt_lat alanını ondalıklı enlem değeriyle doldurun.",
+                            "Fill in shape_pt_lat with a decimal latitude.",
                         ));
                     }
                     None
@@ -529,7 +529,7 @@ pub fn validate_shapes_with_limits(
                             Some(lat.to_string()),
                             Some("[-90, 90]".to_string()),
                             format!("shape_pt_lat {lat} değeri [-90, 90] aralığı dışında."),
-                            "shape_pt_lat için -90 ile 90 arasında bir değer girin.",
+                            "Enter a value between -90 and 90 for shape_pt_lat.",
                         ));
                     }
                     Some(lat)
@@ -547,7 +547,7 @@ pub fn validate_shapes_with_limits(
                         Some(lat_raw.to_string()),
                         Some("[-90, 90]".to_string()),
                         format!("shape_pt_lat '{lat_raw}' geçersiz."),
-                        "shape_pt_lat alanını ondalıklı enlem değeriyle doldurun.",
+                        "Fill in shape_pt_lat with a decimal latitude.",
                     ));
                     None
                 }
@@ -570,7 +570,7 @@ pub fn validate_shapes_with_limits(
                             Some(String::new()),
                             Some("[-180, 180]".to_string()),
                             "shape_pt_lon zorunludur.".to_string(),
-                            "shape_pt_lon alanını ondalıklı boylam değeriyle doldurun.",
+                            "Fill in shape_pt_lon with a decimal longitude.",
                         ));
                     }
                     None
@@ -589,7 +589,7 @@ pub fn validate_shapes_with_limits(
                             Some(lon.to_string()),
                             Some("[-180, 180]".to_string()),
                             format!("shape_pt_lon {lon} değeri [-180, 180] aralığı dışında."),
-                            "shape_pt_lon için -180 ile 180 arasında bir değer girin.",
+                            "Enter a value between -180 and 180 for shape_pt_lon.",
                         ));
                     }
                     Some(lon)
@@ -607,7 +607,7 @@ pub fn validate_shapes_with_limits(
                         Some(lon_raw.to_string()),
                         Some("[-180, 180]".to_string()),
                         format!("shape_pt_lon '{lon_raw}' geçersiz."),
-                        "shape_pt_lon alanını ondalıklı boylam değeriyle doldurun.",
+                        "Fill in shape_pt_lon with a decimal longitude.",
                     ));
                     None
                 }
@@ -789,7 +789,7 @@ pub fn validate_shapes_with_limits(
                 "'{}' dosyasında başlık satırı var ama veri satırı yok.",
                 file.name
             ),
-            "Dosyaya en az bir veri satırı ekleyin (veya gereksizse dosyayı kaldırın).",
+            "Add at least one data row to the file (or remove the file if it is not needed).",
         );
         n.severity = Severity::Bilgi;
         notices.push(n);

@@ -2234,7 +2234,7 @@ fn check_frequencies(
                 Some(rec.trip_id.clone()),
                 None,
                 format!("'{}' sefer kodu trips.txt'te tanımlı değil.", rec.trip_id),
-                "Geçerli bir trip_id kullanın.",
+                "Use a valid trip_id.",
             ));
         }
 

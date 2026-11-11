@@ -43,7 +43,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                 Some(String::new()),
                 None,
                 "trip_id zorunludur.".to_string(),
-                "trip_id alanını doldurun.",
+                "Fill in trip_id.",
             ));
         }
 

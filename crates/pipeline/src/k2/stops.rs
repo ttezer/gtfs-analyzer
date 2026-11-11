@@ -196,7 +196,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                 Some(String::new()),
                 None,
                 format!("'{}' durağında stop_code eksik.", stop_id),
-                "Yolcuların tanıyabileceği kısa bir stop_code değeri girin.",
+                "Enter a short stop_code that riders can recognise.",
             );
             // The rule is emitted at two scales (per stop / feed summary) but has one message
             // template. Populate count+example even on the individual branch so en/ja/fr text
@@ -227,7 +227,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                     "'{}' durağı için durak adı (stop_name) zorunludur.",
                     stop_id
                 ),
-                "Okunabilir bir stop_name değeri girin.",
+                "Enter a readable stop_name value.",
             ));
         }
 
@@ -330,7 +330,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                             Some(lat.to_string()),
                             Some("[-90, 90]".to_string()),
                             format!("stop_lat {lat} değeri [-90, 90] aralığı dışında."),
-                            "stop_lat için -90 ile 90 arasında bir değer girin.",
+                            "Enter a value between -90 and 90 for stop_lat.",
                         ));
                     }
                     Some(lat)
@@ -391,7 +391,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                             Some(lon.to_string()),
                             Some("[-180, 180]".to_string()),
                             format!("stop_lon {lon} değeri [-180, 180] aralığı dışında."),
-                            "stop_lon için -180 ile 180 arasında bir değer girin.",
+                            "Enter a value between -180 and 180 for stop_lon.",
                         ));
                     }
                     Some(lon)
@@ -410,7 +410,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                     get_trimmed_field(&row_map, "stop_lon").map(str::to_string),
                     Some("[-180, 180]".to_string()),
                     err,
-                    "stop_lon alanını ondalıklı boylam değeriyle doldurun.",
+                    "Fill in stop_lon with a decimal longitude.",
                 ));
                 None
             }
@@ -619,7 +619,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                     "'{}' durağında zone_id eksik; ücret hesaplamaları etkilenebilir.",
                     stop_id
                 ),
-                "Ücret hesabı için zone_id alanını doldurun.",
+                "Fill in zone_id for fare calculation.",
             );
             let details = notice.details.get_or_insert_with(Default::default);
             details.insert("affected_stops".to_string(), "1".to_string());
@@ -693,7 +693,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             None, &file.name, None, Some("stop_code"),
             Some(n.to_string()), None,
             msg,
-            "stops.txt'teki ilgili duraklara yolcuların tanıyabileceği stop_code değerleri ekleyin.",
+            "Add stop_code values riders can recognise to the affected stops in stops.txt.",
         );
         let mut d = std::collections::BTreeMap::new();
         d.insert("affected_stops".to_string(), n.to_string());
@@ -730,7 +730,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             format!(
                 "{n33} durakta zone_id eksik — ücret bölgesi tabanlı hesaplamalar etkilenebilir."
             ),
-            "Ücret hesabı gerekiyorsa ilgili duraklara zone_id ekleyin.",
+            "Add zone_id to the affected stops if fares need it.",
         );
         let mut d = std::collections::BTreeMap::new();
         d.insert("affected_stops".to_string(), n33.to_string());

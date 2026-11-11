@@ -65,7 +65,7 @@ pub fn validate_timeframes(file: &RawFile) -> (Vec<TimeframeRecord>, Vec<gtfs_co
                     get_trimmed_field(&row_map, "start_time").map(str::to_string),
                     Some("HH:MM:SS".to_string()),
                     err,
-                    "start_time için HH:MM:SS formatında geçerli bir değer girin.",
+                    "Enter a valid start_time in HH:MM:SS format.",
                 ));
                 None
             }
@@ -86,7 +86,7 @@ pub fn validate_timeframes(file: &RawFile) -> (Vec<TimeframeRecord>, Vec<gtfs_co
                     get_trimmed_field(&row_map, "end_time").map(str::to_string),
                     Some("HH:MM:SS".to_string()),
                     err,
-                    "end_time için HH:MM:SS formatında geçerli bir değer girin.",
+                    "Enter a valid end_time in HH:MM:SS format.",
                 ));
                 None
             }

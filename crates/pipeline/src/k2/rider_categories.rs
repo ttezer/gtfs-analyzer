@@ -73,7 +73,7 @@ pub fn validate_rider_categories(
                             Some(v.to_string()),
                             Some("0 or 1".to_string()),
                             "is_default_fare_category geçerli bir enum değeri değil.".to_string(),
-                            "0 (varsayılan değil) veya 1 (varsayılan) kullanın.",
+                            "Use 0 (not the default) or 1 (default).",
                         ));
                     }
                 }
@@ -92,7 +92,7 @@ pub fn validate_rider_categories(
                     get_trimmed_field(&row_map, "is_default_fare_category").map(str::to_string),
                     Some("0 or 1".to_string()),
                     err,
-                    "0 veya 1 kullanın.",
+                    "Use 0 or 1.",
                 ));
                 None
             }
@@ -113,7 +113,7 @@ pub fn validate_rider_categories(
                     get_trimmed_field(&row_map, "min_age").map(str::to_string),
                     Some(">= 0".to_string()),
                     err,
-                    "min_age için negatif olmayan bir tam sayı girin.",
+                    "Enter a non-negative integer for min_age.",
                 ));
                 None
             }
@@ -134,7 +134,7 @@ pub fn validate_rider_categories(
                     get_trimmed_field(&row_map, "max_age").map(str::to_string),
                     Some(">= 0".to_string()),
                     err,
-                    "max_age için negatif olmayan bir tam sayı girin.",
+                    "Enter a non-negative integer for max_age.",
                 ));
                 None
             }

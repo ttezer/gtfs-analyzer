@@ -4522,14 +4522,42 @@ const tr = {
  * the text names the branch. Exported to `crates/core/locales/tr.json` as `remediation_texts`.
  */
 export const trRemediationTexts: Record<string, Record<string, string>> = {
+  'AGN_003': {
+    'Enter a valid http/https URL.': 'Geçerli bir http/https URL\'si girin.',
+    'Use a valid http/https URL.': 'Geçerli bir http/https URL\'si kullanın.',
+  },
+  'AGN_004': {
+    'Enter a valid IANA time zone.': 'Geçerli bir IANA saat dilimi girin.',
+    'Use a valid IANA time zone (e.g. Europe/Istanbul).': 'Geçerli bir IANA saat dilimi kullanın (örn. Europe/Istanbul).',
+  },
   'AGN_011': {
     'When several agencies are defined, fill in agency_id on every fare_attributes record.': 'Birden fazla kuruluş olduğunda tüm fare_attributes kayıtlarının agency_id alanını doldurun.',
     'When several agencies are defined, fill in agency_id on every route.': 'Birden fazla kuruluş olduğunda tüm hatların agency_id alanını doldurun.',
+  },
+  'ARC_009': {
+    'Add at least one data row to the file (or remove the file if it is not needed).': 'Dosyaya en az bir veri satırı ekleyin (veya gereksizse dosyayı kaldırın).',
+    'Check the ZIP archive.': 'ZIP arşivini kontrol edin.',
   },
   'ARC_020': {
     'Add shapes.txt for route geometry and feed_info.txt for publisher information.': 'shapes.txt ile güzergah geometrisi ve feed_info.txt ile yayıncı bilgisi ekleyin.',
     'Create feed_info.txt to describe the publisher.': 'feed_info.txt dosyası oluşturarak yayıncı bilgisini tanımlayın.',
     'Create shapes.txt to add route geometry.': 'shapes.txt dosyası oluşturarak güzergah geometrisi ekleyin.',
+  },
+  'BKR_001': {
+    'Remove prior_notice_start_day, or correct booking_type / prior_notice_duration_max.': 'prior_notice_start_day alanını kaldırın ya da booking_type / prior_notice_duration_max değerlerini düzeltin.',
+    'Use prior_notice_last_day only with booking_type=2, or correct booking_type.': 'prior_notice_last_day alanını yalnızca booking_type=2 ile kullanın ya da booking_type değerini düzeltin.',
+  },
+  'BKR_006': {
+    'Enter a valid integer (minutes).': 'Geçerli bir tam sayı (dakika) girin.',
+    'Enter the minimum notice period as a positive number of minutes.': 'Minimum bildirim süresini pozitif bir dakika değeri olarak girin.',
+  },
+  'BKR_019': {
+    'Give every booking rule a unique booking_rule_id.': 'Her rezervasyon kuralına benzersiz bir booking_rule_id verin.',
+    'Give every row a unique booking_rule_id.': 'Her satıra benzersiz bir booking_rule_id verin.',
+  },
+  'CLD_003': {
+    'Set exception_type to 1 (added) or 2 (removed).': 'exception_type değerini 1 (eklendi) veya 2 (kaldırıldı) olarak ayarlayın.',
+    'Set exception_type to 1 (service added) or 2 (service removed).': 'exception_type değerini 1 (hizmet eklendi) veya 2 (hizmet kaldırıldı) olarak ayarlayın.',
   },
   'DQ_018': {
     'Write the headsign in proper case.': 'Yön adını düzgün harf kuralıyla yazın.',
@@ -4558,6 +4586,49 @@ export const trRemediationTexts: Record<string, Record<string, string>> = {
     'Use unique stop_id values in stops.txt.': 'stops.txt\'de benzersiz stop_id değerleri kullanın.',
     'Use unique trip_id values in trips.txt.': 'trips.txt\'de benzersiz trip_id değerleri kullanın.',
   },
+  'FAR_002': {
+    'Enter a valid numeric value for price.': 'price için geçerli bir sayısal değer girin.',
+    'Enter a valid numeric value in price.': 'price alanına geçerli bir sayısal değer girin.',
+    'Set price to zero or a positive value.': 'price alanını sıfır veya pozitif bir değere ayarlayın.',
+  },
+  'FMD_002': {
+    'Enter a valid fare_media_type value.': 'Geçerli bir fare_media_type değeri girin.',
+    'Use 0 (none), 1 (physical paper ticket), 2 (physical transit card), 3 (cEMV) or 4 (mobile app).': '0 (yok), 1 (fiziksel kağıt bilet), 2 (fiziksel transit kartı), 3 (cEMV), 4 (mobil uygulama) kullanın.',
+  },
+  'FPD_002': {
+    'Enter a valid numeric value for amount.': 'amount için geçerli bir sayısal değer girin.',
+    'Enter an amount for the fare product.': 'Fare ürünü için bir amount (tutar) girin.',
+  },
+  'FRQ_001': {
+    'Fill in trip_id.': 'trip_id alanını doldurun.',
+    'Use a valid trip_id.': 'Geçerli bir trip_id kullanın.',
+  },
+  'FTR_001': {
+    'Enter a valid fare_transfer_type value.': 'Geçerli bir fare_transfer_type değeri girin.',
+    'Use 0, 1 or 2.': '0, 1 veya 2 kullanın.',
+  },
+  'FTR_005': {
+    'Enter a valid duration_limit_type value.': 'Geçerli bir duration_limit_type değeri girin.',
+    'Use 0, 1, 2 or 3.': '0, 1, 2 veya 3 kullanın.',
+  },
+  'FTR_006': {
+    'Enter a positive number of seconds for duration_limit.': 'duration_limit için pozitif bir saniye değeri girin.',
+    'Set duration_limit to a positive number of seconds.': 'duration_limit alanını pozitif bir saniye değerine ayarlayın.',
+  },
+  'FTR_008': {
+    'Enter -1 (unlimited) or a positive integer.': '-1 (sınırsız) veya pozitif bir tam sayı girin.',
+    'Enter -1 (unlimited) or a positive value such as 1.': '-1 (sınırsız) veya 1 gibi pozitif bir değer girin.',
+  },
+  'LOC_001': {
+    'Define a Polygon or MultiPolygon geometry for every feature.': 'Her feature için Polygon veya MultiPolygon geometrisi tanımlayın.',
+    'Use only Polygon and MultiPolygon geometries in locations.geojson.': 'locations.geojson\'da yalnızca Polygon ve MultiPolygon geometrileri kullanın.',
+  },
+  'LOC_012': {
+    'Add a valid \'features\' array to locations.geojson.': 'locations.geojson dosyasına geçerli bir \'features\' dizisi ekleyin.',
+    'Make sure locations.geojson is a valid GeoJSON FeatureCollection.': 'locations.geojson\'ın geçerli bir GeoJSON FeatureCollection olduğundan emin olun.',
+    'Regenerate locations.geojson as valid UTF-8 JSON.': 'locations.geojson dosyasını geçerli UTF-8 JSON olarak yeniden üretin.',
+    'The root type of locations.geojson must be \'FeatureCollection\'.': 'locations.geojson dosyasının kök tipi \'FeatureCollection\' olmalıdır.',
+  },
   'NET_002': {
     'Enter a network_id defined in networks.txt.': 'networks.txt\'te tanımlı bir network_id girin.',
     'Use a network_id defined in networks.txt.': 'networks.txt\'te tanımlı bir network_id kullanın.',
@@ -4574,9 +4645,38 @@ export const trRemediationTexts: Record<string, Record<string, string>> = {
     'Add a station entrance (location_type=2) and complete the pathway connections.': 'İstasyona giriş noktası (location_type=2) ekleyin ve pathway bağlantılarını tamamlayın.',
     'Complete the pathway connections between an entrance and this platform.': 'Entrance ile bu platform arasındaki pathway bağlantılarını tamamlayın.',
   },
+  'PTH_027': {
+    'Change stair_count to the real number of steps (positive going up, negative going down) or leave the field empty.': 'stair_count değerini gerçek basamak sayısıyla (yukarı için pozitif, aşağı için negatif) değiştirin ya da alanı boş bırakın.',
+    'Enter stair_count as an integer (positive going up, negative going down).': 'stair_count değerini tam sayı olarak girin (yukarı için pozitif, aşağı için negatif).',
+  },
+  'RCT_003': {
+    'Use 0 (not the default) or 1 (default).': '0 (varsayılan değil) veya 1 (varsayılan) kullanın.',
+    'Use 0 or 1.': '0 veya 1 kullanın.',
+  },
+  'RCT_004': {
+    'Enter a non-negative integer for max_age.': 'max_age için negatif olmayan bir tam sayı girin.',
+    'Enter a non-negative integer for min_age.': 'min_age için negatif olmayan bir tam sayı girin.',
+  },
+  'RTS_004': {
+    'Enter a numeric route_type.': 'Geçerli bir sayısal route_type girin.',
+    'Enter a valid route_type (0-7, 11, 12).': 'Geçerli bir route_type girin (0-7, 11, 12).',
+    'Use a valid route_type (0-7, 11, 12).': 'Geçerli bir route_type kullanın (0-7, 11, 12).',
+  },
+  'SHP_002': {
+    'Enter a value between -90 and 90 for shape_pt_lat.': 'shape_pt_lat için -90 ile 90 arasında bir değer girin.',
+    'Fill in shape_pt_lat with a decimal latitude.': 'shape_pt_lat alanını ondalıklı enlem değeriyle doldurun.',
+  },
+  'SHP_003': {
+    'Enter a value between -180 and 180 for shape_pt_lon.': 'shape_pt_lon için -180 ile 180 arasında bir değer girin.',
+    'Fill in shape_pt_lon with a decimal longitude.': 'shape_pt_lon alanını ondalıklı boylam değeriyle doldurun.',
+  },
   'SHP_009': {
     'Fix the self-crossing segments in the shape.': 'Güzergah şeklindeki kesişen segmentleri düzeltin.',
     'Review the shape generation process; individual shapes do not need to be checked one by one.': 'Güzergah üretim sürecini gözden geçirin; tek tek shape incelemesi gerekmez.',
+  },
+  'SHP_010': {
+    'Remove the repeated shape point.': 'Tekrarlanan güzergah noktasını kaldırın.',
+    'Remove the repeated shape points in the affected shapes.': 'İlgili shape\'lerdeki tekrarlanan güzergah noktalarını kaldırın.',
   },
   'SHP_014': {
     'If this extension is intentional no action is needed; otherwise check the shape end and the last stop.': 'Bu uzantı bilinçliyse işlem gerekmez; değilse shape bitişini ve son durağı doğrulayın.',
@@ -4594,6 +4694,30 @@ export const trRemediationTexts: Record<string, Record<string, string>> = {
     'Add shape_dist_traveled to every stop_times row, or provide distance data per shape.': 'Tüm stop_times satırlarına shape_dist_traveled ekleyin ya da güzergah bazlı mesafe verisi sağlayın.',
     'Add shape_dist_traveled to every stop_times row, or remove it from all of them.': 'Tüm stop_times satırlarına shape_dist_traveled ekleyin ya da tümünden kaldırın.',
   },
+  'STP_003': {
+    'Enter a readable stop_name value.': 'Okunabilir bir stop_name değeri girin.',
+    'Enter a value between -90 and 90 for stop_lat.': 'stop_lat için -90 ile 90 arasında bir değer girin.',
+  },
+  'STP_005': {
+    'Enter a value between -180 and 180 for stop_lon.': 'stop_lon için -180 ile 180 arasında bir değer girin.',
+    'Fill in stop_lon with a decimal longitude.': 'stop_lon alanını ondalıklı boylam değeriyle doldurun.',
+  },
+  'STP_022': {
+    'Add stop_code values riders can recognise to the affected stops in stops.txt.': 'stops.txt\'teki ilgili duraklara yolcuların tanıyabileceği stop_code değerleri ekleyin.',
+    'Enter a short stop_code that riders can recognise.': 'Yolcuların tanıyabileceği kısa bir stop_code değeri girin.',
+  },
+  'STP_033': {
+    'Add zone_id to the affected stops if fares need it.': 'Ücret hesabı gerekiyorsa ilgili duraklara zone_id ekleyin.',
+    'Fill in zone_id for fare calculation.': 'Ücret hesabı için zone_id alanını doldurun.',
+  },
+  'TFR_003': {
+    'Enter a valid end_time in HH:MM:SS format.': 'end_time için HH:MM:SS formatında geçerli bir değer girin.',
+    'Enter a valid start_time in HH:MM:SS format.': 'start_time için HH:MM:SS formatında geçerli bir değer girin.',
+  },
+  'TRF_005': {
+    'Enter zero or a positive integer for min_transfer_time.': 'min_transfer_time için sıfır veya pozitif bir tamsayı girin.',
+    'Fill in min_transfer_time.': 'min_transfer_time alanını doldurun.',
+  },
   'TRF_017': {
     'Match from_route_id to the route_id of the related trip.': 'from_route_id\'yi ilgili seferin route_id\'siyle eşleştirin.',
     'Match to_route_id to the route_id of the related trip.': 'to_route_id\'yi ilgili seferin route_id\'siyle eşleştirin.',
@@ -4601,6 +4725,10 @@ export const trRemediationTexts: Record<string, Record<string, string>> = {
   'TRN_007': {
     'Add translations only for languages other than feed_lang.': 'Çevirileri yalnızca feed_lang\'dan farklı diller için ekleyin.',
     'Remove translation rows in the feed_lang language from translations.txt.': 'feed_lang ile aynı dildeki çeviri satırlarını translations.txt\'ten kaldırın.',
+  },
+  'TRP_021': {
+    'Fill in bikes_allowed on every trip with 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty mean no information.': 'Tüm seferlerin bikes_allowed alanını 1 (bisiklet izinli) veya 2 (bisiklet izinsiz) olarak doldurun; 0 ve boş \'bilgi yok\' demektir.',
+    'Set bikes_allowed to 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty mean no information.': 'bikes_allowed değerini 1 (bisiklet izinli) veya 2 (bisiklet izinsiz) olarak ayarlayın; 0 ve boş \'bilgi yok\' demektir.',
   },
   'XFL_021': {
     'Replace from_stop_id with a stop that from_trip_id actually serves.': 'from_stop_id\'yi from_trip_id\'nin gerçekten geçtiği bir durak ile değiştirin.',

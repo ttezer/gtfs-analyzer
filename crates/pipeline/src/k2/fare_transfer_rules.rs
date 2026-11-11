@@ -50,7 +50,7 @@ pub fn validate_fare_transfer_rules(
                             Some(v.to_string()),
                             Some("0–2".to_string()),
                             "fare_transfer_type geçerli bir enum değeri değil.".to_string(),
-                            "0, 1 veya 2 kullanın.",
+                            "Use 0, 1 or 2.",
                         ));
                     }
                 } else if get_trimmed_field(&row_map, "fare_transfer_type") == Some("") {
@@ -66,7 +66,7 @@ pub fn validate_fare_transfer_rules(
                         None,
                         Some("0–2".to_string()),
                         "fare_transfer_type zorunludur.".to_string(),
-                        "0, 1 veya 2 kullanın.",
+                        "Use 0, 1 or 2.",
                     ));
                 }
                 value
@@ -84,7 +84,7 @@ pub fn validate_fare_transfer_rules(
                     get_trimmed_field(&row_map, "fare_transfer_type").map(str::to_string),
                     Some("0–2".to_string()),
                     err,
-                    "Geçerli bir fare_transfer_type değeri girin.",
+                    "Enter a valid fare_transfer_type value.",
                 ));
                 None
             }
@@ -106,7 +106,7 @@ pub fn validate_fare_transfer_rules(
                             Some(v.to_string()),
                             Some("0–3".to_string()),
                             "duration_limit_type geçerli bir enum değeri değil.".to_string(),
-                            "0, 1, 2 veya 3 kullanın.",
+                            "Use 0, 1, 2 or 3.",
                         ));
                     }
                 }
@@ -125,7 +125,7 @@ pub fn validate_fare_transfer_rules(
                     get_trimmed_field(&row_map, "duration_limit_type").map(str::to_string),
                     Some("0–3".to_string()),
                     err,
-                    "Geçerli bir duration_limit_type değeri girin.",
+                    "Enter a valid duration_limit_type value.",
                 ));
                 None
             }
@@ -147,7 +147,7 @@ pub fn validate_fare_transfer_rules(
                             Some(v.to_string()),
                             Some("> 0".to_string()),
                             "duration_limit pozitif olmalıdır.".to_string(),
-                            "duration_limit alanını pozitif bir saniye değerine ayarlayın.",
+                            "Set duration_limit to a positive number of seconds.",
                         ));
                     }
                 }
@@ -166,7 +166,7 @@ pub fn validate_fare_transfer_rules(
                     get_trimmed_field(&row_map, "duration_limit").map(str::to_string),
                     Some("> 0".to_string()),
                     err,
-                    "duration_limit için pozitif bir saniye değeri girin.",
+                    "Enter a positive number of seconds for duration_limit.",
                 ));
                 None
             }
@@ -211,7 +211,7 @@ pub fn validate_fare_transfer_rules(
                         Some(v.to_string()),
                         Some("-1 or > 0".to_string()),
                         "transfer_count -1 veya pozitif bir tam sayı olmalıdır.".to_string(),
-                        "-1 (sınırsız) veya 1 gibi pozitif bir değer girin.",
+                        "Enter -1 (unlimited) or a positive value such as 1.",
                     ));
                     None
                 }
@@ -228,7 +228,7 @@ pub fn validate_fare_transfer_rules(
                         Some(raw.clone()),
                         Some("-1 or > 0".to_string()),
                         "transfer_count sayısal bir değer değil.".to_string(),
-                        "-1 (sınırsız) veya pozitif bir tam sayı girin.",
+                        "Enter -1 (unlimited) or a positive integer.",
                     ));
                     None
                 }

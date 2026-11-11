@@ -2274,7 +2274,7 @@ pub fn parse_with_limits(
                         None,
                         Some(e.to_string()),
                         format!("'{raw_name}' okunamadı: {e}"),
-                        "locations.geojson dosyasını geçerli UTF-8 JSON olarak yeniden üretin.",
+                        "Regenerate locations.geojson as valid UTF-8 JSON.",
                     ));
                     partial.mark_unavailable(raw_name.clone());
                 }
@@ -2649,7 +2649,7 @@ pub fn parse_with_limits(
                         None,
                         None,
                         format!("'{raw_name}' dosyası boş veya yalnızca başlık satırı içeriyor."),
-                        "Dosyaya en az bir veri satırı ekleyin (veya gereksizse dosyayı kaldırın).",
+                        "Add at least one data row to the file (or remove the file if it is not needed).",
                     ));
                 }
             }
@@ -3025,7 +3025,7 @@ pub fn parse_with_limits(
                     None,
                     None,
                     format!("'{raw_name}' dosyasında başlık satırı var ama veri satırı yok."),
-                    "Dosyaya en az bir veri satırı ekleyin (veya gereksizse dosyayı kaldırın).",
+                    "Add at least one data row to the file (or remove the file if it is not needed).",
                 ));
             }
         }
@@ -3225,7 +3225,7 @@ fn validate_locations_geojson(
                 counter, "LOC_012", EntityType::File, Some(fname.to_string()),
                 Some(fname), None, None, Some(e.to_string()),
                 format!("'{fname}' geçerli bir GeoJSON belgesi değil: {e}"),
-                "locations.geojson'ın geçerli bir GeoJSON FeatureCollection olduğundan emin olun.",
+                "Make sure locations.geojson is a valid GeoJSON FeatureCollection.",
             ));
                 return false;
             }
@@ -3246,7 +3246,7 @@ fn validate_locations_geojson(
                 "'{fname}' kök tipi 'FeatureCollection' olmalıdır; bulundu: '{}'.",
                 root_type.unwrap_or("yok")
             ),
-            "locations.geojson dosyasının kök tipi 'FeatureCollection' olmalıdır.",
+            "The root type of locations.geojson must be 'FeatureCollection'.",
         ));
         return false;
     }
@@ -3262,7 +3262,7 @@ fn validate_locations_geojson(
             Some("features"),
             None,
             format!("'{fname}' için 'features' dizisi eksik veya geçersiz."),
-            "locations.geojson dosyasına geçerli bir 'features' dizisi ekleyin.",
+            "Add a valid 'features' array to locations.geojson.",
         ));
         return false;
     };
@@ -3448,7 +3448,7 @@ fn validate_locations_geojson(
                     counter, "LOC_001", EntityType::File, Some(fname.to_string()),
                     Some(fname), Some(feat_num), Some("geometry.type"), Some(t.to_string()),
                     format!("'{fname}' özellik {feat_num} geçersiz geometri tipi: '{t}'. GTFS Flex yalnızca Polygon ve MultiPolygon destekler."),
-                    "locations.geojson'da yalnızca Polygon ve MultiPolygon geometrileri kullanın.",
+                    "Use only Polygon and MultiPolygon geometries in locations.geojson.",
                 ));
                 false
             }
@@ -3463,7 +3463,7 @@ fn validate_locations_geojson(
                     Some("geometry.type"),
                     None,
                     format!("'{fname}' özellik {feat_num} için geometri tipi eksik."),
-                    "Her feature için Polygon veya MultiPolygon geometrisi tanımlayın.",
+                    "Define a Polygon or MultiPolygon geometry for every feature.",
                 ));
                 false
             }
