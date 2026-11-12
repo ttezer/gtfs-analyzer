@@ -2045,8 +2045,8 @@
     },
     "ARC_008": {
       "title": "Service calendar files are missing",
-      "what": "A file that defines the service calendar is missing.",
-      "action": "Add the service calendar files to the dataset."
+      "what": "There are neither service days nor calendar exceptions; the days the trips run are not defined at all.",
+      "action": "Check that the planning software exports the service calendars; at least one of them (service days or calendar exceptions) must be in the dataset."
     },
     "ARC_009": {
       "title": "Optional file is empty",

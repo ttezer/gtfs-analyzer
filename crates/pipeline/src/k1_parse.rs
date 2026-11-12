@@ -492,6 +492,29 @@ fn strip_bom(bytes: &[u8]) -> (&[u8], bool) {
     }
 }
 
+/// ARC_002/ARC_003 evidence: where the first invalid UTF-8 byte is, so the planner can find the
+/// broken name (line, the readable text just before it, the raw bytes). `offset_base` is the
+/// number of bytes stripped before `bytes` (a BOM), so the offset counts from the file's start.
+fn add_utf8_error_context(notice: &mut Notice, bytes: &[u8], err: std::str::Utf8Error, offset_base: usize) {
+    let pos = err.valid_up_to();
+    let line = 1 + bytes[..pos].iter().filter(|&&b| b == b'\n').count();
+    let line_start = bytes[..pos].iter().rposition(|&b| b == b'\n').map_or(0, |i| i + 1);
+    // `bytes[..pos]` is valid UTF-8 by definition of `valid_up_to`.
+    let before = std::str::from_utf8(&bytes[line_start..pos]).unwrap_or_default();
+    let skip = before.chars().count().saturating_sub(40);
+    let before: String = before.chars().skip(skip).collect();
+    let bad_len = err.error_len().unwrap_or(bytes.len() - pos).clamp(1, 4);
+    let bad: Vec<String> = bytes[pos..(pos + bad_len).min(bytes.len())]
+        .iter()
+        .map(|b| format!("{b:02X}"))
+        .collect();
+    let details = notice.details.get_or_insert_with(Default::default);
+    details.insert("invalid_line", line.to_string());
+    details.insert("invalid_byte_offset", (offset_base + pos).to_string());
+    details.insert("invalid_bytes", bad.join(" "));
+    details.insert("text_before", before);
+}
+
 fn has_malformed_eol(bytes: &[u8]) -> bool {
     bytes
         .iter()
@@ -2542,9 +2565,10 @@ pub fn parse_with_limits(
         // Invalid UTF-8 files are skipped for safe typed validation; no lossy record is produced.
         let text: &str = match std::str::from_utf8(bytes) {
             Ok(s) => s,
-            Err(_) => {
+            Err(utf8_err) => {
+                let bom_len = if has_bom { UTF8_BOM.len() } else { 0 };
                 // ARC_002: Critical UTF-8 violation.
-                notices.push(make_notice(
+                let mut arc002 = make_notice(
                     &mut counter,
                     "ARC_002",
                     EntityType::File,
@@ -2555,10 +2579,12 @@ pub fn parse_with_limits(
                     None,
                     format!("'{raw_name}' UTF-8 kodlamasıyla okunamıyor."),
                     "Re-save the file with UTF-8 encoding.",
-                ));
+                );
+                add_utf8_error_context(&mut arc002, bytes, utf8_err, bom_len);
+                notices.push(arc002);
                 partial.mark_unavailable(raw_name.clone());
                 if !is_required {
-                    notices.push(make_notice(
+                    let mut arc003 = make_notice(
                         &mut counter,
                         "ARC_003",
                         EntityType::File,
@@ -2569,7 +2595,9 @@ pub fn parse_with_limits(
                         None,
                         format!("'{raw_name}' UTF-8 dışı olduğu için dosya atlandı."),
                         "Save all GTFS files with UTF-8 encoding.",
-                    ));
+                    );
+                    add_utf8_error_context(&mut arc003, bytes, utf8_err, bom_len);
+                    notices.push(arc003);
                 }
                 continue;
             }
@@ -3234,8 +3262,8 @@ fn validate_locations_geojson(
 ) -> bool {
     let text = match std::str::from_utf8(bytes) {
         Ok(s) => s,
-        Err(_) => {
-            notices.push(make_notice(
+        Err(utf8_err) => {
+            let mut arc002 = make_notice(
                 counter,
                 "ARC_002",
                 EntityType::File,
@@ -3246,7 +3274,9 @@ fn validate_locations_geojson(
                 None,
                 format!("'{fname}' UTF-8 kodlamasıyla okunamıyor."),
                 "Re-save the file with UTF-8 encoding.",
-            ));
+            );
+            add_utf8_error_context(&mut arc002, bytes, utf8_err, 0);
+            notices.push(arc002);
             return false;
         }
     };
@@ -4588,6 +4618,44 @@ mod tests {
             .iter()
             .any(|f| f == "trips.txt"));
         assert!(result.notices.iter().any(|n| n.rule_id == "ARC_002"));
+    }
+
+    #[test]
+    fn arc_002_and_003_locate_the_first_invalid_byte() {
+        // BOM + header + one good row + a Latin-1 "ü" (0xFC) on line 3.
+        let stops: &[u8] = b"\xEF\xBB\xBFstop_id,stop_name,stop_lat,stop_lon\nS1,Merkez,41.0,29.0\nS2,K\xFCt\xFCphane,41.1,29.1\n";
+        let fares: &[u8] = b"fare_id,price,currency_type,payment_method,transfers\nF1,2.5,EUR,0,\xE7\n";
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      stops),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+            ("fare_attributes.txt", fares),
+        ]);
+        let result = parse(&zip).expect("UTF-8 hatası PARTIAL olmalı");
+        let details = |rule: &str, file: &str| {
+            result
+                .notices
+                .iter()
+                .find(|n| n.rule_id == rule && n.file.as_deref() == Some(file))
+                .and_then(|n| n.details.clone())
+                .unwrap_or_else(|| panic!("{rule} {file} details yok"))
+        };
+        let stops = details("ARC_002", "stops.txt");
+        assert_eq!(stops.get("invalid_line").map(String::as_str), Some("3"));
+        assert_eq!(stops.get("text_before").map(String::as_str), Some("S2,K"));
+        assert_eq!(stops.get("invalid_bytes").map(String::as_str), Some("FC"));
+        // Counted from the file start, BOM included: 3 + 47 + 19 + 4.
+        let offset = 3 + "stop_id,stop_name,stop_lat,stop_lon\n".len() + "S1,Merkez,41.0,29.0\n".len() + "S2,K".len();
+        assert_eq!(stops.get("invalid_byte_offset").cloned(), Some(offset.to_string()));
+        for rule in ["ARC_002", "ARC_003"] {
+            let fares = details(rule, "fare_attributes.txt");
+            assert_eq!(fares.get("invalid_line").map(String::as_str), Some("2"));
+            assert_eq!(fares.get("text_before").map(String::as_str), Some("F1,2.5,EUR,0,"));
+            assert_eq!(fares.get("invalid_bytes").map(String::as_str), Some("E7"));
+        }
     }
 
     #[test]

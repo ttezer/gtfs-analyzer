@@ -318,9 +318,21 @@ function dqListLabel(n: Notice): string | null {
   // TRP_001 on a code-less row: the row is in the trip list.
   if ((n.rule_id === 'TRP_001' || n.rule_id === 'TRP_031' || n.rule_id === 'TRP_035') && !n.entity_id) return plannerListName(n.file);
   if (['TRP_023', 'TRP_025', 'TRP_028', 'TRP_029', 'TRP_021'].includes(n.rule_id) && !n.entity_id) return plannerListName(n.file);
+  // File-level ARC cards: the list in the planner's words; an unknown file keeps its own name.
+  if (ARC_FILE_RULES.has(n.rule_id)) return plannerListName(n.file) || n.file || null;
   const kind = n.rule_id === 'DQ_021' && n.file ? DQ021_KIND[n.file] : undefined;
   return kind ? t(`producer.card.DQ_021.list_${kind}`) : null;
 }
+const ARC_FILE_RULES = new Set(['ARC_002', 'ARC_003', 'ARC_004', 'ARC_006', 'ARC_007', 'ARC_009', 'ARC_010', 'ARC_011']);
+
+/** "12,3 KB" from ARC_011's "12345 bytes". */
+function fileSizeText(observed?: string | null): string {
+  const bytes = Number(observed?.match(/^(\d+)/)?.[1]);
+  if (!Number.isFinite(bytes)) return observed || '—';
+  const [value, unit] = bytes >= 1024 * 1024 ? [bytes / (1024 * 1024), 'MB'] : bytes >= 1024 ? [bytes / 1024, 'KB'] : [bytes, 'B'];
+  return `${localizedNumber(String(Math.round(value * 10) / 10))} ${unit}`;
+}
+
 /** Kinds whose repeats are one code on several records (the rest repeat a whole row's meaning). */
 const DQ021_CODE_KINDS = new Set(['stop', 'route', 'trip', 'attribution', 'location_group']);
 
@@ -5421,6 +5433,24 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
       ];
     },
   });
+  const listLabel = (n: Notice) => dqListLabel(n) || n.file || '—';
+  if (g.ruleId === 'ARC_011') {
+    return { head: [t('producer.col.record'), t('producer.col.file_size')], row: n => [listLabel(n), fileSizeText(n.observed_value)] };
+  }
+  // ARC_002/003: the first unreadable character, after the readable text just before it.
+  if (g.ruleId === 'ARC_002' || g.ruleId === 'ARC_003') {
+    return {
+      head: [t('producer.col.record'), t('producer.col.row'), t('producer.col.broken_text')],
+      row: n => {
+        const d = n.details ?? {};
+        return [
+          listLabel(n),
+          dash(d.invalid_line),
+          d.invalid_bytes ? `…${d.text_before ?? ''} ⟨${d.invalid_bytes}⟩` : '—',
+        ];
+      },
+    };
+  }
   // An identity-less notice (feed-level summary) does not fill entity columns; it falls into the general columns.
   switch (first.entity_id ? first.entity_type : 'Feed') {
     case 'Trip': {

@@ -117,8 +117,8 @@
     },
     "ARC_008": {
       "title": "Faltan los archivos del calendario de servicio",
-      "what": "Falta un archivo que define el calendario de servicio.",
-      "action": "Añada los archivos del calendario de servicio al conjunto de datos."
+      "what": "No hay ni días de servicio ni excepciones de calendario; los días en que circulan los viajes no están definidos en absoluto.",
+      "action": "Compruebe que el software de planificación exporta los calendarios de servicio; al menos uno de ellos (días de servicio o excepciones de calendario) debe estar en el conjunto de datos."
     },
     "ARC_009": {
       "title": "Archivo opcional vacío",

@@ -1447,8 +1447,8 @@
     },
     "ARC_008": {
       "title": "Çalışma takvimi dosyaları eksik",
-      "what": "Çalışma takvimini tanımlayan dosyalardan biri bulunmuyor.",
-      "action": "Çalışma takvimi dosyalarını veri setine ekleyin."
+      "what": "Ne çalışma günleri ne de takvim istisnaları var; seferlerin hangi günlerde çalıştığı hiç tanımlanmamış.",
+      "action": "Planlama yazılımında çalışma takvimlerinin dışa aktarıldığını kontrol edin; en az biri (çalışma günleri ya da takvim istisnaları) veri setinde olmalı."
     },
     "ARC_009": {
       "title": "Ek dosya boş",

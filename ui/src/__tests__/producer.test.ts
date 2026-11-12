@@ -3281,3 +3281,40 @@ describe('plannerFacets (bağlı filtreler)', () => {
     expect([...f.matches[0]!]).toEqual([550]);
   });
 });
+
+describe('ARC dosya kartları (ARC_002–011)', () => {
+  const render = (n: Notice) => {
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [[n.rule_id, 1, 1]], true, emptyNameIndex));
+    return root.innerHTML;
+  };
+  const file = (rule: string, f: string, extra: Partial<Notice> = {}) =>
+    notice('a', rule, 'INFO', { entity_type: 'File', entity_id: f, file: f, ...extra });
+
+  it('dosyayı planlamacı adıyla, tanınmayan dosyayı kendi adıyla gösterir', () => {
+    expect(render(file('ARC_006', 'shapes.txt'))).toContain('<td>Güzergâh çizimleri</td>');
+    expect(render(file('ARC_007', 'notlar.pdf'))).toContain('<td>notlar.pdf</td>');
+    expect(render(notice('a', 'ARC_004', 'CRITICAL', { entity_type: 'Feed', entity_id: 'trips.txt', file: 'trips.txt' })))
+      .toContain('<td>Sefer listesi</td>');
+  });
+
+  it('ARC_011 boyutu okunur birimle gösterir', () => {
+    const html = render(file('ARC_011', 'stop_times.txt', { observed_value: '5347737 bytes' }));
+    expect(html).toContain('<th>Kayıt</th><th>Dosya boyutu</th>');
+    expect(html).toContain('<td>Sefer saatleri</td><td>5,1 MB</td>');
+    expect(render(file('ARC_011', 'agency.txt', { observed_value: '812 bytes' }))).toContain('<td>812 B</td>');
+  });
+
+  it('ARC_002 okunamayan karakterin satırını ve önündeki metni gösterir', () => {
+    const html = render(file('ARC_002', 'stops.txt', { severity: 'CRITICAL', details: {
+      invalid_line: '3', text_before: 'S2,K', invalid_bytes: 'FC', invalid_byte_offset: '73',
+    } }));
+    expect(html).toContain('<th>Kayıt</th><th>Satır</th><th>Okunamayan yer</th>');
+    expect(html).toContain('<td>Durak listesi</td><td>3</td><td>…S2,K ⟨FC⟩</td>');
+  });
+
+  it('ARC_008 iki takvimin de olmadığını söyler', () => {
+    expect(render(notice('a', 'ARC_008', 'CRITICAL', { entity_type: 'Feed' })))
+      .toContain('Ne çalışma günleri ne de takvim istisnaları var');
+  });
+});

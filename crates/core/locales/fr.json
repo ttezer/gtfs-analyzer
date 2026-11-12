@@ -2045,8 +2045,8 @@
     },
     "ARC_008": {
       "title": "Fichiers du calendrier de service absents",
-      "what": "Un fichier qui définit le calendrier de service est absent.",
-      "action": "Ajoutez les fichiers du calendrier de service au jeu de données."
+      "what": "Il n’y a ni jours de service ni exceptions de calendrier ; les jours de circulation des courses ne sont pas définis du tout.",
+      "action": "Vérifiez que le logiciel de planification exporte les calendriers de service ; au moins l’un des deux (jours de service ou exceptions de calendrier) doit figurer dans le jeu de données."
     },
     "ARC_009": {
       "title": "Fichier facultatif vide",
