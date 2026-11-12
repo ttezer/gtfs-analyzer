@@ -420,7 +420,38 @@ function pthPathway(n: Notice, result: ValidationResult): string | null {
   const args = { mode: pthMode(d.pathway_mode), from: name(d.from_stop_id), to: name(d.to_stop_id), station: name(d.station_id) };
   return t(d.station_id ? 'producer.card.PTH.pathway_station' : 'producer.card.PTH.pathway', args);
 }
+/** PTH summaries and stop-level PTH cards: count with named examples, or the station/node. */
+function pthStopText(n: Notice, result: ValidationResult): string | null {
+  const d = n.details ?? {};
+  const name = (id?: string) => id ? result.name_index.stops?.[id] || id : '—';
+  switch (n.rule_id) {
+    case 'PTH_008': case 'PTH_009': case 'PTH_025': case 'PTH_029': {
+      const examples: string[] = [];
+      for (let i = 0; i < 5 && (d[`example_${i}_from_stop_id`] || d[`example_${i}_to_stop_id`]); i++) {
+        examples.push(t('producer.card.PTH.example', { mode: pthMode(d[`example_${i}_pathway_mode`]), from: name(d[`example_${i}_from_stop_id`]), to: name(d[`example_${i}_to_stop_id`]) }));
+      }
+      const count = t('producer.card.PTH.summary', { count: localizedNumber(d.affected_pathways ?? n.observed_value ?? '1') });
+      return [t(`producer.card.${n.rule_id}.what`), count, examples.length ? t('producer.card.PTH.examples', { examples: examples.join('; ') }) : ''].filter(Boolean).join(' ');
+    }
+    case 'PTH_012': {
+      // A summary (even when the page has expanded it into one platform row) keeps its count.
+      const listed = (d.example_platforms ?? '').split(/,\s*/).filter(Boolean);
+      const ids = listed.length ? listed : n.entity_id ? [n.entity_id] : [];
+      if (!ids.length) return null;
+      const count = d.affected_platforms ? t('producer.card.PTH_012.count', { count: localizedNumber(d.affected_platforms) }) : '';
+      return [t('producer.card.PTH_012.what'), count, t('producer.card.PTH_012.platforms', { platforms: ids.map(name).join(', ') })].filter(Boolean).join(' ');
+    }
+    case 'PTH_013':
+      return n.entity_id ? `${t('producer.card.PTH_013.what')} ${t('producer.card.PTH.station', { station: name(n.entity_id) })}` : null;
+    case 'PTH_019':
+      return n.entity_id ? `${t('producer.card.PTH_019.what')} ${t('producer.card.PTH.node', { node: name(n.entity_id) })}` : null;
+    default:
+      return null;
+  }
+}
 function pthText(n: Notice, result: ValidationResult): string | null {
+  const stopLevel = pthStopText(n, result);
+  if (stopLevel !== null || ['PTH_008', 'PTH_009', 'PTH_012', 'PTH_013', 'PTH_019', 'PTH_025', 'PTH_029'].includes(n.rule_id)) return stopLevel;
   const d = n.details ?? {};
   const pathway = pthPathway(n, result);
   if (!pathway) return null;
@@ -457,6 +488,11 @@ function frqText(n: Notice, result: ValidationResult): string | null {
   const start = plannerTime(d.start_time) ?? '—';
   const end = plannerTime(d.end_time) ?? '—';
   const headway = d.headway_secs && Number.isFinite(Number(d.headway_secs)) ? durationText(Number(d.headway_secs)) : '—';
+  // The page expands a feed summary into its example rows, so tell a summary by its keys.
+  if (n.rule_id === 'FRQ_007' && (d.affected_trips || d.example_trips)) {
+    const trips = (d.example_trips ?? n.entity_id ?? '').split(/,\s*/).filter(Boolean).map(id => tripShort(id, result));
+    return t('producer.card.FRQ_007.what_summary', { count: localizedNumber(d.affected_trips ?? '1'), trips: trips.join('; ') || '—' });
+  }
   if (!d.start_time && !d.end_time && !d.headway_secs) return null;
   const args = { trip, start, end, headway, until: plannerTime(d.overlap_until) ?? '—', value: n.observed_value ?? '—' };
   switch (n.rule_id) {
@@ -518,6 +554,14 @@ function trfText(n: Notice, result: ValidationResult): string | null {
     case 'TRF_012':
     case 'TRF_016':
       return pair ? t(`producer.card.${n.rule_id}.what_detail`, { pair, first: d.first_line ?? '—', line }) : null;
+    case 'TRF_005': {
+      // A feed summary when several rows lack the time: how many, and the first few transfers.
+      if (!d.affected_rows && !d.example_transfers) return pair ? `${t('producer.card.TRF_005.what')} ${pair}` : null;
+      const name = (id: string) => result.name_index.stops?.[id] || id;
+      const examples = (d.example_transfers ?? '').split(/,\s*/).filter(Boolean)
+        .map(key => key.split('|')).filter(p => p.length === 2).map(([a, b]) => `${name(a)} → ${name(b)}`);
+      return t('producer.card.TRF_005.what_summary', { rows: localizedNumber(d.affected_rows ?? '1'), examples: examples.join('; ') || '—' });
+    }
     case 'TRF_018':
       return t('producer.card.TRF_018.what_detail', { trip: tripPhrase(n.entity_id || d.from_trip_id, result) });
     case 'TRF_022':
@@ -2251,15 +2295,19 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
     case 'PTH_001': case 'PTH_002': case 'PTH_003': case 'PTH_004': case 'PTH_005': case 'PTH_006':
     case 'PTH_007': case 'PTH_010': case 'PTH_011': case 'PTH_014': case 'PTH_015': case 'PTH_016':
     case 'PTH_017': case 'PTH_018': case 'PTH_026': case 'PTH_027': case 'PTH_028': case 'PTH_030':
-    case 'PTH_031': {
+    case 'PTH_031': case 'PTH_008': case 'PTH_009': case 'PTH_012': case 'PTH_013': case 'PTH_019':
+    case 'PTH_020': case 'PTH_021': case 'PTH_022': case 'PTH_023': case 'PTH_024': case 'PTH_025':
+    case 'PTH_029': {
       const what = pthText(n, result);
       return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
     }
+    case 'FRQ_007':
     case 'FRQ_001': case 'FRQ_002': case 'FRQ_003': case 'FRQ_004': case 'FRQ_005': case 'FRQ_006':
     case 'FRQ_008': case 'FRQ_009': case 'FRQ_010': case 'FRQ_011': case 'FRQ_012': {
       const what = frqText(n, result);
       return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
     }
+    case 'TRF_001': case 'TRF_002': case 'TRF_004': case 'TRF_005':
     case 'TRF_003': case 'TRF_006': case 'TRF_007': case 'TRF_008': case 'TRF_009': case 'TRF_010':
     case 'TRF_011': case 'TRF_012': case 'TRF_013': case 'TRF_014': case 'TRF_015': case 'TRF_016':
     case 'TRF_017': case 'TRF_018': case 'TRF_019': case 'TRF_020': case 'TRF_021': case 'TRF_022':
@@ -5952,7 +6000,7 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
       row: n => [badge(n.entity_id ? ni.trip_routes?.[n.entity_id] : undefined), dash(n.entity_id ? ni.trips?.[n.entity_id] : null), plannerServiceText(n.details?.service_id, result)],
     };
   }
-  if ((g.ruleId.startsWith('TRF_') || g.ruleId === 'XFL_020' || g.ruleId === 'XFL_021') && first.entity_type === 'Transfer' && trfStops(first).some(Boolean)) {
+  if ((g.ruleId.startsWith('TRF_') || g.ruleId === 'XFL_020' || g.ruleId === 'XFL_021') && (first.entity_type === 'Transfer' || first.entity_type === 'Row') && trfStops(first).some(Boolean)) {
     const name = (id?: string) => id ? ni.stops?.[id] || id : '—';
     const withDistance = g.ruleId === 'TRF_020' || g.ruleId === 'TRF_011';
     return {

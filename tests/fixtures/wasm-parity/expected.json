@@ -4251,7 +4251,11 @@
         {
           "details": {
             "affected_trips": "1",
-            "example_trips": "T1"
+            "end_time": "10:00:00",
+            "exact_times": "5",
+            "example_trips": "T1",
+            "headway_secs": "600",
+            "start_time": "08:00:00"
           },
           "entity_id": null,
           "entity_type": "Feed",
@@ -5423,6 +5427,9 @@
         {
           "details": {
             "affected_pathways": "1",
+            "example_0_from_stop_id": "PLAT",
+            "example_0_pathway_mode": "3",
+            "example_0_to_stop_id": "GN",
             "example_pathways": "P1"
           },
           "entity_id": null,
@@ -9436,6 +9443,9 @@
         {
           "details": {
             "affected_pathways": "1",
+            "example_0_from_stop_id": "S1",
+            "example_0_pathway_mode": "3",
+            "example_0_to_stop_id": "S2",
             "example_pathways": "P1"
           },
           "entity_id": null,
@@ -10157,7 +10167,11 @@
         {
           "details": {
             "affected_rows": "4",
-            "example_transfers": "S1|S2, S2|S1"
+            "example_transfers": "S1|S2, S2|S1",
+            "from_stop_id": "S1",
+            "min_transfer_time": "abc",
+            "to_stop_id": "S2",
+            "transfer_type": "2"
           },
           "entity_id": null,
           "entity_type": "Feed",

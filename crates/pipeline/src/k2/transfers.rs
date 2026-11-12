@@ -20,6 +20,33 @@ pub struct TransferRecord {
     pub line: u64,
 }
 
+/// Planner context on the row checks (TRF_001/002/004/005): the stops, trips, routes, type
+/// and time written on the transfer row — the same keys K4 adds to its transfer findings.
+/// Only `details` keys are added.
+fn add_transfer_row_context(findings: &mut [gtfs_core::Notice], row: &RowMap) {
+    // GGL_001 is raised in this loop too; another group's finding is left untouched.
+    for finding in findings
+        .iter_mut()
+        .filter(|n| n.rule_id.starts_with("TRF_"))
+    {
+        let details = finding.details.get_or_insert_with(Default::default);
+        for key in [
+            "from_stop_id",
+            "to_stop_id",
+            "from_trip_id",
+            "to_trip_id",
+            "from_route_id",
+            "to_route_id",
+            "transfer_type",
+            "min_transfer_time",
+        ] {
+            if let Some(value) = get_trimmed_field(row, key).filter(|v| !v.is_empty()) {
+                details.insert(key.to_string(), value.to_string());
+            }
+        }
+    }
+}
+
 pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core::Notice>) {
     let mut notices = Vec::new();
     let mut records = Vec::new();
@@ -28,6 +55,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
+        let first_notice = notices.len();
         let from_stop_id = get_raw_field(&row_map, "from_stop_id")
             .unwrap_or("")
             .to_string();
@@ -172,6 +200,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
             ));
         }
 
+        add_transfer_row_context(&mut notices[first_notice..], &row_map);
         records.push(TransferRecord {
             from_stop_id,
             to_stop_id,
@@ -249,6 +278,29 @@ mod tests {
             !notices.iter().any(|n| n.rule_id == "GGL_001"),
             "GGL_001 tetiklenmemeli"
         );
+    }
+
+    #[test]
+    fn trf_row_checks_carry_the_rows_values_but_not_ggl_001() {
+        let file = make_file(vec![vec!["", "S2", "5"]]);
+        let (_, notices) = validate_transfers(&file);
+        let ggl = notices
+            .iter()
+            .find(|n| n.rule_id == "GGL_001")
+            .expect("GGL_001");
+        assert!(ggl
+            .details
+            .as_ref()
+            .is_none_or(|d| !d.contains_key("to_stop_id")));
+        let file = make_file(vec![vec!["", "S2", "0"]]);
+        let (_, notices) = validate_transfers(&file);
+        let d = notices
+            .iter()
+            .find(|n| n.rule_id == "TRF_001")
+            .and_then(|n| n.details.as_ref())
+            .expect("TRF_001 details");
+        assert_eq!(d.get("to_stop_id").map(String::as_str), Some("S2"));
+        assert_eq!(d.get("transfer_type").map(String::as_str), Some("0"));
     }
 
     #[test]

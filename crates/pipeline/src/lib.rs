@@ -1355,14 +1355,12 @@ fn aggregate_trf005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.message = format!(
         "transfers.txt içinde {affected_rows} satırda min_transfer_time eksik veya geçersiz."
     );
-    aggregate.details = Some({
-        let mut details = std::collections::BTreeMap::new();
-        details.insert("affected_rows".to_string(), affected_rows.to_string());
-        if !examples.is_empty() {
-            details.insert("example_transfers".to_string(), examples.join(", "));
-        }
-        details.into()
-    });
+    // Keep the representative row's planner context (stops, trips, type, time); add the summary.
+    let details = aggregate.details.get_or_insert_with(Default::default);
+    details.insert("affected_rows".to_string(), affected_rows.to_string());
+    if !examples.is_empty() {
+        details.insert("example_transfers".to_string(), examples.join(", "));
+    }
     aggregate.service_id = None;
     aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
         && aggregate.whitespace_derived;
@@ -1971,14 +1969,12 @@ fn aggregate_frq007(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.observed_value = Some(affected_trips.to_string());
     aggregate.expected_value = Some("exact_times 0 or 1".to_string());
     aggregate.message = format!("frequencies.txt içinde {affected_trips} seferde exact_times geçersiz.");
-    aggregate.details = Some({
-        let mut details = std::collections::BTreeMap::new();
-        details.insert("affected_trips".to_string(), affected_trips.to_string());
-        if !examples.is_empty() {
-            details.insert("example_trips".to_string(), examples.join(", "));
-        }
-        details.into()
-    });
+    // Keep the representative row's planner context (period, headway); add the summary.
+    let details = aggregate.details.get_or_insert_with(Default::default);
+    details.insert("affected_trips".to_string(), affected_trips.to_string());
+    if !examples.is_empty() {
+        details.insert("example_trips".to_string(), examples.join(", "));
+    }
     aggregate.service_id = None;
     aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
         && aggregate.whitespace_derived;

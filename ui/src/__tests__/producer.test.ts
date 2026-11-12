@@ -3668,3 +3668,45 @@ describe('Dosyalar arası kartlar (XFL)', () => {
       .toContain('Aktarma: Otogar → Merkez.');
   });
 });
+
+describe('Grupların kalan kartları (TRF/FRQ/PTH satır kontrolleri ve özetler)', () => {
+  const ni: NameIndex = {
+    ...emptyNameIndex, stops: { S1: 'Otogar', S2: 'Merkez', E1: 'Giriş A', P1: 'Peron 1', ST: 'Gar', N1: 'Ara kat' },
+    routes: { R1: 'S8' }, trips: { T1: 'Liman' }, trip_routes: { T1: 'R1' }, trip_first_dep: { T1: '06:00' },
+  };
+  const render = (n: Notice) => {
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [[n.rule_id, 1, 1]], true, ni));
+    return root.innerHTML;
+  };
+
+  it('TRF_001 satırın diğer durağını söyler; TRF_005 özeti örnek aktarmaları adlandırır', () => {
+    expect(render(notice('a', 'TRF_001', 'CRITICAL', { entity_type: 'Row', file: 'transfers.txt', line: 2, details: { to_stop_id: 'S2', transfer_type: '0' } })))
+      .toContain('→ Merkez.');
+    expect(render(notice('a', 'TRF_005', 'CRITICAL', { entity_type: 'Feed', file: 'transfers.txt', details: { affected_rows: '3', example_transfers: 'S1|S2' } })))
+      .toContain('3 aktarmada süre gerektiren türde en kısa aktarma süresi yok ya da geçersiz. İlk örnekler: Otogar → Merkez.');
+  });
+
+  it('FRQ_007 özeti örnek seferleri hat · yön · kalkış ile adlandırır', () => {
+    expect(render(notice('a', 'FRQ_007', 'MEDIUM', { entity_type: 'Feed', file: 'frequencies.txt', details: { affected_trips: '2', example_trips: 'T1' } })))
+      .toContain('2 seferin sıklık tanımında kesin saat bilgisi geçersiz. İlk örnekler: S8');
+  });
+
+  it('PTH_008 özeti sayıyı ve örnek bağlantıları söyler', () => {
+    expect(render(notice('a', 'PTH_008', 'LOW', { entity_type: 'Feed', file: 'pathways.txt', observed_value: '2', details: {
+      affected_pathways: '2', example_pathways: 'PW1', example_0_from_stop_id: 'E1', example_0_to_stop_id: 'P1', example_0_pathway_mode: '2',
+    } }))).toContain('Etkilenen yürüme bağlantısı: 2. İlk örnekler: Merdiven Giriş A → Peron 1.');
+  });
+
+  it('PTH_012 peronları, PTH_013 istasyonu, PTH_019 ara noktayı adıyla söyler', () => {
+    expect(render(notice('a', 'PTH_012', 'HIGH', { entity_type: 'Feed', file: 'pathways.txt', details: { affected_platforms: '4', example_platforms: 'P1' } })))
+      .toContain('Bu durum 4 peronda var. Peronlar: Peron 1.');
+    expect(render(notice('a', 'PTH_013', 'INFO', { entity_type: 'Stop', entity_id: 'ST', file: 'pathways.txt' }))).toContain('İstasyon: Gar.');
+    expect(render(notice('a', 'PTH_019', 'MEDIUM', { entity_type: 'Stop', entity_id: 'N1', file: 'stops.txt' }))).toContain('Ara nokta: Ara kat.');
+  });
+
+  it('PTH_021 satırdaki diğer ucu ve türü söyler', () => {
+    expect(render(notice('a', 'PTH_021', 'CRITICAL', { entity_type: 'Pathway', entity_id: 'PW9', file: 'pathways.txt', line: 3, details: { to_stop_id: 'P1', pathway_mode: '4' } })))
+      .toContain('Yürüme bağlantısı: Yürüyen merdiven, — → Peron 1.');
+  });
+});

@@ -22,6 +22,52 @@ pub struct PathwayRecord {
     pub line: u64,
 }
 
+/// The pathway row's own values on its row checks (PTH_004…PTH_028), so the planner card can
+/// name the pathway by its kind and ends. The shared step in lib.rs adds the station later and
+/// does not overwrite these. Only `details` keys are added.
+fn add_pathway_row_context(findings: &mut [gtfs_core::Notice], row: &RowMap) {
+    for finding in findings {
+        let details = finding.details.get_or_insert_with(Default::default);
+        for key in [
+            "from_stop_id",
+            "to_stop_id",
+            "pathway_mode",
+            "is_bidirectional",
+            "length",
+            "traversal_time",
+            "stair_count",
+            "max_slope",
+            "min_width",
+        ] {
+            if let Some(value) = get_trimmed_field(row, key).filter(|v| !v.is_empty()) {
+                details.insert(key.to_string(), value.to_string());
+            }
+        }
+    }
+}
+
+/// Feed summaries (PTH_008/009/025/029): each example pathway's ends and kind, so the card can
+/// name the examples instead of listing pathway codes. Only `details` keys are added.
+fn add_pathway_examples(
+    details: &mut std::collections::BTreeMap<String, String>,
+    examples: &[String],
+    records: &[PathwayRecord],
+) {
+    for (i, id) in examples.iter().enumerate() {
+        let Some(rec) = records.iter().find(|r| &r.pathway_id == id) else {
+            continue;
+        };
+        details.insert(
+            format!("example_{i}_from_stop_id"),
+            rec.from_stop_id.clone(),
+        );
+        details.insert(format!("example_{i}_to_stop_id"), rec.to_stop_id.clone());
+        if let Some(mode) = rec.pathway_mode {
+            details.insert(format!("example_{i}_pathway_mode"), mode.to_string());
+        }
+    }
+}
+
 pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::Notice>) {
     let mut notices = Vec::new();
     let mut records = Vec::new();
@@ -42,6 +88,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
 
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
+        let first_notice = notices.len();
         let row_map = build_row_map(&file.headers, row);
         let pathway_id = get_raw_field(&row_map, "pathway_id")
             .unwrap_or("")
@@ -369,6 +416,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             }
         }
 
+        add_pathway_row_context(&mut notices[first_notice..], &row_map);
         records.push(PathwayRecord {
             pathway_id,
             from_stop_id: from_stop_id.to_string(),
@@ -407,6 +455,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         d.insert("affected_pathways".to_string(), pth009_count.to_string());
         if !pth009_examples.is_empty() {
             d.insert("example_pathways".to_string(), pth009_examples.join(", "));
+            add_pathway_examples(&mut d, &pth009_examples, &records);
         }
         n.details = Some(d.into());
         notices.push(n);
@@ -432,6 +481,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         d.insert("affected_pathways".to_string(), pth008_count.to_string());
         if !pth008_examples.is_empty() {
             d.insert("example_pathways".to_string(), pth008_examples.join(", "));
+            add_pathway_examples(&mut d, &pth008_examples, &records);
         }
         n.details = Some(d.into());
         notices.push(n);
@@ -445,6 +495,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         d.insert("affected_pathways".to_string(), pth029_count.to_string());
         if !pth029_examples.is_empty() {
             d.insert("example_pathways".to_string(), pth029_examples.join(", "));
+            add_pathway_examples(&mut d, &pth029_examples, &records);
         }
         n.details = Some(d.into());
         notices.push(n);
@@ -468,6 +519,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         d.insert("affected_pathways".to_string(), pth025_count.to_string());
         if !pth025_examples.is_empty() {
             d.insert("example_pathways".to_string(), pth025_examples.join(", "));
+            add_pathway_examples(&mut d, &pth025_examples, &records);
         }
         n.details = Some(d.into());
         notices.push(n);
@@ -745,6 +797,20 @@ mod tests {
         assert_eq!(pth009.len(), 1, "PTH_009 feed-seviyesi tek notice olmalı");
         let n = pth009[0];
         assert_eq!(n.entity_type, EntityType::Feed);
+        // Planner context: each example's ends and kind (details only).
+        let d = n.details.as_ref().expect("PTH_009 details");
+        assert_eq!(
+            d.get("example_0_from_stop_id").map(String::as_str),
+            Some("S1")
+        );
+        assert_eq!(
+            d.get("example_0_to_stop_id").map(String::as_str),
+            Some("S2")
+        );
+        assert_eq!(
+            d.get("example_0_pathway_mode").map(String::as_str),
+            Some("1")
+        );
         assert_eq!(n.field.as_deref(), Some("max_slope"));
         assert_eq!(
             n.details
