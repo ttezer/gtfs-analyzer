@@ -11991,10 +11991,7 @@ fn segments_cross(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64)) ->
     let d2 = cross(c, d, b);
     let d3 = cross(a, b, c);
     let d4 = cross(a, b, d);
-    if d1 * d2 < 0.0 && d3 * d4 < 0.0 {
-        return true;
-    }
-    false
+    d1 * d2 < 0.0 && d3 * d4 < 0.0
 }
 
 /// Packed YYYYMMDD → Julian Day Number. The formula is in `k5_derived::ymd_to_jdn`;

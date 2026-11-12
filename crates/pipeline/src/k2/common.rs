@@ -392,11 +392,7 @@ pub fn looks_like_url(value: &str) -> bool {
     // would also risk IDNs, and `url_strict_ok`'s `is_ascii()` gate was removed for exactly that
     // reason in #144. This check is anchored to one certain pattern; neighboring cases such as
     // underscored hosts, `localhost`, and numeric hosts are DELIBERATELY excluded (#162).
-    if matches!(parsed.host_str(), Some(h) if h.eq_ignore_ascii_case("http") || h.eq_ignore_ascii_case("https"))
-    {
-        return false;
-    }
-    true
+    !matches!(parsed.host_str(), Some(h) if h.eq_ignore_ascii_case("http") || h.eq_ignore_ascii_case("https"))
 }
 
 /// LEXICAL half of the GTFS `URL` type — **STRICT**, by the spec's own measure (issue #80).
