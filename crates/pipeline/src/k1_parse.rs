@@ -216,6 +216,27 @@ const MAX_PREALLOC: usize = 64 * 1024 * 1024; // 64 MiB
 const MAX_ZIP_ENTRIES: usize = 100_000;
 const MAX_ZIP_METADATA_BYTES: usize = 16 * 1024 * 1024;
 const MAX_GEOJSON_BYTES: u64 = 64 * 1024 * 1024;
+/// LOC_011 topology checks compare vertex/segment pairs (O(n²) per polygon). The 64 MiB
+/// byte cap still allows ~2M vertices, so the pair work is budgeted per file: a polygon
+/// whose n² no longer fits is not topology-checked (security review 11-12, #2).
+/// 250M pairs ≈ a few seconds worst case; one polygon up to ~15.8k vertices fits alone.
+pub(crate) const LOC011_PAIR_BUDGET: u64 = 250_000_000;
+
+/// File-level LOC_011 work budget; `skipped` records that at least one polygon was
+/// NOT topology-checked so the run is reported as PARTIAL (`K1::LOC_011`).
+pub(crate) struct TopologyBudget {
+    pub(crate) remaining: u64,
+    pub(crate) skipped: bool,
+}
+
+impl TopologyBudget {
+    pub(crate) fn new() -> Self {
+        Self {
+            remaining: LOC011_PAIR_BUDGET,
+            skipped: false,
+        }
+    }
+}
 
 /// Initial capacity for a K1 raw-file buffer: cap the declared size at [`MAX_PREALLOC`] and
 /// return at least 1 (a zero-capacity allocation is pointless).
@@ -618,6 +639,27 @@ fn tokenize_csv(
     text: &str,
     max_data_rows: Option<usize>,
 ) -> Result<(Vec<Vec<SmolStr>>, bool, Rfc4180Acc), String> {
+    let mut unlimited = usize::MAX;
+    let mut exceeded = false;
+    tokenize_csv_budgeted(text, max_data_rows, &mut unlimited, &mut exceeded)
+}
+
+/// Archive-wide cap on CSV cells K1 materialises for buffered (non-stream) files.
+/// A cell costs ≥24 B (`SmolStr`) even when empty, so a body of bare commas expands
+/// ~24× in memory; this bounds that amplification (security review 11-12, #3).
+/// 150M cells ≈ 3.6 GiB of `SmolStr` — far above real buffered files (the large
+/// tables stop_times/shapes/trips/calendar_dates are streamed and not counted).
+pub(crate) const K1_MAX_BUFFERED_CELLS: usize = 150_000_000;
+
+/// `tokenize_csv` with a shared cell budget. When the budget runs out, tokenizing
+/// stops immediately (also inside one very wide row) and `*exceeded` is set; the
+/// caller must then discard the file instead of validating a truncated copy.
+fn tokenize_csv_budgeted(
+    text: &str,
+    max_data_rows: Option<usize>,
+    cell_budget: &mut usize,
+    exceeded: &mut bool,
+) -> Result<(Vec<Vec<SmolStr>>, bool, Rfc4180Acc), String> {
     let bytes = text.as_bytes();
     let n = bytes.len();
     let cap = max_data_rows
@@ -720,6 +762,10 @@ fn tokenize_csv(
             match bytes[pos] {
                 b',' => {
                     pos += 1;
+                    if record.len() >= *cell_budget {
+                        *exceeded = true;
+                        break;
+                    }
                     if pos >= n {
                         // Trailing comma with no newline: push an empty field.
                         record.push(SmolStr::new(""));
@@ -742,7 +788,13 @@ fn tokenize_csv(
             }
         }
 
+        if *exceeded || record.len() > *cell_budget {
+            *exceeded = true;
+            *cell_budget = 0;
+            break;
+        }
         if !(record.is_empty() || record.len() == 1 && record[0].is_empty()) {
+            *cell_budget -= record.len();
             col_hint = record.len();
             records.push(record);
             if let Some(max) = max_data_rows {
@@ -2265,6 +2317,7 @@ pub fn parse_with_limits(
 
     // #46: zip-bomb protection — total bytes decompressed across all entries (the whole traversal).
     let mut total_decompressed: u64 = 0;
+    let mut cell_budget: usize = K1_MAX_BUFFERED_CELLS;
     for i in 0..archive.len() {
         k1dbg!("[K1] by_index({i})...");
         let mut zf = archive.by_index(i).map_err(|e| {
@@ -2358,6 +2411,7 @@ pub fn parse_with_limits(
                 &mut total_decompressed,
                 compressed_size,
             );
+            let mut loc011_topology_skipped = false;
             match guarded.read_to_end(&mut buf) {
                 Ok(_) => {
                     has_valid_locations_geojson = validate_locations_geojson(
@@ -2368,7 +2422,11 @@ pub fn parse_with_limits(
                         &mut geojson_location_ids,
                         &mut valid_geojson_location_ids,
                         &mut geojson_geometries,
+                        &mut loc011_topology_skipped,
                     );
+                    if loc011_topology_skipped {
+                        partial.skip_check("K1::LOC_011");
+                    }
                     if !has_valid_locations_geojson {
                         partial.mark_unavailable(raw_name.clone());
                     }
@@ -2712,10 +2770,23 @@ pub fn parse_with_limits(
         // notices). `max_file_rows` is only the ARC_022 threshold; `buffered_entry_limit` remains
         // the byte limit.
         let _t = crate::timing::Timer::start(format!("K1::tokenize::{raw_name}"));
-        let (mut records, _, rfc4180) = match tokenize_csv(
+        let mut cells_exceeded = false;
+        let (mut records, _, rfc4180) = match tokenize_csv_budgeted(
             text,
             if stream_mode { Some(0) } else { None },
+            &mut cell_budget,
+            &mut cells_exceeded,
         ) {
+            Ok(_) if cells_exceeded => {
+                // Not validated at all: a truncated copy would invent dangling-reference
+                // findings (#185 lesson). The file is unavailable and the run PARTIAL.
+                partial.mark_root_error(format!(
+                    "'{raw_name}' exceeds the CSV cell budget ({K1_MAX_BUFFERED_CELLS} cells); \
+                     the file was not validated"
+                ));
+                partial.mark_unavailable(raw_name.clone());
+                continue;
+            }
             Ok(r) => r,
             Err(msg) => {
                 // ARC_013.
@@ -3347,6 +3418,7 @@ pub fn parse_with_limits(
 
 // ── locations.geojson validation ─────────────────────────────────────────────
 
+#[allow(clippy::too_many_arguments)]
 fn validate_locations_geojson(
     bytes: &[u8],
     fname: &str,
@@ -3355,6 +3427,33 @@ fn validate_locations_geojson(
     geojson_ids: &mut std::collections::HashSet<String>,
     valid_geojson_ids: &mut std::collections::HashSet<String>,
     geoms: &mut std::collections::HashMap<String, LocationGeometry>,
+    topology_skipped: &mut bool,
+) -> bool {
+    let mut topology_budget = TopologyBudget::new();
+    let valid = validate_locations_geojson_inner(
+        bytes,
+        fname,
+        notices,
+        counter,
+        geojson_ids,
+        valid_geojson_ids,
+        geoms,
+        &mut topology_budget,
+    );
+    *topology_skipped = topology_budget.skipped;
+    valid
+}
+
+#[allow(clippy::too_many_arguments)]
+fn validate_locations_geojson_inner(
+    bytes: &[u8],
+    fname: &str,
+    notices: &mut Vec<Notice>,
+    counter: &mut u32,
+    geojson_ids: &mut std::collections::HashSet<String>,
+    valid_geojson_ids: &mut std::collections::HashSet<String>,
+    geoms: &mut std::collections::HashMap<String, LocationGeometry>,
+    topology_budget: &mut TopologyBudget,
 ) -> bool {
     let text = match std::str::from_utf8(bytes) {
         Ok(s) => s,
@@ -3572,6 +3671,7 @@ fn validate_locations_geojson(
                         rings,
                         notices,
                         Some(&mut geom),
+                        topology_budget,
                     ),
                     None => {
                         missing_coordinates(counter, fname, feat_num, notices);
@@ -3595,6 +3695,7 @@ fn validate_locations_geojson(
                                 rings,
                                 notices,
                                 Some(&mut geom),
+                                topology_budget,
                             );
                         } else {
                             valid = false;
@@ -3670,6 +3771,7 @@ fn check_polygon_rings(
     // Pa1fdaa0d: move the outer ring to K6. With `None`, do not collect geometry
     // (validation only) — for tests and legacy call paths.
     collect: Option<&mut LocationGeometry>,
+    topology_budget: &mut TopologyBudget,
 ) -> bool {
     let mut all_lats = Vec::new();
     let mut all_lons = Vec::new();
@@ -3736,7 +3838,15 @@ fn check_polygon_rings(
 
     // LOC_011: OpenGIS 6.1.11 — rings must be SIMPLE and holes must remain INSIDE the outer ring.
     // LOC_004 checks closure only; these are the actual 6.1.11 requirements.
-    if let Some(outer) = all_rings.first() {
+    let vertex_count: u64 = all_rings.iter().map(|r| r.len() as u64).sum();
+    let topology_cost = vertex_count.saturating_mul(vertex_count);
+    let topology_affordable = topology_cost <= topology_budget.remaining;
+    if topology_affordable {
+        topology_budget.remaining -= topology_cost;
+    } else {
+        topology_budget.skipped = true;
+    }
+    if let Some(outer) = all_rings.first().filter(|_| topology_affordable) {
         // ── OpenGIS SFS 6.1.11 polygon-validity requirements ────────────────────
         // (1) rings are simple · (3) no two rings CROSS (they may touch at one point)
         // (4) no cut lines/spikes/punctures · (5) connected interior · holes INSIDE the shell.
@@ -4250,6 +4360,75 @@ fn signed_ring_area_km2(pts: &[(f64, f64)]) -> f64 {
 
 #[cfg(test)]
 mod tests {
+    /// Security review 11-12 #3: the cell budget stops inside one huge row of bare
+    /// commas and across files, and is never silently a truncated success.
+    #[test]
+    fn tokenizer_cell_budget_stops_amplification() {
+        // The row ends in an unclosed quote: reaching it would return Err. Ok(..) proves
+        // tokenizing stopped INSIDE the row, before the row could grow without bound.
+        let wide = format!("{}\"unclosed", ",".repeat(1_000));
+        let mut budget = 100usize;
+        let mut exceeded = false;
+        let (records, _, _) = tokenize_csv_budgeted(&wide, None, &mut budget, &mut exceeded)
+            .expect("must stop inside the row before the unclosed quote");
+        assert!(exceeded && records.is_empty() && budget == 0);
+
+        let mut budget = 10usize;
+        let mut exceeded = false;
+        let (records, _, _) =
+            tokenize_csv_budgeted("a,b\n1,2\n", None, &mut budget, &mut exceeded).unwrap();
+        assert!(!exceeded);
+        assert_eq!((records.len(), budget), (2, 6));
+        let (_, _, _) =
+            tokenize_csv_budgeted("a,b,c,d\n1,2,3,4\n", None, &mut budget, &mut exceeded).unwrap();
+        assert!(exceeded, "budget is shared across files");
+    }
+
+    /// Security review 11-12 #2: a polygon too large for the LOC_011 pair budget must be
+    /// skipped without consuming budget, while a small bow-tie is still reported.
+    #[test]
+    fn loc011_topology_respects_pair_budget() {
+        fn ring(points: &[(f64, f64)]) -> serde_json::Value {
+            let coords: Vec<serde_json::Value> = points
+                .iter()
+                .map(|&(x, y)| serde_json::json!([x, y]))
+                .collect();
+            serde_json::json!([coords])
+        }
+        // Zig-zag self-crossing ring: 20k vertices → 4e8 pairs > budget.
+        let n = 20_000usize;
+        let mut big: Vec<(f64, f64)> = (0..n)
+            .map(|i| (i as f64 * 1e-5, if i % 2 == 0 { 0.0 } else { 1e-3 }))
+            .collect();
+        big.push((n as f64 * 1e-5, -1e-3));
+        big.push((0.0, 1e-3));
+        big.push(big[0]);
+        let bowtie = [(0.0, 0.0), (1e-3, 1e-3), (1e-3, 0.0), (0.0, 1e-3), (0.0, 0.0)];
+        let mut budget = TopologyBudget::new();
+        let mut notices = Vec::new();
+        let mut counter = 0u32;
+        let big_rings = ring(&big);
+        let big_rings = big_rings.as_array().unwrap();
+        check_polygon_rings(
+            &mut counter, "locations.geojson", 1, big_rings, &mut notices, None, &mut budget,
+        );
+        assert_eq!(
+            budget.remaining, LOC011_PAIR_BUDGET,
+            "unaffordable polygon must not consume budget"
+        );
+        assert!(budget.skipped, "skip must be recorded for PARTIAL");
+        assert!(!notices.iter().any(|n| n.rule_id == "LOC_011"));
+        let small = ring(&bowtie);
+        let small = small.as_array().unwrap();
+        check_polygon_rings(
+            &mut counter, "locations.geojson", 2, small, &mut notices, None, &mut budget,
+        );
+        assert!(
+            notices.iter().any(|n| n.rule_id == "LOC_011"),
+            "small bow-tie must still be checked"
+        );
+    }
+
     use super::*;
     // After Notice creation moved to notice_factory, get_rule is used only here
     // (all_notices_have_valid_rule_ids).

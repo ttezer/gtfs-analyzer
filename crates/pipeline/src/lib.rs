@@ -54,6 +54,18 @@ pub use gtfs_core::{
 /// `stop_times.txt` bodies are read as a stream in K2, it cannot know whether these regions are
 /// actually used. After K2 completes, the exemption is applied only when a `stop_times.location_id`
 /// points to a valid feature ID.
+/// A streamed file whose body K2 could not read to the end (decompression guard,
+/// byte budget or corrupt deflate) makes the run PARTIAL: its later rows were never
+/// validated, so reporting the feed as COMPLETE would overstate coverage.
+pub fn mark_incomplete_streams(partial: &mut gtfs_core::PartialReport, files: &[String]) {
+    for file in files {
+        partial.mark_root_error(format!(
+            "'{file}' could not be read to the end (decompression limit or read error); \
+             later rows were not validated"
+        ));
+    }
+}
+
 pub fn reconcile_flex_stop_requirement(
     k1_notices: &mut Vec<gtfs_core::Notice>,
     k2_notices: &mut Vec<gtfs_core::Notice>,
@@ -2213,6 +2225,7 @@ fn validate_bytes_inspected_with_name_index(
         // #15 W2 + #38: ZIP bytes K2'ye → stop_times stream
     };
     crate::timing::mem_log("after K2-validate");
+    mark_incomplete_streams(&mut partial, &k2.incomplete_streams);
     reconcile_flex_stop_requirement(
         &mut k1.notices,
         &mut k2.notices,

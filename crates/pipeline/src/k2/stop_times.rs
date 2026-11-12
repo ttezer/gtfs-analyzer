@@ -19,13 +19,48 @@ pub(crate) const K2_MAX_STREAM_BYTES: usize = 512 * 1024 * 1024;
 #[cfg(feature = "parallel")]
 const PARALLEL_BODY_STREAM_THRESHOLD: u64 = 512 * 1024 * 1024;
 
-/// SDK builds pass `max_data_rows`; native callers keep the historical large-feed
-/// path and therefore do not receive the SDK's per-entry byte cap.
+/// Native per-entry and archive-total budgets for K2's second ZIP pass. They mirror
+/// K1's `DEFAULT_DECOMPRESSION_LIMITS` so a stream entry cannot escape the
+/// decompression contract just because K1 only probed its first bytes.
+pub(crate) const K2_NATIVE_MAX_ENTRY_BYTES: usize = saturating_usize(
+    crate::decompress_guard::DEFAULT_DECOMPRESSION_LIMITS.max_entry_decompressed,
+);
+pub(crate) const K2_NATIVE_MAX_TOTAL_BYTES: usize = saturating_usize(
+    crate::decompress_guard::DEFAULT_DECOMPRESSION_LIMITS.max_total_decompressed,
+);
+
+/// `as usize` would wrap 12/16 GiB to 0 on wasm32; saturate instead.
+const fn saturating_usize(v: u64) -> usize {
+    if v > usize::MAX as u64 {
+        usize::MAX
+    } else {
+        v as usize
+    }
+}
+
+/// Wraps a reopened ZIP entry in the same ratio/size guard K1 uses. K1 only probes
+/// the first ~16 MiB of a streamed entry, so without this a payload that turns
+/// highly compressible after the probe escaped the ratio check.
+pub(crate) fn guard_entry<'a, R: Read>(
+    entry: R,
+    compressed_size: u64,
+    total: &'a mut u64,
+) -> crate::decompress_guard::GuardedReader<'a, R> {
+    crate::decompress_guard::GuardedReader::new(
+        entry,
+        crate::decompress_guard::DEFAULT_DECOMPRESSION_LIMITS,
+        total,
+        compressed_size,
+    )
+}
+
+/// SDK builds pass `max_data_rows` and get the small SDK cap; native callers get
+/// the large-feed cap (never unbounded).
 pub(crate) fn stream_byte_limit(max_data_rows: Option<usize>) -> usize {
     if max_data_rows.is_some() {
         K2_MAX_STREAM_BYTES
     } else {
-        usize::MAX
+        K2_NATIVE_MAX_ENTRY_BYTES
     }
 }
 
@@ -34,14 +69,34 @@ pub(crate) fn stream_byte_limit(max_data_rows: Option<usize>) -> usize {
 /// entries from each consuming the full allowance in one validation run.
 pub struct StreamBudget {
     remaining: usize,
+    per_entry: usize,
+    /// Streamed files whose body was NOT read to the end (byte budget, decompression
+    /// guard or read error). lib.rs turns these into a PARTIAL root error so a cut
+    /// stream is never reported as a complete validation.
+    incomplete: Vec<String>,
 }
 
 impl StreamBudget {
     pub(crate) fn new(bytes: usize) -> Self {
-        Self { remaining: bytes }
+        Self::with_entry_limit(bytes, bytes)
+    }
+    pub(crate) fn with_entry_limit(total: usize, per_entry: usize) -> Self {
+        Self {
+            remaining: total,
+            per_entry,
+            incomplete: Vec::new(),
+        }
+    }
+    pub(crate) fn mark_incomplete(&mut self, file: &str) {
+        if !self.incomplete.iter().any(|f| f == file) {
+            self.incomplete.push(file.to_string());
+        }
+    }
+    pub(crate) fn into_incomplete(self) -> Vec<String> {
+        self.incomplete
     }
     pub(crate) fn limit(&self) -> usize {
-        self.remaining
+        self.remaining.min(self.per_entry)
     }
     pub(crate) fn consume(&mut self, bytes: usize) {
         self.remaining = self.remaining.saturating_sub(bytes);
@@ -1456,6 +1511,9 @@ pub(crate) struct ZipCsvReader<R: Read> {
     max_data_rows: Option<usize>,
     records_seen: usize,
     truncated: bool,
+    /// Body ended early because of the BYTE budget or a read/decompression error
+    /// (not the SDK row budget, which ARC_022 already reports).
+    incomplete: bool,
 }
 
 impl<R: Read> ZipCsvReader<R> {
@@ -1473,6 +1531,7 @@ impl<R: Read> ZipCsvReader<R> {
             max_data_rows: None,
             records_seen: 0,
             truncated: false,
+            incomplete: false,
         }
     }
 
@@ -1488,6 +1547,9 @@ impl<R: Read> ZipCsvReader<R> {
     pub(crate) fn truncated(&self) -> bool {
         self.truncated
     }
+    pub(crate) fn incomplete(&self) -> bool {
+        self.incomplete
+    }
     pub(crate) fn bytes_read(&self) -> usize {
         self.bytes_read
     }
@@ -1502,6 +1564,7 @@ impl<R: Read> ZipCsvReader<R> {
             let read_buf: &mut [u8] = if let Some(max) = self.max_bytes {
                 if self.bytes_read >= max {
                     self.truncated = true;
+                    self.incomplete = true;
                     return None;
                 }
                 let remaining = max - self.bytes_read;
@@ -1511,7 +1574,14 @@ impl<R: Read> ZipCsvReader<R> {
                 &mut self.buf
             };
             match self.inner.read(read_buf) {
-                Ok(0) | Err(_) => return None,
+                Ok(0) => return None,
+                Err(_) => {
+                    // Decompression guard trip or corrupt deflate: previously this looked
+                    // exactly like EOF and the rest of the file was silently skipped.
+                    self.truncated = true;
+                    self.incomplete = true;
+                    return None;
+                }
                 Ok(n) => {
                     self.bytes_read = self.bytes_read.saturating_add(n);
                     self.filled = n;
@@ -3538,6 +3608,11 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                     }
                                 }
                                 if let Some(budget) = stream_budget.as_mut() {
+                                    // `eof` stays false when the guard tripped or the deflate
+                                    // stream failed: the loop ended without reaching the end.
+                                    if !eof {
+                                        budget.mark_incomplete(&file.name);
+                                    }
                                     budget.consume(total_decompressed as usize);
                                 }
                             } else {
@@ -3617,6 +3692,10 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                     for c in it {
                                         st.merge(c);
                                     }
+                                } else if let Some(budget) = stream_budget.as_mut() {
+                                    // Guard trip / corrupt body: previously the whole file was
+                                    // silently treated as empty.
+                                    budget.mark_incomplete(&file.name);
                                 }
                                 if let Some(budget) = stream_budget.as_mut() {
                                     budget.consume(total_decompressed as usize);
@@ -3629,8 +3708,13 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                 .as_ref()
                                 .map(|budget| budget.limit())
                                 .unwrap_or(stream_byte_limit(max_data_rows));
-                            let mut csv_reader =
-                                ZipCsvReader::with_limits(entry, stream_limit, max_data_rows);
+                            let compressed_size = entry.compressed_size();
+                            let mut guard_total = 0u64;
+                            let mut csv_reader = ZipCsvReader::with_limits(
+                                guard_entry(entry, compressed_size, &mut guard_total),
+                                stream_limit,
+                                max_data_rows,
+                            );
                             let mut raw_fields: Vec<Vec<u8>> = Vec::with_capacity(header_count + 1);
                             let mut zip_line: u64 = 2;
                             let mut header_skipped = false;
@@ -3664,6 +3748,9 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             }
                             drop(_t_stream);
                             if let Some(budget) = stream_budget.as_mut() {
+                                if csv_reader.incomplete() {
+                                    budget.mark_incomplete(&file.name);
+                                }
                                 budget.consume(csv_reader.bytes_read());
                             }
                             stream_truncated |= csv_reader.truncated();
@@ -4576,6 +4663,49 @@ fn parse_pickup_dropoff_col(
 
 #[cfg(test)]
 mod tests {
+    /// Security review 11-12 #1: native K2 reopen is never unbounded; the shared budget
+    /// caps each entry and the archive total, and does not wrap to 0 on 32-bit targets.
+    /// A read error mid-body (decompression guard trip, corrupt deflate) used to look
+    /// exactly like EOF. It must now be visible as `incomplete`.
+    #[test]
+    fn zip_csv_reader_read_error_is_incomplete_not_eof() {
+        struct FailAfter(Vec<u8>, bool);
+        impl Read for FailAfter {
+            fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+                if self.1 {
+                    return Err(std::io::Error::other("guard tripped"));
+                }
+                self.1 = true;
+                let n = self.0.len().min(buf.len());
+                buf[..n].copy_from_slice(&self.0[..n]);
+                Ok(n)
+            }
+        }
+        let mut reader = ZipCsvReader::with_limits(
+            FailAfter(b"a,b\n1,2\n".to_vec(), false),
+            usize::MAX,
+            None,
+        );
+        let mut fields = Vec::new();
+        while reader.next_record(&mut fields) {}
+        assert!(reader.incomplete());
+        let mut clean = ZipCsvReader::with_limits(Cursor::new(b"a,b\n1,2\n"), usize::MAX, None);
+        while clean.next_record(&mut fields) {}
+        assert!(!clean.incomplete(), "a normal EOF is complete");
+    }
+
+    #[test]
+    fn native_stream_budget_is_bounded() {
+        assert_ne!(stream_byte_limit(None), usize::MAX);
+        assert!(K2_NATIVE_MAX_ENTRY_BYTES > 0 && K2_NATIVE_MAX_TOTAL_BYTES > 0);
+        let mut budget = StreamBudget::with_entry_limit(100, 60);
+        assert_eq!(budget.limit(), 60);
+        budget.consume(60);
+        assert_eq!(budget.limit(), 40);
+        budget.consume(60);
+        assert_eq!(budget.limit(), 0);
+    }
+
     use super::*;
     use crate::k1_parse::RawFile;
 

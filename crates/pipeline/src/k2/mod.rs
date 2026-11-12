@@ -215,6 +215,9 @@ pub struct K2Result {
     pub records: EntityRecords,
     pub notices: Vec<Notice>,
     pub whitespace_suppressions: WhitespaceSuppressions,
+    /// Streamed files not read to the end (byte budget, decompression guard, read
+    /// error). Callers must surface these as PARTIAL coverage.
+    pub incomplete_streams: Vec<String>,
 }
 
 /// STREAMED files above the threshold — the decision source for ARC_022 (issue #75).
@@ -303,7 +306,15 @@ pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
         .iter()
         .map(|(name, file)| (name.clone(), file.headers.clone()))
         .collect();
-    let mut stream_budget = max_stream_rows.map(|_| StreamBudget::new(K2_MAX_STREAM_BYTES));
+    // Every K2 reopen shares one budget: SDK = 512 MiB, native = K1's 12 GiB entry /
+    // 16 GiB total contract. Native was unbounded before (security review 11-12, #1).
+    let mut stream_budget = Some(match max_stream_rows {
+        Some(_) => StreamBudget::new(K2_MAX_STREAM_BYTES),
+        None => StreamBudget::with_entry_limit(
+            stop_times::K2_NATIVE_MAX_TOTAL_BYTES,
+            stop_times::K2_NATIVE_MAX_ENTRY_BYTES,
+        ),
+    });
     mem_log("K2-start (=after-K1, K1 raw alive)");
     let raw_text_len: usize = files
         .values()
@@ -735,6 +746,9 @@ pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
         records,
         notices,
         whitespace_suppressions,
+        incomplete_streams: stream_budget
+            .map(StreamBudget::into_incomplete)
+            .unwrap_or_default(),
     }
 }
 

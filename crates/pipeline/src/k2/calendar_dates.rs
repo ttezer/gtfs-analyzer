@@ -449,8 +449,13 @@ pub fn validate_calendar_dates_with_limits(
                             .as_ref()
                             .map(|budget| budget.limit())
                             .unwrap_or(super::stop_times::stream_byte_limit(max_data_rows));
-                        let mut csv_reader =
-                            ZipCsvReader::with_limits(entry, stream_limit, max_data_rows);
+                        let compressed_size = entry.compressed_size();
+                        let mut guard_total = 0u64;
+                        let mut csv_reader = ZipCsvReader::with_limits(
+                            super::stop_times::guard_entry(entry, compressed_size, &mut guard_total),
+                            stream_limit,
+                            max_data_rows,
+                        );
                         let mut raw_fields: Vec<Vec<u8>> = Vec::with_capacity(4);
                         let mut zip_line: u64 = 2;
                         let mut header_skipped = false;
@@ -480,6 +485,9 @@ pub fn validate_calendar_dates_with_limits(
                         }
                         let bytes_read = csv_reader.bytes_read();
                         if let Some(budget) = stream_budget.as_mut() {
+                            if csv_reader.incomplete() {
+                                budget.mark_incomplete(&file.name);
+                            }
                             budget.consume(bytes_read);
                         }
                         if csv_reader.truncated() {
