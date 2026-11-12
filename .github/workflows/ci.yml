@@ -598,6 +598,11 @@ jobs:
     name: Security Audit
     runs-on: ubuntu-latest
     timeout-minutes: 10   # normal: Security ~32sn
+    # An advisory DB that cannot be reached keeps CI green (a network outage is not a
+    # finding), but it is not a PASS either: deploy only runs when BOTH scans really ran
+    # (security review 11-12, #11 — unknown audit state used to reach Pages).
+    outputs:
+      scanned: ${{ steps.cargo-audit.outputs.scanned == 'true' && steps.npm-audit.outputs.scanned == 'true' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -616,6 +621,7 @@ jobs:
       # turning the job red (network unavailability is not evidence of a vulnerability;
       # retry on the next push).
       - name: cargo audit (Rust dependencies — RustSec, network-resilient)
+        id: cargo-audit
         run: |
           set -uo pipefail
           for attempt in 1 2 3; do
@@ -638,6 +644,7 @@ jobs:
                 exit 1
               fi
               echo "cargo audit temiz (deneme $attempt)."
+              echo "scanned=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
             echo "::notice::cargo audit advisory veritabanına ulaşamadı (deneme $attempt/3):"
@@ -646,6 +653,7 @@ jobs:
           done
           echo "::warning::cargo audit 3 denemede de advisory veritabanına ulaşamadı — AĞ HATASI, zafiyet kanıtı DEĞİL. Tarama yapılamadı, adım atlandı."
           echo "⚠️ **cargo audit koşamadı**: advisory veritabanına 3 denemede de ulaşılamadı (ağ). Rust bağımlılıkları bu koşuda TARANMADI." >> "$GITHUB_STEP_SUMMARY"
+          echo "⛔ Bu koşuda Pages deploy'u YAPILMAZ; bir sonraki push (veya yeniden çalıştırma) taramayı tekrarlar." >> "$GITHUB_STEP_SUMMARY"
 
       - uses: ./.github/actions/setup-node-deps
         with:
@@ -660,6 +668,7 @@ jobs:
       # If it produces `.error`, the registry was unreachable → retry up to three times; then
       # warn without turning the job red. This removes the need for a rerun just for network.
       - name: npm audit (production dependencies — blocking, network-resilient)
+        id: npm-audit
         working-directory: ui
         run: |
           set -uo pipefail
@@ -675,6 +684,7 @@ jobs:
                 exit 1
               fi
               echo "npm audit (üretim) temiz (deneme $attempt)."
+              echo "scanned=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
             echo "::notice::npm audit registry advisory endpoint'ine ulaşamadı (deneme $attempt/3):"
@@ -684,6 +694,7 @@ jobs:
           done
           echo "::warning::npm audit 3 denemede de registry advisory endpoint'ine ulaşamadı — AĞ HATASI, zafiyet kanıtı DEĞİL. Tarama yapılamadı, adım atlandı."
           echo "⚠️ **npm audit (üretim) koşamadı**: registry advisory endpoint'ine 3 denemede de ulaşılamadı (ağ). Üretim bağımlılıkları bu koşuda TARANMADI." >> "$GITHUB_STEP_SUMMARY"
+          echo "⛔ Bu koşuda Pages deploy'u YAPILMAZ; bir sonraki push (veya yeniden çalıştırma) taramayı tekrarlar." >> "$GITHUB_STEP_SUMMARY"
 
       # Dev/build toolchain findings → NON-BLOCKING. They affect only local dev/build
       # (Vitest/esbuild/vite dev-server); the deployed static artifact is unaffected.
@@ -795,7 +806,10 @@ jobs:
   deploy:
     name: Deploy
     needs: [rust-test, ts-test, sdk-test, sdk-wasm64-test, build-wasm, e2e, security-audit, python-package]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # `scanned` is 'false' when an advisory DB was unreachable: no deploy without a scan.
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/main'
+      && needs.security-audit.outputs.scanned == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10   # normal: Deploy ~11sn
     permissions:
