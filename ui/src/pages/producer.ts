@@ -364,6 +364,45 @@ function jpRecordText(n: Notice, result: ValidationResult): string | null {
   }
 }
 
+/** Station pathway cards: the pathway by its kind, two ends and station (shared engine step). */
+function pthMode(mode?: string): string {
+  return mode && /^[1-7]$/.test(mode) ? t(`producer.pathway_mode.${mode}`) : t('producer.pathway_mode.unknown');
+}
+function pthPathway(n: Notice, result: ValidationResult): string | null {
+  const d = n.details ?? {};
+  if (!d.from_stop_id && !d.to_stop_id) return null;
+  const name = (id?: string) => id ? result.name_index.stops?.[id] || id : '—';
+  const args = { mode: pthMode(d.pathway_mode), from: name(d.from_stop_id), to: name(d.to_stop_id), station: name(d.station_id) };
+  return t(d.station_id ? 'producer.card.PTH.pathway_station' : 'producer.card.PTH.pathway', args);
+}
+function pthText(n: Notice, result: ValidationResult): string | null {
+  const d = n.details ?? {};
+  const pathway = pthPathway(n, result);
+  if (!pathway) return null;
+  switch (n.rule_id) {
+    case 'PTH_002':
+    case 'PTH_003':
+      return `${t(`producer.card.${n.rule_id}.what_detail`, { code: n.observed_value ?? '—' })} ${pathway}`;
+    case 'PTH_007': {
+      const rows = Number(d.affected_rows);
+      return [t('producer.card.PTH_007.what_detail', { value: d.traversal_time ?? '—' }), rows > 1 ? t('producer.card.PTH_007.rows', { rows: localizedNumber(String(rows)) }) : '', pathway].filter(Boolean).join(' ');
+    }
+    case 'PTH_015': {
+      const length = Number(d.length);
+      const seconds = Number(d.traversal_time);
+      if (!(length > 0 && seconds > 0)) return null;
+      return `${t('producer.card.PTH_015.what_detail', {
+        length: metersText(d.length), seconds: localizedNumber(d.traversal_time ?? ''),
+        speed: (length / seconds).toLocaleString(getLocale(), { maximumFractionDigits: 1 }),
+        needed: localizedNumber(String(Math.ceil(length / 3))),
+      })} ${pathway}`;
+    }
+    default:
+      // The rule's own sentence, then which pathway it is.
+      return `${t(`producer.card.${n.rule_id}.what`)} ${pathway}`;
+  }
+}
+
 /** Frequency cards: the trip, its period and headway as written on the frequency row. */
 function frqText(n: Notice, result: ValidationResult): string | null {
   const d = n.details ?? {};
@@ -2160,6 +2199,13 @@ function calRuleText(n: Notice, result: ValidationResult): string | null {
 function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCopy | null {
   const n = g.notices[0];
   switch (g.ruleId) {
+    case 'PTH_001': case 'PTH_002': case 'PTH_003': case 'PTH_004': case 'PTH_005': case 'PTH_006':
+    case 'PTH_007': case 'PTH_010': case 'PTH_011': case 'PTH_014': case 'PTH_015': case 'PTH_016':
+    case 'PTH_017': case 'PTH_018': case 'PTH_026': case 'PTH_027': case 'PTH_028': case 'PTH_030':
+    case 'PTH_031': {
+      const what = pthText(n, result);
+      return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
+    }
     case 'FRQ_001': case 'FRQ_002': case 'FRQ_003': case 'FRQ_004': case 'FRQ_005': case 'FRQ_006':
     case 'FRQ_008': case 'FRQ_009': case 'FRQ_010': case 'FRQ_011': case 'FRQ_012': {
       const what = frqText(n, result);
@@ -5814,6 +5860,21 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
           listLabel(n),
           dash(d.invalid_line),
           d.invalid_bytes ? `…${d.text_before ?? ''} ⟨${d.invalid_bytes}⟩` : '—',
+        ];
+      },
+    };
+  }
+  // Station pathways: station, kind, the two ends, length and time as written.
+  if (g.ruleId.startsWith('PTH_') && (first.details?.from_stop_id || first.details?.to_stop_id)) {
+    const name = (id?: string) => id ? ni.stops?.[id] || id : '—';
+    return {
+      head: [t('producer.col.station'), t('producer.col.pathway_mode'), t('producer.col.pathway_from'), t('producer.col.pathway_to'), t('producer.col.distance'), t('producer.col.pathway_time')],
+      row: n => {
+        const d = n.details ?? {};
+        return [
+          name(d.station_id), pthMode(d.pathway_mode), name(d.from_stop_id), name(d.to_stop_id),
+          d.length && Number.isFinite(Number(d.length)) ? metersText(d.length) : dash(d.length),
+          d.traversal_time && Number(d.traversal_time) > 0 ? durationText(Number(d.traversal_time)) : dash(d.traversal_time),
         ];
       },
     };

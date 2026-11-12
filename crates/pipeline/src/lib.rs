@@ -2518,6 +2518,84 @@ pub fn aggregate_feed_level_notices(
         let _t = crate::timing::Timer::start("aggregate::route_context");
         annotate_route_context(all, records);
     }
+    {
+        let _t = crate::timing::Timer::start("aggregate::pathway_context");
+        annotate_pathway_context(all, records);
+    }
+}
+
+/// Planner context for station pathway findings (`PTH_*` naming a pathway): its two ends, its
+/// station and the values written on the pathway row (mode, direction, length, time, stairs,
+/// slope, width). Runs after aggregation, so the PTH_007 summary gets it too. Keys already on a
+/// finding are kept. Shared native/WASM step; details only, counts are unchanged.
+fn annotate_pathway_context(all: &mut [gtfs_core::Notice], records: &EntityRecords) {
+    use crate::k2::common::get_trimmed_field;
+    use rustc_hash::FxHashMap;
+    if !all
+        .iter()
+        .any(|n| n.rule_id.starts_with("PTH_") && n.entity_id.is_some())
+    {
+        return;
+    }
+    let mut pathways: FxHashMap<&str, &crate::k2::pathways::PathwayRecord> = FxHashMap::default();
+    for rec in &records.pathways {
+        pathways.entry(rec.pathway_id.as_str()).or_insert(rec);
+    }
+    let stops: FxHashMap<&str, &crate::k2::stops::StopRecord> = records
+        .stops
+        .iter()
+        .map(|s| (s.stop_id.as_str(), s))
+        .collect();
+    let parent = |stop_id: &str| -> Option<String> {
+        let stop = stops.get(stop_id)?;
+        if stop.location_type == Some(1) {
+            return Some(stop.stop_id.clone());
+        }
+        get_trimmed_field(&stop.row, "parent_station")
+            .filter(|v| !v.is_empty())
+            .map(str::to_string)
+    };
+    let mut stations: FxHashMap<&str, Option<String>> = FxHashMap::default();
+    // Only findings whose code IS a pathway: PTH_019 (node) and PTH_012/013 (station) name a
+    // stop, which could share its code with an unrelated pathway.
+    let names_pathway = |n: &gtfs_core::Notice| {
+        n.rule_id.starts_with("PTH_")
+            && matches!(
+                n.entity_type,
+                gtfs_core::EntityType::Pathway | gtfs_core::EntityType::Row
+            )
+    };
+    for notice in all.iter_mut().filter(|n| names_pathway(n)) {
+        let Some(rec) = notice.entity_id.as_deref().and_then(|id| pathways.get(id)) else {
+            continue;
+        };
+        let station = stations
+            .entry(rec.from_stop_id.as_str())
+            .or_insert_with(|| parent(&rec.from_stop_id).or_else(|| parent(&rec.to_stop_id)))
+            .clone();
+        let details = notice.details.get_or_insert_with(Default::default);
+        let mut put = |key: &str, value: Option<&str>| {
+            if let Some(value) = value.filter(|v| !v.is_empty()) {
+                if !details.contains_key(key) {
+                    details.insert(key.to_string(), value.to_string());
+                }
+            }
+        };
+        put("from_stop_id", Some(rec.from_stop_id.as_str()));
+        put("to_stop_id", Some(rec.to_stop_id.as_str()));
+        put("station_id", station.as_deref());
+        for key in [
+            "pathway_mode",
+            "is_bidirectional",
+            "length",
+            "traversal_time",
+            "stair_count",
+            "max_slope",
+            "min_width",
+        ] {
+            put(key, get_trimmed_field(&rec.row, key));
+        }
+    }
 }
 
 /// Route findings whose planner card names the route's trips and draws an example trip.

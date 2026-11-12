@@ -5012,7 +5012,12 @@
         },
         {
           "details": {
-            "affected_rows": "1"
+            "affected_rows": "1",
+            "from_stop_id": "S1",
+            "is_bidirectional": "0",
+            "pathway_mode": "3",
+            "to_stop_id": "S2",
+            "traversal_time": "0"
           },
           "entity_id": "P1",
           "entity_type": "Pathway",

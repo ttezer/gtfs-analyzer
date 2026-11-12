@@ -3603,3 +3603,31 @@ describe('Sıklık kartları (FRQ)', () => {
     expect(render(frq('FRQ_002', { end_time: '22:00:00', headway_secs: '600' }))).toContain('Dönem: — – 22:00, 10 dk arayla.');
   });
 });
+
+describe('İstasyon içi yol kartları (PTH)', () => {
+  const ni: NameIndex = { ...emptyNameIndex, stops: { E1: 'Giriş A', P1: 'Peron 1', ST: 'Merkez' } };
+  const render = (n: Notice) => {
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [[n.rule_id, 1, 1]], true, ni));
+    return root.innerHTML;
+  };
+  const pth = (rule: string, details: Record<string, string>, extra: Partial<Notice> = {}) =>
+    notice('a', rule, 'MEDIUM', { entity_type: 'Pathway', entity_id: 'PW1', file: 'pathways.txt', details: { from_stop_id: 'E1', to_stop_id: 'P1', station_id: 'ST', ...details }, ...extra });
+
+  it('PTH_007 girilen süreyi, satır sayısını ve bağlantıyı söyler', () => {
+    const html = render(pth('PTH_007', { pathway_mode: '2', traversal_time: '0', affected_rows: '3' }, { observed_value: '3' }));
+    expect(html).toContain('Geçiş süresi „0“ girilmiş; sıfırdan büyük bir saniye olmalı. Bu bağlantının 3 satırında aynı sorun var.');
+    expect(html).toContain('Yürüme bağlantısı: Merdiven, Giriş A → Peron 1 (istasyon: Merkez).');
+    expect(html).toContain('<td>Merkez</td><td>Merdiven</td><td>Giriş A</td><td>Peron 1</td>');
+  });
+
+  it('PTH_015 hızı ve 3 m/s ile gereken süreyi söyler', () => {
+    expect(render(pth('PTH_015', { pathway_mode: '1', length: '120', traversal_time: '10' })))
+      .toContain('120 m uzunluk için 10 saniye girilmiş; bu, saniyede 12 metre demek. Saniyede 3 metre ile en az 40 saniye sürer.');
+  });
+
+  it('PTH_002 olmayan noktayı söyler; diğer kurallar kendi cümlesinden sonra bağlantıyı adlandırır', () => {
+    expect(render(pth('PTH_002', { pathway_mode: '5' }, { observed_value: 'X9' }))).toContain('Başlangıç noktası „X9“ durak listesinde yok. Yürüme bağlantısı: Asansör');
+    expect(render(pth('PTH_011', { pathway_mode: '9', to_stop_id: 'E1' }))).toContain('Yürüme bağlantısı: Türü belirsiz yürüme bağlantısı, Giriş A → Giriş A');
+  });
+});

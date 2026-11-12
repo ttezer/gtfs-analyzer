@@ -5865,6 +5865,18 @@ fn whitespace112_pathway_semantics_survive_when_trimmed_value_is_invalid() {
                 1,
                 "trim sonrası geçerli ama birlikte yasak pathway değerleri korunmalı"
             );
+            // Planner context (shared step, also on the PTH_007 summary): ends and row values.
+            let d = vr
+                .notices
+                .iter()
+                .find(|n| n.rule_id == "PTH_007")
+                .and_then(|n| n.details.as_ref())
+                .expect("PTH_007 details");
+            assert_eq!(d.get("from_stop_id").map(String::as_str), Some("S1"));
+            assert_eq!(d.get("to_stop_id").map(String::as_str), Some("S2"));
+            assert_eq!(d.get("traversal_time").map(String::as_str), Some("0"));
+            assert_eq!(d.get("pathway_mode").map(String::as_str), Some("3"));
+            assert!(d.contains_key("affected_rows"), "toplama anahtarı korunmalı");
         }
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
