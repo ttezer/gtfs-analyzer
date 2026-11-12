@@ -3473,3 +3473,52 @@ describe('GTFS-JP işletmeci, ofis ve desen kartları (JPN_002–032)', () => {
       .toContain('„P1“ sefer deseninin güncelleme tarihi („20261332“) geçerli bir tarih değil.');
   });
 });
+
+describe('GTFS-JP veri seti ve profil kartları (JPN_006–033)', () => {
+  const ni: NameIndex = { ...emptyNameIndex, routes: { R1: '都01', R2: '都02' }, stops: { S1: '渋谷' } };
+  const summary = { agencies: [{ agency_id: 'A1', agency_name: '都営バス' }] } as unknown as ValidationResult['feed_summary'];
+  const render = (n: Notice) => {
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [[n.rule_id, 1, 1]], true, ni, summary));
+    return root.innerHTML;
+  };
+  const jp = (rule: string, extra: Partial<Notice>) => notice('a', rule, 'HIGH', extra);
+
+  it('JPN_006 üç durumu ayırır', () => {
+    expect(render(jp('JPN_006', { entity_type: 'Feed', file: 'fare_rules.txt', details: { message_variant: 'missing_rules' } })))
+      .toContain('hangi ücretin hangi hatta ya da bölgede geçerli olduğu bağlanmamış');
+    expect(render(jp('JPN_006', { entity_type: 'Feed', file: 'fare_attributes.txt', details: { message_variant: 'missing_review' } })))
+      .toContain('elle kontrol edin');
+  });
+
+  it('JPN_022 alanı, listeyi ve kayıt sayısını planlamacı adıyla söyler', () => {
+    const html = render(jp('JPN_022', { entity_type: 'Feed', file: 'feed_info.txt', field: 'feed_version', details: { affected_records: '1' } }));
+    // The card sentence uses planner words; the field name stays only under technical details.
+    expect(html).toContain('Veri seti bilgileri içinde Veri seti sürümü GTFS-JP v4&#39;te zorunlu, ama 1 kayıtta girilmemiş.');
+    expect(html).not.toContain('Örnek kayıtlar');
+    expect(render(jp('JPN_022', { entity_type: 'Feed', file: 'stops.txt', field: 'location_type', details: { affected_records: '2', example_record_ids: 'S1; S2' } })))
+      .toContain('Durak listesi içinde Durak türü GTFS-JP v4&#39;te zorunlu, ama 2 kayıtta girilmemiş. Örnek kayıtlar: S1, S2.');
+  });
+
+  it('JPN_024/025 işletmecinin adını ve girilen değeri gösterir', () => {
+    const html = render(jp('JPN_025', { entity_type: 'Agency', entity_id: 'A1', file: 'agency.txt', field: 'agency_timezone', observed_value: 'Asia/Seoul' }));
+    expect(html).toContain('都営バス işletmecisinin saat dilimi „Asia/Seoul“ girilmiş');
+    expect(html).toContain('<td>都営バス</td><td>Asia/Seoul</td>');
+  });
+
+  it('JPN_027 hat türünü adıyla, örnek hatları numarasıyla söyler', () => {
+    const html = render(jp('JPN_027', { entity_type: 'Feed', file: 'routes.txt', field: 'route_type', observed_value: '0', details: { affected_records: '2', example_record_ids: 'R1, R2' } }));
+    expect(html).toContain('2 hat var (ör. 都01, 都02)');
+    expect(html).toContain('<td>Hat listesi</td><td>Hat türü</td>');
+  });
+
+  it('JPN_031 durağı ve bölge ücretli hatları adıyla söyler', () => {
+    expect(render(jp('JPN_031', { entity_type: 'Stop', entity_id: 'S1', file: 'stops.txt', field: 'zone_id', details: { example_route_ids: 'R1, R2' } })))
+      .toContain('渋谷 durağı bölgeye göre ücret alınan hatlarda (都01, 都02) kullanılıyor');
+  });
+
+  it('JPN_033 özel adı yazıldığı gibi, dosyayı planlamacı adıyla gösterir', () => {
+    expect(render(jp('JPN_033', { entity_type: 'File', entity_id: 'stops.txt', file: 'stops.txt', field: 'jp_note', observed_value: 'jp_note' })))
+      .toContain('Durak listesi içindeki özel „jp_note“ sütunu');
+  });
+});

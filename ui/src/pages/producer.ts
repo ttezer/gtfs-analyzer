@@ -296,7 +296,7 @@ const DQ021_KIND: Record<string, string> = {
  *  show file and column names. A column without a name keeps its own (the planner still has to
  *  find it); a file without one leaves the card to its general text. */
 const PLANNER_LISTS = new Set(['agency', 'stops', 'routes', 'trips', 'stop_times', 'calendar', 'calendar_dates', 'shapes', 'frequencies', 'transfers', 'feed_info', 'fare_attributes', 'fare_rules', 'translations', 'attributions', 'pathways', 'levels', 'agency_jp', 'office_jp', 'routes_jp', 'pattern_jp']);
-const PLANNER_FIELDS = new Set(['safe_duration_factor', 'safe_duration_offset', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'start_date', 'end_date', 'stop_id', 'stop_code', 'stop_name', 'stop_desc', 'stop_lat', 'stop_lon', 'zone_id', 'stop_url', 'parent_station', 'platform_code', 'tts_stop_name', 'route_id', 'route_short_name', 'route_long_name', 'route_desc', 'route_url', 'route_color', 'route_text_color', 'agency_id', 'agency_name', 'agency_url', 'agency_timezone', 'agency_phone', 'agency_lang', 'trip_id', 'service_id', 'trip_headsign', 'trip_short_name', 'block_id', 'shape_id', 'stop_headsign', 'arrival_time', 'departure_time', 'date', 'feed_publisher_name', 'feed_publisher_url', 'feed_lang', 'fare_id']);
+const PLANNER_FIELDS = new Set(['safe_duration_factor', 'safe_duration_offset', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'start_date', 'end_date', 'stop_id', 'stop_code', 'stop_name', 'stop_desc', 'stop_lat', 'stop_lon', 'zone_id', 'stop_url', 'parent_station', 'platform_code', 'tts_stop_name', 'route_id', 'route_short_name', 'route_long_name', 'route_desc', 'route_url', 'route_color', 'route_text_color', 'agency_id', 'agency_name', 'agency_url', 'agency_timezone', 'agency_phone', 'agency_lang', 'trip_id', 'service_id', 'trip_headsign', 'trip_short_name', 'block_id', 'shape_id', 'stop_headsign', 'arrival_time', 'departure_time', 'date', 'feed_publisher_name', 'feed_publisher_url', 'feed_lang', 'fare_id', 'location_type', 'feed_start_date', 'feed_end_date', 'feed_version', 'currency_type', 'route_type']);
 function plannerListName(file?: string | null): string | null {
   const stem = file?.replace(/\.txt$/, '');
   return stem && PLANNER_LISTS.has(stem) ? t(`producer.list.${stem}`) : null;
@@ -360,6 +360,44 @@ function jpRecordText(n: Notice, result: ValidationResult): string | null {
     case 'JPN_020': return n.field === 'office_phone'
       ? t('producer.card.JPN_020.what_phone', { code, value })
       : t('producer.card.JPN_020.what_url', { code, value });
+    default: return null;
+  }
+}
+
+/** GTFS-JP feed-level and profile rules: the value written, how many records, and examples. */
+function jpFeedText(n: Notice, result: ValidationResult): string | null {
+  const d = n.details ?? {};
+  const value = n.observed_value ?? '';
+  const agency = (id?: string | null) => (id ? result.feed_summary?.agencies?.find(a => a.agency_id === id || a.agency_name === id)?.agency_name : undefined) || id || '—';
+  const examples = (raw?: string) => (raw ?? '').split(/[;,]\s*/).filter(Boolean).slice(0, 5).join(', ') || '—';
+  const count = localizedNumber(d.affected_records ?? '1');
+  switch (n.rule_id) {
+    case 'JPN_006': {
+      const variant = d.message_variant;
+      return variant && ['unusable', 'missing_rules', 'missing_review'].includes(variant) ? t(`producer.card.JPN_006.what_${variant}`) : null;
+    }
+    case 'JPN_022': {
+      const main = t('producer.card.JPN_022.what_detail', { field: n.field ? plannerFieldName(n.field) : '—', list: plannerListName(n.file) || n.file || '—', count });
+      return d.example_record_ids ? `${main} ${t('producer.card.JPN_022.examples', { examples: examples(d.example_record_ids) })}` : main;
+    }
+    case 'JPN_023': return t('producer.card.JPN_023.what_detail', { value });
+    case 'JPN_024': return t('producer.card.JPN_024.what_detail', { agency: agency(n.entity_id), value });
+    case 'JPN_025': return t('producer.card.JPN_025.what_detail', { agency: agency(n.entity_id), value });
+    case 'JPN_026': return t('producer.card.JPN_026.what_detail', { value, count });
+    case 'JPN_027': {
+      const routes = (d.example_record_ids ?? '').split(/[;,]\s*/).filter(Boolean).slice(0, 5).map(id => result.name_index.routes?.[id] || id).join(', ') || '—';
+      return t('producer.card.JPN_027.what_detail', { type: value ? routeTypeName(value) : '—', count, routes });
+    }
+    case 'JPN_031': {
+      const routes = (d.example_route_ids ?? '').split(/,\s*/).filter(Boolean).map(id => result.name_index.routes?.[id] || id).join(', ') || '—';
+      const stopId = n.entity_id;
+      return t('producer.card.JPN_031.what_detail', { stop: stopId ? result.name_index.stops?.[stopId] || stopId : '—', routes });
+    }
+    case 'JPN_033':
+      // The custom name IS the finding, so it is shown as written; its list in planner words.
+      return n.field
+        ? t('producer.card.JPN_033.what_field', { name: value || n.field, list: plannerListName(n.file) || n.file || '—' })
+        : t('producer.card.JPN_033.what_file', { name: value || n.file || '—' });
     default: return null;
   }
 }
@@ -2068,6 +2106,18 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
     case 'JPN_020':
     case 'JPN_032': {
       const what = jpRecordText(n, result);
+      return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
+    }
+    case 'JPN_006':
+    case 'JPN_022':
+    case 'JPN_023':
+    case 'JPN_024':
+    case 'JPN_025':
+    case 'JPN_026':
+    case 'JPN_027':
+    case 'JPN_031':
+    case 'JPN_033': {
+      const what = jpFeedText(n, result);
       return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
     }
     case 'JPN_019': {
@@ -5685,6 +5735,29 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
         dash(n.observed_value || n.entity_id),
         n.line != null ? String(n.line) : '—',
       ],
+    };
+  }
+  if (g.ruleId === 'JPN_022' || g.ruleId === 'JPN_026' || g.ruleId === 'JPN_027') {
+    return {
+      head: [t('producer.col.record'), t('producer.times.name_kind'), t('producer.times.value'), t('producer.col.affected_records')],
+      row: n => [
+        dash(plannerListName(n.file) || n.file),
+        dash(n.field ? plannerFieldName(n.field) : null),
+        dash(n.rule_id === 'JPN_027' && n.observed_value ? routeTypeName(n.observed_value) : n.observed_value),
+        dash(n.details?.affected_records ? localizedNumber(n.details.affected_records) : null),
+      ],
+    };
+  }
+  if (g.ruleId === 'JPN_024' || g.ruleId === 'JPN_025') {
+    return {
+      head: [t('producer.times.agency'), t('producer.times.value')],
+      row: n => [dash(result.feed_summary?.agencies?.find(a => a.agency_id === n.entity_id || a.agency_name === n.entity_id)?.agency_name || n.entity_id), dash(n.observed_value)],
+    };
+  }
+  if (g.ruleId === 'JPN_033') {
+    return {
+      head: [t('producer.col.record'), t('producer.times.value')],
+      row: n => [dash(plannerListName(n.file) || n.file), dash(n.observed_value)],
     };
   }
   if (g.ruleId === 'JPN_002' || g.ruleId === 'JPN_018') {
