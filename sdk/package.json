@@ -55,6 +55,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "binaryen": "130.0.0",
     "typescript": "^5.4.0"
   }
 }

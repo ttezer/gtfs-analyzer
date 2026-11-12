@@ -252,12 +252,8 @@ jobs:
         with:
           directory: sdk
 
-      # The SDK release build calls wasm-opt directly. wasm-pack provides it in its own
-      # build, but the SDK smoke job runs on a separate runner; installing Binaryen here
-      # explicitly removes a silent dependency on the local machine's PATH.
-      - name: Install Binaryen (wasm-opt)
-        working-directory: sdk
-        run: npm install --no-save --ignore-scripts --package-lock=false binaryen@130.0.0
+      # wasm-opt comes from sdk's devDependency `binaryen` (exact version + lockfile
+      # integrity, installed by `npm ci` above); `npm run` puts node_modules/.bin on PATH.
 
       # Build only wasm32; the GTFS_SDK_ENGINE tests pin this engine.
       - name: SDK smoke (wasm32 engine)
@@ -309,10 +305,6 @@ jobs:
         uses: taiki-e/install-action@a2a5f6e99e1a31540baa0468acfa302cff0f359f # v2
         with:
           tool: wasm-bindgen-cli@${{ env.WBG_VER }}
-
-      - name: Binaryen (wasm-opt) kur
-        working-directory: sdk
-        run: npm install --no-save --ignore-scripts --package-lock=false binaryen@130.0.0
 
       - name: Build SDK wasm64 (sdk/pkg64)
         working-directory: sdk
