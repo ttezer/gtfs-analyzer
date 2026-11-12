@@ -2219,6 +2219,27 @@ function cal020LongCalendars(d: Record<string, string>): boolean {
 
 /** Each calendar rule's own sentence, in the planner's words; null when the finding lacks what
  *  the sentence needs (the card then keeps its general text). */
+/** Calendar exception cards (CLD): the calendar by its code and what is wrong with its dates. */
+function cldText(n: Notice): string | null {
+  const d = n.details ?? {};
+  const svc = n.entity_id ?? '';
+  const count = (n.observed_value ?? '').match(/^(\d+)/)?.[1];
+  switch (n.rule_id) {
+    case 'CLD_001': {
+      if (!d.date && !d.exception_type) return null;
+      const kind = d.exception_type === '1' || d.exception_type === '2' ? t(`producer.card.CLD.kind_${d.exception_type}`) : (d.exception_type ?? '—');
+      return `${t('producer.card.CLD_001.what')} ${t('producer.card.CLD_001.row', { date: ymdText(d.date), kind })}`;
+    }
+    case 'CLD_002': return svc ? t('producer.card.CLD_002.what_detail', { svc }) : null;
+    case 'CLD_004': return svc ? t('producer.card.CLD_004.what_detail', { svc }) : null;
+    case 'CLD_005': return svc ? t('producer.card.CLD_005.what_detail', { svc, date: n.observed_value ?? '—' }) : null;
+    case 'CLD_006':
+    case 'CLD_007':
+      return svc && count ? t(`producer.card.${n.rule_id}.what_detail`, { svc, count: localizedNumber(count) }) : null;
+    default: return null;
+  }
+}
+
 function calRuleText(n: Notice, result: ValidationResult): string | null {
   const d = n.details ?? {};
   const svc = n.entity_type === 'Service' || n.rule_id === 'CAL_025' ? n.entity_id ?? '' : '';
@@ -3321,6 +3342,12 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         action: t('producer.card.DQ_005c.action'),
       };
     }
+    case 'CLD_001': case 'CLD_002': case 'CLD_004': case 'CLD_005': case 'CLD_006': case 'CLD_007': {
+      const what = cldText(n);
+      if (!what) return null;
+      // Each calendar's trips and routes, as on the CAL cards (CLD_001 has no calendar).
+      return { title: t(`producer.card.${g.ruleId}.title`), what: g.ruleId === 'CLD_001' ? what : calWhat(n, result, what), action: t(`producer.card.${g.ruleId}.action`) };
+    }
     case 'CAL_001': case 'CAL_002': case 'CAL_003': case 'CAL_004': case 'CAL_005': case 'CAL_006':
     case 'CAL_007': case 'CAL_008': case 'CAL_009': case 'CAL_010': case 'CAL_011': case 'CAL_012': case 'CAL_013':
     case 'CAL_014': case 'CAL_015': case 'CAL_016': case 'CAL_017': case 'CAL_018': case 'CAL_020': case 'CAL_021':
@@ -3750,7 +3777,7 @@ function plannerTripRule(ruleId: string): boolean {
 }
 
 /** CAL findings (but CAL_020/022) carry the trips and routes on their calendar(s); the map draws the example trip. */
-const CAL_USAGE_RULES = new Set(['CAL_001', 'CAL_002', 'CAL_003', 'CAL_004', 'CAL_005', 'CAL_006', 'CAL_007',
+const CAL_USAGE_RULES = new Set(['CLD_002', 'CLD_004', 'CLD_005', 'CLD_006', 'CLD_007', 'CAL_001', 'CAL_002', 'CAL_003', 'CAL_004', 'CAL_005', 'CAL_006', 'CAL_007',
   'CAL_008', 'CAL_009', 'CAL_010', 'CAL_011', 'CAL_012', 'CAL_013', 'CAL_014', 'CAL_015', 'CAL_016', 'CAL_017',
   'CAL_018', 'CAL_021', 'CAL_023', 'CAL_024', 'CAL_025', 'OPR_011', 'OPR_012', 'OPR_016']);
 

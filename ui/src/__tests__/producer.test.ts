@@ -3757,3 +3757,26 @@ describe('Ücret kuralı kartları (FRL)', () => {
     } }))).toContain('4 başlangıç-varış bölgesi çifti için ücret kuralı yok. İlk örnekler: S8 hattında A → B.');
   });
 });
+
+describe('Takvim istisnası kartları (CLD)', () => {
+  const render = (n: Notice) => {
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [[n.rule_id, 1, 1]], true, emptyNameIndex));
+    return root.innerHTML;
+  };
+
+  it('CLD_006 takvimi ve kayıt sayısını söyler', () => {
+    expect(render(notice('a', 'CLD_006', 'INFO', { entity_type: 'Service', entity_id: 'WK', file: 'calendar_dates.txt', observed_value: '75' })))
+      .toContain('„WK“ takviminde 75 özel gün kaydı var (60&#39;tan fazla).');
+  });
+
+  it('CLD_007 sayıyı motorun değerinden okur', () => {
+    expect(render(notice('a', 'CLD_007', 'INFO', { entity_type: 'Service', entity_id: 'WK', file: 'calendar_dates.txt', observed_value: '120 exception' })))
+      .toContain('„WK“ takviminde 120 özel gün tanımı var');
+  });
+
+  it('CLD_001 takvimsiz kaydı tarihi ve türüyle söyler', () => {
+    expect(render(notice('a', 'CLD_001', 'CRITICAL', { entity_type: 'Service', file: 'calendar_dates.txt', line: 4, details: { date: '20260105', exception_type: '2' } })))
+      .toContain('Kayıt: 05.01.2026, hizmet kaldırıldı.');
+  });
+});

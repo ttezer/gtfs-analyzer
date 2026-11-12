@@ -256,6 +256,16 @@ pub fn validate_calendar_dates_with_limits(
                 "service_id zorunludur.".to_string(),
                 "Fill in the service_id field.",
             ));
+            // Planner context: a row without a calendar is found by its date and kind.
+            if let Some(finding) = notices.last_mut() {
+                let details = finding.details.get_or_insert_with(Default::default);
+                for (key, col) in [("date", cols.date), ("exception_type", cols.exception_type)] {
+                    let value = get_col(row, col).trim();
+                    if !value.is_empty() {
+                        details.insert(key.to_string(), value.to_string());
+                    }
+                }
+            }
         }
 
         // CLD_002: date required + valid YYYYMMDD

@@ -9015,3 +9015,32 @@ fn geo_feed_and_point_findings_carry_planner_context() {
     assert_eq!(get(&d, "lat").as_deref(), Some("35.6"));
     assert_eq!(get(&d, "example_trip_id").as_deref(), Some("T1"));
 }
+
+/// CLD findings join the shared calendar-usage step: the planner card names the trips and routes
+/// that run on the calendar (details only; CLD_006 itself is unchanged).
+#[test]
+fn cld_006_carries_the_calendars_trip_and_route_usage() {
+    let mut rows = String::from("service_id,date,exception_type\n");
+    for day in 1..=61u32 {
+        let date = 20260101 + (day - 1) % 28 + ((day - 1) / 28) * 100;
+        rows.push_str(&format!("SVC1,{date},1\n"));
+    }
+    let mut files = base_files();
+    files.push((
+        "calendar_dates.txt",
+        Box::leak(rows.into_bytes().into_boxed_slice()),
+    ));
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let d = vr
+                .notices
+                .iter()
+                .find(|n| n.rule_id == "CLD_006")
+                .and_then(|n| n.details.as_ref())
+                .expect("CLD_006 details");
+            assert_eq!(d.get("trip_count").map(String::as_str), Some("1"));
+            assert_eq!(d.get("example_trip_id").map(String::as_str), Some("T1"));
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}

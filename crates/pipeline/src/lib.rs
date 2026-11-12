@@ -3263,16 +3263,16 @@ fn annotate_stop_context(all: &mut [gtfs_core::Notice], records: &EntityRecords)
 }
 
 /// Calendar findings whose planner card names the trips and routes running on the calendar(s).
-const CALENDAR_USAGE_RULES: [&str; 27] = [
+const CALENDAR_USAGE_RULES: [&str; 32] = [
     "CAL_001", "CAL_002", "CAL_003", "CAL_004", "CAL_005", "CAL_006", "CAL_007", "CAL_008",
     "CAL_009", "CAL_010", "CAL_011", "CAL_012", "CAL_013", "CAL_014", "CAL_015", "CAL_016",
     "CAL_017", "CAL_018", "CAL_021", "CAL_023", "CAL_024", "CAL_025", "OPR_011", "OPR_012",
-    "OPR_016", "TRP_023", "TRP_026",
+    "OPR_016", "TRP_023", "TRP_026", "CLD_002", "CLD_004", "CLD_005", "CLD_006", "CLD_007",
 ];
 /// Routes listed per calendar finding (most trips first).
 const CALENDAR_USAGE_ROUTES: usize = 10;
 
-/// Planner context for the calendar findings (CAL_001–CAL_025 but CAL_020/022): which trips and routes run on the
+/// Planner context for the calendar findings (CAL_001–CAL_025 but CAL_020/022, and the CLD calendar exceptions): which trips and routes run on the
 /// calendar(s) the finding is about — `trip_count`, `route_count`, the routes with the most trips
 /// (`route_<i>_{route_id,trips,example_trip_id}`) and one `example_trip_id` to draw on the map
 /// (a trip with stop times first, in file order). A service finding is about its own calendar;
