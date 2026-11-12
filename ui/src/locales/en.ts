@@ -2708,6 +2708,7 @@ const en: LocaleShape = {
     'producer.col.column': "Column",
     'producer.col.affected_rows': "Affected rows",
     'producer.col.example_rows': "Example rows",
+    'producer.col.row_count': "Row count",
     'producer.map.caption_focus': "Red: the stop or segment this topic points to. Coloured lines: affected routes in their own colours.",
     'producer.map.stm021_same_place': "{from} (sequence {from_sequence}) and {to} (sequence {to_sequence}) at the same point",
     'producer.map.stm056_focus': "Red: the two stops of the step where the cumulative distance does not increase (stop sequence {from_sequence} → {sequence}) and the section between them. Grey: the trip's other stops.",

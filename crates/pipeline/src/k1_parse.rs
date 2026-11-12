@@ -541,6 +541,19 @@ pub(crate) struct Rfc4180Acc {
     last_line: u64,
 }
 
+impl Rfc4180Acc {
+    /// Planner evidence for the ARC_033 summary.
+    pub fn details(&self) -> gtfs_core::NoticeDetails {
+        let mut d = std::collections::BTreeMap::new();
+        d.insert("affected_rows".to_string(), self.rows.to_string());
+        d.insert("issue".to_string(), rfc4180_issue_code(self.kind.unwrap_or(RFC4180_BARE_QUOTE)).to_string());
+        if let Some(example) = &self.example {
+            d.insert("example_value".to_string(), example.clone());
+        }
+        d.into()
+    }
+}
+
 /// GTFS File Requirements uses two separate sentences, and both are in scope for this rule:
 /// *"Field values that contain quotation marks or commas must be enclosed within quotation
 /// marks."* and *"In addition, each quotation mark in the field value must be preceded with
@@ -1203,9 +1216,27 @@ pub(crate) fn add_arc021_context<'a>(
     headers: &[String],
     values: impl Iterator<Item = &'a str>,
 ) {
+    add_char_context(notice, headers, values, arc021_is_bad);
+}
+
+/// ARC_030 evidence, same shape as ARC_021: the column and the value around the tab/line break.
+pub(crate) fn add_arc030_context<'a>(
+    notice: &mut Notice,
+    headers: &[String],
+    values: impl Iterator<Item = &'a str>,
+) {
+    add_char_context(notice, headers, values, |ch| matches!(ch, '\t' | '\n' | '\r'));
+}
+
+fn add_char_context<'a>(
+    notice: &mut Notice,
+    headers: &[String],
+    values: impl Iterator<Item = &'a str>,
+    is_bad: impl Fn(char) -> bool,
+) {
     for (col, val) in values.enumerate() {
         let chars: Vec<char> = val.chars().collect();
-        let Some(at) = chars.iter().position(|&ch| arc021_is_bad(ch)) else {
+        let Some(at) = chars.iter().position(|&ch| is_bad(ch)) else {
             continue;
         };
         let start = at.saturating_sub(20);
@@ -1392,6 +1423,8 @@ pub(crate) struct Arc032Acc {
     pub cols: std::collections::BTreeSet<String>,
     pub first_line: Option<u64>,
     pub example: Option<String>,
+    /// Column and whole value of `example` (planner evidence).
+    example_field: Option<(String, String)>,
     last_line: u64,
 }
 
@@ -1429,6 +1462,7 @@ impl Arc032Acc {
             self.cols.insert(name.to_string());
             if self.example.is_none() {
                 self.example = Some(found);
+                self.example_field = Some((name.to_string(), s.to_string()));
             }
         }
     }
@@ -1440,6 +1474,7 @@ impl Arc032Acc {
         self.cols.extend(other.cols);
         if self.example.is_none() {
             self.example = other.example;
+            self.example_field = other.example_field;
         }
         self.first_line = match (self.first_line, other.first_line) {
             (Some(a), Some(b)) => Some(a.min(b)),
@@ -1469,6 +1504,22 @@ impl Arc032Acc {
             ),
             cols,
         ))
+    }
+}
+
+impl Arc032Acc {
+    /// Planner evidence for the summary: affected rows and the first value with its column.
+    pub fn details(&self) -> gtfs_core::NoticeDetails {
+        let mut d = std::collections::BTreeMap::new();
+        d.insert("affected_rows".to_string(), self.rows.to_string());
+        if let Some(markup) = &self.example {
+            d.insert("example_markup".to_string(), markup.clone());
+        }
+        if let Some((field, value)) = &self.example_field {
+            d.insert("example_field".to_string(), field.clone());
+            d.insert("example_value".to_string(), value.clone());
+        }
+        d.into()
     }
 }
 
@@ -1601,6 +1652,19 @@ impl Arc037Acc {
             ),
             cols,
         ))
+    }
+}
+
+impl Arc037Acc {
+    /// Planner evidence for the summary: affected rows and the first ID value with its column.
+    pub fn details(&self) -> gtfs_core::NoticeDetails {
+        let mut d = std::collections::BTreeMap::new();
+        d.insert("affected_rows".to_string(), self.rows.to_string());
+        if let Some((field, value)) = &self.example {
+            d.insert("example_field".to_string(), field.clone());
+            d.insert("example_value".to_string(), value.clone());
+        }
+        d.into()
     }
 }
 
@@ -2962,7 +3026,7 @@ pub fn parse_with_limits(
             if !arc030_fired {
                 if let Some(cp) = arc030_bad_whitespace(row.iter().map(|v| v.as_str())) {
                     arc030_fired = true;
-                    notices.push(make_notice(
+                    let mut arc030 = make_notice(
                         &mut counter,
                         "ARC_030",
                         EntityType::File,
@@ -2973,7 +3037,9 @@ pub fn parse_with_limits(
                         Some(format!("U+{cp:04X}")),
                         arc030_message(&raw_name, cp),
                         ARC030_REMEDIATION,
-                    ));
+                    );
+                    add_arc030_context(&mut arc030, &headers, row.iter().map(|v| v.as_str()));
+                    notices.push(arc030);
                 }
             }
 
@@ -3008,7 +3074,7 @@ pub fn parse_with_limits(
 
         // ARC_032: ONE summary per FILE (same burst prevention as DQ_016).
         if let Some((observed, msg, cols)) = arc032.summary(&raw_name) {
-            notices.push(make_notice(
+            let mut summary = make_notice(
                 &mut counter,
                 "ARC_032",
                 EntityType::File,
@@ -3019,12 +3085,14 @@ pub fn parse_with_limits(
                 Some(observed),
                 msg,
                 ARC032_REMEDIATION,
-            ));
+            );
+            summary.details = Some(arc032.details());
+            notices.push(summary);
         }
 
         // ARC_037: non-ASCII character in an ID field — ONE summary per FILE (ARC_032 pattern).
         if let Some((observed, msg, cols)) = arc037.summary(&raw_name) {
-            notices.push(make_notice(
+            let mut summary = make_notice(
                 &mut counter,
                 "ARC_037",
                 EntityType::File,
@@ -3035,7 +3103,9 @@ pub fn parse_with_limits(
                 Some(observed),
                 msg,
                 ARC037_REMEDIATION,
-            ));
+            );
+            summary.details = Some(arc037.details());
+            notices.push(summary);
         }
 
         // ARC_033: RFC 4180 quote violation — ONE summary per FILE (ARC_032 pattern).
@@ -3044,7 +3114,7 @@ pub fn parse_with_limits(
         if rfc4180.rows > 0 {
             let kind = rfc4180.kind.unwrap_or(RFC4180_BARE_QUOTE);
             let example = rfc4180.example.clone().unwrap_or_default();
-            notices.push(make_notice(
+            let mut summary = make_notice(
                 &mut counter,
                 "ARC_033",
                 EntityType::File,
@@ -3062,7 +3132,9 @@ pub fn parse_with_limits(
                     rfc4180.rows
                 ),
                 ARC033_REMEDIATION,
-            ));
+            );
+            summary.details = Some(rfc4180.details());
+            notices.push(summary);
         }
 
         // ARC_022: file row-count information threshold (K2 produces it in stream_mode — rows is
@@ -4642,6 +4714,50 @@ mod tests {
             .iter()
             .any(|f| f == "trips.txt"));
         assert!(result.notices.iter().any(|n| n.rule_id == "ARC_002"));
+    }
+
+    #[test]
+    fn arc_030_032_033_037_carry_planner_evidence() {
+        let stops = "stop_id,stop_name,stop_lat,stop_lon\nS1,Merkez\tDurak,41.0,29.0\nS2,<b>Okul</b>,41.1,29.1\nŞ3,Çarşı,41.2,29.2\nS4,Ba\"d,41.3,29.3\n";
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      stops.as_bytes()),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id,trip_headsign\nR1,SVC1,T1,Liman &amp; Merkez\nR1,SVC1,T2,Liman\tSon\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ]);
+        let crate::ValidateResult::Ok(result) =
+            crate::validate_bytes(&zip, &crate::ValidatorConfig::default(), 20_240_601)
+        else {
+            panic!("feed fatal")
+        };
+        let details = |rule: &str, file: &str| {
+            result
+                .notices
+                .iter()
+                .find(|n| n.rule_id == rule && n.file.as_deref() == Some(file))
+                .and_then(|n| n.details.clone())
+                .unwrap_or_else(|| panic!("{rule} {file} details yok"))
+        };
+        let get = |d: &gtfs_core::NoticeDetails, k: &str| d.get(k).cloned();
+        let d = details("ARC_030", "stops.txt");
+        assert_eq!(get(&d, "field_name").as_deref(), Some("stop_name"));
+        assert_eq!(get(&d, "value_excerpt").as_deref(), Some("Merkez⟨U+0009⟩Durak"));
+        let d = details("ARC_030", "trips.txt");
+        assert_eq!(get(&d, "value_excerpt").as_deref(), Some("Liman⟨U+0009⟩Son"));
+        let d = details("ARC_032", "stops.txt");
+        assert_eq!(get(&d, "affected_rows").as_deref(), Some("1"));
+        assert_eq!(get(&d, "example_field").as_deref(), Some("stop_name"));
+        assert_eq!(get(&d, "example_value").as_deref(), Some("<b>Okul</b>"));
+        let d = details("ARC_032", "trips.txt");
+        assert_eq!(get(&d, "example_value").as_deref(), Some("Liman &amp; Merkez"));
+        let d = details("ARC_037", "stops.txt");
+        assert_eq!(get(&d, "example_field").as_deref(), Some("stop_id"));
+        assert_eq!(get(&d, "example_value").as_deref(), Some("Ş3"));
+        let d = details("ARC_033", "stops.txt");
+        assert_eq!(get(&d, "affected_rows").as_deref(), Some("1"));
+        assert!(get(&d, "issue").is_some());
     }
 
     #[test]

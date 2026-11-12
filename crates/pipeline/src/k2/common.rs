@@ -919,7 +919,7 @@ pub(crate) fn arc033_summary(
     }
     let kind = acc.kind.unwrap_or(crate::k1_parse::RFC4180_BARE_QUOTE);
     let example = acc.example.clone().unwrap_or_default();
-    Some(make_k2_notice(
+    let mut summary = make_k2_notice(
         counter,
         "ARC_033",
         EntityType::File,
@@ -939,7 +939,9 @@ pub(crate) fn arc033_summary(
             acc.rows
         ),
         "Quote any field value that contains a quotation mark or a comma, and double every quotation mark inside it (\"12\"\" Street\").",
-    ))
+    );
+    summary.details = Some(acc.details());
+    Some(summary)
 }
 
 /// `ARC_013` — unclosed quote in the STREAM FILE BODY (issue #84).

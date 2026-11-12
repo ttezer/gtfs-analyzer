@@ -2306,7 +2306,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     crate::k1_parse::arc030_bad_whitespace(row.iter().map(|v| v.as_ref()))
                 {
                     st.arc030_fired = true;
-                    st.notices.push(make_k2_notice(
+                    let mut arc030 = make_k2_notice(
                         &mut st.counter,
                         "ARC_030",
                         EntityType::File,
@@ -2319,7 +2319,9 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         None,
                         crate::k1_parse::arc030_message(&file.name, cp),
                         crate::k1_parse::ARC030_REMEDIATION,
-                    ));
+                    );
+                    crate::k1_parse::add_arc030_context(&mut arc030, &file.headers, row.iter().map(|v| v.as_ref()));
+                    st.notices.push(arc030);
                 }
             }
 
@@ -3750,7 +3752,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
     // ARC_032: HTML marker—ONE summary per FILE (same as K1). It did not run in streamed files until
     // 2026-10-13 (trip_headsign/stop_headsign were not checked).
     if let Some((observed, msg, cols)) = st.arc032.summary(&file.name) {
-        st.notices.push(make_k2_notice(
+        let mut summary = make_k2_notice(
             &mut st.counter,
             "ARC_032",
             EntityType::File,
@@ -3763,12 +3765,14 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             None,
             msg,
             crate::k1_parse::ARC032_REMEDIATION,
-        ));
+        );
+        summary.details = Some(st.arc032.details());
+        st.notices.push(summary);
     }
 
     // ARC_037: non-ASCII character in an ID field—ONE summary per FILE (same as K1).
     if let Some((observed, msg, cols)) = st.arc037.summary(&file.name) {
-        st.notices.push(make_k2_notice(
+        let mut summary = make_k2_notice(
             &mut st.counter,
             "ARC_037",
             EntityType::File,
@@ -3781,7 +3785,9 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             None,
             msg,
             crate::k1_parse::ARC037_REMEDIATION,
-        ));
+        );
+        summary.details = Some(st.arc037.details());
+        st.notices.push(summary);
     }
 
     // STM_050: ONE feed-level summary (not per row—large-feed OOM prevention).

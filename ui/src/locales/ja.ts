@@ -2706,6 +2706,7 @@ const ja: LocaleShape = {
     'producer.col.column': "列",
     'producer.col.affected_rows': "該当行数",
     'producer.col.example_rows': "例の行",
+    'producer.col.row_count': "行数",
     'producer.map.caption_focus': "赤: この項目が指す停留所または区間。色付きの線: 影響を受ける路線(路線色)。",
     'producer.map.stm021_same_place': "{from}(順序 {from_sequence})と {to}(順序 {to_sequence})が同じ地点",
     'producer.map.stop_sequence': "停留所順序 {sequence}",

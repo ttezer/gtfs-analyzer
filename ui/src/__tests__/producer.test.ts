@@ -3343,6 +3343,27 @@ describe('ARC dosya kartları (ARC_002–011)', () => {
     expect(feed('shapes.txt/feed_info.txt')).toContain('ne güzergâh çizimleri ne de veri seti bilgileri');
   });
 
+  it('ARC_032/037 özetinde satır sayısı, sütun ve örnek değer görünür', () => {
+    const html = render(file('ARC_032', 'stops.txt', { line: 3, field: 'stop_name', observed_value: '<b>', details: {
+      affected_rows: '2', example_field: 'stop_name', example_value: '<b>Okul</b>', example_markup: '<b>',
+    } }));
+    expect(html).toContain('<th>Kayıt</th><th>Etkilenen satır</th><th>Satır</th><th>Sütun</th><th>Değer</th>');
+    expect(html).toContain('<td>Durak listesi</td><td>2</td><td>3</td><td>Durak adı</td><td>&lt;b&gt;Okul&lt;/b&gt;</td>');
+    expect(render(file('ARC_037', 'stops.txt', { line: 4, details: { affected_rows: '1', example_field: 'stop_id', example_value: 'Ş3' } })))
+      .toContain('<td>Durak listesi</td><td>1</td><td>4</td><td>Durak kodu</td><td>Ş3</td>');
+  });
+
+  it('ARC_030 sekmeyi işaretli değerle, ARC_022 satır sayısını gösterir', () => {
+    expect(render(file('ARC_030', 'trips.txt', { line: 3, details: { field_name: 'trip_headsign', value_excerpt: 'Liman⟨U+0009⟩Son' } })))
+      .toContain('<td>Sefer listesi</td><td>3</td><td>Yön adı</td><td>Liman⟨U+0009⟩Son</td>');
+    expect(render(file('ARC_022', 'stop_times.txt', { observed_value: '1500000' }))).toContain('<td>Sefer saatleri</td><td>1.500.000</td>');
+  });
+
+  it('ARC_025 listeyi ve sütunu planlamacı adıyla söyler', () => {
+    expect(render(notice('a', 'ARC_025', 'CRITICAL', { entity_type: 'File', entity_id: 'stops.txt', file: 'stops.txt', field: 'stop_name' })))
+      .toContain('Durak listesi içinde Durak adı sütunu yok.');
+  });
+
   it('ARC_008 iki takvimin de olmadığını söyler', () => {
     expect(render(notice('a', 'ARC_008', 'CRITICAL', { entity_type: 'Feed' })))
       .toContain('Ne çalışma günleri ne de takvim istisnaları var');

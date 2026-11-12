@@ -1527,7 +1527,7 @@
     },
     "ARC_025": {
       "title": "Dosyada zorunlu alan eksik",
-      "what": "{file} dosyasının başlığında {field} alanı bulunmuyor.",
+      "what": "{file} içinde {field} sütunu yok.",
       "action": "İlgili dosyada eksik zorunlu alanı tamamlayın."
     },
     "ARC_026": {
@@ -1577,7 +1577,7 @@
     },
     "ARC_035": {
       "title": "Zorunlu dosya boş",
-      "what": "{file} dosyası var ancak kullanılabilir veri içermiyor.",
+      "what": "{file} var ancak içinde kullanılabilir kayıt yok.",
       "action": "Dosyaya gerekli kayıtları ekleyin."
     },
     "ARC_036": {

@@ -2707,6 +2707,7 @@ const fr: LocaleShape = {
     'producer.col.column': "Colonne",
     'producer.col.affected_rows': "Lignes concernées",
     'producer.col.example_rows': "Lignes d’exemple",
+    'producer.col.row_count': "Nombre de lignes",
     'producer.map.caption_focus': "Rouge : l’arrêt ou le tronçon concerné. Lignes colorées : lignes touchées, dans leur propre couleur.",
     'producer.map.stm021_same_place': "{from} (ordre {from_sequence}) et {to} (ordre {to_sequence}) au même point",
     'producer.map.stop_sequence': "ordre de l’arrêt {sequence}",

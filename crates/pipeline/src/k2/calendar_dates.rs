@@ -205,7 +205,7 @@ pub fn validate_calendar_dates_with_limits(
             if let Some(cp) = crate::k1_parse::arc030_bad_whitespace(row.iter().map(|v| v.as_ref()))
             {
                 arc030_fired = true;
-                notices.push(make_k2_notice(
+                let mut arc030 = make_k2_notice(
                     &mut counter,
                     "ARC_030",
                     EntityType::File,
@@ -218,7 +218,9 @@ pub fn validate_calendar_dates_with_limits(
                     None,
                     crate::k1_parse::arc030_message(&file.name, cp),
                     crate::k1_parse::ARC030_REMEDIATION,
-                ));
+                );
+                crate::k1_parse::add_arc030_context(&mut arc030, &file.headers, row.iter().map(|v| v.as_ref()));
+                notices.push(arc030);
             }
         }
         index.raw_row_count += 1;
@@ -550,7 +552,7 @@ pub fn validate_calendar_dates_with_limits(
     // ARC_032: HTML marker — ONE summary per FILE (same as K1). It did not run on streamed files
     // until 2026-10-13 (trip_headsign/stop_headsign were not checked).
     if let Some((observed, msg, cols)) = arc032.summary(&file.name) {
-        notices.push(make_k2_notice(
+        let mut summary = make_k2_notice(
             &mut counter,
             "ARC_032",
             EntityType::File,
@@ -563,12 +565,14 @@ pub fn validate_calendar_dates_with_limits(
             None,
             msg,
             crate::k1_parse::ARC032_REMEDIATION,
-        ));
+        );
+        summary.details = Some(arc032.details());
+        notices.push(summary);
     }
 
     // ARC_037: non-ASCII character in an ID field — ONE summary per FILE (same as K1).
     if let Some((observed, msg, cols)) = arc037.summary(&file.name) {
-        notices.push(make_k2_notice(
+        let mut summary = make_k2_notice(
             &mut counter,
             "ARC_037",
             EntityType::File,
@@ -581,7 +585,9 @@ pub fn validate_calendar_dates_with_limits(
             None,
             msg,
             crate::k1_parse::ARC037_REMEDIATION,
-        ));
+        );
+        summary.details = Some(arc037.details());
+        notices.push(summary);
     }
     if let Some((observed, msg, cols)) = dq016.summary(&file.name) {
         let mut n = make_k2_notice(

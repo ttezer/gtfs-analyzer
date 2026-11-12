@@ -323,7 +323,7 @@ function dqListLabel(n: Notice): string | null {
   const kind = n.rule_id === 'DQ_021' && n.file ? DQ021_KIND[n.file] : undefined;
   return kind ? t(`producer.card.DQ_021.list_${kind}`) : null;
 }
-const ARC_FILE_RULES = new Set(['ARC_002', 'ARC_003', 'ARC_004', 'ARC_006', 'ARC_007', 'ARC_009', 'ARC_010', 'ARC_011', 'ARC_012', 'ARC_013', 'ARC_014', 'ARC_015', 'ARC_017', 'ARC_018', 'ARC_019', 'ARC_021']);
+const ARC_FILE_RULES = new Set(['ARC_002', 'ARC_003', 'ARC_004', 'ARC_006', 'ARC_007', 'ARC_009', 'ARC_010', 'ARC_011', 'ARC_012', 'ARC_013', 'ARC_014', 'ARC_015', 'ARC_017', 'ARC_018', 'ARC_019', 'ARC_021', 'ARC_022', 'ARC_023', 'ARC_024', 'ARC_025', 'ARC_026', 'ARC_027', 'ARC_030', 'ARC_032', 'ARC_033', 'ARC_034', 'ARC_035', 'ARC_037']);
 
 /** "12,3 KB" from ARC_011's "12345 bytes". */
 function fileSizeText(observed?: string | null): string {
@@ -2484,15 +2484,15 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       return {
         title: t('producer.card.ARC_025.title'),
         what: t('producer.card.ARC_025.what', {
-          file: n.file || t('producer.card.unknown_file'),
-          field: n.field || t('producer.card.unknown_field'),
+          file: dqListLabel(n) || n.file || t('producer.card.unknown_file'),
+          field: n.field ? plannerFieldName(n.field) : t('producer.card.unknown_field'),
         }),
         action: t('producer.card.ARC_025.action'),
       };
     case 'ARC_035':
       return {
         title: t('producer.card.ARC_035.title'),
-        what: t('producer.card.ARC_035.what', { file: n.file || t('producer.card.unknown_file') }),
+        what: t('producer.card.ARC_035.what', { file: dqListLabel(n) || n.file || t('producer.card.unknown_file') }),
         action: t('producer.card.ARC_035.action'),
       };
     case 'AGN_003':
@@ -5470,7 +5470,34 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
       ],
     };
   }
-  if (g.ruleId === 'ARC_021') {
+  if (g.ruleId === 'ARC_022') {
+    return { head: [t('producer.col.record'), t('producer.col.row_count')], row: n => [listLabel(n), localizedNumber(n.observed_value ?? '')] };
+  }
+  // File summaries (one finding per file): how many rows, and the first value with its column.
+  if (g.ruleId === 'ARC_032' || g.ruleId === 'ARC_037') {
+    return {
+      head: [t('producer.col.record'), t('producer.col.affected_rows'), t('producer.col.row'), t('producer.col.column'), t('producer.times.value')],
+      row: n => [
+        listLabel(n),
+        dash(n.details?.affected_rows ? localizedNumber(n.details.affected_rows) : null),
+        n.line != null ? String(n.line) : '—',
+        dash(n.details?.example_field ? plannerFieldName(n.details.example_field) : null),
+        visibleValue(n.details?.example_value ?? n.observed_value) || '—',
+      ],
+    };
+  }
+  if (g.ruleId === 'ARC_033') {
+    return {
+      head: [t('producer.col.record'), t('producer.col.affected_rows'), t('producer.col.row'), t('producer.times.value')],
+      row: n => [
+        listLabel(n),
+        dash(n.details?.affected_rows ? localizedNumber(n.details.affected_rows) : null),
+        n.line != null ? String(n.line) : '—',
+        visibleValue(n.details?.example_value ?? null) || '—',
+      ],
+    };
+  }
+  if (g.ruleId === 'ARC_021' || g.ruleId === 'ARC_030') {
     return {
       head: [t('producer.col.record'), t('producer.col.row'), t('producer.col.column'), t('producer.times.value')],
       row: n => [
