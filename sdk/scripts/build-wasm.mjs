@@ -10,6 +10,13 @@ const cargoEnv = {
   CARGO_PROFILE_RELEASE_OPT_LEVEL: process.env.WASM_CARGO_OPT_LEVEL ?? 's',
 };
 
+// wasm-opt defaults to the lockfile-pinned `binaryen` devDependency (npm puts
+// node_modules/.bin first on PATH), which is what CI uses. That build runs on Node
+// and is much slower than a native binaryen; locally, point WASM_OPT at one, e.g.
+// WASM_OPT=/opt/homebrew/bin/wasm-opt. It is opt-in so CI never picks up whatever
+// happens to be installed on a runner.
+const wasmOpt = process.env.WASM_OPT || 'wasm-opt';
+
 // Both engines by default. CI builds them in separate parallel jobs
 // (SDK_WASM_TARGETS=wasm32 / wasm64) so the wasm64 build does not lengthen the
 // SDK job on the path to the UI build and deploy.
@@ -46,7 +53,7 @@ if (targets.has('wasm32')) {
 
   // The SDK is the size-sensitive artifact. Keep the application build's O3
   // profile unchanged, then run the size-oriented pass only on this npm binary.
-  execFileSync('wasm-opt', [
+  execFileSync(wasmOpt, [
     '-Oz',
     '--strip-producers',
     '--strip-target-features',
@@ -87,7 +94,7 @@ if (targets.has('wasm64')) {
     'pkg64',
   ], { stdio: 'inherit' });
 
-  execFileSync('wasm-opt', [
+  execFileSync(wasmOpt, [
     '-Oz',
     '--enable-memory64',
     '--strip-producers',
