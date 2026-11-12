@@ -9069,3 +9069,30 @@ fn fin_010_carries_the_window_and_the_calendars_service_period() {
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
 }
+
+/// Translation findings carry what their row translates (shared step; details only).
+#[test]
+fn trn_002_carries_the_translation_rows_target() {
+    let mut files = base_files();
+    files.push((
+        "translations.txt",
+        b"table_name,field_name,language,translation,record_id\n\
+          stops,stop_colour,en,Blue,S1\n" as &[u8],
+    ));
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let d = vr
+                .notices
+                .iter()
+                .find(|n| n.rule_id == "TRN_002")
+                .and_then(|n| n.details.as_ref())
+                .expect("TRN_002 details");
+            assert_eq!(d.get("table_name").map(String::as_str), Some("stops"));
+            assert_eq!(d.get("field_name").map(String::as_str), Some("stop_colour"));
+            assert_eq!(d.get("language").map(String::as_str), Some("en"));
+            assert_eq!(d.get("translation").map(String::as_str), Some("Blue"));
+            assert_eq!(d.get("record_id").map(String::as_str), Some("S1"));
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}

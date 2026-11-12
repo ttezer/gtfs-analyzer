@@ -2219,6 +2219,23 @@ function cal020LongCalendars(d: Record<string, string>): boolean {
 
 /** Each calendar rule's own sentence, in the planner's words; null when the finding lacks what
  *  the sentence needs (the card then keeps its general text). */
+/** Translation cards (TRN): the rule's sentence, then which text of which list it translates,
+ *  into which language and what was written. */
+const TRN_ROW_RULES = new Set(['TRN_002', 'TRN_003', 'TRN_004', 'TRN_005', 'TRN_006', 'TRN_007', 'TRN_008', 'TRN_009',
+  'TRN_010', 'TRN_011', 'TRN_013', 'TRN_014', 'TRN_015', 'TRN_017']);
+function trnText(n: Notice, result: ValidationResult): string | null {
+  const d = n.details ?? {};
+  if (!d.table_name) return null;
+  const row = t('producer.card.TRN.row', {
+    list: plannerListName(d.table_name) || d.table_name,
+    field: d.field_name ? plannerFieldName(d.field_name) : '—',
+    target: jpTranslationTarget(n, result),
+    language: d.language || '—',
+    translation: d.translation ?? '',
+  });
+  return `${t(`producer.card.${n.rule_id}.what`)} ${row}`;
+}
+
 /** Feed info cards (FIN): the value written; for the validity dates, the window as written and
  *  the period the calendars really run, which the planner can copy. */
 function finText(n: Notice): string | null {
@@ -3363,6 +3380,11 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         what: t('producer.card.DQ_005c.what_detail', { n: localizedNumber(d.missing_count), total: localizedNumber(d.stop_count) }),
         action: t('producer.card.DQ_005c.action'),
       };
+    }
+    case 'TRN_002': case 'TRN_003': case 'TRN_004': case 'TRN_005': case 'TRN_006': case 'TRN_007': case 'TRN_008':
+    case 'TRN_009': case 'TRN_010': case 'TRN_011': case 'TRN_013': case 'TRN_014': case 'TRN_015': case 'TRN_017': {
+      const what = trnText(n, result);
+      return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
     }
     case 'FIN_002': case 'FIN_003': case 'FIN_004': case 'FIN_005': case 'FIN_006': case 'FIN_008': case 'FIN_009':
     case 'FIN_010': case 'FIN_012': case 'FIN_015': case 'FIN_016': case 'FIN_017': case 'FIN_019': case 'FIN_020': {
@@ -6203,6 +6225,22 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
       ? { head: [t('producer.col.route'), t('producer.col.direction'), t('producer.col.departure')], row: (n: Notice): Cell[] => [badge(n.entity_id ? ni.trip_routes?.[n.entity_id] : undefined), dash(n.entity_id ? ni.trips?.[n.entity_id] : null), dash(n.entity_id ? ni.trip_first_dep?.[n.entity_id] : null)] }
       : { head: [t('producer.col.route'), t('producer.col.route_name')], row: (n: Notice): Cell[] => [badge(n.entity_id), dash(n.entity_id ? ni.route_long_names?.[n.entity_id] : null)] };
     return { head: [...base.head, t('producer.times.value')], row: n => [...base.row(n), dash(n.observed_value)] };
+  }
+  if (TRN_ROW_RULES.has(g.ruleId) && first.details?.table_name) {
+    return {
+      head: [t('producer.col.record'), t('producer.times.name_kind'), t('producer.times.value'), t('producer.col.language'), t('producer.col.translation'), t('producer.col.row')],
+      row: n => {
+        const d = n.details ?? {};
+        return [
+          dash(plannerListName(d.table_name) || d.table_name),
+          dash(d.field_name ? plannerFieldName(d.field_name) : null),
+          jpTranslationTarget(n, result),
+          dash(d.language),
+          dash(d.translation),
+          n.line != null ? String(n.line) : '—',
+        ];
+      },
+    };
   }
   if (g.ruleId === 'JPN_019' || g.ruleId === 'JPN_021') {
     return {

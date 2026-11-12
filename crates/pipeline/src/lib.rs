@@ -2518,6 +2518,49 @@ pub fn aggregate_feed_level_notices(
         let _t = crate::timing::Timer::start("aggregate::pathway_context");
         annotate_pathway_context(all, records);
     }
+    {
+        let _t = crate::timing::Timer::start("aggregate::translation_context");
+        annotate_translation_context(all, records);
+    }
+}
+
+/// Planner context for translation findings (`TRN_*` on a `translations.txt` row): which list and
+/// field the row translates, into which language, for which record or text, and the translation
+/// written. Rows are found by line (every row is kept as a record). Keys already on a finding are
+/// kept. Shared native/WASM step; details only, counts are unchanged.
+fn annotate_translation_context(all: &mut [gtfs_core::Notice], records: &EntityRecords) {
+    use rustc_hash::FxHashMap;
+    let wanted = |n: &gtfs_core::Notice| {
+        n.rule_id.starts_with("TRN_")
+            && n.line.is_some()
+            && n.file.as_deref() == Some("translations.txt")
+    };
+    if !all.iter().any(wanted) {
+        return;
+    }
+    let by_line: FxHashMap<u64, &crate::k2::translations::TranslationRecord> =
+        records.translations.iter().map(|t| (t.line, t)).collect();
+    for notice in all.iter_mut().filter(|n| wanted(n)) {
+        let Some(rec) = notice.line.and_then(|line| by_line.get(&line)) else {
+            continue;
+        };
+        let details = notice.details.get_or_insert_with(Default::default);
+        for (key, value) in [
+            ("table_name", Some(rec.table_name.as_str())),
+            ("field_name", Some(rec.field_name.as_str())),
+            ("language", Some(rec.language.as_str())),
+            ("record_id", rec.record_id.as_deref()),
+            ("record_sub_id", rec.record_sub_id.as_deref()),
+            ("field_value", rec.field_value.as_deref()),
+            ("translation", Some(rec.translation.as_str())),
+        ] {
+            if let Some(value) = value.filter(|v| !v.is_empty()) {
+                if !details.contains_key(key) {
+                    details.insert(key.to_string(), value.to_string());
+                }
+            }
+        }
+    }
 }
 
 /// Planner context for station pathway findings (`PTH_*` naming a pathway): its two ends, its

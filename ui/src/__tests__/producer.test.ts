@@ -3799,3 +3799,20 @@ describe('Veri seti bilgisi kartları (FIN)', () => {
       .toContain('Girilen değer: „info@“.');
   });
 });
+
+describe('Çeviri kartları (TRN)', () => {
+  const ni: NameIndex = { ...emptyNameIndex, stops: { S1: 'Otogar' } };
+  const render = (n: Notice) => {
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [[n.rule_id, 1, 1]], true, ni));
+    return root.innerHTML;
+  };
+
+  it('TRN_005 çeviriyi liste, ad türü, kaydın adı, dil ve çeviri ile söyler', () => {
+    const html = render(notice('a', 'TRN_005', 'CRITICAL', { entity_type: 'Row', file: 'translations.txt', line: 7, details: {
+      table_name: 'stops', field_name: 'stop_name', language: 'en', record_id: 'S1', translation: 'Bus station',
+    } }));
+    expect(html).toContain('Çeviri: Durak listesi · Durak adı · „Otogar“ → en: „Bus station“.');
+    expect(html).toContain('<td>Durak listesi</td><td>Durak adı</td><td>Otogar</td><td>en</td><td>Bus station</td><td>7</td>');
+  });
+});
