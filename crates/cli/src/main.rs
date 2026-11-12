@@ -328,10 +328,7 @@ impl Filters {
                 return false;
             }
         }
-        if !self.classes.is_empty() && !self.classes.contains(&notice.rule_class) {
-            return false;
-        }
-        true
+        self.classes.is_empty() || self.classes.contains(&notice.rule_class)
     }
 
     fn describe(&self) -> Vec<String> {

@@ -1,3 +1,8 @@
 [toolchain]
-channel = "stable"
+# Pinned so CI and local builds use the same compiler and clippy. With "stable" CI picked up
+# each new release on its own (1.100 added clippy lints the local 1.98 did not have, and the
+# pre-push gate passed while CI failed). Raise this on purpose: install the new version
+# locally, run the full clippy and test pass, then change it here.
+channel = "1.100.0"
+components = ["clippy", "rustfmt"]
 targets = ["wasm32-unknown-unknown"]
