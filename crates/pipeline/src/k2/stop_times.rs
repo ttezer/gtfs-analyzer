@@ -4766,7 +4766,7 @@ mod tests {
     #[test]
     fn native_stream_budget_is_bounded() {
         assert_ne!(stream_byte_limit(None), usize::MAX);
-        assert!(K2_NATIVE_MAX_ENTRY_BYTES > 0 && K2_NATIVE_MAX_TOTAL_BYTES > 0);
+        const { assert!(K2_NATIVE_MAX_ENTRY_BYTES > 0 && K2_NATIVE_MAX_TOTAL_BYTES > 0) };
         let mut budget = StreamBudget::with_entry_limit(100, 60);
         assert_eq!(budget.limit(), 60);
         budget.consume(60);
