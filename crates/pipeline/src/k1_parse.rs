@@ -647,9 +647,10 @@ fn tokenize_csv(
 /// Archive-wide cap on CSV cells K1 materialises for buffered (non-stream) files.
 /// A cell costs ≥24 B (`SmolStr`) even when empty, so a body of bare commas expands
 /// ~24× in memory; this bounds that amplification (security review 11-12, #3).
-/// 150M cells ≈ 3.6 GiB of `SmolStr` — far above real buffered files (the large
-/// tables stop_times/shapes/trips/calendar_dates are streamed and not counted).
-pub(crate) const K1_MAX_BUFFERED_CELLS: usize = 150_000_000;
+/// 50M cells caps this at ~1.2 GiB of `SmolStr`. Measured 11-12: with 150M a 2.2 MB
+/// ZIP of bare commas still peaked at 3.2 GB RSS (3.9 GB without any budget). The
+/// large tables stop_times/shapes/trips/calendar_dates are streamed and not counted.
+pub(crate) const K1_MAX_BUFFERED_CELLS: usize = 50_000_000;
 
 /// `tokenize_csv` with a shared cell budget. When the budget runs out, tokenizing
 /// stops immediately (also inside one very wide row) and `*exceeded` is set; the
