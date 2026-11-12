@@ -3830,3 +3830,21 @@ describe('Ücret tanımı kartları (FAR)', () => {
     expect(html).toContain('<td>F1</td><td>2,5 EUR</td>');
   });
 });
+
+describe('Rezervasyon kuralı kartları (BKR)', () => {
+  const render = (n: Notice) => {
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [[n.rule_id, 1, 1]], true, emptyNameIndex));
+    return root.innerHTML;
+  };
+
+  it('BKR_007 kuralı türü ve süreleriyle anlatır', () => {
+    expect(render(notice('a', 'BKR_007', 'CRITICAL', { entity_type: 'Row', entity_id: 'R1', file: 'booking_rules.txt', line: 2, details: { booking_type: '1', prior_notice_duration_max: '120' } })))
+      .toContain('Kural „R1“: aynı gün, bildirim süresiyle, en çok 2 sa önce.');
+  });
+
+  it('BKR_009 önceki gün ayarını ve girilen değeri söyler', () => {
+    expect(render(notice('a', 'BKR_009', 'CRITICAL', { entity_type: 'Row', entity_id: 'R2', file: 'booking_rules.txt', line: 3, observed_value: '25:00', details: { booking_type: '2', prior_notice_last_day: '1' } })))
+      .toContain('Kural „R2“: önceki günden, son rezervasyon 1 gün önce. Girilen değer: „25:00“.');
+  });
+});

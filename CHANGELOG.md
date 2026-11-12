@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Added:** planner cards for the booking rule rules name the rule and describe how it is set (real-time, same day or up to the day before; minimum and maximum notice; last booking and opening day and time) and show the value written. Booking rule row findings carry the row's `booking_type` and `prior_notice_*` values in `details`. Counts are unchanged.
 - **Added:** planner cards for the fare definition rules name the fare by its code and price and show the value written. Fare definition row findings carry the row's `price` and `currency_type` in `details`. Counts are unchanged.
 - **Added:** planner cards for the translation rules name the translation: which list and field, which record or text (by its name where the page knows it), the language and the translation written. A shared native/WASM step adds `details.table_name`, `field_name`, `language`, `record_id`, `record_sub_id`, `field_value` and `translation` to translation findings on a `translations.txt` row. Counts are unchanged.
 - **Added:** planner cards for the feed info rules show the value written; the validity-date cards (`FIN_010`, `016`, `017`, `019`, `020`) give the window as written and the period the calendars actually run, so the planner can copy the dates. These findings carry `details.feed_start_date`, `feed_end_date`, `service_first`, `service_last` and the calendars setting each, as `CAL_020` does. Counts are unchanged.

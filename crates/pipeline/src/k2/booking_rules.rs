@@ -82,6 +82,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
+        let first_notice = notices.len();
 
         let id = get_raw_field(&row_map, "booking_rule_id")
             .unwrap_or("")
@@ -534,6 +535,27 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
             }
         }
 
+        // Planner context: how the rule is set (type and notice fields as written), so the card can
+        // say what to change. Only `details` keys are added.
+        for finding in &mut notices[first_notice..] {
+            let details = finding.details.get_or_insert_with(Default::default);
+            for key in [
+                "booking_type",
+                "prior_notice_duration_min",
+                "prior_notice_duration_max",
+                "prior_notice_last_day",
+                "prior_notice_last_time",
+                "prior_notice_start_day",
+                "prior_notice_start_time",
+                "prior_notice_service_id",
+            ] {
+                if let Some(value) = get_trimmed_field(&row_map, key).filter(|v| !v.is_empty()) {
+                    if !details.contains_key(key) {
+                        details.insert(key.to_string(), value.to_string());
+                    }
+                }
+            }
+        }
         records.push(BookingRuleRecord {
             booking_rule_id: id,
             booking_type,
@@ -570,6 +592,29 @@ mod tests {
             raw_text: None,
             zip_entry_name: None,
         }
+    }
+
+    #[test]
+    fn booking_findings_carry_how_the_rule_is_set() {
+        let file = make_file(
+            vec![
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_duration_max",
+            ],
+            vec![vec!["R1", "1", "120"]],
+        );
+        let (_, notices) = validate_booking_rules(&file);
+        let d = notices
+            .iter()
+            .find(|n| n.rule_id == "BKR_007")
+            .and_then(|n| n.details.as_ref())
+            .expect("BKR_007 details");
+        assert_eq!(d.get("booking_type").map(String::as_str), Some("1"));
+        assert_eq!(
+            d.get("prior_notice_duration_max").map(String::as_str),
+            Some("120")
+        );
     }
 
     #[test]

@@ -2219,6 +2219,27 @@ function cal020LongCalendars(d: Record<string, string>): boolean {
 
 /** Each calendar rule's own sentence, in the planner's words; null when the finding lacks what
  *  the sentence needs (the card then keeps its general text). */
+/** Booking rule cards (BKR): the rule by its code and how it is set (type, notice times). */
+function bkrSetting(d: Record<string, string>): string {
+  const minutes = (v?: string) => v && Number.isFinite(Number(v)) ? durationText(Number(v) * 60) : null;
+  const parts = [
+    d.booking_type && /^[0-2]$/.test(d.booking_type) ? t(`producer.card.BKR.type_${d.booking_type}`) : d.booking_type ? t('producer.card.BKR.type_raw', { value: d.booking_type }) : '',
+    minutes(d.prior_notice_duration_min) ? t('producer.card.BKR.min', { value: minutes(d.prior_notice_duration_min) ?? '' }) : '',
+    minutes(d.prior_notice_duration_max) ? t('producer.card.BKR.max', { value: minutes(d.prior_notice_duration_max) ?? '' }) : '',
+    d.prior_notice_last_day ? (d.prior_notice_last_time ? t('producer.card.BKR.last', { days: d.prior_notice_last_day, time: plannerTime(d.prior_notice_last_time) ?? '' }) : t('producer.card.BKR.last_day', { days: d.prior_notice_last_day })) : '',
+    d.prior_notice_start_day ? (d.prior_notice_start_time ? t('producer.card.BKR.start', { days: d.prior_notice_start_day, time: plannerTime(d.prior_notice_start_time) ?? '' }) : t('producer.card.BKR.start_day', { days: d.prior_notice_start_day })) : '',
+  ].filter(Boolean);
+  return parts.join(', ');
+}
+function bkrText(n: Notice): string | null {
+  const d = n.details ?? {};
+  const setting = bkrSetting(d);
+  if (!n.entity_id && !setting) return null;
+  const rule = t('producer.card.BKR.rule', { rule: n.entity_id || '—', setting: setting || '—' });
+  const value = visibleValue(n.observed_value ?? null);
+  return [t(`producer.card.${n.rule_id}.what`), rule, value ? t('producer.card.FIN.value', { value }) : ''].filter(Boolean).join(' ');
+}
+
 /** Fare definition cards (FAR): the fare by its code and price, then the value written. */
 const FAR_FARE_RULES = new Set(['FAR_001', 'FAR_002', 'FAR_003', 'FAR_004', 'FAR_005', 'FAR_006', 'FAR_008', 'FAR_011']);
 function farText(n: Notice): string | null {
@@ -3390,6 +3411,12 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         what: t('producer.card.DQ_005c.what_detail', { n: localizedNumber(d.missing_count), total: localizedNumber(d.stop_count) }),
         action: t('producer.card.DQ_005c.action'),
       };
+    }
+    case 'BKR_001': case 'BKR_003': case 'BKR_004': case 'BKR_005': case 'BKR_006': case 'BKR_007': case 'BKR_008':
+    case 'BKR_009': case 'BKR_010': case 'BKR_011': case 'BKR_012': case 'BKR_013': case 'BKR_014': case 'BKR_016':
+    case 'BKR_019': case 'BKR_020': case 'BKR_021': case 'BKR_022': case 'BKR_023': case 'BKR_024': case 'BKR_025': {
+      const what = bkrText(n);
+      return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
     }
     case 'FAR_001': case 'FAR_002': case 'FAR_003': case 'FAR_004': case 'FAR_005': case 'FAR_006': case 'FAR_008': case 'FAR_011': {
       const what = farText(n);
