@@ -559,7 +559,7 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
         Some(has_gtfs_jp_file),
         Some(&whitespace_root_files),
     ); // #15 W2 + #38: stop_times ZIP stream
-    gtfs_pipeline::mark_incomplete_streams(&mut partial, &k2.incomplete_streams);
+    gtfs_pipeline::apply_k2_stream_outcome(&mut partial, &k1.notices, &mut k2);
     reconcile_flex_stop_requirement(
         &mut k1.notices,
         &mut k2.notices,

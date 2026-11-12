@@ -74,6 +74,8 @@ pub struct StreamBudget {
     /// guard or read error). lib.rs turns these into a PARTIAL root error so a cut
     /// stream is never reported as a complete validation.
     incomplete: Vec<String>,
+    /// Streamed files with invalid UTF-8 after K1's sample: (file, record number).
+    invalid_utf8: Vec<(String, u64)>,
 }
 
 impl StreamBudget {
@@ -85,15 +87,21 @@ impl StreamBudget {
             remaining: total,
             per_entry,
             incomplete: Vec::new(),
+            invalid_utf8: Vec::new(),
         }
+    }
+    pub(crate) fn mark_invalid_utf8(&mut self, file: &str, record: u64) {
+        if !self.invalid_utf8.iter().any(|(f, _)| f == file) {
+            self.invalid_utf8.push((file.to_string(), record));
+        }
+    }
+    pub(crate) fn into_parts(self) -> (Vec<String>, Vec<(String, u64)>) {
+        (self.incomplete, self.invalid_utf8)
     }
     pub(crate) fn mark_incomplete(&mut self, file: &str) {
         if !self.incomplete.iter().any(|f| f == file) {
             self.incomplete.push(file.to_string());
         }
-    }
-    pub(crate) fn into_incomplete(self) -> Vec<String> {
-        self.incomplete
     }
     pub(crate) fn limit(&self) -> usize {
         self.remaining.min(self.per_entry)
@@ -1514,6 +1522,8 @@ pub(crate) struct ZipCsvReader<R: Read> {
     /// Body ended early because of the BYTE budget or a read/decompression error
     /// (not the SDK row budget, which ARC_022 already reports).
     incomplete: bool,
+    /// Record number (header = 1) of the first record with invalid UTF-8.
+    first_invalid_utf8: Option<u64>,
 }
 
 impl<R: Read> ZipCsvReader<R> {
@@ -1532,6 +1542,7 @@ impl<R: Read> ZipCsvReader<R> {
             records_seen: 0,
             truncated: false,
             incomplete: false,
+            first_invalid_utf8: None,
         }
     }
 
@@ -1651,6 +1662,24 @@ impl<R: Read> ZipCsvReader<R> {
     /// capacity with `mem::take`; on VBB (5.68M rows × ~10 fields) that meant ~57M allocations.
     /// Field contents, field count, and order are exactly the same.
     pub(crate) fn next_record(&mut self, out: &mut Vec<Vec<u8>>) -> bool {
+        let more = self.next_record_raw(out);
+        // K1 only checks the first bytes of a streamed file; every later record is checked
+        // here so invalid bytes are reported instead of silently becoming U+FFFD
+        // (security review 11-12, #9). The record number counts the header as 1.
+        if more
+            && self.first_invalid_utf8.is_none()
+            && out.iter().any(|field| std::str::from_utf8(field).is_err())
+        {
+            self.first_invalid_utf8 = Some(self.records_seen as u64);
+        }
+        more
+    }
+
+    pub(crate) fn first_invalid_utf8(&self) -> Option<u64> {
+        self.first_invalid_utf8
+    }
+
+    fn next_record_raw(&mut self, out: &mut Vec<Vec<u8>>) -> bool {
         if let Some(max) = self.max_data_rows {
             // Record count including the header: 1 + allowed data rows.
             if self.records_seen >= max.saturating_add(1) {
@@ -3550,6 +3579,16 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                     } else {
                                         0
                                     };
+                                    // Chunks end on line boundaries, so a multibyte
+                                    // character is never split here (security review #9).
+                                    if let Err(e) = std::str::from_utf8(&chunk[data_start..]) {
+                                        if let Some(budget) = stream_budget.as_mut() {
+                                            let valid = &chunk[data_start..data_start + e.valid_up_to()];
+                                            let lines =
+                                                valid.iter().filter(|&&b| b == b'\n').count() as u64;
+                                            budget.mark_invalid_utf8(&file.name, next_line + lines);
+                                        }
+                                    }
                                     let ranges = split_chunk_at_trip_boundaries(
                                         &chunk,
                                         cols.trip_id,
@@ -3639,6 +3678,15 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                 );
                                 let mut body: Vec<u8> = Vec::new();
                                 if guarded.read_to_end(&mut body).is_ok() {
+                                    if let Err(e) = std::str::from_utf8(&body) {
+                                        if let Some(budget) = stream_budget.as_mut() {
+                                            let lines = body[..e.valid_up_to()]
+                                                .iter()
+                                                .filter(|&&b| b == b'\n')
+                                                .count() as u64;
+                                            budget.mark_invalid_utf8(&file.name, 1 + lines);
+                                        }
+                                    }
                                     let n = std::thread::available_parallelism()
                                         .map(|v| v.get())
                                         .unwrap_or(4);
@@ -3750,6 +3798,9 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             if let Some(budget) = stream_budget.as_mut() {
                                 if csv_reader.incomplete() {
                                     budget.mark_incomplete(&file.name);
+                                }
+                                if let Some(record) = csv_reader.first_invalid_utf8() {
+                                    budget.mark_invalid_utf8(&file.name, record);
                                 }
                                 budget.consume(csv_reader.bytes_read());
                             }
@@ -4692,6 +4743,24 @@ mod tests {
         let mut clean = ZipCsvReader::with_limits(Cursor::new(b"a,b\n1,2\n"), usize::MAX, None);
         while clean.next_record(&mut fields) {}
         assert!(!clean.incomplete(), "a normal EOF is complete");
+    }
+
+    /// Security review #9: invalid UTF-8 anywhere in a streamed body is located, not
+    /// silently replaced; valid bodies report nothing.
+    #[test]
+    fn zip_csv_reader_reports_first_invalid_utf8_record() {
+        let mut body = b"a,b\n".to_vec();
+        for i in 0..1000 {
+            body.extend_from_slice(format!("{i},ok\n").as_bytes());
+        }
+        body.extend_from_slice(b"x,\xFF\xFE\ny,\xFF\n");
+        let mut reader = ZipCsvReader::with_limits(Cursor::new(body), usize::MAX, None);
+        let mut fields = Vec::new();
+        while reader.next_record(&mut fields) {}
+        assert_eq!(reader.first_invalid_utf8(), Some(1002), "header=1, 1000 rows, then the bad one");
+        let mut clean = ZipCsvReader::with_limits(Cursor::new(b"a,b\n1,\xC3\xA9\n"), usize::MAX, None);
+        while clean.next_record(&mut fields) {}
+        assert_eq!(clean.first_invalid_utf8(), None);
     }
 
     #[test]

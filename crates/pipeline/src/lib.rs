@@ -66,6 +66,64 @@ pub fn mark_incomplete_streams(partial: &mut gtfs_core::PartialReport, files: &[
     }
 }
 
+/// Applies what K2 learned while streaming: cut streams make the run PARTIAL, and invalid
+/// UTF-8 after K1's sample gets the SAME treatment K1 gives a buffered file (ARC_002, plus
+/// ARC_003 for an optional file, and the file becomes unavailable to later stages).
+/// Before, those bytes silently became U+FFFD (security review 11-12, #9).
+pub fn apply_k2_stream_outcome(
+    partial: &mut gtfs_core::PartialReport,
+    k1_notices: &[gtfs_core::Notice],
+    k2: &mut k2::K2Result,
+) {
+    mark_incomplete_streams(partial, &k2.incomplete_streams);
+    let mut counter = 0u32;
+    for (file, record) in &k2.invalid_utf8_streams {
+        let already = k1_notices
+            .iter()
+            .any(|n| n.rule_id == "ARC_002" && n.file.as_deref() == Some(file.as_str()));
+        if already {
+            continue;
+        }
+        let mut rules = vec!["ARC_002"];
+        if !k1_parse::is_required_file(file) {
+            rules.push("ARC_003");
+        }
+        for rule in rules {
+            let message = if rule == "ARC_002" {
+                format!("'{file}' UTF-8 kodlamasıyla okunamıyor.")
+            } else {
+                format!("'{file}' UTF-8 dışı olduğu için dosya atlandı.")
+            };
+            let mut notice = k2::common::make_k2_notice(
+                &mut counter,
+                rule,
+                gtfs_core::EntityType::File,
+                Some(file.clone()),
+                None,
+                file,
+                None,
+                None,
+                None,
+                None,
+                message,
+                if rule == "ARC_002" {
+                    "Re-save the file with UTF-8 encoding."
+                } else {
+                    "Save all GTFS files with UTF-8 encoding."
+                },
+            );
+            // Record number (header = 1); equals the line unless an earlier quoted field
+            // spans lines.
+            notice
+                .details
+                .get_or_insert_with(Default::default)
+                .insert("invalid_line", record.to_string());
+            k2.notices.push(notice);
+        }
+        partial.mark_unavailable(file.clone());
+    }
+}
+
 pub fn reconcile_flex_stop_requirement(
     k1_notices: &mut Vec<gtfs_core::Notice>,
     k2_notices: &mut Vec<gtfs_core::Notice>,
@@ -2225,7 +2283,7 @@ fn validate_bytes_inspected_with_name_index(
         // #15 W2 + #38: ZIP bytes K2'ye → stop_times stream
     };
     crate::timing::mem_log("after K2-validate");
-    mark_incomplete_streams(&mut partial, &k2.incomplete_streams);
+    apply_k2_stream_outcome(&mut partial, &k1.notices, &mut k2);
     reconcile_flex_stop_requirement(
         &mut k1.notices,
         &mut k2.notices,

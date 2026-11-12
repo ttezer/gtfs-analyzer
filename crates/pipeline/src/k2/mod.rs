@@ -218,6 +218,8 @@ pub struct K2Result {
     /// Streamed files not read to the end (byte budget, decompression guard, read
     /// error). Callers must surface these as PARTIAL coverage.
     pub incomplete_streams: Vec<String>,
+    /// Streamed files with invalid UTF-8 past K1's sample: (file, record number, header = 1).
+    pub invalid_utf8_streams: Vec<(String, u64)>,
 }
 
 /// STREAMED files above the threshold — the decision source for ARC_022 (issue #75).
@@ -742,13 +744,15 @@ pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
     // "`feed_lang` is empty, AGN_013 does not run"). Registry `Feed` dedup folded both into
     // one notice, so it was hidden; moving dedup to `Entity` exposed the duplicate finding.
 
+    let (incomplete_streams, invalid_utf8_streams) = stream_budget
+        .map(StreamBudget::into_parts)
+        .unwrap_or_default();
     K2Result {
         records,
         notices,
         whitespace_suppressions,
-        incomplete_streams: stream_budget
-            .map(StreamBudget::into_incomplete)
-            .unwrap_or_default(),
+        incomplete_streams,
+        invalid_utf8_streams,
     }
 }
 

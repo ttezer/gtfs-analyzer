@@ -722,6 +722,9 @@ pub fn validate_shapes_with_limits(
                             if rdr.incomplete() {
                                 budget.mark_incomplete(&file.name);
                             }
+                            if let Some(record) = rdr.first_invalid_utf8() {
+                                budget.mark_invalid_utf8(&file.name, record);
+                            }
                             budget.consume(rdr.bytes_read());
                         }
                         stream_truncated |= rdr.truncated();

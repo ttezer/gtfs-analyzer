@@ -488,6 +488,9 @@ pub fn validate_calendar_dates_with_limits(
                             if csv_reader.incomplete() {
                                 budget.mark_incomplete(&file.name);
                             }
+                            if let Some(record) = csv_reader.first_invalid_utf8() {
+                                budget.mark_invalid_utf8(&file.name, record);
+                            }
                             budget.consume(bytes_read);
                         }
                         if csv_reader.truncated() {

@@ -19,6 +19,11 @@ macro_rules! k1dbg {
 
 // ── GTFS file lists ───────────────────────────────────────────────────────────
 
+/// Whether `file` is one of the GTFS files K1 treats as required.
+pub fn is_required_file(file: &str) -> bool {
+    REQUIRED_FILES.contains(&file)
+}
+
 const REQUIRED_FILES: &[&str] = &[
     "agency.txt",
     "stops.txt",
