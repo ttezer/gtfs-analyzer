@@ -3710,3 +3710,23 @@ describe('Grupların kalan kartları (TRF/FRQ/PTH satır kontrolleri ve özetler
       .toContain('Yürüme bağlantısı: Yürüyen merdiven, — → Peron 1.');
   });
 });
+
+describe('İşletmeci kartları (AGN)', () => {
+  const summary = { agencies: [{ agency_id: 'A1', agency_name: 'Metro' }] } as unknown as ValidationResult['feed_summary'];
+  const render = (n: Notice) => {
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [[n.rule_id, 1, 1]], true, emptyNameIndex, summary));
+    return root.innerHTML;
+  };
+
+  it('AGN_015 kodu olmayan işletmeciyi adıyla anar ve https adresini önerir', () => {
+    const html = render(notice('a', 'AGN_015', 'INFO', { entity_type: 'Agency', file: 'agency.txt', line: 2, field: 'agency_url', observed_value: 'http://bus.example', details: { agency_name: 'Kent Otobüs' } }));
+    expect(html).toContain('İşletmeci: Kent Otobüs. Girilen değer: „http://bus.example“. Önce „https://bus.example“ adresini deneyin.');
+    expect(html).toContain('<th>İşletmeci</th><th>Sütun</th><th>Değer</th><th>Satır</th>');
+  });
+
+  it('AGN_007 kodu olan işletmeciyi veri seti künyesinden adlandırır', () => {
+    expect(render(notice('a', 'AGN_007', 'LOW', { entity_type: 'Agency', entity_id: 'A1', file: 'agency.txt', line: 2, field: 'agency_phone', observed_value: 'abc' })))
+      .toContain('İşletmeci: Metro. Girilen değer: „abc“.');
+  });
+});

@@ -246,24 +246,6 @@
     "notices": [
       {
         "details": null,
-        "entity_id": "1",
-        "entity_type": "Agency",
-        "expected_value": "https://",
-        "field": "agency_url",
-        "file": "agency.txt",
-        "line": 2,
-        "message": "Agency '1': agency_url uses insecure 'http://'; 'https://' is recommended.",
-        "observed_value": "http://test.example",
-        "remediation": "Update agency_url to use https://.",
-        "rule_class": "QUALITY",
-        "rule_id": "AGN_015",
-        "scope_key": "http://test.example",
-        "service_id": null,
-        "severity": "INFO",
-        "title": "agency_url uses insecure http"
-      },
-      {
-        "details": null,
         "entity_id": "R1",
         "entity_type": "Route",
         "expected_value": null,
@@ -462,6 +444,26 @@
         "service_id": null,
         "severity": "MEDIUM",
         "title": "stop_code missing"
+      },
+      {
+        "details": {
+          "agency_name": "Test"
+        },
+        "entity_id": "1",
+        "entity_type": "Agency",
+        "expected_value": "https://",
+        "field": "agency_url",
+        "file": "agency.txt",
+        "line": 2,
+        "message": "Agency '1': agency_url uses insecure 'http://'; 'https://' is recommended.",
+        "observed_value": "http://test.example",
+        "remediation": "Update agency_url to use https://.",
+        "rule_class": "QUALITY",
+        "rule_id": "AGN_015",
+        "scope_key": "http://test.example",
+        "service_id": null,
+        "severity": "INFO",
+        "title": "agency_url uses insecure http"
       },
       {
         "details": {
@@ -760,24 +762,6 @@
         },
         {
           "details": null,
-          "entity_id": "A2",
-          "entity_type": "Agency",
-          "expected_value": "https://",
-          "field": "agency_url",
-          "file": "agency.txt",
-          "line": 3,
-          "message": "Agency 'A2': agency_url uses insecure 'http://'; 'https://' is recommended.",
-          "observed_value": "http://two.example",
-          "remediation": "Update agency_url to use https://.",
-          "rule_class": "QUALITY",
-          "rule_id": "AGN_015",
-          "scope_key": "http://two.example",
-          "service_id": null,
-          "severity": "INFO",
-          "title": "agency_url uses insecure http"
-        },
-        {
-          "details": null,
           "entity_id": "A3",
           "entity_type": "Agency",
           "expected_value": "de",
@@ -793,24 +777,6 @@
           "service_id": null,
           "severity": "LOW",
           "title": "Feed language and agency language mismatch"
-        },
-        {
-          "details": null,
-          "entity_id": "A3",
-          "entity_type": "Agency",
-          "expected_value": "https://",
-          "field": "agency_url",
-          "file": "agency.txt",
-          "line": 4,
-          "message": "Agency 'A3': agency_url uses insecure 'http://'; 'https://' is recommended.",
-          "observed_value": "http://three.example",
-          "remediation": "Update agency_url to use https://.",
-          "rule_class": "QUALITY",
-          "rule_id": "AGN_015",
-          "scope_key": "http://three.example",
-          "service_id": null,
-          "severity": "INFO",
-          "title": "agency_url uses insecure http"
         },
         {
           "details": null,
@@ -982,6 +948,26 @@
         },
         {
           "details": {
+            "agency_name": "Three"
+          },
+          "entity_id": "A3",
+          "entity_type": "Agency",
+          "expected_value": "https://",
+          "field": "agency_url",
+          "file": "agency.txt",
+          "line": 4,
+          "message": "Agency 'A3': agency_url uses insecure 'http://'; 'https://' is recommended.",
+          "observed_value": "http://three.example",
+          "remediation": "Update agency_url to use https://.",
+          "rule_class": "QUALITY",
+          "rule_id": "AGN_015",
+          "scope_key": "http://three.example",
+          "service_id": null,
+          "severity": "INFO",
+          "title": "agency_url uses insecure http"
+        },
+        {
+          "details": {
             "agency_name": "Two",
             "agency_url": "http://two.example",
             "route_count": "1",
@@ -1003,6 +989,26 @@
           "service_id": null,
           "severity": "INFO",
           "title": "Agency not used by any route"
+        },
+        {
+          "details": {
+            "agency_name": "Two"
+          },
+          "entity_id": "A2",
+          "entity_type": "Agency",
+          "expected_value": "https://",
+          "field": "agency_url",
+          "file": "agency.txt",
+          "line": 3,
+          "message": "Agency 'A2': agency_url uses insecure 'http://'; 'https://' is recommended.",
+          "observed_value": "http://two.example",
+          "remediation": "Update agency_url to use https://.",
+          "rule_class": "QUALITY",
+          "rule_id": "AGN_015",
+          "scope_key": "http://two.example",
+          "service_id": null,
+          "severity": "INFO",
+          "title": "agency_url uses insecure http"
         }
       ],
       "agency_breakdown": {
@@ -2710,42 +2716,6 @@
       "added": [
         {
           "details": null,
-          "entity_id": "A2",
-          "entity_type": "Agency",
-          "expected_value": "https://",
-          "field": "agency_url",
-          "file": "agency.txt",
-          "line": 3,
-          "message": "Agency 'A2': agency_url uses insecure 'http://'; 'https://' is recommended.",
-          "observed_value": "http://two.example",
-          "remediation": "Update agency_url to use https://.",
-          "rule_class": "QUALITY",
-          "rule_id": "AGN_015",
-          "scope_key": "http://two.example",
-          "service_id": null,
-          "severity": "INFO",
-          "title": "agency_url uses insecure http"
-        },
-        {
-          "details": null,
-          "entity_id": "A3",
-          "entity_type": "Agency",
-          "expected_value": "https://",
-          "field": "agency_url",
-          "file": "agency.txt",
-          "line": 4,
-          "message": "Agency 'A3': agency_url uses insecure 'http://'; 'https://' is recommended.",
-          "observed_value": "http://three.example",
-          "remediation": "Update agency_url to use https://.",
-          "rule_class": "QUALITY",
-          "rule_id": "AGN_015",
-          "scope_key": "http://three.example",
-          "service_id": null,
-          "severity": "INFO",
-          "title": "agency_url uses insecure http"
-        },
-        {
-          "details": null,
           "entity_id": "agency.txt",
           "entity_type": "File",
           "expected_value": null,
@@ -2788,6 +2758,26 @@
         },
         {
           "details": {
+            "agency_name": "Three"
+          },
+          "entity_id": "A3",
+          "entity_type": "Agency",
+          "expected_value": "https://",
+          "field": "agency_url",
+          "file": "agency.txt",
+          "line": 4,
+          "message": "Agency 'A3': agency_url uses insecure 'http://'; 'https://' is recommended.",
+          "observed_value": "http://three.example",
+          "remediation": "Update agency_url to use https://.",
+          "rule_class": "QUALITY",
+          "rule_id": "AGN_015",
+          "scope_key": "http://three.example",
+          "service_id": null,
+          "severity": "INFO",
+          "title": "agency_url uses insecure http"
+        },
+        {
+          "details": {
             "agency_name": "Two",
             "agency_url": "http://two.example",
             "route_count": "1",
@@ -2809,6 +2799,26 @@
           "service_id": null,
           "severity": "INFO",
           "title": "Agency not used by any route"
+        },
+        {
+          "details": {
+            "agency_name": "Two"
+          },
+          "entity_id": "A2",
+          "entity_type": "Agency",
+          "expected_value": "https://",
+          "field": "agency_url",
+          "file": "agency.txt",
+          "line": 3,
+          "message": "Agency 'A2': agency_url uses insecure 'http://'; 'https://' is recommended.",
+          "observed_value": "http://two.example",
+          "remediation": "Update agency_url to use https://.",
+          "rule_class": "QUALITY",
+          "rule_id": "AGN_015",
+          "scope_key": "http://two.example",
+          "service_id": null,
+          "severity": "INFO",
+          "title": "agency_url uses insecure http"
         }
       ],
       "agency_breakdown": {

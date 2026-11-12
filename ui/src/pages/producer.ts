@@ -65,7 +65,19 @@ interface PlannerCardCopy {
 
 function agencyLabel(n: Notice, result: ValidationResult): string {
   const agency = result.feed_summary?.agencies?.find(a => a.agency_id === n.entity_id);
-  return agency?.agency_name || n.entity_id || t('producer.card.unnamed_agency');
+  // A single agency often has no code; the engine then names it in details.agency_name.
+  return agency?.agency_name || n.details?.agency_name || n.entity_id || t('producer.card.unnamed_agency');
+}
+
+/** Agency cards: the agency by name, then the value written in the field the rule checks. */
+const AGN_AGENCY_RULES = new Set(['AGN_002', 'AGN_004', 'AGN_006', 'AGN_007', 'AGN_008', 'AGN_009', 'AGN_010', 'AGN_012', 'AGN_013', 'AGN_014', 'AGN_015', 'AGN_016', 'AGN_018']);
+function agnText(n: Notice, result: ValidationResult): string {
+  const value = visibleValue(n.observed_value ?? null);
+  const parts = [t(`producer.card.${n.rule_id}.what`), t('producer.card.AGN.agency', { agency: agencyLabel(n, result) })];
+  if (value) parts.push(t('producer.card.AGN.value', { value }));
+  // AGN_015: the same address over https, which the planner can try first.
+  if (n.rule_id === 'AGN_015' && /^http:\/\//i.test(value)) parts.push(t('producer.card.AGN_015.https', { url: value.replace(/^http:/i, 'https:') }));
+  return parts.join(' ');
 }
 
 function tripContext(n: Notice, result: ValidationResult): { route?: string; headsign?: string; departure?: string } {
@@ -296,7 +308,7 @@ const DQ021_KIND: Record<string, string> = {
  *  show file and column names. A column without a name keeps its own (the planner still has to
  *  find it); a file without one leaves the card to its general text. */
 const PLANNER_LISTS = new Set(['agency', 'stops', 'routes', 'trips', 'stop_times', 'calendar', 'calendar_dates', 'shapes', 'frequencies', 'transfers', 'feed_info', 'fare_attributes', 'fare_rules', 'translations', 'attributions', 'pathways', 'levels', 'agency_jp', 'office_jp', 'routes_jp', 'pattern_jp']);
-const PLANNER_FIELDS = new Set(['safe_duration_factor', 'safe_duration_offset', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'start_date', 'end_date', 'stop_id', 'stop_code', 'stop_name', 'stop_desc', 'stop_lat', 'stop_lon', 'zone_id', 'stop_url', 'parent_station', 'platform_code', 'tts_stop_name', 'route_id', 'route_short_name', 'route_long_name', 'route_desc', 'route_url', 'route_color', 'route_text_color', 'agency_id', 'agency_name', 'agency_url', 'agency_timezone', 'agency_phone', 'agency_lang', 'trip_id', 'service_id', 'trip_headsign', 'trip_short_name', 'block_id', 'shape_id', 'stop_headsign', 'arrival_time', 'departure_time', 'date', 'feed_publisher_name', 'feed_publisher_url', 'feed_lang', 'fare_id', 'location_type', 'feed_start_date', 'feed_end_date', 'feed_version', 'currency_type', 'route_type']);
+const PLANNER_FIELDS = new Set(['safe_duration_factor', 'safe_duration_offset', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'start_date', 'end_date', 'stop_id', 'stop_code', 'stop_name', 'stop_desc', 'stop_lat', 'stop_lon', 'zone_id', 'stop_url', 'parent_station', 'platform_code', 'tts_stop_name', 'route_id', 'route_short_name', 'route_long_name', 'route_desc', 'route_url', 'route_color', 'route_text_color', 'agency_id', 'agency_name', 'agency_url', 'agency_timezone', 'agency_phone', 'agency_lang', 'trip_id', 'service_id', 'trip_headsign', 'trip_short_name', 'block_id', 'shape_id', 'stop_headsign', 'arrival_time', 'departure_time', 'date', 'feed_publisher_name', 'feed_publisher_url', 'feed_lang', 'fare_id', 'location_type', 'feed_start_date', 'feed_end_date', 'feed_version', 'currency_type', 'route_type', 'agency_email', 'agency_fare_url', 'agency_cemv_support']);
 function plannerListName(file?: string | null): string | null {
   const stem = file?.replace(/\.txt$/, '');
   return stem && PLANNER_LISTS.has(stem) ? t(`producer.list.${stem}`) : null;
@@ -2934,6 +2946,10 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         what: t('producer.card.ARC_035.what', { file: dqListLabel(n) || n.file || t('producer.card.unknown_file') }),
         action: t('producer.card.ARC_035.action'),
       };
+    case 'AGN_002': case 'AGN_004': case 'AGN_006': case 'AGN_007': case 'AGN_008': case 'AGN_009':
+    case 'AGN_010': case 'AGN_012': case 'AGN_013': case 'AGN_014': case 'AGN_015': case 'AGN_016':
+    case 'AGN_018':
+      return { title: t(`producer.card.${g.ruleId}.title`), what: agnText(n, result), action: t(`producer.card.${g.ruleId}.action`) };
     case 'AGN_003':
       return {
         title: t('producer.card.AGN_003.title'),
@@ -5994,6 +6010,12 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
     };
   }
   // Transfers: the two stops, the time entered and its row.
+  if (AGN_AGENCY_RULES.has(g.ruleId) || g.ruleId === 'AGN_003') {
+    return {
+      head: [t('producer.times.agency'), t('producer.col.column'), t('producer.times.value'), t('producer.col.row')],
+      row: n => [agencyLabel(n, result), dash(n.field ? plannerFieldName(n.field) : null), visibleValue(n.observed_value ?? null) || '—', n.line != null ? String(n.line) : '—'],
+    };
+  }
   if (g.ruleId === 'XFL_002') {
     return {
       head: [t('producer.col.route'), t('producer.col.direction'), t('producer.col.service')],
