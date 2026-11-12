@@ -182,7 +182,7 @@ pub fn validate_calendar_dates_with_limits(
         if !arc021_fired {
             if let Some(cp) = crate::k1_parse::arc021_bad_char(row.iter().map(|v| v.as_ref())) {
                 arc021_fired = true;
-                notices.push(make_k2_notice(
+                let mut arc021 = make_k2_notice(
                     &mut counter,
                     "ARC_021",
                     EntityType::File,
@@ -195,7 +195,9 @@ pub fn validate_calendar_dates_with_limits(
                     None,
                     crate::k1_parse::arc021_message(&file.name, cp),
                     crate::k1_parse::ARC021_REMEDIATION,
-                ));
+                );
+                crate::k1_parse::add_arc021_context(&mut arc021, &file.headers, row.iter().map(|v| v.as_ref()));
+                notices.push(arc021);
             }
         }
         // ARC_030: tab/newline in a field value — once per file

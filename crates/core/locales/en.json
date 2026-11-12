@@ -2065,8 +2065,8 @@
     },
     "ARC_012": {
       "title": "File row structure is invalid",
-      "what": "A row in {file} has a different number of fields than its header.",
-      "action": "Correct the row and export the file again."
+      "what": "{n} rows in {file} have more fields than the header; most likely a comma in a name or description shifts the fields.",
+      "action": "Check the texts in the example rows for commas and make sure the export puts such texts in quotes. This is a file format problem; tell the team or software that makes the export."
     },
     "ARC_013": {
       "title": "File rows cannot be read",

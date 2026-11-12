@@ -1180,24 +1180,46 @@ pub(crate) fn arc034_is_header_repeat<S: AsRef<str>>(row: &[S], headers: &[Strin
             .all(|(v, h)| v.as_ref().trim() == h.trim())
 }
 
-pub(crate) fn arc021_bad_char<'a>(values: impl Iterator<Item = &'a str>) -> Option<u32> {
-    for val in values {
-        for ch in val.chars() {
-            if ch.is_alphanumeric() || ch.is_whitespace() {
-                continue;
-            }
-            let cp = ch as u32;
-            let is_bad = (cp < 32 && cp != 9)
-                || cp == 127
-                || (0xD800..=0xDFFF).contains(&cp)
-                || (0xE000..=0xF8FF).contains(&cp)
-                || (0xFFF0..=0xFFFF).contains(&cp);
-            if is_bad {
-                return Some(cp);
-            }
-        }
+fn arc021_is_bad(ch: char) -> bool {
+    if ch.is_alphanumeric() || ch.is_whitespace() {
+        return false;
     }
-    None
+    let cp = ch as u32;
+    (cp < 32 && cp != 9)
+        || cp == 127
+        || (0xD800..=0xDFFF).contains(&cp)
+        || (0xE000..=0xF8FF).contains(&cp)
+        || (0xFFF0..=0xFFFF).contains(&cp)
+}
+
+pub(crate) fn arc021_bad_char<'a>(values: impl Iterator<Item = &'a str>) -> Option<u32> {
+    values.flat_map(str::chars).find(|&ch| arc021_is_bad(ch)).map(|ch| ch as u32)
+}
+
+/// ARC_021 evidence: the column holding the first problematic character and the value around
+/// it (up to 20 characters each side), the character shown as `⟨U+XXXX⟩` since it is invisible.
+pub(crate) fn add_arc021_context<'a>(
+    notice: &mut Notice,
+    headers: &[String],
+    values: impl Iterator<Item = &'a str>,
+) {
+    for (col, val) in values.enumerate() {
+        let chars: Vec<char> = val.chars().collect();
+        let Some(at) = chars.iter().position(|&ch| arc021_is_bad(ch)) else {
+            continue;
+        };
+        let start = at.saturating_sub(20);
+        let end = (at + 21).min(chars.len());
+        let mut excerpt: String = chars[start..at].iter().collect();
+        excerpt.push_str(&format!("⟨U+{:04X}⟩", chars[at] as u32));
+        excerpt.extend(&chars[at + 1..end]);
+        let details = notice.details.get_or_insert_with(Default::default);
+        if let Some(name) = headers.get(col) {
+            details.insert("field_name", name.trim().to_string());
+        }
+        details.insert("value_excerpt", excerpt);
+        return;
+    }
 }
 
 /// ARC_030: searches a field value for a tab, line feed, or carriage return and returns the first
@@ -2919,7 +2941,7 @@ pub fn parse_with_limits(
             if !arc021_fired {
                 if let Some(cp) = arc021_bad_char(row.iter().map(|v| v.as_str())) {
                     arc021_fired = true;
-                    notices.push(make_notice(
+                    let mut arc021 = make_notice(
                         &mut counter,
                         "ARC_021",
                         EntityType::File,
@@ -2930,7 +2952,9 @@ pub fn parse_with_limits(
                         Some(format!("U+{cp:04X}")),
                         arc021_message(&raw_name, cp),
                         ARC021_REMEDIATION,
-                    ));
+                    );
+                    add_arc021_context(&mut arc021, &headers, row.iter().map(|v| v.as_str()));
+                    notices.push(arc021);
                 }
             }
 
@@ -4618,6 +4642,35 @@ mod tests {
             .iter()
             .any(|f| f == "trips.txt"));
         assert!(result.notices.iter().any(|n| n.rule_id == "ARC_002"));
+    }
+
+    #[test]
+    fn arc_021_names_the_column_and_shows_the_character() {
+        // U+0007 (bell) in a stop name (K1 path) and U+E000 (private use) in a headsign (K2 stream).
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      "stop_id,stop_name,stop_lat,stop_lon\nS1,Merkez\u{7}Durak,41.0,29.0\n".as_bytes()),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      "route_id,service_id,trip_id,trip_headsign\nR1,SVC1,T1,Liman\u{E000}\n".as_bytes()),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ]);
+        let result = crate::validate_bytes(&zip, &crate::ValidatorConfig::default(), 20_240_601);
+        let crate::ValidateResult::Ok(result) = result else { panic!("feed fatal") };
+        let details = |file: &str| {
+            result
+                .notices
+                .iter()
+                .find(|n| n.rule_id == "ARC_021" && n.file.as_deref() == Some(file))
+                .and_then(|n| n.details.clone())
+                .unwrap_or_else(|| panic!("ARC_021 {file} details yok"))
+        };
+        let stops = details("stops.txt");
+        assert_eq!(stops.get("field_name").map(String::as_str), Some("stop_name"));
+        assert_eq!(stops.get("value_excerpt").map(String::as_str), Some("Merkez⟨U+0007⟩Durak"));
+        let trips = details("trips.txt");
+        assert_eq!(trips.get("field_name").map(String::as_str), Some("trip_headsign"));
+        assert_eq!(trips.get("value_excerpt").map(String::as_str), Some("Liman⟨U+E000⟩"));
     }
 
     #[test]

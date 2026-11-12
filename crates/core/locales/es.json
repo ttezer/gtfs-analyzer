@@ -137,8 +137,8 @@
     },
     "ARC_012": {
       "title": "Estructura de fila del archivo no válida",
-      "what": "Una fila de {file} tiene un número de campos distinto al de su encabezado.",
-      "action": "Corrija la fila y exporte de nuevo el archivo."
+      "what": "{n} filas de {file} tienen más campos que el encabezado; lo más probable es que una coma en un nombre o una descripción desplace los campos.",
+      "action": "Revise si los textos de las filas de ejemplo contienen comas y compruebe que la exportación pone esos textos entre comillas. Es un problema de formato de archivo; avise al equipo o al software que genera la exportación."
     },
     "ARC_013": {
       "title": "No se pueden leer las filas del archivo",

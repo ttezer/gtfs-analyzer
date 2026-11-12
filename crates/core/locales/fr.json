@@ -2065,8 +2065,8 @@
     },
     "ARC_012": {
       "title": "Structure de ligne du fichier invalide",
-      "what": "Une ligne de {file} contient un nombre de champs différent de son en-tête.",
-      "action": "Corrigez la ligne et exportez à nouveau le fichier."
+      "what": "{n} lignes de {file} ont plus de champs que l’en-tête ; le plus souvent, une virgule dans un nom ou une description décale les champs.",
+      "action": "Regardez si les textes des lignes d’exemple contiennent des virgules et vérifiez que l’export met ces textes entre guillemets. C’est un problème de format de fichier ; prévenez l’équipe ou le logiciel qui produit l’export."
     },
     "ARC_013": {
       "title": "Lignes du fichier illisibles",

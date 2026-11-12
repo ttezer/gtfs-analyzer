@@ -3313,6 +3313,36 @@ describe('ARC dosya kartları (ARC_002–011)', () => {
     expect(html).toContain('<td>Durak listesi</td><td>3</td><td>…S2,K ⟨FC⟩</td>');
   });
 
+  it('ARC_012 etkilenen satırları ve fazla alan / atlanmış alan farkını gösterir', () => {
+    const extra = render(file('ARC_012', 'stops.txt', { severity: 'CRITICAL', details: { affected_rows: '3', example_lines: '4, 9, 12' } }));
+    expect(extra).toContain('Durak listesi içinde 3 satırda başlıktakinden fazla alan var');
+    expect(extra).toContain('<th>Kayıt</th><th>Etkilenen satır</th><th>Örnek satırlar</th>');
+    expect(extra).toContain('<td>Durak listesi</td><td>3</td><td>4, 9, 12</td>');
+    const short = render(file('ARC_012', 'routes.txt', { details: { affected_rows: '2' } }));
+    expect(short).toContain('Satır sonunda boş alanlar atlanmış');
+    expect(short).toContain('Bu geçerli bir kullanımdır.');
+  });
+
+  it('başlık kartları sütunu yazıldığı gibi, ARC_017 özetini sayıyla gösterir', () => {
+    expect(render(file('ARC_014', 'stops.txt', { field: ' stop_name' }))).toContain('<td>Durak listesi</td><td>␠stop_name</td>');
+    expect(render(file('ARC_017', 'stops.txt', { field: 'x_1' }))).toContain('<td>x_1</td>');
+    expect(render(file('ARC_017', 'stops.txt', { details: { message_variant: 'truncated', omitted_columns: '199900' } })))
+      .toContain('<td>+199.900 sütun daha</td>');
+  });
+
+  it('ARC_021 sütunu ve görünmez karakteri işaretli değerle gösterir', () => {
+    const html = render(file('ARC_021', 'stops.txt', { line: 5, observed_value: 'U+0007', details: { field_name: 'stop_name', value_excerpt: 'Merkez⟨U+0007⟩Durak' } }));
+    expect(html).toContain('<th>Kayıt</th><th>Satır</th><th>Sütun</th><th>Değer</th>');
+    expect(html).toContain('<td>Durak listesi</td><td>5</td><td>Durak adı</td><td>Merkez⟨U+0007⟩Durak</td>');
+  });
+
+  it('ARC_020 eksik dosyayı adıyla söyler', () => {
+    const feed = (f: string) => render(notice('a', 'ARC_020', 'LOW', { entity_type: 'Feed', file: f }));
+    expect(feed('shapes.txt')).toContain('güzergâh çizimleri yok; haritalarda');
+    expect(feed('feed_info.txt')).toContain('veri seti bilgileri (yayıncı, geçerlilik tarihleri) yok; uygulamalar');
+    expect(feed('shapes.txt/feed_info.txt')).toContain('ne güzergâh çizimleri ne de veri seti bilgileri');
+  });
+
   it('ARC_008 iki takvimin de olmadığını söyler', () => {
     expect(render(notice('a', 'ARC_008', 'CRITICAL', { entity_type: 'Feed' })))
       .toContain('Ne çalışma günleri ne de takvim istisnaları var');

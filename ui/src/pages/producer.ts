@@ -323,7 +323,7 @@ function dqListLabel(n: Notice): string | null {
   const kind = n.rule_id === 'DQ_021' && n.file ? DQ021_KIND[n.file] : undefined;
   return kind ? t(`producer.card.DQ_021.list_${kind}`) : null;
 }
-const ARC_FILE_RULES = new Set(['ARC_002', 'ARC_003', 'ARC_004', 'ARC_006', 'ARC_007', 'ARC_009', 'ARC_010', 'ARC_011']);
+const ARC_FILE_RULES = new Set(['ARC_002', 'ARC_003', 'ARC_004', 'ARC_006', 'ARC_007', 'ARC_009', 'ARC_010', 'ARC_011', 'ARC_012', 'ARC_013', 'ARC_014', 'ARC_015', 'ARC_017', 'ARC_018', 'ARC_019', 'ARC_021']);
 
 /** "12,3 KB" from ARC_011's "12345 bytes". */
 function fileSizeText(observed?: string | null): string {
@@ -2459,12 +2459,27 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         what: t('producer.card.ARC_008.what'),
         action: t('producer.card.ARC_008.action'),
       };
-    case 'ARC_012':
+    case 'ARC_012': {
+      // INFO = rows that leave out trailing optional fields (valid CSV); the rest have extra fields.
+      const short = n.severity === 'INFO';
       return {
-        title: t('producer.card.ARC_012.title'),
-        what: t('producer.card.ARC_012.what', { file: n.file || t('producer.card.unknown_file') }),
-        action: t('producer.card.ARC_012.action'),
+        title: t(short ? 'producer.card.ARC_012.title_short' : 'producer.card.ARC_012.title'),
+        what: t(short ? 'producer.card.ARC_012.what_short' : 'producer.card.ARC_012.what', {
+          file: dqListLabel(n) || n.file || t('producer.card.unknown_file'),
+          n: localizedNumber(n.details?.affected_rows ?? '1'),
+        }),
+        action: t(short ? 'producer.card.ARC_012.action_short' : 'producer.card.ARC_012.action'),
       };
+    }
+    case 'ARC_020': {
+      const both = g.notices.some(x => x.file?.includes('/'));
+      const kind = both ? 'both' : n.file === 'shapes.txt' ? 'shapes' : 'feed_info';
+      return {
+        title: t('producer.card.ARC_020.title'),
+        what: t(`producer.card.ARC_020.what_${kind}`),
+        action: t(`producer.card.ARC_020.action_${kind}`),
+      };
+    }
     case 'ARC_025':
       return {
         title: t('producer.card.ARC_025.title'),
@@ -5436,6 +5451,35 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
   const listLabel = (n: Notice) => dqListLabel(n) || n.file || '—';
   if (g.ruleId === 'ARC_011') {
     return { head: [t('producer.col.record'), t('producer.col.file_size')], row: n => [listLabel(n), fileSizeText(n.observed_value)] };
+  }
+  if (g.ruleId === 'ARC_012') {
+    return {
+      head: [t('producer.col.record'), t('producer.col.affected_rows'), t('producer.col.example_rows')],
+      row: n => [listLabel(n), localizedNumber(n.details?.affected_rows ?? '1'), dash(n.details?.example_lines)],
+    };
+  }
+  // Header findings: the column as written (spaces made visible); ARC_017's summary row counts the rest.
+  if (g.ruleId === 'ARC_014' || g.ruleId === 'ARC_015' || g.ruleId === 'ARC_017') {
+    return {
+      head: [t('producer.col.record'), t('producer.col.column')],
+      row: n => [
+        listLabel(n),
+        n.details?.message_variant === 'truncated'
+          ? t('producer.card.ARC_017.more_columns', { n: localizedNumber(n.details.omitted_columns ?? '') })
+          : visibleValue(n.field) || '—',
+      ],
+    };
+  }
+  if (g.ruleId === 'ARC_021') {
+    return {
+      head: [t('producer.col.record'), t('producer.col.row'), t('producer.col.column'), t('producer.times.value')],
+      row: n => [
+        listLabel(n),
+        n.line != null ? String(n.line) : '—',
+        dash(n.details?.field_name ? plannerFieldName(n.details.field_name) : null),
+        dash(n.details?.value_excerpt ?? n.observed_value),
+      ],
+    };
   }
   // ARC_002/003: the first unreadable character, after the readable text just before it.
   if (g.ruleId === 'ARC_002' || g.ruleId === 'ARC_003') {

@@ -1467,8 +1467,8 @@
     },
     "ARC_012": {
       "title": "Dosya satır yapısı bozuk",
-      "what": "{file} dosyasındaki bir satırın alan sayısı başlıkla uyuşmuyor.",
-      "action": "İlgili satırı düzeltin ve dosyayı yeniden dışa aktarın."
+      "what": "{file} içinde {n} satırda başlıktakinden fazla alan var; büyük olasılıkla bir ad veya açıklamadaki virgül alanları kaydırıyor.",
+      "action": "Örnek satırlardaki metinlerde virgül olup olmadığına bakın ve dışa aktarımın bu metinleri tırnak içine aldığını kontrol edin. Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
     },
     "ARC_013": {
       "title": "Dosya satırları okunamıyor",
