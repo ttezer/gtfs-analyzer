@@ -30,6 +30,9 @@ concurrency:
 
 env:
   MD_VERSION: '8.0.1'
+  # sha256 of gtfs-validator-8.0.1-cli.jar (GitHub release asset digest, 2026-11-12).
+  # Change together with MD_VERSION; the job refuses to run any other JAR.
+  MD_CLI_SHA256: '19293ddd9b6f954f216d4f12054bd8a3232921751c4484339e339764a91000e2'
   SHARD_COUNT: '640'
 
 jobs:
@@ -114,10 +117,13 @@ jobs:
           )"
           test -n "$ASSET_URL" && test "$ASSET_URL" != "null"
           curl --retry 3 --retry-all-errors -fL "$ASSET_URL" -o benchmark/audit_all/tools/md-cli.jar
+          echo "${MD_CLI_SHA256}  benchmark/audit_all/tools/md-cli.jar" | sha256sum -c -
           printf 'MobilityData gtfs-validator v%s\n' "$MD_VERSION" > benchmark/audit_all/tools/md-version.txt
       - name: Cache ijson wheel
         run: |
-          python3 -m pip download --only-binary=:all: ijson -d benchmark/audit_all/tools/
+          # Version and hashes come from tools-requirements.lock; pip refuses any other file.
+          python3 -m pip download --require-hashes --only-binary=:all: \
+            -r benchmark/audit_all/tools-requirements.lock -d benchmark/audit_all/tools/
       - name: Record tool hashes
         run: |
           (cd benchmark/audit_all/tools && sha256sum * > SHA256SUMS.txt)

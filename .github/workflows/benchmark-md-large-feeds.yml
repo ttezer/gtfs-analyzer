@@ -101,6 +101,12 @@ jobs:
           mkdir -p jar
           gh release download "$REF" -R MobilityData/gtfs-validator -p '*-cli.jar' -D jar
           mv jar/*-cli.jar jar/md-cli.jar
+          # The ref is chosen per run, so no digest can be pinned here; at least require the
+          # downloaded bytes to match the digest GitHub recorded for the release asset.
+          EXPECTED="$(gh api "repos/MobilityData/gtfs-validator/releases/tags/$REF" \
+            --jq '[.assets[] | select(.name | endswith("-cli.jar")) | .digest][0] // empty')"
+          test -n "$EXPECTED" || { echo "no asset digest for $REF"; exit 1; }
+          echo "${EXPECTED#sha256:}  jar/md-cli.jar" | sha256sum -c -
       - name: Check out MobilityData source
         if: ${{ !startsWith(matrix.build.ref, 'v') }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
