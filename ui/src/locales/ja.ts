@@ -3420,6 +3420,7 @@ const ja: LocaleShape = {
     'ARC_015': "ヘッダー列が重複しています：'{observed_value}'。",
     'ARC_025': "必須列'{field}'がヘッダーにありません。",
     'ARC_017': "不明な列'{observed_value}'（GTFS仕様にありません）。",
+    'ARC_017.truncated': "'{file}'には不明な列がさらに{omitted_columns}件あります。個別に表示しているのは最初の{listed_columns}件のみです。",
     'ARC_018': '空のデータ行です。',
     'ARC_019': 'ヘッダーに空の列名があります。',
     'ARC_020': "推奨ファイル'{file}'がありません。",

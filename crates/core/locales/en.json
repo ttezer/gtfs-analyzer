@@ -25,6 +25,7 @@
     "ARC_015": "Duplicate header column: '{observed_value}'.",
     "ARC_025": "Required column '{field}' is missing from the header.",
     "ARC_017": "Unknown column '{observed_value}' (not in GTFS specification).",
+    "ARC_017.truncated": "{omitted_columns} more unknown columns in '{file}'; only the first {listed_columns} are listed individually.",
     "ARC_018": "Empty data row.",
     "ARC_019": "Empty column name in header.",
     "ARC_020": "Recommended file '{file}' is missing (shapes.txt or feed_info.txt).",

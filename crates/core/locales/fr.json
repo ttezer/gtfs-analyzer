@@ -25,6 +25,7 @@
     "ARC_015": "Colonne d’en-tête en double : « {observed_value} ».",
     "ARC_025": "La colonne obligatoire « {field} » est absente de l’en-tête.",
     "ARC_017": "Colonne inconnue « {observed_value} » (absente de la spécification GTFS).",
+    "ARC_017.truncated": "{omitted_columns} autres colonnes inconnues dans « {file} » ; seules les {listed_columns} premières sont listées une par une.",
     "ARC_018": "Enregistrement de données vide.",
     "ARC_019": "Nom de colonne vide dans l’en-tête.",
     "ARC_020": "Le fichier recommandé « {file} » est absent (shapes.txt ou feed_info.txt).",

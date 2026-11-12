@@ -1575,6 +1575,9 @@ pub(crate) fn arc021_message(file_name: &str, cp: u32) -> String {
 pub(crate) const ARC021_REMEDIATION: &str =
     "Remove control/non-printable characters from field values; valid Unicode letters (e.g. ü, ö, 漢字) are fine.";
 
+/// Unknown columns listed individually per file before ARC_017 switches to one summary notice.
+pub const ARC_017_MAX_PER_FILE: usize = 100;
+
 /// Column names defined in the GTFS specification (ARC_017).
 /// `translations.txt::table_name` carries a table name without its extension; the column list
 /// is keyed by file name. This arm carries the legacy and profile-specific column lists for
@@ -2719,11 +2722,20 @@ pub fn parse_with_limits(
             }
         }
 
-        // ARC_017: unknown column (jp_ prefix = GTFS-JP extension; skip).
+        // ARC_017: unknown column (jp_ prefix = GTFS-JP extension; skip). At most
+        // ARC_017_MAX_PER_FILE columns are listed one by one; the rest become one summary
+        // notice, so a header with 200,000 junk columns cannot inflate the report (2026-11
+        // security review: 119 MB of JSON). The corpus maximum is 81 per FEED, so real
+        // feeds never reach the cap.
         let known_cols = known_columns(&raw_name);
         if !known_cols.is_empty() {
+            let mut unknown = 0usize;
             for hdr in &headers {
                 if !known_cols.contains(&hdr.as_str()) && !hdr.starts_with("jp_") {
+                    unknown += 1;
+                    if unknown > ARC_017_MAX_PER_FILE {
+                        continue;
+                    }
                     notices.push(make_notice(
                         &mut counter,
                         "ARC_017",
@@ -2739,6 +2751,28 @@ pub fn parse_with_limits(
                         "Remove columns not defined in the GTFS specification.",
                     ));
                 }
+            }
+            if unknown > ARC_017_MAX_PER_FILE {
+                let omitted = unknown - ARC_017_MAX_PER_FILE;
+                let mut notice = make_notice(
+                    &mut counter,
+                    "ARC_017",
+                    EntityType::File,
+                    Some(raw_name.clone()),
+                    Some(&raw_name),
+                    Some(1),
+                    None,
+                    Some(omitted.to_string()),
+                    format!(
+                        "'{raw_name}' dosyasında {omitted} bilinmeyen sütun daha var; yalnızca ilk {ARC_017_MAX_PER_FILE} tanesi ayrı ayrı raporlandı."
+                    ),
+                    "Remove columns not defined in the GTFS specification.",
+                );
+                let details = notice.details.get_or_insert_with(Default::default);
+                details.insert("message_variant", "truncated".to_string());
+                details.insert("omitted_columns", omitted.to_string());
+                details.insert("listed_columns", ARC_017_MAX_PER_FILE.to_string());
+                notices.push(notice);
             }
         }
 

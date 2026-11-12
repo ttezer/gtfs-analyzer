@@ -70,6 +70,14 @@ fn source_string_literals() -> BTreeSet<String> {
         let Ok(src) = fs::read_to_string(&path) else {
             continue;
         };
+        // Comment lines and `'"'` char literals hold unpaired quotes; left in, they shift the
+        // pairing so the rest of the file yields prose instead of string literals.
+        let src: String = src
+            .lines()
+            .filter(|line| !line.trim_start().starts_with("//"))
+            .map(|line| line.replace("'\"'", ""))
+            .collect::<Vec<_>>()
+            .join("\n");
         let mut rest = src.as_str();
         while let Some(open) = rest.find('"') {
             rest = &rest[open + 1..];
