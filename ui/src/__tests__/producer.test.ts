@@ -3730,3 +3730,30 @@ describe('İşletmeci kartları (AGN)', () => {
       .toContain('İşletmeci: Metro. Girilen değer: „abc“.');
   });
 });
+
+describe('Ücret kuralı kartları (FRL)', () => {
+  const ni: NameIndex = { ...emptyNameIndex, routes: { R1: 'S8', R2: 'S9' } };
+  const render = (n: Notice) => {
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [[n.rule_id, 1, 1]], true, ni));
+    return root.innerHTML;
+  };
+  const frl = (rule: string, extra: Partial<Notice>) => notice('a', rule, 'CRITICAL', { entity_type: 'Fare', entity_id: 'F1', file: 'fare_rules.txt', line: 4, ...extra });
+
+  it('FRL_003 bölgeyi, kural sayısını ve kuralın tarifesini fiyatıyla söyler', () => {
+    const html = render(frl('FRL_003', { field: 'origin_id', observed_value: 'Z9', details: { affected_rows: '3', origin_id: 'Z9', destination_id: 'Z2', route_id: 'R1', price: '2.5', currency_type: 'EUR' } }));
+    expect(html).toContain('„Z9“ başlangıç bölgesi hiçbir durağa atanmamış; 3 ücret kuralında kullanılıyor. Kural: „F1“ tarifesi (2,5 EUR) · S8 hattı · Z9 → Z2 bölgeleri.');
+    expect(html).toContain('<th>Tarife</th><th>Fiyat</th><th>Hat</th><th>Bölgeler</th><th>Satır</th>');
+  });
+
+  it('FRL_008 kuralı olmayan hatları numarasıyla sayar', () => {
+    expect(render(notice('a', 'FRL_008', 'INFO', { entity_type: 'Feed', file: 'fare_rules.txt', observed_value: 'R1, R2' })))
+      .toContain('2 hattın ücret kuralı yok: S8, S9.');
+  });
+
+  it('FRL_009 örnek bölge çiftlerini hattıyla söyler', () => {
+    expect(render(notice('a', 'FRL_009', 'MEDIUM', { entity_type: 'Feed', file: 'fare_rules.txt', observed_value: '4', details: {
+      missing_pairs: '4', example_0_route_id: 'R1', example_0_origin_id: 'A', example_0_destination_id: 'B',
+    } }))).toContain('4 başlangıç-varış bölgesi çifti için ücret kuralı yok. İlk örnekler: S8 hattında A → B.');
+  });
+});

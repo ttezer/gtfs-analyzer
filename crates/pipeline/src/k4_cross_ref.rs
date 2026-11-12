@@ -2931,6 +2931,40 @@ fn check_fare_attributes(
 
 // ── FRL_001-005: fare_rules cross-ref ─────────────────────────────────────────
 
+/// Planner context on a fare rule finding: what the rule row restricts (route, zones) and, when
+/// its fare is defined, the fare's price and currency. Only `details` keys are added.
+fn fare_rule_context(
+    finding: Option<&mut Notice>,
+    rec: &crate::k2::fare_rules::FareRuleRecord,
+    records: &EntityRecords,
+    map: &EntityMap,
+) {
+    let Some(finding) = finding else { return };
+    let details = finding.details.get_or_insert_with(Default::default);
+    for (key, value) in [
+        ("route_id", &rec.route_id),
+        ("origin_id", &rec.origin_id),
+        ("destination_id", &rec.destination_id),
+        ("contains_id", &rec.contains_id),
+    ] {
+        if let Some(value) = value.as_deref().filter(|v| !v.is_empty()) {
+            details.insert(key.to_string(), value.to_string());
+        }
+    }
+    let fare = map
+        .fare_attrs
+        .get(rec.fare_id.as_str())
+        .and_then(|&i| records.fare_attributes.get(i));
+    if let Some(fare) = fare {
+        if let Some(price) = fare.price {
+            details.insert("price".to_string(), price.to_string());
+        }
+        if !fare.currency_type.is_empty() {
+            details.insert("currency_type".to_string(), fare.currency_type.clone());
+        }
+    }
+}
+
 fn check_fare_rules(
     records: &EntityRecords,
     map: &EntityMap,
@@ -2996,6 +3030,7 @@ fn check_fare_rules(
                     format!("'{}' hattı routes.txt'te tanımlı değil.", rid),
                     "Use a valid route_id.",
                 ));
+                fare_rule_context(notices.last_mut(), rec, records, map);
             }
         }
 
@@ -3039,6 +3074,7 @@ fn check_fare_rules(
                 ),
                 "Review fare rule logic; ensure the zone combination is consistent and non-contradictory.",
             ));
+            fare_rule_context(notices.last_mut(), rec, records, map);
         }
     }
 
@@ -3048,6 +3084,14 @@ fn check_fare_rules(
     // 🔴 Do NOT append a count to observed. K7 whitespace suppression treats observed as an ID;
     // FRL derivatives were never suppressed because `"ADR  (14 rows)"` was in no set
     // (17 September counterexample: 7 feeds, 20,452 Critical·Spec findings, 7 publication decisions).
+    // Each aggregated finding names its first row; index rows by line once (large fare_rules
+    // files have millions of rows), and only when there is something to name.
+    let rule_by_line: HashMap<u64, &crate::k2::fare_rules::FareRuleRecord> =
+        if frl001_bad.is_empty() && frl_zone_bad.is_empty() {
+            HashMap::new()
+        } else {
+            records.fare_rules.iter().map(|r| (r.line, r)).collect()
+        };
     let with_rows = |mut n: Notice, rows: u64| {
         n.details
             .get_or_insert_with(Default::default)
@@ -3063,6 +3107,9 @@ fn check_fare_rules(
             format!("'{fare_id}' ücret tarifesi fare_attributes.txt'te tanımlı değil ({rows} fare_rules satırında kullanılıyor)."),
             "Use a valid fare_id.",
         ), *rows));
+        if let Some(rec) = rule_by_line.get(line) {
+            fare_rule_context(notices.last_mut(), rec, records, map);
+        }
     }
     for ((rule, field, zid), (fare_id, line, rows)) in &frl_zone_bad {
         notices.push(with_rows(notice(
@@ -3072,6 +3119,9 @@ fn check_fare_rules(
             format!("{field} '{zid}' stops.txt'te tanımlı bir zone_id değil ({rows} fare_rules satırında kullanılıyor)."),
             "Geçerli bir zone_id kullanın.",
         ), *rows));
+        if let Some(rec) = rule_by_line.get(line) {
+            fare_rule_context(notices.last_mut(), rec, records, map);
+        }
     }
 
     // FRL_008: the fare system is route-based, but some routes are out of scope.
@@ -3355,10 +3405,17 @@ fn check_fare_origin_destination_coverage(
         ),
         "Add fare_rules.txt entries for every served origin/destination zone pair, or model the fare as a route-uniform or catch-all fare.",
     );
-    finding.details = Some(BTreeMap::from([
+    let mut details = BTreeMap::from([
         ("missing_pairs".to_string(), missing_pairs.len().to_string()),
         ("example_pairs".to_string(), examples),
-    ]).into());
+    ]);
+    // Planner context: the same examples as separate route and zone values.
+    for (i, (route, origin, destination)) in missing_pairs.iter().take(5).enumerate() {
+        details.insert(format!("example_{i}_route_id"), route.to_string());
+        details.insert(format!("example_{i}_origin_id"), origin.to_string());
+        details.insert(format!("example_{i}_destination_id"), destination.to_string());
+    }
+    finding.details = Some(details.into());
     notices.push(finding);
 }
 
@@ -10631,13 +10688,22 @@ mod tests {
         recs.fare_rules = vec![FareRuleRecord {
             fare_id: "F1".into(),
             route_id: Some("MISSING_ROUTE".into()),
-            origin_id: None,
+            origin_id: Some("Z1".into()),
             destination_id: None,
             contains_id: None,
             line: 2,
         }];
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "FRL_002"));
+        // Planner context: what the rule row restricts (details only).
+        let d = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "FRL_002")
+            .and_then(|n| n.details.as_ref())
+            .expect("FRL_002 details");
+        assert_eq!(d.get("route_id").map(String::as_str), Some("MISSING_ROUTE"));
+        assert_eq!(d.get("origin_id").map(String::as_str), Some("Z1"));
     }
 
     // ── XFL_006 ───────────────────────────────────────────────────────────────

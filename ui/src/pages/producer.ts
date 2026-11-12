@@ -376,6 +376,48 @@ function jpRecordText(n: Notice, result: ValidationResult): string | null {
   }
 }
 
+/** Fare rule cards: the rule by its fare (with price) and what it restricts. */
+function frlRuleText(n: Notice, result: ValidationResult): string {
+  const d = n.details ?? {};
+  const routes = result.name_index.routes ?? {};
+  const fare = n.entity_id ? (d.price ? t('producer.card.FRL.fare_price', { fare: n.entity_id, price: localizedNumber(d.price), currency: d.currency_type ?? '' }) : t('producer.card.FRL.fare', { fare: n.entity_id })) : '';
+  const parts = [
+    fare,
+    d.route_id ? t('producer.card.FRL.route', { route: routes[d.route_id] || d.route_id }) : '',
+    d.origin_id || d.destination_id ? t('producer.card.FRL.zones', { origin: d.origin_id ?? '—', destination: d.destination_id ?? '—' }) : '',
+    d.contains_id ? t('producer.card.FRL.contains', { zone: d.contains_id }) : '',
+  ].filter(Boolean);
+  return parts.length ? t('producer.card.FRL.rule', { rule: parts.join(' · ') }) : '';
+}
+function frlText(n: Notice, result: ValidationResult): string | null {
+  const d = n.details ?? {};
+  const routes = result.name_index.routes ?? {};
+  const rows = d.affected_rows ? localizedNumber(d.affected_rows) : '1';
+  const value = n.observed_value ?? '—';
+  const rule = frlRuleText(n, result);
+  const join = (main: string) => [main, rule].filter(Boolean).join(' ');
+  switch (n.rule_id) {
+    case 'FRL_001': return join(t('producer.card.FRL_001.what_detail', { code: value, rows }));
+    case 'FRL_002': return join(t('producer.card.FRL_002.what_detail', { code: value }));
+    case 'FRL_003': case 'FRL_004': case 'FRL_005':
+      return join(t(`producer.card.${n.rule_id}.what_detail`, { zone: value, rows }));
+    case 'FRL_007': return join(t('producer.card.FRL_007.what'));
+    case 'FRL_008': {
+      const ids = value.split(/,\s*/).filter(v => v && v !== '—');
+      return ids.length ? t('producer.card.FRL_008.what_detail', { count: localizedNumber(String(ids.length)), routes: ids.slice(0, 10).map(id => routes[id] || id).join(', ') + (ids.length > 10 ? ` (+${localizedNumber(String(ids.length - 10))})` : '') }) : null;
+    }
+    case 'FRL_009': {
+      const examples: string[] = [];
+      for (let i = 0; i < 5 && d[`example_${i}_route_id`] !== undefined; i++) {
+        const r = d[`example_${i}_route_id`];
+        examples.push(t('producer.card.FRL_009.example', { route: routes[r] || r, origin: d[`example_${i}_origin_id`] ?? '—', destination: d[`example_${i}_destination_id`] ?? '—' }));
+      }
+      return examples.length ? t('producer.card.FRL_009.what_detail', { count: localizedNumber(d.missing_pairs ?? value), examples: examples.join('; ') }) : null;
+    }
+    default: return null;
+  }
+}
+
 /** XFL cross-file cards: which trip, route, calendar or shape, named the planner's way. */
 function xflList(raw?: string | null): { ids: string[]; more: string } {
   const m = (raw ?? '').match(/^(.*?)(?: \(\+(\d+)\))?$/);
@@ -2300,6 +2342,11 @@ function calRuleText(n: Notice, result: ValidationResult): string | null {
 function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCopy | null {
   const n = g.notices[0];
   switch (g.ruleId) {
+    case 'FRL_001': case 'FRL_002': case 'FRL_003': case 'FRL_004': case 'FRL_005': case 'FRL_007':
+    case 'FRL_008': case 'FRL_009': {
+      const what = frlText(n, result);
+      return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
+    }
     case 'XFL_002': case 'XFL_006': case 'XFL_012': case 'XFL_013': case 'XFL_020': case 'XFL_021': {
       const what = xflText(g, n, result);
       return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
@@ -6010,6 +6057,22 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
     };
   }
   // Transfers: the two stops, the time entered and its row.
+  // Fare rule rows: the fare and price, the route and zones the rule restricts, its row.
+  if (g.ruleId.startsWith('FRL_') && first.entity_type === 'Fare' && first.entity_id) {
+    return {
+      head: [t('producer.col.fare'), t('producer.col.price'), t('producer.col.route'), t('producer.col.zones'), t('producer.col.row')],
+      row: n => {
+        const d = n.details ?? {};
+        return [
+          dash(n.entity_id),
+          d.price ? `${localizedNumber(d.price)} ${d.currency_type ?? ''}`.trim() : '—',
+          d.route_id ? badge(d.route_id) : '—',
+          d.origin_id || d.destination_id || d.contains_id ? [d.origin_id || d.destination_id ? `${d.origin_id ?? '—'} → ${d.destination_id ?? '—'}` : '', d.contains_id ? `(${d.contains_id})` : ''].filter(Boolean).join(' ') : '—',
+          n.line != null ? String(n.line) : '—',
+        ];
+      },
+    };
+  }
   if (AGN_AGENCY_RULES.has(g.ruleId) || g.ruleId === 'AGN_003') {
     return {
       head: [t('producer.times.agency'), t('producer.col.column'), t('producer.times.value'), t('producer.col.row')],
