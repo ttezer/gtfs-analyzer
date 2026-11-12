@@ -60,12 +60,20 @@ MAX_CONCURRENT_ANALYSES = int(os.environ.get("GTFS_MAX_CONCURRENT_ANALYSES", "1"
 SUBJECT_RATE_LIMIT = int(os.environ.get("GTFS_SUBJECT_RATE_LIMIT", "12"))
 SUBJECT_RATE_WINDOW_SECONDS = float(os.environ.get("GTFS_SUBJECT_RATE_WINDOW_SECONDS", "60"))
 MAX_TRACKED_SUBJECTS = int(os.environ.get("GTFS_MAX_TRACKED_SUBJECTS", "10000"))
+# `openai/subject` is request metadata the CALLER sends, so the per-subject limit only
+# paces honest clients: rotating subjects bypassed it entirely (security review 11-12, #6,
+# measured: 1000 calls with 1000 subjects, 0 rejected). This per-instance limit counts
+# every analysis regardless of subject; with Cloud Run `--max-instances N` the service
+# total is at most N x this value per window.
+GLOBAL_RATE_LIMIT = int(os.environ.get("GTFS_GLOBAL_RATE_LIMIT", "60"))
+GLOBAL_RATE_WINDOW_SECONDS = float(os.environ.get("GTFS_GLOBAL_RATE_WINDOW_SECONDS", "60"))
 ANALYZER_WEB_URL = os.environ.get(
     "GTFS_ANALYZER_WEB_URL", "https://ttezer.github.io/gtfs-analyzer/"
 )
 _ANALYSIS_SLOTS = asyncio.Semaphore(MAX_CONCURRENT_ANALYSES)
 _SUBJECT_RATE_LOCK = asyncio.Lock()
 _SUBJECT_REQUESTS: dict[str, deque[float]] = {}
+_GLOBAL_REQUESTS: deque[float] = deque()
 SUPPORTED_LANGUAGES = frozenset({"tr", "en", "ja", "fr"})
 
 
@@ -198,6 +206,16 @@ async def _check_subject_rate_limit(context: Context | None) -> ToolError | None
         return None
     now = time.monotonic()
     async with _SUBJECT_RATE_LOCK:
+        while _GLOBAL_REQUESTS and now - _GLOBAL_REQUESTS[0] >= GLOBAL_RATE_WINDOW_SECONDS:
+            _GLOBAL_REQUESTS.popleft()
+        if len(_GLOBAL_REQUESTS) >= GLOBAL_RATE_LIMIT:
+            return ToolError(
+                "RATE_LIMIT",
+                "The GTFS validator is busy. Please retry later.",
+                retry_after_seconds=max(
+                    1, round(GLOBAL_RATE_WINDOW_SECONDS - (now - _GLOBAL_REQUESTS[0]))
+                ),
+            )
         if subject not in _SUBJECT_REQUESTS and len(_SUBJECT_REQUESTS) >= MAX_TRACKED_SUBJECTS:
             oldest_subject = min(
                 _SUBJECT_REQUESTS,
@@ -214,6 +232,7 @@ async def _check_subject_rate_limit(context: Context | None) -> ToolError | None
                 retry_after_seconds=max(1, round(SUBJECT_RATE_WINDOW_SECONDS - (now - requests[0]))),
             )
         requests.append(now)
+        _GLOBAL_REQUESTS.append(now)
     return None
 
 

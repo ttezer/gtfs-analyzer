@@ -44,6 +44,8 @@ GTFS_ANALYZER_WEB_URL         (default https://ttezer.github.io/gtfs-analyzer/)
 GTFS_MAX_CONCURRENT_ANALYSES  (default 1)
 GTFS_SUBJECT_RATE_LIMIT       (default 12 requests)
 GTFS_SUBJECT_RATE_WINDOW_SECONDS (default 60)
+GTFS_GLOBAL_RATE_LIMIT        (default 60 analyses per instance, any subject)
+GTFS_GLOBAL_RATE_WINDOW_SECONDS (default 60)
 GTFS_MAX_TRACKED_SUBJECTS     (default 10000)
 MCP_ALLOWED_HOST              (required public Cloud Run/tunnel host)
 ```

@@ -324,6 +324,30 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
             error = await server._check_subject_rate_limit(Context())
         self.assertEqual(error.error_type, "RATE_LIMIT")
 
+        # Security review #6: rotating `openai/subject` must not bypass the service limit.
+        def rotating(subject):
+            class M:
+                def model_dump(self, by_alias=False):
+                    return {"openai/subject": subject}
+
+            class RC:
+                meta = M()
+
+            class C:
+                request_context = RC()
+
+            return C()
+
+        with patch.object(server, "GLOBAL_RATE_LIMIT", 5), patch.object(
+            server, "GLOBAL_RATE_WINDOW_SECONDS", 60
+        ):
+            server._SUBJECT_REQUESTS.clear()
+            server._GLOBAL_REQUESTS.clear()
+            results = [await server._check_subject_rate_limit(rotating(f"s{i}")) for i in range(8)]
+        server._GLOBAL_REQUESTS.clear()
+        self.assertEqual([r is None for r in results], [True] * 5 + [False] * 3)
+        self.assertEqual(results[-1].error_type, "RATE_LIMIT")
+
         with patch.dict(server._rules_cache, {"en": [{"id": "TRP_002", "title": "route_id missing"}]}, clear=True):
             rule = await server.get_gtfs_rule(" trp_002 ")
             unknown = await server.get_gtfs_rule("NOPE_999")
