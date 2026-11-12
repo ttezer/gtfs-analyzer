@@ -42,8 +42,11 @@ jobs:
   build:
     name: ${{ matrix.asset }}
     needs: create-release
+    # Build code (build.rs, dependencies, smoke test) runs here, so this job gets NO
+    # write access to the repository or the release: it only hands the archive to the
+    # `publish` job as a workflow artifact.
     permissions:
-      contents: write
+      contents: read
       # Build provenance: lets users verify an asset was built here
       # (`gh attestation verify <asset> --repo ttezer/gtfs-analyzer`).
       id-token: write
@@ -122,24 +125,44 @@ jobs:
         with:
           subject-path: ${{ matrix.asset }}
 
-      - name: Upload to draft release
-        # This step also runs on the Windows runner. Without an explicit `shell`, it uses
-        # pwsh; there `$RELEASE_TAG` is an undefined PowerShell variable, becomes an empty
-        # string, and makes `gh` report "release not found".
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: gh release upload "$RELEASE_TAG" "${{ matrix.asset }}" --clobber
+      - name: Hand the archive to the publish job
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-${{ matrix.asset }}
+          path: ${{ matrix.asset }}
+          if-no-files-found: error
+          retention-days: 1
 
   publish:
     name: Release'i yayına al
     needs: build
     runs-on: ubuntu-latest
+    # The only job that writes release assets. It runs no build code: it downloads the
+    # three archives built above and uploads them.
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Download built archives
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - name: Upload to draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          shopt -s nullglob
+          assets=(dist/*.tar.gz dist/*.zip)
+          if [ "${#assets[@]}" -ne 3 ]; then
+            echo "expected 3 release archives, found ${#assets[@]}: ${assets[*]}"
+            exit 1
+          fi
+          gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
 
       - name: Publish draft
         env:
