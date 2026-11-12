@@ -44,6 +44,10 @@ jobs:
     needs: create-release
     permissions:
       contents: write
+      # Build provenance: lets users verify an asset was built here
+      # (`gh attestation verify <asset> --repo ttezer/gtfs-analyzer`).
+      id-token: write
+      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -112,6 +116,11 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: (cd stage && 7z a "../${{ matrix.asset }}" .)
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ matrix.asset }}
 
       - name: Upload to draft release
         # This step also runs on the Windows runner. Without an explicit `shell`, it uses
