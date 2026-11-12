@@ -2532,7 +2532,7 @@
     },
     "JPN_001": {
       "title": "Durak adının kana okuması eksik",
-      "what": "Japonca adlı bir durağın kana (ja-Hrkt) okuması girilmemiş.",
+      "what": "Japonca adlı bir durağın kana okuması girilmemiş.",
       "action": "Bu durağın adının kana okumasını çevirilere ekleyin."
     },
     "JPN_002": {

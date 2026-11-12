@@ -6121,6 +6121,7 @@ fn check_gtfs_jp(
                     "ja-Hrkt çevirisi geçerli bir tablo alanını veya mevcut GTFS kaydını göstermiyor.".to_string(),
                     "Correct the ja-Hrkt translation table, field, record_id, and record_sub_id references.",
                 ));
+                jp_translation_target(notices.last_mut(), translation, "invalid_target", None);
             }
         }
     }
@@ -6212,6 +6213,7 @@ fn check_gtfs_jp(
                     "GTFS-JP ja-Hrkt çevirisi boş.".to_string(),
                     "Fill in the ja-Hrkt translation with a Hiragana or Katakana reading.",
                 ));
+                jp_translation_target(notices.last_mut(), translation, "empty", None);
                 continue;
             }
             let key = format!(
@@ -6241,6 +6243,12 @@ fn check_gtfs_jp(
                         ),
                         "Keep one consistent kana value for the same translation target.",
                     ));
+                    jp_translation_target(
+                        notices.last_mut(),
+                        translation,
+                        "conflict",
+                        Some(*first_line),
+                    );
                 }
             } else {
                 seen.insert(key, (translation.translation.clone(), translation.line));
@@ -6260,6 +6268,7 @@ fn check_gtfs_jp(
                     "ja-Hrkt çevirisi Hiragana veya Katakana içermiyor; yalnız Kanji yeterli değildir.".to_string(),
                     "Write the Japanese reading in the ja-Hrkt translation.",
                 ));
+                jp_translation_target(notices.last_mut(), translation, "no_kana", None);
             }
         }
     }
@@ -6276,6 +6285,34 @@ fn check_gtfs_jp(
                     records.gtfs_jp_profile.as_str().to_string(),
                 );
         }
+    }
+}
+
+/// JPN_019/JPN_021 planner context: which translated name the kana row belongs to (table,
+/// field, record or source text) and, for a conflict, the line of the other reading.
+/// Only adds `details` keys; the finding itself is unchanged.
+fn jp_translation_target(
+    finding: Option<&mut Notice>,
+    translation: &crate::k2::translations::TranslationRecord,
+    issue: &str,
+    other_line: Option<u64>,
+) {
+    let Some(finding) = finding else { return };
+    let details = finding.details.get_or_insert_with(Default::default);
+    details.insert("issue".to_string(), issue.to_string());
+    details.insert("table_name".to_string(), translation.table_name.clone());
+    details.insert("field_name".to_string(), translation.field_name.clone());
+    for (key, value) in [
+        ("record_id", &translation.record_id),
+        ("record_sub_id", &translation.record_sub_id),
+        ("field_value", &translation.field_value),
+    ] {
+        if let Some(value) = value.as_deref().filter(|v| !v.is_empty()) {
+            details.insert(key.to_string(), value.to_string());
+        }
+    }
+    if let Some(line) = other_line {
+        details.insert("other_line".to_string(), line.to_string());
     }
 }
 
@@ -12001,6 +12038,18 @@ mod tests {
             "ilk görülen satır korunmalı: {}",
             conflict.message
         );
+        // Planner context: the target and the other reading's line (details only).
+        let d = conflict.details.as_ref().expect("JPN_021 details");
+        assert_eq!(d.get("issue").map(String::as_str), Some("conflict"));
+        assert_eq!(d.get("other_line").map(String::as_str), Some("2"));
+        assert!(d.contains_key("table_name") && d.contains_key("field_name"));
+        let empty = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "JPN_021" && n.line == Some(5))
+            .and_then(|n| n.details.as_ref())
+            .and_then(|d| d.get("issue").cloned());
+        assert_eq!(empty.as_deref(), Some("empty"));
         assert!(result
             .notices
             .iter()

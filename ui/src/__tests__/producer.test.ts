@@ -3369,3 +3369,66 @@ describe('ARC dosya kartları (ARC_002–011)', () => {
       .toContain('Ne çalışma günleri ne de takvim istisnaları var');
   });
 });
+
+describe('GTFS-JP kana ve çeviri kartları (JPN_001–030)', () => {
+  const ni: NameIndex = {
+    ...emptyNameIndex,
+    stops: { S1: '六本木', S2: '六本木', S3: '渋谷' },
+    routes: { R1: '都01' },
+    route_long_names: { R1: '渋谷駅前行' },
+    trips: { T1: '新橋', T2: '新橋' },
+    trip_routes: { T1: 'R1', T2: 'R1' },
+  };
+  const render = (notices: Notice[]) => {
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result(notices, [], [[notices[0].rule_id, 1, notices.length]], true, ni));
+    return root.innerHTML;
+  };
+  const jp = (id: string, rule: string, extra: Partial<Notice>) => notice(id, rule, 'MEDIUM', extra);
+
+  it('JPN_001 adı söyler ve farklı ad sayısını verir (okuma yazılışa göre bir kez eklenir)', () => {
+    const html = render(['S1', 'S2', 'S3'].map((s, i) => jp(`n${i}`, 'JPN_001', { entity_type: 'Stop', entity_id: s, field: 'stop_name' })));
+    expect(html).toContain('„六本木“ durağının adının kana okuması girilmemiş.');
+    expect(html).toContain('Toplam 3 kayıtta 2 farklı ad var.');
+    expect(html).not.toContain('ja-Hrkt');
+  });
+
+  it('JPN_008 hangi adın (numara/uzun ad) okumasız olduğunu tabloda gösterir', () => {
+    const html = render([jp('a', 'JPN_008', { entity_type: 'Route', entity_id: 'R1', field: 'route_long_name' })]);
+    expect(html).toContain('hattının Hat uzun adı („渋谷駅前行“) için kana okuması girilmemiş.');
+    expect(html).toContain('<th>Ad türü</th><th>Değer</th>');
+    expect(html).toContain('<td>Hat uzun adı</td><td>渋谷駅前行</td>');
+  });
+
+  it('JPN_009 yön adını söyler; iki sefer tek yön adı olarak sayılır', () => {
+    const html = render(['T1', 'T2'].map((tr, i) => jp(`t${i}`, 'JPN_009', { entity_type: 'Trip', entity_id: tr, field: 'trip_headsign' })));
+    expect(html).toContain('„新橋“ yön adının kana okuması girilmemiş');
+    expect(html).toContain('Toplam 2 kayıtta 1 farklı ad var.');
+  });
+
+  it('JPN_021 çakışmada iki okumayı ve diğer satırı, kayıtta durağın adını gösterir', () => {
+    const html = render([jp('c', 'JPN_021', {
+      entity_type: 'Translation', entity_id: 'S3', file: 'translations.txt', line: 3, field: 'translation',
+      observed_value: 'しぶや', expected_value: 'シブヤ',
+      details: { issue: 'conflict', table_name: 'stops', field_name: 'stop_name', record_id: 'S3', other_line: '2' },
+    })]);
+    expect(html).toContain('„渋谷“ için iki farklı kana okuması var: „しぶや“ ve „シブヤ“ (2. satırda).');
+    expect(html).toContain('<td>Durak listesi</td><td>Durak adı</td><td>渋谷</td><td>しぶや</td><td>3</td>');
+  });
+
+  it('JPN_019 hangi listenin hangi adına yazıldığını söyler', () => {
+    expect(render([jp('x', 'JPN_019', {
+      entity_type: 'Translation', entity_id: 'S9', file: 'translations.txt', line: 4,
+      details: { issue: 'invalid_target', table_name: 'stops', field_name: 'stop_name', record_id: 'S9' },
+    })])).toContain('Durak listesi için yazılmış bir kana okuması (Durak adı: „S9“)');
+  });
+
+  it('JPN_028 kaynak metni, adı ve etkilenen kayıt sayısını; iki eksikte ikisini de söyler', () => {
+    const html = render([jp('v', 'JPN_028', {
+      entity_type: 'Feed', file: 'stops.txt', line: 2, field: 'stop_name', observed_value: '渋谷',
+      details: { message_variant: 'aggregate_both', table_name: 'stops', source_value: '渋谷', affected_records: '2', example_record_ids: 'S3; S4' },
+    })]);
+    expect(html).toContain('„渋谷“ (Durak adı) için zorunlu kana okuması ve Japonca çeviri satırı eksik; 2 kayıt etkileniyor.');
+    expect(html).toContain('<td>Durak listesi</td><td>Durak adı</td><td>渋谷</td><td>2</td>');
+  });
+});

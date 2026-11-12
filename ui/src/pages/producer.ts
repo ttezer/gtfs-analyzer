@@ -305,6 +305,30 @@ function plannerFieldName(field: string): string {
   return PLANNER_FIELDS.has(field) ? t(`producer.field.${field}`) : field;
 }
 
+/** GTFS-JP kana rules (JPN_001/008/009/010): the Japanese name that lacks a reading, read from the
+ *  name index (the engine puts it only in its Turkish message). */
+function jpKanaName(n: Notice, result: ValidationResult): string | null {
+  const ni = result.name_index;
+  const id = n.entity_id;
+  if (!id) return null;
+  switch (n.rule_id) {
+    case 'JPN_001': return ni.stops?.[id] ?? null;
+    case 'JPN_008': return n.field === 'route_long_name' ? ni.route_long_names?.[id] || ni.routes?.[id] || null : ni.routes?.[id] ?? null;
+    case 'JPN_009': return ni.trips?.[id] ?? null;
+    case 'JPN_010': return result.feed_summary?.agencies?.find(a => a.agency_id === id || a.agency_name === id)?.agency_name ?? id;
+    default: return null;
+  }
+}
+
+/** JPN_019/021: what the kana row translates — its source text, else the record's own name, else its code. */
+function jpTranslationTarget(n: Notice, result: ValidationResult): string {
+  const d = n.details ?? {};
+  const ni = result.name_index;
+  const id = d.record_id;
+  const named = id ? (d.table_name === 'stops' ? ni.stops?.[id] : d.table_name === 'routes' ? ni.routes?.[id] : d.table_name === 'trips' ? ni.trips?.[id] : undefined) : undefined;
+  return d.field_value || named || id || t('producer.map.unknown_context');
+}
+
 /** File-level cards (DQ_016, DQ_021, CAL_020) name their file in the planner's words, not as a file name. */
 function dqListLabel(n: Notice): string | null {
   // CAL_020 / OPR_014 / OPR_016 / OPR_025 are about a whole list: name it, not the engine's summary ("11 years").
@@ -1967,6 +1991,69 @@ function calRuleText(n: Notice, result: ValidationResult): string | null {
 function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCopy | null {
   const n = g.notices[0];
   switch (g.ruleId) {
+    case 'JPN_001':
+    case 'JPN_008':
+    case 'JPN_009':
+    case 'JPN_010': {
+      const name = jpKanaName(n, result);
+      if (!name) return null;
+      // A reading added for the written name covers every record with the same spelling
+      // (the engine accepts a translation matched by its source text), so count distinct names.
+      const names = new Set(g.notices.map(x => jpKanaName(x, result)).filter(Boolean)).size;
+      const routeId = n.rule_id === 'JPN_008' ? n.entity_id : n.rule_id === 'JPN_009' && n.entity_id ? result.name_index.trip_routes?.[n.entity_id] : undefined;
+      const detail = t(`producer.card.${g.ruleId}.what_detail`, {
+        name,
+        kind: n.field ? plannerFieldName(n.field) : '—',
+        route: routeId ? result.name_index.routes?.[routeId] || routeId : '—',
+        trip: n.rule_id === 'JPN_009' ? tripPhrase(n.entity_id, result) : '—',
+      });
+      const summary = g.notices.length > 1 ? t('producer.card.JPN_kana.summary', { count: localizedNumber(String(g.count)), names: localizedNumber(String(names)) }) : '';
+      return { title: t(`producer.card.${g.ruleId}.title`), what: [detail, summary].filter(Boolean).join(' '), action: t(`producer.card.${g.ruleId}.action`) };
+    }
+    case 'JPN_019': {
+      const d = n.details ?? {};
+      if (!d.table_name) return null;
+      return {
+        title: t('producer.card.JPN_019.title'),
+        what: t('producer.card.JPN_019.what_detail', {
+          list: plannerListName(d.table_name) || d.table_name,
+          field: d.field_name ? plannerFieldName(d.field_name) : '—',
+          target: jpTranslationTarget(n, result),
+        }),
+        action: t('producer.card.JPN_019.action'),
+      };
+    }
+    case 'JPN_021': {
+      const d = n.details ?? {};
+      if (!d.issue || !['empty', 'conflict', 'no_kana'].includes(d.issue)) return null;
+      return {
+        title: t('producer.card.JPN_021.title'),
+        what: t(`producer.card.JPN_021.what_${d.issue}`, {
+          target: jpTranslationTarget(n, result),
+          value: n.observed_value ?? '',
+          other: n.expected_value ?? '',
+          other_line: d.other_line ?? '—',
+        }),
+        action: t('producer.card.JPN_021.action'),
+      };
+    }
+    case 'JPN_028':
+    case 'JPN_029':
+    case 'JPN_030': {
+      const d = n.details ?? {};
+      if (!d.source_value) return null;
+      const both = g.ruleId === 'JPN_028' && d.message_variant === 'aggregate_both';
+      return {
+        title: t(`producer.card.${g.ruleId}.title`),
+        what: t(`producer.card.${g.ruleId}.what_detail${both ? '_both' : ''}`, {
+          value: d.source_value,
+          field: n.field ? plannerFieldName(n.field) : '—',
+          list: plannerListName(d.table_name) || d.table_name || '—',
+          count: localizedNumber(d.affected_records ?? '1'),
+        }),
+        action: t(`producer.card.${g.ruleId}.action`),
+      };
+    }
     case 'STM_006': {
       const routeId = n.entity_id ? result.name_index.trip_routes?.[n.entity_id] : undefined;
       const route = routeId ? result.name_index.routes?.[routeId] || '—' : '—';
@@ -5518,6 +5605,42 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
           listLabel(n),
           dash(d.invalid_line),
           d.invalid_bytes ? `…${d.text_before ?? ''} ⟨${d.invalid_bytes}⟩` : '—',
+        ];
+      },
+    };
+  }
+  // GTFS-JP: route kana names say which name (number or long name); translation rows say what they translate.
+  if (g.ruleId === 'JPN_008') {
+    return {
+      head: [t('producer.col.route'), t('producer.times.name_kind'), t('producer.times.value')],
+      row: n => [badge(n.entity_id), dash(n.field ? plannerFieldName(n.field) : null), dash(jpKanaName(n, result))],
+    };
+  }
+  if (g.ruleId === 'JPN_019' || g.ruleId === 'JPN_021') {
+    return {
+      head: [t('producer.col.record'), t('producer.times.name_kind'), t('producer.times.value'), t('producer.col.reading'), t('producer.col.row')],
+      row: n => {
+        const d = n.details ?? {};
+        return [
+          dash(plannerListName(d.table_name) || d.table_name),
+          dash(d.field_name ? plannerFieldName(d.field_name) : null),
+          jpTranslationTarget(n, result),
+          n.rule_id === 'JPN_021' ? visibleValue(n.observed_value ?? null) || '—' : '—',
+          n.line != null ? String(n.line) : '—',
+        ];
+      },
+    };
+  }
+  if (g.ruleId === 'JPN_028' || g.ruleId === 'JPN_029' || g.ruleId === 'JPN_030') {
+    return {
+      head: [t('producer.col.record'), t('producer.times.name_kind'), t('producer.times.value'), t('producer.col.affected_records')],
+      row: n => {
+        const d = n.details ?? {};
+        return [
+          dash(plannerListName(d.table_name) || d.table_name),
+          dash(n.field ? plannerFieldName(n.field) : null),
+          dash(d.source_value),
+          dash(d.affected_records ? localizedNumber(d.affected_records) : null),
         ];
       },
     };

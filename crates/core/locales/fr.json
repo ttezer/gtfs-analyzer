@@ -3130,7 +3130,7 @@
     },
     "JPN_001": {
       "title": "Lecture kana du nom d’arrêt manquante",
-      "what": "Un arrêt au nom japonais n’a pas de lecture kana (ja-Hrkt).",
+      "what": "Un arrêt au nom japonais n’a pas de lecture en kana.",
       "action": "Ajoutez la lecture kana du nom aux traductions."
     },
     "JPN_002": {

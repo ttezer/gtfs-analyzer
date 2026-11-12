@@ -3130,7 +3130,7 @@
     },
     "JPN_001": {
       "title": "Kana reading of stop name missing",
-      "what": "A stop with a Japanese name has no kana (ja-Hrkt) reading.",
+      "what": "A stop with a Japanese name has no kana reading.",
       "action": "Add the kana reading of the stop name to the translations."
     },
     "JPN_002": {
