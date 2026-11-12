@@ -17,6 +17,24 @@ pub struct FrequencyRecord {
     pub line: u64,
 }
 
+/// Planner context on every frequency finding: the period and headway as written on its row
+/// (the engine gave them only in its Turkish message, if at all). Only `details` keys are added.
+pub(crate) fn add_frequency_row_context(findings: &mut [gtfs_core::Notice], row: &RowMap) {
+    for finding in findings {
+        let details = finding.details.get_or_insert_with(Default::default);
+        for key in ["start_time", "end_time", "headway_secs", "exact_times"] {
+            if let Some(value) = get_trimmed_field(row, key).filter(|v| !v.is_empty()) {
+                details.insert(key.to_string(), value.to_string());
+            }
+        }
+    }
+}
+
+/// Seconds since midnight as GTFS `HH:MM:SS` (hours may exceed 24).
+pub(crate) fn hms(secs: u32) -> String {
+    format!("{:02}:{:02}:{:02}", secs / 3600, secs / 60 % 60, secs % 60)
+}
+
 pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_core::Notice>) {
     let mut notices = Vec::new();
     let mut records = Vec::new();
@@ -25,6 +43,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
+        let first_notice = notices.len();
 
         let trip_id = get_raw_field(&row_map, "trip_id").unwrap_or("").to_string();
         let entity_id = (!trip_id.is_empty()).then_some(trip_id.clone());
@@ -290,6 +309,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
             }
         };
 
+        add_frequency_row_context(&mut notices[first_notice..], &row_map);
         records.push(FrequencyRecord {
             trip_id,
             start_time,
@@ -343,6 +363,13 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                     format!("trip_id '{trip}' için frequencies dönemleri zaman aralığı çakışıyor."),
                     "Adjust the trip's frequencies periods so their time ranges do not overlap.",
                 ));
+                if let Some(finding) = notices.last_mut() {
+                    add_frequency_row_context(std::slice::from_mut(finding), cur_row);
+                    finding
+                        .details
+                        .get_or_insert_with(Default::default)
+                        .insert("overlap_until".to_string(), hms(max_end));
+                }
             }
             if cur_end > max_end {
                 max_end = cur_end;
@@ -415,6 +442,15 @@ mod tests {
         );
         let (_, notices) = validate_frequencies(&file);
         assert!(notices.iter().any(|n| n.rule_id == "FRQ_005"));
+        // Planner context: the period and headway as written (details only).
+        let d = notices
+            .iter()
+            .find(|n| n.rule_id == "FRQ_005")
+            .and_then(|n| n.details.as_ref())
+            .expect("FRQ_005 details");
+        assert_eq!(d.get("start_time").map(String::as_str), Some("12:00:00"));
+        assert_eq!(d.get("end_time").map(String::as_str), Some("08:00:00"));
+        assert_eq!(d.get("headway_secs").map(String::as_str), Some("600"));
     }
 
     #[test]
@@ -432,6 +468,13 @@ mod tests {
             "çakışan dönemler → FRQ_011: {:?}",
             notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
         );
+        let d = notices
+            .iter()
+            .find(|n| n.rule_id == "FRQ_011")
+            .and_then(|n| n.details.as_ref())
+            .expect("FRQ_011 details");
+        assert_eq!(d.get("start_time").map(String::as_str), Some("11:00:00"));
+        assert_eq!(d.get("overlap_until").map(String::as_str), Some("12:00:00"));
     }
 
     #[test]

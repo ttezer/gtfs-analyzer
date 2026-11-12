@@ -3395,6 +3395,12 @@ fn check_frequency_headway(
                 ),
                 "Reduce the gap between trips or add extra runs.",
             ));
+            if let Some(finding) = notices.last_mut() {
+                crate::k2::frequencies::add_frequency_row_context(
+                    std::slice::from_mut(finding),
+                    &frq.row,
+                );
+            }
         }
 
         // FRQ_010: very high-frequency service (below the bunching threshold) → info
@@ -3413,6 +3419,12 @@ fn check_frequency_headway(
                 format!("'{trip_id}' seferinde sefer aralığı {hw}sn ≤ sıkışma eşiği {bunching_secs}sn — sıkışma riski."),
                 "Review the trip schedule; ignore if this headway is intentional.",
             ));
+            if let Some(finding) = notices.last_mut() {
+                crate::k2::frequencies::add_frequency_row_context(
+                    std::slice::from_mut(finding),
+                    &frq.row,
+                );
+            }
         }
     }
 }

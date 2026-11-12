@@ -2236,6 +2236,12 @@ fn check_frequencies(
                 format!("'{}' sefer kodu trips.txt'te tanımlı değil.", rec.trip_id),
                 "Use a valid trip_id.",
             ));
+            if let Some(finding) = notices.last_mut() {
+                crate::k2::frequencies::add_frequency_row_context(
+                    std::slice::from_mut(finding),
+                    &rec.row,
+                );
+            }
         }
 
         // TRP_017: a VALID frequency-based trip in trips.txt is missing from stop_times.

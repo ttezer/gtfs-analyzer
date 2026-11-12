@@ -3571,3 +3571,35 @@ describe('Aktarma kartları (TRF)', () => {
     expect(html).toContain('05.01.2026');
   });
 });
+
+describe('Sıklık kartları (FRQ)', () => {
+  const ni: NameIndex = { ...emptyNameIndex, routes: { R1: 'S8' }, trips: { T1: 'Liman' }, trip_routes: { T1: 'R1' }, trip_first_dep: { T1: '06:00' } };
+  const render = (n: Notice) => {
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [[n.rule_id, 1, 1]], true, ni));
+    return root.innerHTML;
+  };
+  const frq = (rule: string, details: Record<string, string>, extra: Partial<Notice> = {}) =>
+    notice('a', rule, 'MEDIUM', { entity_type: 'Trip', entity_id: 'T1', file: 'frequencies.txt', line: 5, details, ...extra });
+
+  it('FRQ_010 dönemi ve aralığı söyler; tablo dönem ve aralık gösterir', () => {
+    const html = render(frq('FRQ_010', { start_time: '07:00:00', end_time: '09:00:00', headway_secs: '30' }));
+    expect(html).toContain('07:00 – 09:00 arasında 30 sn arayla kalkıyor');
+    expect(html).toContain('<th>Sıklık dönemi</th><th>Sefer aralığı</th><th>Satır</th>');
+    expect(html).toContain('<td>Liman</td><td>07:00 – 09:00</td><td>30 sn</td><td>5</td>');
+  });
+
+  it('FRQ_011 önceki dönemin bitişini söyler', () => {
+    expect(render(frq('FRQ_011', { start_time: '11:00:00', end_time: '14:00:00', headway_secs: '900', overlap_until: '12:00:00' })))
+      .toContain('11:00 – 14:00 dönemi (15 dk arayla) önceki dönemle çakışıyor; önceki dönem 12:00 saatine kadar sürüyor.');
+  });
+
+  it('FRQ_001 olmayan sefer kodunu ve dönemi söyler', () => {
+    expect(render(frq('FRQ_001', { start_time: '06:00:00', end_time: '22:00:00', headway_secs: '600' }, { entity_id: 'X9', observed_value: 'X9' })))
+      .toContain('„X9“ sefer kodu için 06:00 – 22:00 arası 10 dk arayla sefer tanımlanmış');
+  });
+
+  it('FRQ_002 kendi cümlesinden sonra dönemi söyler', () => {
+    expect(render(frq('FRQ_002', { end_time: '22:00:00', headway_secs: '600' }))).toContain('Dönem: — – 22:00, 10 dk arayla.');
+  });
+});

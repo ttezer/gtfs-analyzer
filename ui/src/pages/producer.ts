@@ -364,6 +364,27 @@ function jpRecordText(n: Notice, result: ValidationResult): string | null {
   }
 }
 
+/** Frequency cards: the trip, its period and headway as written on the frequency row. */
+function frqText(n: Notice, result: ValidationResult): string | null {
+  const d = n.details ?? {};
+  const trip = n.rule_id === 'FRQ_001'
+    ? t('producer.card.FRQ.unknown_trip', { code: n.entity_id || n.observed_value || '—' })
+    : tripPhrase(n.entity_id, result);
+  const start = plannerTime(d.start_time) ?? '—';
+  const end = plannerTime(d.end_time) ?? '—';
+  const headway = d.headway_secs && Number.isFinite(Number(d.headway_secs)) ? durationText(Number(d.headway_secs)) : '—';
+  if (!d.start_time && !d.end_time && !d.headway_secs) return null;
+  const args = { trip, start, end, headway, until: plannerTime(d.overlap_until) ?? '—', value: n.observed_value ?? '—' };
+  switch (n.rule_id) {
+    case 'FRQ_001': case 'FRQ_005': case 'FRQ_006': case 'FRQ_008': case 'FRQ_009':
+    case 'FRQ_010': case 'FRQ_011': case 'FRQ_012':
+      return t(`producer.card.${n.rule_id}.what_detail`, args);
+    default:
+      // FRQ_002/003/004: the rule's own sentence, then the period it is on.
+      return `${t(`producer.card.${n.rule_id}.what`)} ${t('producer.card.FRQ.period', args)}`;
+  }
+}
+
 /** Transfer cards: the stop riders leave and the stop they board. The engine gives both in
  *  details; TRF_011 (one finding per stop pair) and older results carry them as "from|to". */
 function trfStops(n: Notice): [string | undefined, string | undefined] {
@@ -2139,6 +2160,11 @@ function calRuleText(n: Notice, result: ValidationResult): string | null {
 function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCopy | null {
   const n = g.notices[0];
   switch (g.ruleId) {
+    case 'FRQ_001': case 'FRQ_002': case 'FRQ_003': case 'FRQ_004': case 'FRQ_005': case 'FRQ_006':
+    case 'FRQ_008': case 'FRQ_009': case 'FRQ_010': case 'FRQ_011': case 'FRQ_012': {
+      const what = frqText(n, result);
+      return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
+    }
     case 'TRF_003': case 'TRF_006': case 'TRF_007': case 'TRF_008': case 'TRF_009': case 'TRF_010':
     case 'TRF_011': case 'TRF_012': case 'TRF_013': case 'TRF_014': case 'TRF_015': case 'TRF_016':
     case 'TRF_017': case 'TRF_018': case 'TRF_019': case 'TRF_020': case 'TRF_021': case 'TRF_022':
@@ -5788,6 +5814,23 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
           listLabel(n),
           dash(d.invalid_line),
           d.invalid_bytes ? `…${d.text_before ?? ''} ⟨${d.invalid_bytes}⟩` : '—',
+        ];
+      },
+    };
+  }
+  // Frequencies: the trip, the period and the headway as written, and the row.
+  if (g.ruleId.startsWith('FRQ_') && first.entity_type === 'Trip' && first.details?.start_time !== undefined) {
+    return {
+      head: [t('producer.col.route'), t('producer.col.direction'), t('producer.col.frq_period'), t('producer.col.frq_headway'), t('producer.col.row')],
+      row: n => {
+        const d = n.details ?? {};
+        const known = n.rule_id !== 'FRQ_001' && n.entity_id;
+        return [
+          known ? badge(ni.trip_routes?.[n.entity_id!]) : '—',
+          known ? dash(ni.trips?.[n.entity_id!]) : dash(n.entity_id),
+          d.start_time || d.end_time ? `${plannerTime(d.start_time) ?? '—'} – ${plannerTime(d.end_time) ?? '—'}` : '—',
+          d.headway_secs && Number.isFinite(Number(d.headway_secs)) ? durationText(Number(d.headway_secs)) : dash(d.headway_secs),
+          n.line != null ? String(n.line) : '—',
         ];
       },
     };
