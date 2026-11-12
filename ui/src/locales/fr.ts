@@ -2909,6 +2909,8 @@ const fr: LocaleShape = {
     'upload.url_invalid'      : 'URL invalide.',
     'upload.url_https'        : 'Seules les URL https sont prises en charge.',
     'upload.url_credentials'  : 'L’URL ne doit contenir ni identifiant ni mot de passe.',
+    'upload.url_private'      : 'Les adresses locales ou de réseau privé ne peuvent pas être chargées.',
+    'upload.url_redirect_blocked': 'Le lien redirige vers une adresse qui ne peut pas être chargée (pas en https, ou adresse locale ou de réseau privé).',
     'upload.url_timeout'      : 'La requête a expiré (30 s).',
     'upload.url_http'         : 'Le serveur a renvoyé le statut {status}.',
     'upload.url_body'         : 'La connexion a été interrompue pendant le téléchargement du fichier.',

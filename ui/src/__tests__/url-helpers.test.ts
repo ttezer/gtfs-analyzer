@@ -21,6 +21,24 @@ describe('validateFeedUrl', () => {
     expect(validateFeedUrl('https://user:pass@example.org/gtfs.zip')).toEqual({ ok: false, reason: 'credentials' });
     expect(validateFeedUrl('https://user@example.org/gtfs.zip')).toEqual({ ok: false, reason: 'credentials' });
   });
+  it('rejects local and private network destinations (security review #4)', () => {
+    for (const u of [
+      'https://localhost/x.zip', 'https://router/x.zip', 'https://nas.local/x.zip',
+      'https://127.0.0.1/x.zip', 'https://2130706433/x.zip', 'https://0x7f.1/x.zip',
+      'https://10.1.2.3/x.zip', 'https://172.16.0.1/x.zip', 'https://192.168.1.1/x.zip',
+      'https://169.254.169.254/x.zip', 'https://100.64.0.1/x.zip', 'https://0.0.0.0/x.zip',
+      'https://[::1]/x.zip', 'https://[fd00::1]/x.zip', 'https://[fe80::1]/x.zip',
+      'https://[::ffff:192.168.1.1]/x.zip',
+    ]) {
+      expect(validateFeedUrl(u), u).toEqual({ ok: false, reason: 'private' });
+    }
+  });
+  it('still accepts public hosts and public IP literals', () => {
+    for (const u of ['https://8.8.8.8/x.zip', 'https://172.32.0.1/x.zip', 'https://[2001:db8::1]/x.zip',
+      'https://files.mobilitydatabase.org/x.zip']) {
+      expect(validateFeedUrl(u).ok, u).toBe(true);
+    }
+  });
   it('rejects malformed input', () => {
     expect(validateFeedUrl('not a url')).toEqual({ ok: false, reason: 'invalid' });
     expect(validateFeedUrl('')).toEqual({ ok: false, reason: 'invalid' });

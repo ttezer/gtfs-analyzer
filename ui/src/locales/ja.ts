@@ -2906,6 +2906,8 @@ const ja: LocaleShape = {
     'upload.url_invalid'      : '無効なURLです。',
     'upload.url_https'        : 'https のURLのみ対応しています。',
     'upload.url_credentials'  : 'URLにユーザー名やパスワードを含めることはできません。',
+    'upload.url_private'      : 'ローカルまたはプライベートネットワークのアドレスは読み込めません。',
+    'upload.url_redirect_blocked': 'リンクの転送先は読み込めないアドレスです（httpsではない、またはローカル・プライベートネットワークのアドレス）。',
     'upload.url_timeout'      : 'リクエストがタイムアウトしました（30秒）。',
     'upload.url_http'         : 'サーバーがステータス {status} を返しました。',
     'upload.url_body'         : 'ファイルのダウンロード中に接続が切断されました。',

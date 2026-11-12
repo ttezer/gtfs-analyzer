@@ -472,7 +472,8 @@ async function handleUrl(rawUrl: string, root: HTMLElement, errorEl: HTMLElement
   const check = validateFeedUrl(rawUrl);
   if (!check.ok) {
     const key = check.reason === 'https' ? 'upload.url_https'
-      : check.reason === 'credentials' ? 'upload.url_credentials' : 'upload.url_invalid';
+      : check.reason === 'credentials' ? 'upload.url_credentials'
+      : check.reason === 'private' ? 'upload.url_private' : 'upload.url_invalid';
     showError(errorEl, { code: 'InvalidInput', message: t(key) });
     return;
   }
@@ -498,6 +499,14 @@ async function handleUrl(rawUrl: string, root: HTMLElement, errorEl: HTMLElement
     } else {
       showUrlBlocked(errorEl, url); // shared CORS/network message + real clickable-link fallback
     }
+    return;
+  }
+  // 2b) The request followed redirects: the FINAL address must pass the same checks as the
+  // typed one (https, no credentials, not local/private) before any of its body is read.
+  if (resp.redirected && !validateFeedUrl(resp.url).ok) {
+    clearLoading(root);
+    void resp.body?.cancel();
+    showError(errorEl, { code: 'InvalidInput', message: t('upload.url_redirect_blocked') });
     return;
   }
   // 3) Read HTTP errors when CORS allows the response.

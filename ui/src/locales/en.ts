@@ -2909,6 +2909,8 @@ const en: LocaleShape = {
     'upload.url_invalid'      : 'Invalid URL.',
     'upload.url_https'        : 'Only https URLs are supported.',
     'upload.url_credentials'  : 'The URL must not contain a username or password.',
+    'upload.url_private'      : 'Local or private network addresses cannot be loaded.',
+    'upload.url_redirect_blocked': 'The link redirected to an address that cannot be loaded (not https, or a local or private network address).',
     'upload.url_timeout'      : 'The request timed out (30 s).',
     'upload.url_http'         : 'The server returned status {status}.',
     'upload.url_body'         : 'The connection dropped while downloading the file.',

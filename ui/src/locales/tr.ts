@@ -2908,6 +2908,8 @@ const tr = {
     'upload.url_invalid'      : 'Geçersiz URL.',
     'upload.url_https'        : 'Yalnızca https URL’leri desteklenir.',
     'upload.url_credentials'  : 'URL kullanıcı adı/parola içeremez.',
+    'upload.url_private'      : 'Yerel veya özel ağ adresleri yüklenemez.',
+    'upload.url_redirect_blocked': 'Bağlantı yüklenemeyecek bir adrese yönlendirdi (https değil ya da yerel/özel ağ adresi).',
     'upload.url_timeout'      : 'İstek zaman aşımına uğradı (30 sn).',
     'upload.url_http'         : 'Sunucu {status} yanıtı döndü.',
     'upload.url_body'         : 'Dosya indirilirken bağlantı kesildi.',
