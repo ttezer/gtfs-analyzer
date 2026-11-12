@@ -2219,6 +2219,28 @@ function cal020LongCalendars(d: Record<string, string>): boolean {
 
 /** Each calendar rule's own sentence, in the planner's words; null when the finding lacks what
  *  the sentence needs (the card then keeps its general text). */
+/** Feed info cards (FIN): the value written; for the validity dates, the window as written and
+ *  the period the calendars really run, which the planner can copy. */
+function finText(n: Notice): string | null {
+  const d = n.details ?? {};
+  const base = t(`producer.card.${n.rule_id}.what`);
+  switch (n.rule_id) {
+    case 'FIN_010': case 'FIN_016': case 'FIN_017': case 'FIN_019': case 'FIN_020': {
+      const window = d.feed_start_date || d.feed_end_date
+        ? t('producer.card.FIN.window', { start: ymdText(d.feed_start_date), end: ymdText(d.feed_end_date) }) : '';
+      const service = d.service_first && d.service_last
+        ? t('producer.card.FIN.service', { first: ymdText(d.service_first), last: ymdText(d.service_last) }) : '';
+      return window || service ? [base, window, service].filter(Boolean).join(' ') : null;
+    }
+    case 'FIN_002': case 'FIN_003': case 'FIN_004': case 'FIN_005': case 'FIN_006': case 'FIN_008':
+    case 'FIN_009': case 'FIN_012': case 'FIN_015': {
+      const value = visibleValue(n.observed_value ?? null);
+      return value ? `${base} ${t('producer.card.FIN.value', { value })}` : null;
+    }
+    default: return null;
+  }
+}
+
 /** Calendar exception cards (CLD): the calendar by its code and what is wrong with its dates. */
 function cldText(n: Notice): string | null {
   const d = n.details ?? {};
@@ -3341,6 +3363,11 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         what: t('producer.card.DQ_005c.what_detail', { n: localizedNumber(d.missing_count), total: localizedNumber(d.stop_count) }),
         action: t('producer.card.DQ_005c.action'),
       };
+    }
+    case 'FIN_002': case 'FIN_003': case 'FIN_004': case 'FIN_005': case 'FIN_006': case 'FIN_008': case 'FIN_009':
+    case 'FIN_010': case 'FIN_012': case 'FIN_015': case 'FIN_016': case 'FIN_017': case 'FIN_019': case 'FIN_020': {
+      const what = finText(n);
+      return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
     }
     case 'CLD_001': case 'CLD_002': case 'CLD_004': case 'CLD_005': case 'CLD_006': case 'CLD_007': {
       const what = cldText(n);

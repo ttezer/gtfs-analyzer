@@ -7400,6 +7400,7 @@ fn check_data_quality(
         }
     }
 
+    let fin_dates_start = notices.len();
     // FIN_010: feed validity period has expired.
     if feed_info_usable && today_yyyymmdd > 0 {
         if let Some(fi) = records.feed_info.first() {
@@ -7536,6 +7537,8 @@ fn check_data_quality(
             }
         }
     }
+
+    fin_date_context(&mut notices[fin_dates_start..], records, derived);
 
     // CAL_020: feed validity window > 5 years (about 1,825 days).
     if feed_info_usable {
@@ -12179,6 +12182,58 @@ fn check_linked_trip_continuations(
 }
 
 // ── Takvim override analitik (OPR_019–023) ───────────────────────────────────
+
+/// FIN date findings (FIN_010/016/017/019/020) planner context: the validity window as written
+/// (YYYYMMDD) and the period the calendars really run (first/last active day and the calendar
+/// that sets each), so the card can suggest dates. Same period as CAL_020; details only.
+fn fin_date_context(findings: &mut [Notice], records: &EntityRecords, derived: &DerivedData) {
+    const FIN_DATE_RULES: [&str; 5] = ["FIN_010", "FIN_016", "FIN_017", "FIN_019", "FIN_020"];
+    if !findings
+        .iter()
+        .any(|n| FIN_DATE_RULES.contains(&n.rule_id.as_str()))
+    {
+        return;
+    }
+    let ymd = |(y, m, d): (u32, u32, u32)| (y * 10000 + m * 100 + d).to_string();
+    let window = records
+        .feed_info
+        .first()
+        .map(|fi| (fi.feed_start_date.map(ymd), fi.feed_end_date.map(ymd)));
+    let mut first: Option<(u32, &str)> = None;
+    let mut last: Option<(u32, &str)> = None;
+    for (service, dates) in &derived.calendar_bitmap.active_dates {
+        let (Some(&lo), Some(&hi)) = (dates.iter().min(), dates.iter().max()) else {
+            continue;
+        };
+        let service = service.as_str();
+        if first.is_none_or(|(d, s)| lo < d || (lo == d && service < s)) {
+            first = Some((lo, service));
+        }
+        if last.is_none_or(|(d, s)| hi > d || (hi == d && service < s)) {
+            last = Some((hi, service));
+        }
+    }
+    for finding in findings
+        .iter_mut()
+        .filter(|n| FIN_DATE_RULES.contains(&n.rule_id.as_str()))
+    {
+        let details = finding.details.get_or_insert_with(Default::default);
+        if let Some((start, end)) = &window {
+            if let Some(start) = start {
+                details.insert("feed_start_date", start.clone());
+            }
+            if let Some(end) = end {
+                details.insert("feed_end_date", end.clone());
+            }
+        }
+        if let (Some((lo, lo_service)), Some((hi, hi_service))) = (first, last) {
+            details.insert("service_first", lo.to_string());
+            details.insert("service_first_calendar", lo_service.to_string());
+            details.insert("service_last", hi.to_string());
+            details.insert("service_last_calendar", hi_service.to_string());
+        }
+    }
+}
 
 /// TRF_022/023 planner context: the two continuation trips, their calendars and the first day
 /// both run (the engine had these only in its Turkish message). Only `details` keys are added.

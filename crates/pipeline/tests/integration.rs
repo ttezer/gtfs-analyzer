@@ -9044,3 +9044,28 @@ fn cld_006_carries_the_calendars_trip_and_route_usage() {
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
 }
+
+/// FIN date findings carry the window as written and the calendars' real service period, so the
+/// planner card can suggest dates (details only; FIN_010 itself is unchanged).
+#[test]
+fn fin_010_carries_the_window_and_the_calendars_service_period() {
+    let mut files = base_files();
+    files.push((
+        "feed_info.txt",
+        b"feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\n\
+          P,https://p.example,tr,20250101,20250131\n" as &[u8],
+    ));
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let d = vr
+                .notices
+                .iter()
+                .find(|n| n.rule_id == "FIN_010")
+                .and_then(|n| n.details.as_ref())
+                .expect("FIN_010 details");
+            assert_eq!(d.get("feed_end_date").map(String::as_str), Some("20250131"));
+            assert!(d.contains_key("service_first") && d.contains_key("service_last"));
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}

@@ -3780,3 +3780,22 @@ describe('Takvim istisnası kartları (CLD)', () => {
       .toContain('Kayıt: 05.01.2026, hizmet kaldırıldı.');
   });
 });
+
+describe('Veri seti bilgisi kartları (FIN)', () => {
+  const render = (n: Notice) => {
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [[n.rule_id, 1, 1]], true, emptyNameIndex));
+    return root.innerHTML;
+  };
+
+  it('FIN_010 yazılan dönemi ve takvimlerin çalıştığı dönemi okunur tarihle söyler', () => {
+    expect(render(notice('a', 'FIN_010', 'HIGH', { entity_type: 'Feed', file: 'feed_info.txt', observed_value: '2025-01-31', details: {
+      feed_start_date: '20250101', feed_end_date: '20250131', service_first: '20250101', service_last: '20271231',
+    } }))).toContain('Yazılan geçerlilik dönemi: 01.01.2025 – 31.01.2025. Takvimlerin gerçekte çalıştığı dönem: 01.01.2025 – 31.12.2027.');
+  });
+
+  it('FIN_008 girilen değeri gösterir', () => {
+    expect(render(notice('a', 'FIN_008', 'LOW', { entity_type: 'Feed', file: 'feed_info.txt', field: 'feed_contact_email', observed_value: 'info@' })))
+      .toContain('Girilen değer: „info@“.');
+  });
+});
