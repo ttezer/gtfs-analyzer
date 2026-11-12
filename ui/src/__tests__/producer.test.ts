@@ -3816,3 +3816,17 @@ describe('Çeviri kartları (TRN)', () => {
     expect(html).toContain('<td>Durak listesi</td><td>Durak adı</td><td>Otogar</td><td>en</td><td>Bus station</td><td>7</td>');
   });
 });
+
+describe('Ücret tanımı kartları (FAR)', () => {
+  const render = (n: Notice) => {
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [[n.rule_id, 1, 1]], true, emptyNameIndex));
+    return root.innerHTML;
+  };
+
+  it('FAR_005 tarifeyi fiyatıyla ve girilen değeri söyler', () => {
+    const html = render(notice('a', 'FAR_005', 'CRITICAL', { entity_type: 'Fare', entity_id: 'F1', file: 'fare_attributes.txt', line: 3, field: 'transfers', observed_value: '9', details: { price: '2.50', currency_type: 'EUR' } }));
+    expect(html).toContain('Tarife: „F1“ (2,5 EUR). Girilen değer: „9“.');
+    expect(html).toContain('<td>F1</td><td>2,5 EUR</td>');
+  });
+});

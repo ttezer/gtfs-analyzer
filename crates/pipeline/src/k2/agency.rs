@@ -335,7 +335,11 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
         // Planner context: the agency's name, so a card can name it even when it has no code
         // (a single agency often leaves agency_id empty). Only `details` keys are added.
         if let Some(name) = get_trimmed_field(&row_map, "agency_name").filter(|v| !v.is_empty()) {
-            for finding in &mut notices[first_notice..] {
+            // A whitespace derivative (suppressed later) gets no details map.
+            for finding in notices[first_notice..]
+                .iter_mut()
+                .filter(|n| !n.whitespace_derived)
+            {
                 finding
                     .details
                     .get_or_insert_with(Default::default)

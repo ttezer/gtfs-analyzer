@@ -556,6 +556,7 @@ const fr: LocaleShape = {
     'producer.card.DQ_019.what_trip_headsign': "La girouette de {trip} est écrite entièrement en minuscules : « {value} ».",
     'producer.card.DQ_019.what_stop_headsign': "La girouette de {trip} à l’arrêt {stop} est écrite entièrement en minuscules : « {value} ».",
     'producer.card.dq_trip_map': "Sur la carte : {trip} ({from} → {to}, {n} arrêts).",
+    'producer.card.FAR.fare': "Tarif : « {fare} »{price}.",
     'producer.card.FAR_001.title': "Même code tarifaire utilisé deux fois",
     'producer.card.FAR_001.what': "Deux tarifs portent le même code.",
     'producer.card.FAR_001.action': "Donnez un code unique à chaque tarif.",

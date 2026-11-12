@@ -76,6 +76,7 @@ fn validate_fare_attributes_inner(
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
+        let first_notice = notices.len();
         let fare_id = get_raw_field(&row_map, "fare_id").unwrap_or("").to_string();
         // FAR_012: fare_id required (if the column is absent, ARC_025 takes over → skip)
         if get_raw_field(&row_map, "fare_id").map(str::trim) == Some("") {
@@ -297,6 +298,20 @@ fn validate_fare_attributes_inner(
             }
         };
 
+        // Planner context: the fare's price and currency as written, so a card can name the fare.
+        // GGL_002 is raised in this loop too; another group's finding is left untouched, and a
+        // whitespace derivative (suppressed later) gets no details map.
+        for finding in notices[first_notice..]
+            .iter_mut()
+            .filter(|n| n.rule_id.starts_with("FAR_") && !n.whitespace_derived)
+        {
+            let details = finding.details.get_or_insert_with(Default::default);
+            for key in ["price", "currency_type"] {
+                if let Some(value) = get_trimmed_field(&row_map, key).filter(|v| !v.is_empty()) {
+                    details.insert(key.to_string(), value.to_string());
+                }
+            }
+        }
         records.push(FareAttributeRecord {
             fare_id,
             price,
@@ -419,6 +434,28 @@ mod tests {
             raw_text: None,
             zip_entry_name: None,
         }
+    }
+
+    #[test]
+    fn fare_findings_carry_the_fares_price_and_currency() {
+        let file = make_file(
+            &[
+                "fare_id",
+                "price",
+                "currency_type",
+                "payment_method",
+                "transfers",
+            ],
+            vec![vec!["F1", "2.50", "EUR", "7", ""]],
+        );
+        let (_, notices) = validate_fare_attributes(&file);
+        let d = notices
+            .iter()
+            .find(|n| n.rule_id == "FAR_004")
+            .and_then(|n| n.details.as_ref())
+            .expect("FAR_004 details");
+        assert_eq!(d.get("price").map(String::as_str), Some("2.50"));
+        assert_eq!(d.get("currency_type").map(String::as_str), Some("EUR"));
     }
 
     #[test]

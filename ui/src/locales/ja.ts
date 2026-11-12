@@ -555,6 +555,7 @@ const ja: LocaleShape = {
     'producer.card.DQ_019.what_trip_headsign': "{trip}の行先がすべて小文字です:「{value}」。",
     'producer.card.DQ_019.what_stop_headsign': "{trip}の停留所{stop}での行先がすべて小文字です:「{value}」。",
     'producer.card.dq_trip_map': "地図: {trip}（{from} → {to}、{n}停留所）。",
+    'producer.card.FAR.fare': "運賃: 「{fare}」{price}。",
     'producer.card.FAR_001.title': "同じ運賃コードが2回使われています",
     'producer.card.FAR_001.what': "2つの運賃が同じコードを持っています。",
     'producer.card.FAR_001.action': "運賃ごとに一意のコードを付けてください。",

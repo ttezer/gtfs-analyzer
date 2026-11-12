@@ -556,6 +556,7 @@ const en: LocaleShape = {
     'producer.card.DQ_019.what_trip_headsign': "The headsign of {trip} is written entirely in lowercase: \"{value}\".",
     'producer.card.DQ_019.what_stop_headsign': "The headsign of {trip} at stop {stop} is written entirely in lowercase: \"{value}\".",
     'producer.card.dq_trip_map': "On the map: {trip} ({from} → {to}, {n} stops).",
+    'producer.card.FAR.fare': "Fare: “{fare}”{price}.",
     'producer.card.FAR_001.title': "Same fare code used twice",
     'producer.card.FAR_001.what': "Two fares carry the same code.",
     'producer.card.FAR_001.action': "Give each fare a unique code.",

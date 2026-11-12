@@ -554,6 +554,7 @@ const tr = {
     'producer.card.DQ_019.what_trip_headsign': "{trip} yön adı tamamen küçük harfle yazılmış: \"{value}\".",
     'producer.card.DQ_019.what_stop_headsign': "{trip} {stop} durağındaki yön adı tamamen küçük harfle yazılmış: \"{value}\".",
     'producer.card.dq_trip_map': "Haritada: {trip} ({from} → {to}, {n} durak).",
+    'producer.card.FAR.fare': "Tarife: „{fare}“{price}.",
     'producer.card.FAR_001.title': "Aynı ücret kodu iki kez",
     'producer.card.FAR_001.what': "İki ücret tarifesi aynı kodu taşıyor.",
     'producer.card.FAR_001.action': "Her ücret tarifesine benzersiz bir kod verin.",
