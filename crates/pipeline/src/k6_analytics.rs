@@ -12136,6 +12136,7 @@ fn check_linked_trip_continuations(
             ),
             "In a 1-to-n continuation every to_trip_id must share one service_id. If these are separate continuations, their calendars must not overlap on any day.",
         ));
+        trf_continuation_context(notices.last_mut(), (&ta, &sa), (&tb, &sb), day);
     }
 
     let mut to_keys: Vec<&str> = by_to.keys().copied().collect();
@@ -12161,10 +12162,28 @@ fn check_linked_trip_continuations(
             ),
             "In an n-to-1 continuation every from_trip_id must share one service_id. If these are separate continuations, their calendars must not overlap on any day.",
         ));
+        trf_continuation_context(notices.last_mut(), (&ta, &sa), (&tb, &sb), day);
     }
 }
 
 // ── Takvim override analitik (OPR_019–023) ───────────────────────────────────
+
+/// TRF_022/023 planner context: the two continuation trips, their calendars and the first day
+/// both run (the engine had these only in its Turkish message). Only `details` keys are added.
+fn trf_continuation_context(
+    finding: Option<&mut Notice>,
+    (trip_a, service_a): (&str, &str),
+    (trip_b, service_b): (&str, &str),
+    day: impl std::fmt::Display,
+) {
+    let Some(finding) = finding else { return };
+    let details = finding.details.get_or_insert_with(Default::default);
+    details.insert("trip_a".to_string(), trip_a.to_string());
+    details.insert("service_a".to_string(), service_a.to_string());
+    details.insert("trip_b".to_string(), trip_b.to_string());
+    details.insert("service_b".to_string(), service_b.to_string());
+    details.insert("conflict_day".to_string(), day.to_string());
+}
 
 fn check_calendar_override_analytics(
     records: &EntityRecords,

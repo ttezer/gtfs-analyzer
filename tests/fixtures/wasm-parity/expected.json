@@ -4610,42 +4610,6 @@
           "title": "Optional GTFS file present"
         },
         {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Transfer",
-          "expected_value": "both trip_id values are required for type 4/5",
-          "field": "from_trip_id|to_trip_id",
-          "file": "transfers.txt",
-          "line": 2,
-          "message": "Transfer: transfer_type is inconsistent with the context.",
-          "observed_value": null,
-          "remediation": "Fill in both from_trip_id and to_trip_id for linked-trip transfers.",
-          "rule_class": "QUALITY",
-          "rule_id": "TRF_013",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "CRITICAL",
-          "title": "Transfer type inconsistent with context"
-        },
-        {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Transfer",
-          "expected_value": "both trip_id values are required for type 4/5",
-          "field": "from_trip_id|to_trip_id",
-          "file": "transfers.txt",
-          "line": 3,
-          "message": "Transfer: transfer_type is inconsistent with the context.",
-          "observed_value": null,
-          "remediation": "Fill in both from_trip_id and to_trip_id for linked-trip transfers.",
-          "rule_class": "QUALITY",
-          "rule_id": "TRF_013",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "CRITICAL",
-          "title": "Transfer type inconsistent with context"
-        },
-        {
           "details": {
             "affected_transfers": "2",
             "transfer_types": "4, 5"
@@ -4665,6 +4629,50 @@
           "service_id": null,
           "severity": "LOW",
           "title": "transfer_type=4/5 not supported by Google Transit"
+        },
+        {
+          "details": {
+            "from_stop_id": "S1",
+            "to_stop_id": "S2",
+            "transfer_type": "4"
+          },
+          "entity_id": null,
+          "entity_type": "Transfer",
+          "expected_value": "both trip_id values are required for type 4/5",
+          "field": "from_trip_id|to_trip_id",
+          "file": "transfers.txt",
+          "line": 2,
+          "message": "Transfer: transfer_type is inconsistent with the context.",
+          "observed_value": null,
+          "remediation": "Fill in both from_trip_id and to_trip_id for linked-trip transfers.",
+          "rule_class": "QUALITY",
+          "rule_id": "TRF_013",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "CRITICAL",
+          "title": "Transfer type inconsistent with context"
+        },
+        {
+          "details": {
+            "from_stop_id": "S2",
+            "to_stop_id": "S1",
+            "transfer_type": "5"
+          },
+          "entity_id": null,
+          "entity_type": "Transfer",
+          "expected_value": "both trip_id values are required for type 4/5",
+          "field": "from_trip_id|to_trip_id",
+          "file": "transfers.txt",
+          "line": 3,
+          "message": "Transfer: transfer_type is inconsistent with the context.",
+          "observed_value": null,
+          "remediation": "Fill in both from_trip_id and to_trip_id for linked-trip transfers.",
+          "rule_class": "QUALITY",
+          "rule_id": "TRF_013",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "CRITICAL",
+          "title": "Transfer type inconsistent with context"
         }
       ],
       "agency_breakdown": {
@@ -10611,24 +10619,6 @@
           "title": "Invalid (from_trip_id/to_trip_id, stop_id) pair in transfers"
         },
         {
-          "details": null,
-          "entity_id": null,
-          "entity_type": "Transfer",
-          "expected_value": null,
-          "field": "to_trip_id",
-          "file": "transfers.txt",
-          "line": 2,
-          "message": "Transfer: no trip found for in-seat transfer.",
-          "observed_value": "T2",
-          "remediation": "Add stop_times records for the referenced trip.",
-          "rule_class": "SPEC",
-          "rule_id": "TRF_014",
-          "scope_key": null,
-          "service_id": null,
-          "severity": "HIGH",
-          "title": "No trip for in-seat transfer"
-        },
-        {
           "details": {
             "affected_transfers": "1",
             "example_route_types": "from=3, to=0"
@@ -10842,6 +10832,30 @@
           "service_id": null,
           "severity": "INFO",
           "title": "Bicycle allowance (bikes_allowed) not specified"
+        },
+        {
+          "details": {
+            "from_stop_id": "S1",
+            "from_trip_id": "T1",
+            "to_stop_id": "S2",
+            "to_trip_id": "T2",
+            "transfer_type": "4"
+          },
+          "entity_id": null,
+          "entity_type": "Transfer",
+          "expected_value": null,
+          "field": "to_trip_id",
+          "file": "transfers.txt",
+          "line": 2,
+          "message": "Transfer: no trip found for in-seat transfer.",
+          "observed_value": "T2",
+          "remediation": "Add stop_times records for the referenced trip.",
+          "rule_class": "SPEC",
+          "rule_id": "TRF_014",
+          "scope_key": null,
+          "service_id": null,
+          "severity": "HIGH",
+          "title": "No trip for in-seat transfer"
         },
         {
           "details": {

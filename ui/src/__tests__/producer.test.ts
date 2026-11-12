@@ -3522,3 +3522,52 @@ describe('GTFS-JP veri seti ve profil kartları (JPN_006–033)', () => {
       .toContain('Durak listesi içindeki özel „jp_note“ sütunu');
   });
 });
+
+describe('Aktarma kartları (TRF)', () => {
+  const ni: NameIndex = {
+    ...emptyNameIndex,
+    stops: { S1: 'Otogar', S2: 'Merkez' },
+    routes: { R1: 'S8' }, trips: { T1: 'Liman', T2: 'Liman', T3: 'Liman' },
+    trip_routes: { T1: 'R1', T2: 'R1', T3: 'R1' }, trip_first_dep: { T1: '06:00', T2: '07:00', T3: '08:00' },
+  };
+  const render = (n: Notice) => {
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [[n.rule_id, 1, 1]], true, ni));
+    return root.innerHTML;
+  };
+  const trf = (rule: string, extra: Partial<Notice>) => notice('a', rule, 'MEDIUM', { entity_type: 'Transfer', file: 'transfers.txt', line: 4, ...extra });
+  const stops = { from_stop_id: 'S1', to_stop_id: 'S2' };
+
+  it('TRF_020 mesafeyi, girilen süreyi, gereken hızı ve 2 m/s ile gereken süreyi söyler', () => {
+    const html = render(trf('TRF_020', { observed_value: '5.83 m/s', details: { ...stops, min_transfer_time: '60', distance_m: '350' } }));
+    expect(html).toContain('Aktarma: Otogar → Merkez. İki durak arası 350 m, ama aktarma için 60 saniye girilmiş');
+    expect(html).toContain('saniyede 5,8 metre yürümek demek');
+    expect(html).toContain('en az 3 dakika sürer');
+    expect(html).toContain('<th>İnilen durak</th><th>Binilen durak</th><th>Aktarma süresi</th><th>Mesafe</th><th>Satır</th>');
+    expect(html).toContain('<td>Otogar</td><td>Merkez</td><td>1 dk</td><td>350 m</td><td>4</td>');
+  });
+
+  it('TRF_010 süreyi dakika olarak söyler', () => {
+    expect(render(trf('TRF_010', { details: { ...stops, min_transfer_time: '5400' } })))
+      .toContain('En kısa aktarma süresi 90 dakika girilmiş');
+  });
+
+  it('TRF_011 durak çiftini koddan, mesafeyi değerden okur', () => {
+    expect(render(trf('TRF_011', { entity_id: 'S1|S2', observed_value: '2500m' })))
+      .toContain('Aktarma: Otogar → Merkez. İki durak arası 2,5 km');
+  });
+
+  it('TRF_016 iki satırı, diğer kurallar kendi cümlesinden sonra aktarmayı söyler', () => {
+    expect(render(trf('TRF_016', { details: { ...stops, first_line: '2' } }))).toContain('(2. ve 4. satır)');
+    expect(render(trf('TRF_013', { details: stops }))).toContain('Aktarma: Otogar → Merkez.');
+  });
+
+  it('TRF_022 iki devam seferini, takvimlerini ve ortak günü söyler', () => {
+    const html = render(notice('a', 'TRF_022', 'HIGH', {
+      entity_type: 'Trip', entity_id: 'T1', file: 'transfers.txt', line: 3,
+      details: { trip_a: 'T2', service_a: 'WK', trip_b: 'T3', service_b: 'ALL', conflict_day: '20260105' },
+    }));
+    expect(html).toContain('iki devam seferine bağlanmış');
+    expect(html).toContain('05.01.2026');
+  });
+});

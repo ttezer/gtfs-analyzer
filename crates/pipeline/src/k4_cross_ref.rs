@@ -2279,6 +2279,44 @@ fn check_frequencies(
 
 // ── TRF_006-009, TRF_013-015: transfer cross-ref ──────────────────────────────
 
+/// Planner context on every transfer finding: the two stops (the engine had them only in its
+/// Turkish message), the trips/routes the row names, its type and time, and for a repeated row
+/// the first one. Only `details` keys are added; findings are unchanged.
+fn add_transfer_context(
+    findings: &mut [Notice],
+    rec: &crate::k2::transfers::TransferRecord,
+    first_line: Option<u64>,
+) {
+    // Other groups' findings raised in the same loop (e.g. XFL_021) are left untouched.
+    for finding in findings
+        .iter_mut()
+        .filter(|n| n.rule_id.starts_with("TRF_"))
+    {
+        let details = finding.details.get_or_insert_with(Default::default);
+        for (key, value) in [
+            ("from_stop_id", Some(rec.from_stop_id.as_str())),
+            ("to_stop_id", Some(rec.to_stop_id.as_str())),
+            ("from_trip_id", rec.from_trip_id.as_deref()),
+            ("to_trip_id", rec.to_trip_id.as_deref()),
+            ("from_route_id", rec.from_route_id.as_deref()),
+            ("to_route_id", rec.to_route_id.as_deref()),
+        ] {
+            if let Some(value) = value.map(str::trim).filter(|v| !v.is_empty()) {
+                details.insert(key.to_string(), value.to_string());
+            }
+        }
+        if let Some(kind) = rec.transfer_type {
+            details.insert("transfer_type".to_string(), kind.to_string());
+        }
+        if let Some(seconds) = rec.min_transfer_time {
+            details.insert("min_transfer_time".to_string(), seconds.to_string());
+        }
+        if let Some(line) = first_line {
+            details.insert("first_line".to_string(), line.to_string());
+        }
+    }
+}
+
 fn check_transfers(
     records: &EntityRecords,
     map: &EntityMap,
@@ -2291,6 +2329,7 @@ fn check_transfers(
 ) {
     let ti_trf = &records.trip_interns;
     for rec in &records.transfers {
+        let first_notice = notices.len();
         let ttype = rec.transfer_type;
 
         // Transfer-row identity: the same `from_stop_id|to_stop_id` key as TRF_004/TRF_011
@@ -2362,6 +2401,12 @@ fn check_transfers(
                                 Some(format!("{speed:.2} m/s")), Some("≤ 2.00 m/s".to_string()),
                                 format!("'{}' → '{}' aktarması {:.0}m mesafeyi {}s içinde yürümeyi gerektiriyor ({speed:.2} m/s).", rec.from_stop_id, rec.to_stop_id, distance_m, mtt),
                                 "Raise min_transfer_time, or check the transfer stops."));
+                            if let Some(finding) = notices.last_mut() {
+                                finding
+                                    .details
+                                    .get_or_insert_with(Default::default)
+                                    .insert("distance_m".to_string(), format!("{distance_m:.0}"));
+                            }
                         }
                     }
                 }
@@ -2710,6 +2755,7 @@ fn check_transfers(
                 }
             }
         }
+        add_transfer_context(&mut notices[first_notice..], rec, None);
     }
 
     // TRF_016: conflicting transfer records at exact specificity.
@@ -2757,6 +2803,8 @@ fn check_transfers(
                     ),
                     "Remove or modify one of the conflicting transfer conditions.",
                 ));
+                let last = notices.len() - 1;
+                add_transfer_context(&mut notices[last..], rec, Some(prev_line));
             } else {
                 seen_keys.insert(key, rec.line);
             }
@@ -2794,6 +2842,8 @@ fn check_transfers(
                     ),
                     "Remove the duplicate transfer record.",
                 ));
+                let last = notices.len() - 1;
+                add_transfer_context(&mut notices[last..], rec, Some(prev_line));
             } else {
                 seen_stops.insert(key, rec.line);
             }
@@ -8928,6 +8978,17 @@ mod tests {
         }];
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "TRF_020"));
+        // Planner context: both stops, the time and the distance (details only).
+        let d = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "TRF_020")
+            .and_then(|n| n.details.as_ref())
+            .expect("TRF_020 details");
+        assert_eq!(d.get("from_stop_id").map(String::as_str), Some("S1"));
+        assert_eq!(d.get("to_stop_id").map(String::as_str), Some("S2"));
+        assert_eq!(d.get("min_transfer_time").map(String::as_str), Some("60"));
+        assert_eq!(d.get("distance_m").map(String::as_str), Some("1112"));
     }
 
     // ── TRF_013 ───────────────────────────────────────────────────────────────

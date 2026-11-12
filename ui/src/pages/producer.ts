@@ -364,6 +364,72 @@ function jpRecordText(n: Notice, result: ValidationResult): string | null {
   }
 }
 
+/** Transfer cards: the stop riders leave and the stop they board. The engine gives both in
+ *  details; TRF_011 (one finding per stop pair) and older results carry them as "from|to". */
+function trfStops(n: Notice): [string | undefined, string | undefined] {
+  const d = n.details ?? {};
+  if (d.from_stop_id || d.to_stop_id) return [d.from_stop_id, d.to_stop_id];
+  const pair = (n.entity_type === 'Transfer' ? n.entity_id || n.scope_key : null)?.split('|');
+  return pair && pair.length === 2 ? [pair[0], pair[1]] : [undefined, undefined];
+}
+function trfPairText(n: Notice, result: ValidationResult): string {
+  const name = (id?: string) => id ? result.name_index.stops?.[id] || id : t('producer.card.unknown_stop');
+  const [from, to] = trfStops(n);
+  return from || to ? t('producer.card.TRF.pair', { from: name(from), to: name(to) }) : '';
+}
+function minutesText(seconds?: string | null): string {
+  const s = Number(seconds);
+  return Number.isFinite(s) && seconds ? localizedNumber(String(Math.round(s / 60))) : '—';
+}
+function trfText(n: Notice, result: ValidationResult): string | null {
+  const d = n.details ?? {};
+  const pair = trfPairText(n, result);
+  const line = n.line != null ? String(n.line) : '—';
+  switch (n.rule_id) {
+    case 'TRF_010':
+      return pair ? t('producer.card.TRF_010.what_detail', { pair, minutes: minutesText(d.min_transfer_time) }) : null;
+    case 'TRF_020': {
+      const speed = Number((n.observed_value ?? '').match(/^([\d.]+)/)?.[1]);
+      const distance = Number(d.distance_m);
+      if (!pair || !Number.isFinite(speed) || !Number.isFinite(distance)) return null;
+      // At the rule's own threshold (2 m/s) the walk needs distance / 2 seconds.
+      return t('producer.card.TRF_020.what_detail', {
+        pair, distance: metersText(d.distance_m), seconds: localizedNumber(d.min_transfer_time ?? '—'),
+        speed: speed.toLocaleString(getLocale(), { maximumFractionDigits: 1 }),
+        needed: minutesText(String(Math.ceil(distance / 2))),
+      });
+    }
+    case 'TRF_011': {
+      const meters = (n.observed_value ?? '').match(/^(\d+)/)?.[1];
+      return pair && meters ? t('producer.card.TRF_011.what_detail', { pair, distance: metersText(meters) }) : null;
+    }
+    case 'TRF_003':
+      return pair ? t('producer.card.TRF_003.what_detail', { pair, code: n.observed_value ?? '—' }) : null;
+    case 'TRF_006':
+    case 'TRF_007':
+    case 'TRF_008':
+    case 'TRF_009':
+      return pair ? t(`producer.card.${n.rule_id}.what_detail`, { pair, code: n.observed_value ?? '—' }) : null;
+    case 'TRF_012':
+    case 'TRF_016':
+      return pair ? t(`producer.card.${n.rule_id}.what_detail`, { pair, first: d.first_line ?? '—', line }) : null;
+    case 'TRF_018':
+      return t('producer.card.TRF_018.what_detail', { trip: tripPhrase(n.entity_id || d.from_trip_id, result) });
+    case 'TRF_022':
+    case 'TRF_023':
+      if (!d.trip_a || !d.trip_b) return null;
+      return t(`producer.card.${n.rule_id}.what_detail`, {
+        trip: tripPhrase(n.entity_id, result),
+        a: tripPhrase(d.trip_a, result), b: tripPhrase(d.trip_b, result),
+        service_a: plannerServiceText(d.service_a, result), service_b: plannerServiceText(d.service_b, result),
+        day: ymdText(d.conflict_day),
+      });
+    default:
+      // The other transfer rules keep their own sentence and name the transfer after it.
+      return pair ? `${t(`producer.card.${n.rule_id}.what`)} ${pair}` : null;
+  }
+}
+
 /** GTFS-JP feed-level and profile rules: the value written, how many records, and examples. */
 function jpFeedText(n: Notice, result: ValidationResult): string | null {
   const d = n.details ?? {};
@@ -2073,6 +2139,13 @@ function calRuleText(n: Notice, result: ValidationResult): string | null {
 function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCopy | null {
   const n = g.notices[0];
   switch (g.ruleId) {
+    case 'TRF_003': case 'TRF_006': case 'TRF_007': case 'TRF_008': case 'TRF_009': case 'TRF_010':
+    case 'TRF_011': case 'TRF_012': case 'TRF_013': case 'TRF_014': case 'TRF_015': case 'TRF_016':
+    case 'TRF_017': case 'TRF_018': case 'TRF_019': case 'TRF_020': case 'TRF_021': case 'TRF_022':
+    case 'TRF_023': {
+      const what = trfText(n, result);
+      return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
+    }
     case 'JPN_001':
     case 'JPN_008':
     case 'JPN_009':
@@ -5715,6 +5788,24 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
           listLabel(n),
           dash(d.invalid_line),
           d.invalid_bytes ? `…${d.text_before ?? ''} ⟨${d.invalid_bytes}⟩` : '—',
+        ];
+      },
+    };
+  }
+  // Transfers: the two stops, the time entered and its row.
+  if (g.ruleId.startsWith('TRF_') && first.entity_type === 'Transfer' && trfStops(first).some(Boolean)) {
+    const name = (id?: string) => id ? ni.stops?.[id] || id : '—';
+    const withDistance = g.ruleId === 'TRF_020' || g.ruleId === 'TRF_011';
+    return {
+      head: [t('producer.col.transfer_from'), t('producer.col.transfer_to'), t('producer.col.transfer_time'), ...(withDistance ? [t('producer.col.distance')] : []), t('producer.col.row')],
+      row: n => {
+        const [from, to] = trfStops(n);
+        const meters = n.details?.distance_m ?? (n.rule_id === 'TRF_011' ? (n.observed_value ?? '').match(/^(\d+)/)?.[1] : undefined);
+        return [
+          name(from), name(to),
+          n.details?.min_transfer_time ? t('producer.card.TRF.minutes', { minutes: minutesText(n.details.min_transfer_time) }) : '—',
+          ...(withDistance ? [meters ? metersText(meters) : '—'] : []),
+          n.line != null ? String(n.line) : '—',
         ];
       },
     };

@@ -3856,6 +3856,16 @@ fn trf022_flags_one_to_n_continuation_with_overlapping_calendars() {
                 !has(&vr, "TRF_023"),
                 "n-to-1 çelişkisi yok, TRF_023 çıkmamalı"
             );
+            // Planner context: the two continuations, their calendars and a shared day.
+            let d = vr
+                .notices
+                .iter()
+                .find(|n| n.rule_id == "TRF_022")
+                .and_then(|n| n.details.as_ref())
+                .expect("TRF_022 details");
+            for key in ["trip_a", "service_a", "trip_b", "service_b", "conflict_day"] {
+                assert!(d.contains_key(key), "TRF_022 details.{key} eksik: {d:?}");
+            }
         }
         other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
     }
