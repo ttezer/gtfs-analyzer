@@ -1779,6 +1779,10 @@ fn check_trips(
 /// between neighboring stops and are suppressed (VBB Potsdam "Platz der Einheit" child stops,
 /// ~150 m). Above this distance, treat the pathway as a possible wrong stop_id reference and fire.
 const PTH014_WALK_MAX_M: f64 = 300.0;
+/// Cross-file transfer rules that share the TRF planner context (`add_transfer_context`).
+/// Kept here, away from the field-name literals, so the emit-identity scan keeps reading these
+/// rule IDs at their own emission sites.
+const XFL_TRANSFER_RULES: [&str; 2] = ["XFL_020", "XFL_021"];
 /// STP_009/011 planner context: a station this close is named as the likely intended parent.
 const STP009_STATION_KM: f64 = 1.0;
 /// STP_012/015 planner context sizes: a station's platforms named, the levels listed.
@@ -2293,11 +2297,11 @@ fn add_transfer_context(
     rec: &crate::k2::transfers::TransferRecord,
     first_line: Option<u64>,
 ) {
-    // Other groups' findings raised in the same loop (e.g. XFL_021) are left untouched.
-    for finding in findings
-        .iter_mut()
-        .filter(|n| n.rule_id.starts_with("TRF_"))
-    {
+    // The XFL transfer rules get the same context; other groups' findings raised in this
+    // loop are left untouched.
+    for finding in findings.iter_mut().filter(|n| {
+        n.rule_id.starts_with("TRF_") || XFL_TRANSFER_RULES.contains(&n.rule_id.as_str())
+    }) {
         let details = finding.details.get_or_insert_with(Default::default);
         for (key, value) in [
             ("from_stop_id", Some(rec.from_stop_id.as_str())),
@@ -6776,6 +6780,15 @@ fn check_xfl(
                     ),
                     "Bu sefer için stop_times kayıtları ekleyin.",
                 ));
+                // Planner context: a trip without times is found by its route, headsign and
+                // calendar (details only).
+                let service = ti_xfl.service_id(rec);
+                if let (Some(finding), false) = (notices.last_mut(), service.is_empty()) {
+                    finding
+                        .details
+                        .get_or_insert_with(Default::default)
+                        .insert("service_id".to_string(), service.to_string());
+                }
             }
         }
     }
@@ -9182,6 +9195,14 @@ mod tests {
         // stop_times is empty → no record for T1
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "XFL_002"));
+        // Planner context: the trip's calendar (details only).
+        let service = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "XFL_002")
+            .and_then(|n| n.details.as_ref())
+            .and_then(|d| d.get("service_id").cloned());
+        assert!(service.is_some_and(|s| !s.is_empty()));
     }
 
     // ── XFL_008 ───────────────────────────────────────────────────────────────

@@ -3631,3 +3631,40 @@ describe('İstasyon içi yol kartları (PTH)', () => {
     expect(render(pth('PTH_011', { pathway_mode: '9', to_stop_id: 'E1' }))).toContain('Yürüme bağlantısı: Türü belirsiz yürüme bağlantısı, Giriş A → Giriş A');
   });
 });
+
+describe('Dosyalar arası kartlar (XFL)', () => {
+  const ni: NameIndex = {
+    ...emptyNameIndex, routes: { R1: 'S8', R2: 'S9' }, trips: { T1: 'Liman', T2: 'Merkez' }, trip_routes: { T1: 'R1', T2: 'R2' },
+    stops: { S1: 'Otogar', S2: 'Merkez' },
+  };
+  const render = (notices: Notice[]) => {
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result(notices, [], [[notices[0].rule_id, 1, notices.length]], true, ni));
+    return root.innerHTML;
+  };
+
+  it('XFL_002 seferi takvimiyle adlandırır ve hat sayısını verir', () => {
+    const html = render(['T1', 'T2'].map((tr, i) => notice(`x${i}`, 'XFL_002', 'HIGH', { entity_type: 'Trip', entity_id: tr, file: 'trips.txt', details: { service_id: 'WK' } })));
+    expect(html).toContain('tanımlı, ama hiç durak saati girilmemiş. Toplam 2 sefer, 2 hatta.');
+    expect(html).toContain('<th>Hat</th><th>Yön</th>');
+  });
+
+  it('XFL_012 hattın sefer sayısını söyler', () => {
+    expect(render([notice('a', 'XFL_012', 'HIGH', { entity_type: 'Route', entity_id: 'R1', file: 'routes.txt', details: { trip_count: '14' } })]))
+      .toContain('S8 hattının 14 seferi var, ama hiçbirinin durak saati girilmemiş.');
+  });
+
+  it('XFL_013 iki yönün hatlarını ve kalkışlarını, sınırı aşan sayıyı söyler', () => {
+    const html = render([notice('a', 'XFL_013', 'HIGH', { entity_type: 'Shape', entity_id: 'SH1', file: 'trips.txt', details: {
+      fwd_routes: 'R1', fwd_services: 'WK', fwd_deps: '06:00, 07:00 (+4)', bwd_routes: 'R1, R2', bwd_services: 'WK', bwd_deps: '08:00',
+    } })]);
+    expect(html).toContain('Gidiş: S8, kalkışlar 06:00, 07:00 (+4). Dönüş: S8, S9, kalkışlar 08:00.');
+  });
+
+  it('XFL_006 takvim kodlarını sayar; XFL_021 aktarmayı adlandırır', () => {
+    expect(render([notice('a', 'XFL_006', 'MEDIUM', { entity_type: 'Service', file: 'calendar_dates.txt', observed_value: 'A, B' })]))
+      .toContain('hiç çalışma günleri yok: A, B.');
+    expect(render([notice('a', 'XFL_021', 'HIGH', { entity_type: 'Transfer', file: 'transfers.txt', line: 3, details: { from_stop_id: 'S1', to_stop_id: 'S2', from_trip_id: 'T1' } })]))
+      .toContain('Aktarma: Otogar → Merkez.');
+  });
+});

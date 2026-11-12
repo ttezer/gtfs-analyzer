@@ -364,6 +364,51 @@ function jpRecordText(n: Notice, result: ValidationResult): string | null {
   }
 }
 
+/** XFL cross-file cards: which trip, route, calendar or shape, named the planner's way. */
+function xflList(raw?: string | null): { ids: string[]; more: string } {
+  const m = (raw ?? '').match(/^(.*?)(?: \(\+(\d+)\))?$/);
+  const ids = (m?.[1] ?? '').split(/,\s*/).filter(v => v && v !== '—');
+  return { ids, more: m?.[2] ? ` (+${localizedNumber(m[2])})` : '' };
+}
+function xflText(g: RuleGroup, n: Notice, result: ValidationResult): string | null {
+  const d = n.details ?? {};
+  const ni = result.name_index;
+  switch (n.rule_id) {
+    case 'XFL_002': {
+      if (!n.entity_id) return null;
+      const routes = new Set(g.notices.map(x => x.entity_id ? ni.trip_routes?.[x.entity_id] : undefined).filter(Boolean)).size;
+      const detail = t('producer.card.XFL_002.what_detail', { trip: tripPhrase(n.entity_id, result), service: plannerServiceText(d.service_id, result) });
+      return g.notices.length > 1 ? `${detail} ${t('producer.card.XFL_002.summary', { count: localizedNumber(String(g.count)), routes: localizedNumber(String(routes)) })}` : detail;
+    }
+    case 'XFL_006': {
+      const { ids, more } = xflList(n.observed_value);
+      return ids.length ? t('producer.card.XFL_006.what_detail', { services: ids.join(', ') + more }) : null;
+    }
+    case 'XFL_012': {
+      const route = n.entity_id ? ni.routes?.[n.entity_id] || n.entity_id : null;
+      return route && d.trip_count ? t('producer.card.XFL_012.what_detail', { route, count: localizedNumber(d.trip_count) }) : null;
+    }
+    case 'XFL_013': {
+      const fwd = xflList(d.fwd_routes);
+      const bwd = xflList(d.bwd_routes);
+      if (!fwd.ids.length && !bwd.ids.length) return null;
+      const deps = (raw?: string) => { const l = xflList(raw); return l.ids.join(', ') + l.more || '—'; };
+      return t('producer.card.XFL_013.what_detail', {
+        shape: shapeText(n.entity_id ?? undefined, [...new Set([...fwd.ids, ...bwd.ids])], result),
+        fwd: (routeLabels(fwd.ids, result) || '—') + fwd.more, fwd_deps: deps(d.fwd_deps),
+        bwd: (routeLabels(bwd.ids, result) || '—') + bwd.more, bwd_deps: deps(d.bwd_deps),
+      });
+    }
+    case 'XFL_020':
+    case 'XFL_021': {
+      const pair = trfPairText(n, result);
+      return pair ? `${t(`producer.card.${n.rule_id}.what`)} ${pair}` : null;
+    }
+    default:
+      return null;
+  }
+}
+
 /** Station pathway cards: the pathway by its kind, two ends and station (shared engine step). */
 function pthMode(mode?: string): string {
   return mode && /^[1-7]$/.test(mode) ? t(`producer.pathway_mode.${mode}`) : t('producer.pathway_mode.unknown');
@@ -2199,6 +2244,10 @@ function calRuleText(n: Notice, result: ValidationResult): string | null {
 function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCopy | null {
   const n = g.notices[0];
   switch (g.ruleId) {
+    case 'XFL_002': case 'XFL_006': case 'XFL_012': case 'XFL_013': case 'XFL_020': case 'XFL_021': {
+      const what = xflText(g, n, result);
+      return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
+    }
     case 'PTH_001': case 'PTH_002': case 'PTH_003': case 'PTH_004': case 'PTH_005': case 'PTH_006':
     case 'PTH_007': case 'PTH_010': case 'PTH_011': case 'PTH_014': case 'PTH_015': case 'PTH_016':
     case 'PTH_017': case 'PTH_018': case 'PTH_026': case 'PTH_027': case 'PTH_028': case 'PTH_030':
@@ -5897,7 +5946,13 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
     };
   }
   // Transfers: the two stops, the time entered and its row.
-  if (g.ruleId.startsWith('TRF_') && first.entity_type === 'Transfer' && trfStops(first).some(Boolean)) {
+  if (g.ruleId === 'XFL_002') {
+    return {
+      head: [t('producer.col.route'), t('producer.col.direction'), t('producer.col.service')],
+      row: n => [badge(n.entity_id ? ni.trip_routes?.[n.entity_id] : undefined), dash(n.entity_id ? ni.trips?.[n.entity_id] : null), plannerServiceText(n.details?.service_id, result)],
+    };
+  }
+  if ((g.ruleId.startsWith('TRF_') || g.ruleId === 'XFL_020' || g.ruleId === 'XFL_021') && first.entity_type === 'Transfer' && trfStops(first).some(Boolean)) {
     const name = (id?: string) => id ? ni.stops?.[id] || id : '—';
     const withDistance = g.ruleId === 'TRF_020' || g.ruleId === 'TRF_011';
     return {
