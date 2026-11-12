@@ -5771,6 +5771,7 @@ fn check_gtfs_jp(
                     "office_jp.txt satırında office_id eksik — her ofis kaydı benzersiz bir kimlik taşımalıdır.".to_string(),
                     "Enter a unique office_id on every row of office_jp.txt.",
                 ));
+                    jp_record_issue(notices.last_mut(), "empty", None);
                     continue;
                 }
                 if let Some(first_line) = office_ids.insert(office_id, office.line) {
@@ -5791,6 +5792,7 @@ fn check_gtfs_jp(
                         ),
                         "Use a unique office_id for each office record.",
                     ));
+                    jp_record_issue(notices.last_mut(), "duplicate", Some(first_line));
                 }
             }
         }
@@ -5823,6 +5825,7 @@ fn check_gtfs_jp(
                         "routes_jp.txt satırında route_id eksik.".to_string(),
                         "Use a route_id in routes_jp.txt that is defined in routes.txt.",
                     ));
+                    jp_record_issue(notices.last_mut(), "empty", None);
                     continue;
                 }
                 if let Some(first_line) = jp_route_ids.insert(route_id, route.line) {
@@ -5843,6 +5846,7 @@ fn check_gtfs_jp(
                         ),
                         "Use a unique route_id for each routes_jp record.",
                     ));
+                    jp_record_issue(notices.last_mut(), "duplicate", Some(first_line));
                 }
                 if !route_ids.contains(route_id) {
                     notices.push(notice(
@@ -5862,6 +5866,7 @@ fn check_gtfs_jp(
                         ),
                         "Match route_id to a route defined in routes.txt.",
                     ));
+                    jp_record_issue(notices.last_mut(), "undefined", None);
                 }
             }
         }
@@ -5932,6 +5937,7 @@ fn check_gtfs_jp(
                     "pattern_jp.txt satırında jp_pattern_id eksik — dosya mevcutsa bu alan zorunludur.".to_string(),
                     "Enter a unique jp_pattern_id on every row of pattern_jp.txt.",
                 ));
+                    jp_record_issue(notices.last_mut(), "empty", None);
                     continue;
                 }
                 if let Some(first_line) = pattern_ids.insert(pattern_id, pattern.line) {
@@ -5952,6 +5958,7 @@ fn check_gtfs_jp(
                         ),
                         "Use a unique jp_pattern_id for each stop pattern.",
                     ));
+                    jp_record_issue(notices.last_mut(), "duplicate", Some(first_line));
                 }
             }
         }
@@ -6285,6 +6292,17 @@ fn check_gtfs_jp(
                     records.gtfs_jp_profile.as_str().to_string(),
                 );
         }
+    }
+}
+
+/// JPN_014/015/017 planner context: empty, duplicate (with the first row) or undefined.
+/// The engine had these only in its Turkish message; this only adds `details` keys.
+fn jp_record_issue(finding: Option<&mut Notice>, issue: &str, first_line: Option<u64>) {
+    let Some(finding) = finding else { return };
+    let details = finding.details.get_or_insert_with(Default::default);
+    details.insert("issue".to_string(), issue.to_string());
+    if let Some(line) = first_line {
+        details.insert("first_line".to_string(), line.to_string());
     }
 }
 
@@ -11465,6 +11483,15 @@ mod tests {
                 .count(),
             2
         );
+        // Planner context: empty vs duplicate, and the first row of a duplicate (details only).
+        let issues: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "JPN_014")
+            .filter_map(|n| n.details.as_ref())
+            .map(|d| (d.get("issue").cloned(), d.get("first_line").cloned()))
+            .collect();
+        assert!(issues.contains(&(Some("duplicate".into()), Some("3".into()))));
     }
 
     #[test]
@@ -11484,6 +11511,12 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "JPN_015"
             && n.file.as_deref() == Some("routes_jp.txt")
             && n.line == Some(8)));
+        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_015"
+            && n.details
+                .as_ref()
+                .and_then(|d| d.get("issue"))
+                .map(String::as_str)
+                == Some("undefined")));
     }
 
     #[test]

@@ -3432,3 +3432,44 @@ describe('GTFS-JP kana ve çeviri kartları (JPN_001–030)', () => {
     expect(html).toContain('<td>Durak listesi</td><td>Durak adı</td><td>渋谷</td><td>2</td>');
   });
 });
+
+describe('GTFS-JP işletmeci, ofis ve desen kartları (JPN_002–032)', () => {
+  const ni: NameIndex = { ...emptyNameIndex, routes: { R1: '都01' }, trips: { T1: '新橋' }, trip_routes: { T1: 'R1' }, trip_first_dep: { T1: '07:10' } };
+  const summary = { agencies: [{ agency_id: '1234567890123', agency_name: '都営バス' }] } as unknown as ValidationResult['feed_summary'];
+  const render = (n: Notice) => {
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [[n.rule_id, 1, 1]], true, ni, summary));
+    return root.innerHTML;
+  };
+  const jp = (rule: string, extra: Partial<Notice>) => notice('a', rule, 'HIGH', extra);
+
+  it('JPN_002 seferi ve bağlandığı ofis kodunu söyler; metinde dosya adı yok', () => {
+    const html = render(jp('JPN_002', { entity_type: 'Trip', entity_id: 'T1', file: 'trips.txt', field: 'jp_office_id', observed_value: 'OF9' }));
+    expect(html).toContain('„OF9“ ofis koduna bağlanmış, ama ofis listesinde bu kod yok.');
+    expect(html).toContain('<td>新橋</td><td>07:10</td><td>OF9</td>');
+    expect(html).not.toContain('office_jp');
+  });
+
+  it('JPN_003 olmayan kodu ve tanımlı işletmecileri söyler', () => {
+    expect(render(jp('JPN_003', { entity_type: 'Agency', entity_id: 'X1', file: 'agency_jp.txt', line: 2, observed_value: 'X1' })))
+      .toContain('„X1“ işletmeci kodu işletmeci bilgilerinde yok. Tanımlı işletmeciler: 都営バス (1234567890123).');
+  });
+
+  it('JPN_014 tekrarda iki satırı, tabloda listeyi planlamacı adıyla gösterir', () => {
+    const html = render(jp('JPN_014', { entity_type: 'Agency', entity_id: 'O1', file: 'office_jp.txt', line: 4, observed_value: 'O1', details: { issue: 'duplicate', first_line: '3' } }));
+    expect(html).toContain('„O1“ ofis kodu iki kez kullanılmış (3. ve 4. satır).');
+    expect(html).toContain('<td>Ofis listesi</td><td>O1</td><td>4</td>');
+  });
+
+  it('JPN_011 işletmeci ve hat eksiklerini ayırır; JPN_032 işletmecinin adını kullanır', () => {
+    expect(render(jp('JPN_011', { entity_type: 'Feed', file: 'routes.txt', field: 'agency_id', observed_value: '5' })))
+      .toContain('5 hat bir işletmeciye bağlanmamış');
+    expect(render(jp('JPN_032', { entity_type: 'Agency', entity_id: '1234567890123', file: 'agency.txt', observed_value: '1234567890123' })))
+      .toContain('都営バス işletmecisinin kodu („1234567890123“)');
+  });
+
+  it('JPN_016 desen ve eski hat bilgisini ayırır', () => {
+    expect(render(jp('JPN_016', { entity_type: 'Row', entity_id: 'P1', file: 'pattern_jp.txt', line: 2, observed_value: '20261332' })))
+      .toContain('„P1“ sefer deseninin güncelleme tarihi („20261332“) geçerli bir tarih değil.');
+  });
+});

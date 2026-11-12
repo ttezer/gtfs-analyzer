@@ -295,7 +295,7 @@ const DQ021_KIND: Record<string, string> = {
 /** Planner names for GTFS files ("Stop list") and columns ("Stop name"), so cards need not
  *  show file and column names. A column without a name keeps its own (the planner still has to
  *  find it); a file without one leaves the card to its general text. */
-const PLANNER_LISTS = new Set(['agency', 'stops', 'routes', 'trips', 'stop_times', 'calendar', 'calendar_dates', 'shapes', 'frequencies', 'transfers', 'feed_info', 'fare_attributes', 'fare_rules', 'translations', 'attributions', 'pathways', 'levels']);
+const PLANNER_LISTS = new Set(['agency', 'stops', 'routes', 'trips', 'stop_times', 'calendar', 'calendar_dates', 'shapes', 'frequencies', 'transfers', 'feed_info', 'fare_attributes', 'fare_rules', 'translations', 'attributions', 'pathways', 'levels', 'agency_jp', 'office_jp', 'routes_jp', 'pattern_jp']);
 const PLANNER_FIELDS = new Set(['safe_duration_factor', 'safe_duration_offset', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'start_date', 'end_date', 'stop_id', 'stop_code', 'stop_name', 'stop_desc', 'stop_lat', 'stop_lon', 'zone_id', 'stop_url', 'parent_station', 'platform_code', 'tts_stop_name', 'route_id', 'route_short_name', 'route_long_name', 'route_desc', 'route_url', 'route_color', 'route_text_color', 'agency_id', 'agency_name', 'agency_url', 'agency_timezone', 'agency_phone', 'agency_lang', 'trip_id', 'service_id', 'trip_headsign', 'trip_short_name', 'block_id', 'shape_id', 'stop_headsign', 'arrival_time', 'departure_time', 'date', 'feed_publisher_name', 'feed_publisher_url', 'feed_lang', 'fare_id']);
 function plannerListName(file?: string | null): string | null {
   const stem = file?.replace(/\.txt$/, '');
@@ -316,6 +316,50 @@ function jpKanaName(n: Notice, result: ValidationResult): string | null {
     case 'JPN_008': return n.field === 'route_long_name' ? ni.route_long_names?.[id] || ni.routes?.[id] || null : ni.routes?.[id] ?? null;
     case 'JPN_009': return ni.trips?.[id] ?? null;
     case 'JPN_010': return result.feed_summary?.agencies?.find(a => a.agency_id === id || a.agency_name === id)?.agency_name ?? id;
+    default: return null;
+  }
+}
+
+/** GTFS-JP agency, office and pattern rules: one sentence per finding from the code or value it names. */
+const JPN_RECORD_RULES = new Set(['JPN_002', 'JPN_003', 'JPN_005', 'JPN_011', 'JPN_012', 'JPN_013', 'JPN_014', 'JPN_015', 'JPN_016', 'JPN_017', 'JPN_018', 'JPN_020', 'JPN_032']);
+function jpRecordText(n: Notice, result: ValidationResult): string | null {
+  const d = n.details ?? {};
+  const value = n.observed_value ?? '';
+  const code = n.entity_id ?? value;
+  const agency = (id?: string | null) => (id ? result.feed_summary?.agencies?.find(a => a.agency_id === id)?.agency_name : undefined) || id || '—';
+  const line = n.line != null ? String(n.line) : '—';
+  switch (n.rule_id) {
+    case 'JPN_002':
+      return n.entity_type === 'Trip'
+        ? t('producer.card.JPN_002.what_trip', { trip: tripPhrase(n.entity_id, result), office: value })
+        : t('producer.card.JPN_002.what_route', { route: n.entity_id ? result.name_index.routes?.[n.entity_id] || n.entity_id : '—', office: value });
+    case 'JPN_018':
+      return t('producer.card.JPN_018.what_detail', { trip: tripPhrase(n.entity_id, result), pattern: value });
+    case 'JPN_003': {
+      const known = (result.feed_summary?.agencies ?? []).map(a => a.agency_id ? `${a.agency_name} (${a.agency_id})` : a.agency_name);
+      return [t('producer.card.JPN_003.what_detail', { code: value }), known.length ? t('producer.card.JPN_003.what_known', { agencies: known.join(', ') }) : ''].filter(Boolean).join(' ');
+    }
+    case 'JPN_005': return t('producer.card.JPN_005.what_detail', { code });
+    case 'JPN_011': return n.file === 'routes.txt'
+      ? t('producer.card.JPN_011.what_routes', { count: localizedNumber(value || '0') })
+      : t('producer.card.JPN_011.what_agency', { count: localizedNumber(value || '0') });
+    case 'JPN_012': return t('producer.card.JPN_012.what_detail', { line });
+    case 'JPN_013': return t('producer.card.JPN_013.what_detail', { agency: agency(n.entity_id), value });
+    case 'JPN_032': return t('producer.card.JPN_032.what_detail', { agency: agency(n.entity_id), value });
+    case 'JPN_014':
+    case 'JPN_015':
+    case 'JPN_017': {
+      const issue = d.issue;
+      if (!issue || !['empty', 'duplicate', 'undefined'].includes(issue)) return null;
+      const route = n.rule_id === 'JPN_015' && n.entity_id ? result.name_index.routes?.[n.entity_id] || n.entity_id : code;
+      return t(`producer.card.${n.rule_id}.what_${issue}`, { code: route, line, first: d.first_line ?? '—' });
+    }
+    case 'JPN_016': return n.file === 'routes_jp.txt'
+      ? t('producer.card.JPN_016.what_route', { route: n.entity_id ? result.name_index.routes?.[n.entity_id] || n.entity_id : '—', value })
+      : t('producer.card.JPN_016.what_pattern', { code: n.entity_id || '—', value });
+    case 'JPN_020': return n.field === 'office_phone'
+      ? t('producer.card.JPN_020.what_phone', { code, value })
+      : t('producer.card.JPN_020.what_url', { code, value });
     default: return null;
   }
 }
@@ -2009,6 +2053,22 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       });
       const summary = g.notices.length > 1 ? t('producer.card.JPN_kana.summary', { count: localizedNumber(String(g.count)), names: localizedNumber(String(names)) }) : '';
       return { title: t(`producer.card.${g.ruleId}.title`), what: [detail, summary].filter(Boolean).join(' '), action: t(`producer.card.${g.ruleId}.action`) };
+    }
+    case 'JPN_002':
+    case 'JPN_003':
+    case 'JPN_005':
+    case 'JPN_011':
+    case 'JPN_012':
+    case 'JPN_013':
+    case 'JPN_014':
+    case 'JPN_015':
+    case 'JPN_016':
+    case 'JPN_017':
+    case 'JPN_018':
+    case 'JPN_020':
+    case 'JPN_032': {
+      const what = jpRecordText(n, result);
+      return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
     }
     case 'JPN_019': {
       const d = n.details ?? {};
@@ -5615,6 +5675,24 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
       head: [t('producer.col.route'), t('producer.times.name_kind'), t('producer.times.value')],
       row: n => [badge(n.entity_id), dash(n.field ? plannerFieldName(n.field) : null), dash(jpKanaName(n, result))],
     };
+  }
+  // JPN agency/office/pattern rows: which list, the code or value written, its row.
+  if (JPN_RECORD_RULES.has(g.ruleId) && !['JPN_002', 'JPN_018', 'JPN_011'].includes(g.ruleId)) {
+    return {
+      head: [t('producer.col.record'), t('producer.times.value'), t('producer.col.row')],
+      row: n => [
+        dash(plannerListName(n.file) || n.file),
+        dash(n.observed_value || n.entity_id),
+        n.line != null ? String(n.line) : '—',
+      ],
+    };
+  }
+  if (g.ruleId === 'JPN_002' || g.ruleId === 'JPN_018') {
+    // The trip or route as usual, plus the office or pattern code it points to.
+    const base = first.entity_type === 'Trip'
+      ? { head: [t('producer.col.route'), t('producer.col.direction'), t('producer.col.departure')], row: (n: Notice): Cell[] => [badge(n.entity_id ? ni.trip_routes?.[n.entity_id] : undefined), dash(n.entity_id ? ni.trips?.[n.entity_id] : null), dash(n.entity_id ? ni.trip_first_dep?.[n.entity_id] : null)] }
+      : { head: [t('producer.col.route'), t('producer.col.route_name')], row: (n: Notice): Cell[] => [badge(n.entity_id), dash(n.entity_id ? ni.route_long_names?.[n.entity_id] : null)] };
+    return { head: [...base.head, t('producer.times.value')], row: n => [...base.row(n), dash(n.observed_value)] };
   }
   if (g.ruleId === 'JPN_019' || g.ruleId === 'JPN_021') {
     return {

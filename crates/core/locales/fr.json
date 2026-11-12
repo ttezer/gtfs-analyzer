@@ -3135,7 +3135,7 @@
     },
     "JPN_002": {
       "title": "Code de bureau non défini",
-      "what": "Une ligne ou une course est liée à un bureau absent de la liste (office_jp).",
+      "what": "Une ligne ou une course est rattachée à un bureau absent de la liste des bureaux.",
       "action": "Liez-la à un bureau existant ou définissez le bureau."
     },
     "JPN_003": {
@@ -3150,7 +3150,7 @@
     },
     "JPN_005": {
       "title": "Bureau sans nom",
-      "what": "Un bureau de la liste (office_jp) n’a pas de nom.",
+      "what": "Un bureau de la liste des bureaux n’a pas de nom.",
       "action": "Saisissez le nom du bureau."
     },
     "JPN_006": {
@@ -3200,7 +3200,7 @@
     },
     "JPN_015": {
       "title": "Informations de ligne anciennes non concordantes",
-      "what": "Dans l’ancien format (routes_jp), le code de ligne est vide, répété ou absent de la liste.",
+      "what": "Dans les anciennes informations de ligne, un code de ligne est vide, répété ou absent de la liste des lignes.",
       "action": "Liez ces informations de façon unique aux lignes existantes."
     },
     "JPN_016": {
@@ -3210,7 +3210,7 @@
     },
     "JPN_017": {
       "title": "Code de modèle de course vide ou répété",
-      "what": "La liste des modèles (pattern_jp) contient un code vide ou répété.",
+      "what": "Un enregistrement des modèles de course a un code vide ou répété.",
       "action": "Donnez un code unique à chaque modèle."
     },
     "JPN_018": {

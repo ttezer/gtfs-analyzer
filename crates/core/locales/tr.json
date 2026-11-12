@@ -2537,7 +2537,7 @@
     },
     "JPN_002": {
       "title": "Ofis kodu tanımlı değil",
-      "what": "Bir hat ya da sefer, ofis listesinde (office_jp) olmayan bir ofise bağlanmış.",
+      "what": "Bir hat ya da sefer, ofis listesinde olmayan bir ofise bağlanmış.",
       "action": "Hattı ya da seferi mevcut bir ofise bağlayın ya da ofisi tanımlayın."
     },
     "JPN_003": {
@@ -2552,7 +2552,7 @@
     },
     "JPN_005": {
       "title": "Ofisin adı yok",
-      "what": "Ofis listesinde (office_jp) adı girilmemiş bir ofis var.",
+      "what": "Ofis listesinde adı girilmemiş bir ofis var.",
       "action": "Ofisin adını girin."
     },
     "JPN_006": {
@@ -2602,7 +2602,7 @@
     },
     "JPN_015": {
       "title": "Eski hat ek bilgisi eşleşmiyor",
-      "what": "Eski biçimdeki hat ek bilgilerinde (routes_jp) hat kodu boş, tekrarlı ya da hat listesinde yok.",
+      "what": "Eski biçimdeki hat ek bilgilerinde hat kodu boş, tekrarlı ya da hat listesinde yok.",
       "action": "Hat ek bilgilerini mevcut hatlara benzersiz şekilde bağlayın."
     },
     "JPN_016": {
@@ -2612,7 +2612,7 @@
     },
     "JPN_017": {
       "title": "Sefer deseni kodu boş ya da tekrarlı",
-      "what": "Sefer desenleri listesinde (pattern_jp) kodu boş ya da tekrarlı bir kayıt var.",
+      "what": "Sefer desenleri listesinde kodu boş ya da tekrarlı bir kayıt var.",
       "action": "Her desene benzersiz bir kod verin."
     },
     "JPN_018": {

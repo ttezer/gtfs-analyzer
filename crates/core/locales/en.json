@@ -3135,7 +3135,7 @@
     },
     "JPN_002": {
       "title": "Office code not defined",
-      "what": "A route or trip is linked to an office not in the office list (office_jp).",
+      "what": "A route or trip is linked to an office that is not in the office list.",
       "action": "Link it to an existing office, or define the office."
     },
     "JPN_003": {
@@ -3150,7 +3150,7 @@
     },
     "JPN_005": {
       "title": "Office has no name",
-      "what": "An office in the office list (office_jp) has no name.",
+      "what": "An office in the office list has no name.",
       "action": "Enter the office name."
     },
     "JPN_006": {
@@ -3200,7 +3200,7 @@
     },
     "JPN_015": {
       "title": "Legacy route information does not match",
-      "what": "In the legacy route information (routes_jp) the route code is empty, repeated or not in the route list.",
+      "what": "In the legacy route details a route code is empty, repeated or not in the route list.",
       "action": "Link the route information uniquely to existing routes."
     },
     "JPN_016": {
@@ -3210,7 +3210,7 @@
     },
     "JPN_017": {
       "title": "Trip pattern code empty or repeated",
-      "what": "The trip pattern list (pattern_jp) has a record whose code is empty or repeated.",
+      "what": "A record in the trip patterns has an empty or repeated code.",
       "action": "Give each pattern a unique code."
     },
     "JPN_018": {
