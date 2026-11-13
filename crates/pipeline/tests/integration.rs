@@ -990,6 +990,30 @@ fn rts022_preserves_one_character_containment_guard() {
 }
 
 #[test]
+fn rts022_flags_one_character_prefix_like_mobilitydata() {
+    // A one-character short name that opens the long name, followed by a space, '-', '(' or
+    // ')', is a repetition (mdb-1039 "1 - Benidorm Intermodal", mdb-2149 "P - Pink Route").
+    // The same letter inside the name, or glued to the next word, is not.
+    for (routes, expected, label) in [
+        (&b"route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,1,1 - Benidorm Intermodal,3\n"[..], true, "1 - "),
+        (&b"route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,P,P (Pink Route),3\n"[..], true, "P ("),
+        (&b"route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,4,4-Wilsonville Rd,3\n"[..], true, "4-"),
+        (&b"route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,A,Bus to a park,3\n"[..], false, "inside"),
+        (&b"route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,A,Airport Express,3\n"[..], false, "glued"),
+    ] {
+        let routes: &'static [u8] = Box::leak(routes.to_vec().into_boxed_slice());
+        match run(&rts022_route_name_feed(routes)) {
+            ValidateResult::Ok(vr) => assert_eq!(
+                vr.notices.iter().any(|n| n.rule_id == "RTS_022"),
+                expected,
+                "{label}"
+            ),
+            other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+        }
+    }
+}
+
+#[test]
 fn rts022_keeps_multicharacter_containment() {
     static ROUTES: &[u8] = b"route_id,agency_id,route_short_name,route_long_name,route_type\n\
           R1,1,5A,5A Hatt\xC4\xB1,3\n";

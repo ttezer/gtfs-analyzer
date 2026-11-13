@@ -6678,7 +6678,21 @@ fn check_route_trip_quality(
             // short="5A", long="5A Line" → fires;
             // short="5", long="Route 5A" → no word boundary, does not fire.
             let names_equal = short.to_lowercase() == long.to_lowercase();
-            if names_equal || (short.chars().count() >= 2 && contains_as_word(long, short)) {
+            // One-character short names (2026-11-13): MobilityData's prefix form only. The long
+            // name starts with the short name and the next character is a space, '-', '(' or ')'
+            // ("1 - Benidorm", "P - Pink Route"). Inside the name a single letter stays out
+            // ("Bus to a park" must not match short "A"). Corpus 43302993350: 47 feeds where
+            // MD reported more, 62 of the sampled short names one character long.
+            let one_char_prefix = short.chars().count() == 1 && {
+                let (s, l) = (short.to_lowercase(), long.to_lowercase());
+                l.strip_prefix(s.as_str())
+                    .and_then(|rest| rest.chars().next())
+                    .is_some_and(|c| c.is_whitespace() || matches!(c, '-' | '(' | ')'))
+            };
+            if names_equal
+                || one_char_prefix
+                || (short.chars().count() >= 2 && contains_as_word(long, short))
+            {
                 notices.push(k6_notice(
                     ctr,
                     "RTS_022",
