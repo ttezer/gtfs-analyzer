@@ -117,10 +117,10 @@ MAP = {
     "forbidden_drop_off_type":          ["STM_052"],
     "transfer_with_invalid_trip_and_route": ["TRF_017", "XFL_020"],  # XFL_020 is the (trip,route) pair for the same phenomenon (#165)
     "invalid_timezone":                 ["AGN_004"],            # 1/1
-    "inconsistent_agency_lang":         ["AGN_017", "AGN_013"], # 4/4 both
+    "inconsistent_agency_lang":         ["AGN_017"],            # AGN_013 measures feed_lang vs agency_lang (its own MD code below); counting it here inflated mdb-2832 by 69 (2026-11-13)
     "new_line_in_value":                ["ARC_030"],            # 3/3 — tab/CR/LF forbidden
     "translation_unknown_table_name":   ["TRN_001"],            # 2/2
-    "translation_foreign_key_violation": ["TRN_016"],  # "field_value matches no record" — MD: entity cannot be found by record_id/record_sub_id (#165)
+    "translation_foreign_key_violation": ["TRN_004"],  # record_id points at no record. 2026-11-13: was TRN_016 (#165), but MD looks records up by record_id/record_sub_id only (TranslationFieldAndReferenceValidator); jbda-nouhibus-takayama_shuyu: MD 2 = TRN_004 2
     "translation_unexpected_value":     ["TRN_013"],  # "must not be populated in this context" — MD: "a field has value but must be empty" (#165)
     "stop_time_with_only_arrival_or_departure_time": ["STM_034"],  # 1/1
     "missing_prior_notice_last_time":   ["BKR_009"],            # 1/1

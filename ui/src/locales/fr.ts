@@ -1883,7 +1883,7 @@ const fr: LocaleShape = {
     'producer.card.STM_061.title': "Vitesse impossible entre arrêts éloignés",
     'producer.card.STM_061.what': "Le temps entre deux arrêts éloignés est impossiblement court pour cette distance.",
     'producer.card.STM_061.action': "Vérifiez les horaires ; s’ils sont justes, regardez la position des arrêts.",
-    'producer.card.STM_061.what_detail': "{from} (rang {a_sequence}) et {to} (rang {b_sequence}) sont à {distance} km à vol d’oiseau. La course exemple la plus rapide part à {dep} et arrive à {arr}, {minutes} minutes plus tard : {speed} km/h, au-delà de la limite de {threshold} km/h pour ce type de ligne. Chacun des {between} arrêts intermédiaires peut sembler plausible isolément.",
+    'producer.card.STM_061.what_detail': "{from} (rang {a_sequence}) et {to} (rang {b_sequence}) sont à {distance} km, mesurés d’arrêt en arrêt le long de la course. La course exemple la plus rapide part à {dep} et arrive à {arr}, {minutes} minutes plus tard : {speed} km/h, au-delà de la limite de {threshold} km/h pour ce type de ligne. Chacun des {between} arrêts intermédiaires peut sembler plausible isolément.",
     'producer.card.STM_061.action_detail': "Vérifiez le départ de {dep} et l’arrivée de {arr} ; le plus souvent, un bloc d’horaires a glissé ou un passage de minuit est mal écrit. Si les heures sont justes, vérifiez la position de {from} et {to} sur la carte.",
     'producer.card.STP_002.title': "Code d’arrêt vide",
     'producer.card.STP_002.what': "Un enregistrement de la liste d’arrêts a un code vide ; aucune course ne peut y être rattachée.",
@@ -3831,7 +3831,7 @@ const fr: LocaleShape = {
     'STM_054': 'Course « {entity_id} » : continuous_pickup {observed_value} est interdit lorsqu’une fenêtre Flex de prise en charge/dépose est définie sur le même stop_time.',
     'STM_056': 'shape_dist_traveled n’augmente pas sur {affected_rows} ligne(s) de stop_times, p. ex. course {example_trips}.',
     'STM_060': 'Course « {entity_id} » : {observed_value} se chevauchent simultanément — les zones GeoJSON s’intersectent, les fenêtres de prise en charge/dépose se recouvrent et les deux enregistrements offrent le même service.',
-    'STM_061': 'Ligne « {route_label} » (sens {direction_id}) : {dist_km} km à vol d’oiseau entre les arrêts {stop_a} et {stop_b}, qui ne sont pas consécutifs, parcourus à {observed_value} sur {trip_count} course(s) (limite : {expected_value}).',
+    'STM_061': 'Ligne « {route_label} » (sens {direction_id}) : {dist_km} km, mesurés d’arrêt en arrêt, entre les arrêts {stop_a} et {stop_b}, qui ne sont pas consécutifs, parcourus à {observed_value} sur {trip_count} course(s) (limite : {expected_value}).',
     'STM_058': 'Course « {entity_id} » : l’heure de fenêtre Flex de prise en charge/dépose « {observed_value} » n’est pas une heure valide.',
     'STM_055': 'Course « {entity_id} » : continuous_drop_off {observed_value} est interdit lorsqu’une fenêtre Flex de prise en charge/dépose est définie sur le même stop_time.',
     // PDW

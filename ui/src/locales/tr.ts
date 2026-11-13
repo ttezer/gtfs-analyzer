@@ -1881,7 +1881,7 @@ const tr = {
     'producer.card.STM_061.title': "Uzak duraklar arasında imkânsız hız",
     'producer.card.STM_061.what': "Seferde birbirinden uzak iki durak arasındaki süre, bu mesafeyi gitmek için imkânsız derecede kısa.",
     'producer.card.STM_061.action': "Bu iki durak arasındaki saatleri kontrol edin; saatler doğruysa durak konumlarına bakın.",
-    'producer.card.STM_061.what_detail': "{from} ({a_sequence}. sıra) ile {to} ({b_sequence}. sıra) arası kuş uçuşu {distance} km. En hızlı örnek seferde {dep} kalkış ile {arr} varış arasında {minutes} dakika var; bu {speed} km/h demek, bu hat türünün sınırı {threshold} km/h. Aradaki {between} durağın her biri tek tek makul görünebilir.",
+    'producer.card.STM_061.what_detail': "{from} ({a_sequence}. sıra) ile {to} ({b_sequence}. sıra) arası, duraklar boyunca ölçülünce {distance} km. En hızlı örnek seferde {dep} kalkış ile {arr} varış arasında {minutes} dakika var; bu {speed} km/h demek, bu hat türünün sınırı {threshold} km/h. Aradaki {between} durağın her biri tek tek makul görünebilir.",
     'producer.card.STM_061.action_detail': "{dep} kalkış ve {arr} varış saatlerini kontrol edin; çoğu zaman bir saat bloğu kaymış ya da gece yarısı geçişi yanlış yazılmıştır. Saatler doğruysa {from} ve {to} duraklarının haritadaki yerine bakın.",
     'producer.card.STP_002.title': "Durak kodu boş",
     'producer.card.STP_002.what': "Durak listesinde kodu boş bırakılmış bir kayıt var; seferler bu durağa bağlanamaz.",

@@ -2068,7 +2068,7 @@ describe('Üretici kartı görünümü', () => {
       dist_km: '28.3', speed_min: '340', speed_max: '425', stop_a_sequence: '1', stop_b_sequence: '3', threshold_kmh: '120',
       example_trip_id: 'T1', stop_a_departure: '09:00:00', stop_b_arrival: '09:04:00', between_stops: '1', trips: 'T1',
     } }));
-    expect(out.html).toContain('Hastane (1. sıra) ile Çarşı (3. sıra) arası kuş uçuşu 28,3 km. En hızlı örnek seferde 09:00 kalkış ile 09:04 varış arasında 4 dakika var; bu 425 km/h demek, bu hat türünün sınırı 120 km/h.');
+    expect(out.html).toContain('Hastane (1. sıra) ile Çarşı (3. sıra) arası, duraklar boyunca ölçülünce 28,3 km. En hızlı örnek seferde 09:00 kalkış ile 09:04 varış arasında 4 dakika var; bu 425 km/h demek, bu hat türünün sınırı 120 km/h.');
     expect(out.html).toContain('<li>09:00 kalkış ve 09:04 varış saatlerini kontrol edin;');
     expect(out.html).toContain('10 hattı');
     expect(out.html).toContain('<tr class="bad"><td>1</td><td>Hastane</td><td>—</td><td>09:00</td></tr>');

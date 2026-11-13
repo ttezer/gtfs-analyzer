@@ -1882,7 +1882,7 @@ const ja: LocaleShape = {
     'producer.card.STM_061.title': "離れた停留所間で不可能な速度",
     'producer.card.STM_061.what': "便の離れた2停留所間の時間が、その距離に対して不可能なほど短くなっています。",
     'producer.card.STM_061.action': "2停留所間の時刻を確認し、正しければ停留所の位置を確認してください。",
-    'producer.card.STM_061.what_detail': "「{from}」（順序{a_sequence}）と「{to}」（順序{b_sequence}）は直線で{distance} km離れています。最速の例の便は{dep}発、{arr}着で{minutes}分です。これは時速{speed} kmで、この路線種別の上限{threshold} km/hを超えます。間の{between}停留所はそれぞれ単独では妥当に見えることがあります。",
+    'producer.card.STM_061.what_detail': "「{from}」（順序{a_sequence}）と「{to}」（順序{b_sequence}）は停留所沿いに測って{distance} km離れています。最速の例の便は{dep}発、{arr}着で{minutes}分です。これは時速{speed} kmで、この路線種別の上限{threshold} km/hを超えます。間の{between}停留所はそれぞれ単独では妥当に見えることがあります。",
     'producer.card.STM_061.action_detail': "{dep}発と{arr}着の時刻を確認してください。多くの場合、時刻のまとまりがずれているか、深夜0時越えの書き方が誤っています。 時刻が正しければ、「{from}」と「{to}」の地図上の位置を確認してください。",
     'producer.card.STP_002.title': "停留所コードが空です",
     'producer.card.STP_002.what': "停留所一覧にコードが空のレコードがあり、便を紐付けられません。",
@@ -3811,7 +3811,7 @@ const ja: LocaleShape = {
     'STM_054': "トリップ'{entity_id}'：同じstop_timeにFlexの乗降ウィンドウが定義されている場合、continuous_pickup {observed_value} は禁止です。",
     'STM_056': "{affected_rows}件のstop_times行でshape_dist_traveledが増加していません（例: 便{example_trips}）。",
     'STM_060': "トリップ'{entity_id}'：{observed_value}が同時に重複しています。",
-    'STM_061': "路線'{route_label}'（方向{direction_id}）：連続しない停留所{stop_a}〜{stop_b}間の直線距離{dist_km}kmを{trip_count}便が{observed_value}で走行しています（制限：{expected_value}）。",
+    'STM_061': "路線'{route_label}'（方向{direction_id}）：連続しない停留所{stop_a}〜{stop_b}間の停留所沿いの距離{dist_km}kmを{trip_count}便が{observed_value}で走行しています（制限：{expected_value}）。",
     'STM_058': "便'{entity_id}'：Flexの受降車ウィンドウ時刻'{observed_value}'が有効な時刻ではありません。",
     'STM_055': "トリップ'{entity_id}'：同じstop_timeにFlexの乗降ウィンドウが定義されている場合、continuous_drop_off {observed_value} は禁止です。",
     // PDW

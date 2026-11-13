@@ -1883,7 +1883,7 @@ const en: LocaleShape = {
     'producer.card.STM_061.title': "Impossible speed between distant stops",
     'producer.card.STM_061.what': "The time between two distant stops of a trip is impossibly short for that distance.",
     'producer.card.STM_061.action': "Check the times between these two stops; if they are right, look at the stop locations.",
-    'producer.card.STM_061.what_detail': "{from} (sequence {a_sequence}) and {to} (sequence {b_sequence}) are {distance} km apart in a straight line. The fastest example trip leaves at {dep} and arrives at {arr}, {minutes} minutes later; that is {speed} km/h, above this route type's limit of {threshold} km/h. Each of the {between} stops in between may look plausible on its own.",
+    'producer.card.STM_061.what_detail': "{from} (sequence {a_sequence}) and {to} (sequence {b_sequence}) are {distance} km apart, measured stop by stop along the trip. The fastest example trip leaves at {dep} and arrives at {arr}, {minutes} minutes later; that is {speed} km/h, above this route type's limit of {threshold} km/h. Each of the {between} stops in between may look plausible on its own.",
     'producer.card.STM_061.action_detail': "Check the {dep} departure and the {arr} arrival; usually a block of times has shifted or a midnight crossing is written wrongly. If the times are right, check where {from} and {to} sit on the map.",
     'producer.card.STP_002.title': "Stop code is empty",
     'producer.card.STP_002.what': "A record in the stop list has an empty code; trips cannot be linked to this stop.",
@@ -3829,7 +3829,7 @@ const en: LocaleShape = {
     'STM_054': "Trip '{entity_id}': continuous_pickup {observed_value} is forbidden when a Flex pickup/drop-off window is defined on the same stop_time.",
     'STM_056': "shape_dist_traveled does not increase on {affected_rows} stop_times row(s), e.g. trip {example_trips}.",
     'STM_060': "Trip '{entity_id}': {observed_value} overlap simultaneously — the GeoJSON zones intersect, the pickup/drop-off windows overlap, and both records offer the same service.",
-    'STM_061': "Route '{route_label}' (direction {direction_id}): {dist_km} km straight-line between stops {stop_a} and {stop_b}, which are not consecutive, covered at {observed_value} across {trip_count} trip(s) (limit: {expected_value}).",
+    'STM_061': "Route '{route_label}' (direction {direction_id}): {dist_km} km along the stops between stops {stop_a} and {stop_b}, which are not consecutive, covered at {observed_value} across {trip_count} trip(s) (limit: {expected_value}).",
     'STM_058': "Trip '{entity_id}': the Flex pickup/drop-off window time '{observed_value}' is not a valid time.",
     'STM_055': "Trip '{entity_id}': continuous_drop_off {observed_value} is forbidden when a Flex pickup/drop-off window is defined on the same stop_time.",
     // PDW

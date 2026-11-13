@@ -7377,6 +7377,39 @@ end_pickup_drop_off_window,pickup_type,drop_off_type\n\
 }
 
 #[test]
+fn stm061_measures_distance_stop_by_stop() {
+    // A out 6 km to B and back to C beside A: the endpoints are 0.08 km apart as the crow
+    // flies, so the old straight-line measure saw no distant pair. Measured stop by stop
+    // (MobilityData's method) the trip covers 12 km in 5 minutes, 144 km/h over the
+    // 120 km/h bus limit.
+    let mut files = base_files();
+    files[1] = (
+        "stops.txt",
+        b"stop_id,stop_name,stop_lat,stop_lon\nA,A,41.000,29.000\nB,B,41.054,29.000\nC,C,41.000,29.001\n",
+    );
+    files[4] = (
+        "stop_times.txt",
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,A,1\nT1,08:03:00,08:03:00,B,2\nT1,08:05:00,08:05:00,C,3\n",
+    );
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("ValidateResult::Ok beklendi");
+    };
+    let hits: Vec<_> = vr
+        .notices
+        .iter()
+        .filter(|n| n.rule_id == "STM_061")
+        .collect();
+    assert_eq!(hits.len(), 1, "STM_061 bekleniyor");
+    let dist = hits[0]
+        .details
+        .as_ref()
+        .and_then(|d| d.get("dist_km"))
+        .map(|v| v.to_string());
+    assert_eq!(dist.as_deref(), Some("12.0"));
+}
+
+#[test]
 fn midnight_and_service_day_findings_carry_neighbour_rows() {
     // STM_045, STM_048 and STM_049 name the faulty row's sequence and times and the previous
     // and next row, so the planner card can show previous / faulty / next. Counts unchanged.

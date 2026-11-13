@@ -226,6 +226,10 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("invalid_float", "STP_005", filename=("stops.txt",), fields=("stop_lon",), label="stops.txt::stop_lon"),
     _ctx("missing_required_field", "STP_002", filename=("stops.txt",), fields=("stop_id",), label="stops.txt::stop_id"),
     _ctx("missing_required_field", "FAR_003", filename=("fare_attributes.txt",), fields=("currency_type",), label="fare_attributes.txt::currency_type"),
+    # 2026-11-13: two contexts that fell to `context_unresolved` and showed as MD-only although we
+    # report them. mdb-1078 row 2061183: empty trip_id and stop_sequence in stop_times.txt.
+    _ctx("missing_required_field", "STM_046", filename=("stop_times.txt",), fields=("trip_id",), label="stop_times.txt::trip_id"),
+    _ctx("missing_required_field", "STM_005", filename=("stop_times.txt",), fields=("stop_sequence",), label="stop_times.txt::stop_sequence"),
     _ctx("invalid_email", "AGN_009", filename=("agency.txt",), fields=("agency_email",), label="agency.txt::agency_email"),
     # 🔴 MISSING CONTEXT (run 17, 2026-09-12): once ONE context is recorded for a code, static
     # mapping is disabled and EVERY unrecorded context becomes `context_unresolved`. Two codes
@@ -259,6 +263,9 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("foreign_key_violation", "TRP_002", filename=("trips.txt",), fields=("route_id",), label="trips.txt::route_id"),
     _ctx("foreign_key_violation", "STM_001", filename=("stop_times.txt",), fields=("trip_id",), label="stop_times.txt::trip_id"),
     _ctx("foreign_key_violation", "STM_002", filename=("stop_times.txt",), fields=("stop_id",), label="stop_times.txt::stop_id"),
+    # 2026-11-13: mdb-624 timeframes.txt points at service_ids that do not exist; TFR_002 reports
+    # the same 7 rows MobilityData does, but the context was missing and the pair showed as MD-only.
+    _ctx("foreign_key_violation", "TFR_002", filename=("timeframes.txt",), fields=("service_id",), label="timeframes.txt::service_id"),
     _ctx("foreign_key_violation", "BKR_017", "BKR_018", filename=("stop_times.txt",), fields=("pickup_booking_rule_id", "drop_off_booking_rule_id"), label="stop_times.txt::booking_rule_id"),
     _ctx("foreign_key_violation", "FRL_002", filename=("fare_rules.txt",), fields=("route_id",), label="fare_rules.txt::route_id"),
     _ctx("foreign_key_violation", "FRL_003", filename=("fare_rules.txt",), fields=("origin_id",), label="fare_rules.txt::origin_id"),
@@ -438,11 +445,18 @@ UNMAPPED_DECISIONS = {
         "there is no rule to write; the divergence measures their parser, not the data.",
     ),
     "stop_has_too_many_matches_for_shape": (
-        "disjoint",
-        "DISJOINT: SHP_022 only runs for trips without shape_dist_traveled and uses a "
-        "geometric fallback; MobilityData checks when shape_dist_traveled is present. "
-        "The populations are disjoint, so this MD code is reviewed but intentionally "
-        "has no Analyzer mapping.",
+        "structural-fault-owns-it",
+        "Re-adjudicated 2026-11-13; the earlier 'disjoint' reason was wrong. MobilityData's geometric "
+        "matching runs on every trip, with or without shape_dist_traveled, and raises this code when a "
+        "shape has more than 20 local distance minima within 100 m of a stop. That is a symptom, and on "
+        "the feeds read the cause is already reported. mdb-1947, mdb-1933 and mdb-3412: two routes "
+        "share one shape_id with repeated shape_pt_sequence values, so the sorted points zigzag "
+        "between them (SHP_008 duplicate key). tdg-83746: shape '110' repeats a 22 km route 36 times "
+        "for a 60-minute trip (SHP_014 end far from last stop, SHP_012, SHP_026 36,000 points). "
+        "mdb-2596: trip '2sun2' runs 10 hours and visits the stop 15 times (OPR_007 repeated pattern, "
+        "STM_043 360 stops). mdb-1900: the shape enters 100 m of the stop 1-3 times; MobilityData "
+        "counts 23-24 because small zigzags inside that radius each make a new minimum, so the count "
+        "measures shape noise rather than a defect. No separate rule is written.",
     ),
     # 🔴 2026-08-19: these two codes were RECORDED as "genuine-gap", and the DECISION WAS WRONG.
     # The ledger said "would need its own rule"; the rules already existed and fired.
@@ -1068,6 +1082,7 @@ NO_MD_EQUIVALENT: dict[str, str] = {
     "TRF_023": "n-to-1 devamlılıkta gelen seferlerin service_id'leri çelişiyor. TRF_022 ile aynı gerekçe.",
     "TRN_002": "field_name bu tablo için geçersiz. MD'nin üç çeviri kodu table_name'i, referansı ve boş olması gereken alanı ölçer; field_name'in tablo için geçerliliğini değil.",
     "TRN_011": "field_name çevrilebilir bir içerik türüne benzemiyor (ad/desc/url/email/phone/headsign sezgisi). MD'nin üç çeviri kodu table_name'i, kayıt referansını ve boş olması gereken alanı ölçer; hangi ALANLARIN çevrilebilir olduğunu hiçbiri denetlemez.",
+    "TRN_016": "field_value ile yapılan çeviri hedef dosyada hiçbir değerle eşleşmiyor, yani hiç uygulanmıyor. MD'nin `translation_foreign_key_violation`'ı yalnız record_id/record_sub_id ile kayıt arar (TranslationFieldAndReferenceValidator); field_value çevirilerine bakmaz. 2026-11-13 korpus 43302993350: TRN_016 87 feed'de, MD bu kodu bunların hiçbirinde vermiyor.",
     "TRN_015": "record_id ve field_value ikisi de boş. MD'nin `translation_unexpected_value`'su TERSİNİ ölçer (dolu olmamalıyken dolu).",
     "STM_060": "Aynı seferde geojson bölgesi + zaman penceresi + pickup/drop_off eşzamanlı örtüşmesi. Spec bunu yasaklar; MD'de kod yok ve bizde de geometri saklanmadığı için kapsam sınırlıdır.",
     "ARC_036": "ZIP girdisinin akış görünümü (data-descriptor bayrağı + descriptor kaydı) merkez diziniyle çelişiyor. MD katalogunda ZIP çerçeve tutarlılığını denetleyen kod YOK; MD bu arşivlerde bulgu üretmek yerine ÇÖKER (`GtfsInput.hasSubfolderWithGtfsFile` akış okuyucusu `ZipException` fırlatır, doğrulama hiç başlamaz — `tdg-81618` ve `mdb-2607` 15. koşumda böyle düştü). Çökme bir kod değildir, dolayısıyla eşlenecek karşılık da yoktur.",

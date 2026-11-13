@@ -306,7 +306,10 @@ class LedgerDriftGate(unittest.TestCase):
     # because the vocabulary is frozen from usage, that will be deliberate.
     UNMAPPED_LABELS = {
         "deprecated-md-only", "md-implementation-limit",
-        "config-dependent", "context-dependent", "disjoint", "exact-parity",
+        "config-dependent", "context-dependent", "exact-parity",
+        # 2026-11-13: an unmapped MD code whose cause other rules already report. `disjoint` left
+        # with it: its only user, stop_has_too_many_matches_for_shape, was misjudged.
+        "structural-fault-owns-it",
     }
     # 🔑 `analyzer-defect` and `not-adjudicated` were removed on 2026-10-13: the last defect
     # record (`inconsistent_route_type_for_block_id`) was closed by decision #169 A, and the

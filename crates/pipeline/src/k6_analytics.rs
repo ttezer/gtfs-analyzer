@@ -1969,6 +1969,7 @@ fn check_speed_and_duration<'a>(
 
     // Reusable per-trip coordinate buffer: 1 lookup/stop (windows(2) would mean 2 lookups/pair).
     let mut coords_buf: Vec<Option<(f64, f64)>> = Vec::new();
+    let mut cum_buf: Vec<f64> = Vec::new();
 
     // Performance: memoize shape arc-length projection for (shape_id, stop_id).
     // project_arc_km walks all shape points; the same (shape, stop) was projected repeatedly across
@@ -2341,34 +2342,41 @@ fn check_speed_and_duration<'a>(
             // measure — when neighboring distance is measured along the (long) shape, speed comes out low.
             // In run-32197267205, **20 feeds** produce distant-pair findings and NO neighboring findings (#168).
             //
+            // 📏 DISTANCE = the stop-to-stop path: the sum of straight-line legs between consecutive
+            // stops from i to j (MobilityData's `distanceToEndIdx`, 2026-11-13). The bird's-eye distance
+            // between the two endpoints undercounts on any winding route. A stop without coordinates
+            // contributes a zero leg, which can only lower the speed (no false positive).
+            //
             // ⚡ PERF: the naive form is O(n²) per trip; in VBB, 282k trips × ~22 stops is ~68M pairs.
-            // The bound here is NOT APPROXIMATE, but EXACT: `bbox_diag_km` is the MAXIMUM possible bird's-eye
-            // distance between two stops in the trip, so once `threshold * Δt >= bbox_diag_km`, no later `j`
-            // CAN violate the rule and the loop breaks. No finding is lost.
+            // The bound is EXACT: the path from i to any later j is at most `total - cum[i]`, so once
+            // `threshold * Δt >= total - cum[i]`, no later `j` CAN violate the rule and the loop breaks.
             {
-                let mut lo_lat = f64::INFINITY;
-                let mut hi_lat = f64::NEG_INFINITY;
-                let mut lo_lon = f64::INFINITY;
-                let mut hi_lon = f64::NEG_INFINITY;
-                for c in coords_buf.iter().flatten() {
-                    lo_lat = lo_lat.min(c.0);
-                    hi_lat = hi_lat.max(c.0);
-                    lo_lon = lo_lon.min(c.1);
-                    hi_lon = hi_lon.max(c.1);
+                cum_buf.clear();
+                cum_buf.push(0.0);
+                for k in 1..coords_buf.len() {
+                    let leg = match (coords_buf[k - 1], coords_buf[k]) {
+                        (Some((a1, o1)), Some((a2, o2))) => haversine_km(a1, o1, a2, o2),
+                        _ => 0.0,
+                    };
+                    cum_buf.push(cum_buf[k - 1] + leg);
                 }
-                if lo_lat.is_finite() {
-                    let bbox_diag_km = haversine_km(lo_lat, lo_lon, hi_lat, hi_lon);
+                let total_km = cum_buf.last().copied().unwrap_or(0.0);
+                {
                     // The 10 km "distant" definition matches MobilityData; pairs below it
                     // belong to the neighboring-stop check and are measured there already.
-                    if bbox_diag_km > FAR_STOP_MIN_KM {
+                    if total_km > FAR_STOP_MIN_KM {
                         let mut worst: Option<(f64, f64, usize, usize)> = None;
                         for i in 0..stimes.len() {
-                            let Some((la1, lo1)) = coords_buf[i] else {
+                            if coords_buf[i].is_none() {
                                 continue;
-                            };
+                            }
                             let Some(dep) = stimes[i].departure_time().map(hms_to_secs) else {
                                 continue;
                             };
+                            let remaining_km = total_km - cum_buf[i];
+                            if remaining_km <= FAR_STOP_MIN_KM {
+                                break;
+                            }
                             for j in (i + 2)..stimes.len() {
                                 let Some(arr) = stimes[j].arrival_time().map(hms_to_secs) else {
                                     continue;
@@ -2378,13 +2386,13 @@ fn check_speed_and_duration<'a>(
                                 }
                                 let dt_h = (arr - dep) as f64 / 3600.0;
                                 // HARD BOUND: no later pair can violate the rule.
-                                if threshold * dt_h >= bbox_diag_km {
+                                if threshold * dt_h >= remaining_km {
                                     break;
                                 }
-                                let Some((la2, lo2)) = coords_buf[j] else {
+                                if coords_buf[j].is_none() {
                                     continue;
-                                };
-                                let dist_km = haversine_km(la1, lo1, la2, lo2);
+                                }
+                                let dist_km = cum_buf[j] - cum_buf[i];
                                 if dist_km <= FAR_STOP_MIN_KM {
                                     continue;
                                 }
@@ -3277,14 +3285,14 @@ fn check_speed_and_duration<'a>(
             let msg = if n_trips == 1 {
                 format!(
                     "'{route_label}' kodlu hattın {dir} yönünde '{}' seferi: stop_sequence {seq_a} ile {seq_b} \
-                    arası {dist_km:.1} km kuş uçuşu mesafeyi {speed_max:.0} km/h ile kapatıyor (eşik {threshold:.0} km/h) \
+                    arası {dist_km:.1} km durak durak ölçülen mesafeyi {speed_max:.0} km/h ile kapatıyor (eşik {threshold:.0} km/h) \
                     — duraklar ardışık değil, ara segmentler tek tek makul görünse de bütün imkânsız.",
                     trips[0]
                 )
             } else {
                 format!(
                     "'{route_label}' kodlu hattın {dir} yönünde stop_sequence {seq_a} ile {seq_b} arası \
-                    {dist_km:.1} km kuş uçuşu mesafe {n_trips} seferde imkânsız hızla kapatılıyor — \
+                    {dist_km:.1} km durak durak ölçülen mesafe {n_trips} seferde imkânsız hızla kapatılıyor — \
                     {speed_min:.0}-{speed_max:.0} km/h, eşik {threshold:.0} km/h. Tek durak çifti, tek kök neden: \
                     seferler ayrı ayrı listelenmez."
                 )
@@ -7492,7 +7500,11 @@ fn check_data_quality(
                         // not EXPIRED — the feed is valid today, not tomorrow — so it belongs here.
                         // The `end >= today_yyyymmdd` outer condition already excludes negative days_left;
                         // the two rules remain disjoint.
-                        if days_left <= warning_days {
+                        // `<`, not `<=` (2026-11-13): feed_end_date is inclusive, so an end date
+                        // exactly `warning_days` ahead still covers the whole window. mdb-3611 ends
+                        // 7 days after the validation date; MobilityData's FeedExpirationDateValidator
+                        // ("last day of the period is not included") stays silent there, and so do we.
+                        if days_left < warning_days {
                             let mut notice = k6_notice(
                                 ctr, "FIN_019", EntityType::Feed,
                                 None, None, "feed_info.txt", None, Some("feed_end_date"),
@@ -22602,6 +22614,9 @@ mod tests {
     fn fin_019_uses_separate_configurable_feed_info_horizon() {
         let cases = [
             ("3 days", (2026, 5, 17), true),
+            ("6 days", (2026, 5, 20), true),
+            // Exactly 7 days: the end date is inclusive, the next 7 days are covered.
+            ("7 days", (2026, 5, 21), false),
             ("10 days", (2026, 5, 24), false),
             ("29 days", (2026, 6, 12), false),
             ("31 days", (2026, 6, 14), false),
@@ -22626,6 +22641,7 @@ mod tests {
         for (label, end, expected) in [
             ("10 days", (2026, 5, 24), true),
             ("29 days", (2026, 6, 12), true),
+            ("30 days", (2026, 6, 13), false),
             ("31 days", (2026, 6, 14), false),
         ] {
             let records = records_with_feed_end(Some(end));
