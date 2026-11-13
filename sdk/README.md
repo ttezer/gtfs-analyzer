@@ -263,7 +263,7 @@ The `config` object is merged over the defaults. Only known keys are accepted.
 `ValidatorConfigDelta` exposes every accepted key in TypeScript, so misspelled
 configuration properties are rejected during type-checking when supplied as
 object literals, in addition to the engine's runtime validation.
-The values below are the default thresholds used by the `0.19.0` validator engine.
+The values below are the default thresholds used by the `0.20.0` validator engine.
 
 | Key | Default | Unit / purpose |
 | --- | ---: | --- |
@@ -385,7 +385,7 @@ Runnable examples are included in the package repository:
 ```ts
 import { getVersion } from 'gtfs-sdk';
 
-getVersion(); // { sdk: '0.9.1', engine: '0.19.0' }
+getVersion(); // { sdk: '0.10.0', engine: '0.20.0' }
 ```
 
 The generated `gtfs-wasm` binding is an internal implementation detail and is not

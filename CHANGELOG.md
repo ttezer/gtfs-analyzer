@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-11-13
+
+Highlights. **Security:** hostile feeds can no longer make the engine work without bound, and a file the engine could not read to the end now returns `status: PARTIAL` (CLI exit code 1) instead of `COMPLETE`; a single very long value is capped at 4,096 characters per finding field; many stops at one coordinate no longer cost quadratic time; the web app refuses private-network URLs, ships a Content-Security-Policy and guards CSV exports; the ChatGPT plugin server adds a global rate limit and IPv6-embedded private address checks. Upgrade if you validate feeds you do not control. **Behaviour:** `STM_025` reports one finding per route, direction and stop pair (its count drops sharply; `details.segment_count` adds up to the old count), `STM_061` measures distance stop by stop, `FIN_019` no longer fires exactly at the window boundary, and `RTS_022` catches one-character short names at the start of the long name. **Output size:** planner cards add `details` fields to many findings, so full JSON reports carry more per finding; with `STM_025` aggregated, large reports still shrink (mdb-1220: 979 MiB → 158 MiB). For machine consumers of large feeds, `--compact-json` returns the scores, reports and per-rule counts without the finding list (mdb-2012: 35.9 MB → 43 KB).
+
 - **Changed:** `STM_025` (stops under 10 seconds apart) reports one finding per route, direction and stop pair instead of one per trip. Detection is unchanged and nothing is dropped: `details.segment_count` adds up to the old finding count, `details.trips` (split into `trips_2`, `trips_3`… when long) lists every trip, `duration_min_seconds`/`duration_max_seconds` give the range and `example_trip_id` the shortest trip, whose rows the card shows. `entity_type` is now `Route` and `scope_key` the route_id. On large feeds the JSON report shrinks sharply: mdb-1220 979 MiB → 158 MiB (693,273 → 3,952 findings), run time 21.3 s → 17.5 s, peak memory 3.68 → 3.10 GiB; mdb-2012 35.9 MB → 16.4 MB. Finding counts for this rule drop accordingly; the rule is Info and does not affect scores.
 - **Changed:** `RTS_022` (long route name repeats the short name) now also catches one-character short names when the long name opens with them followed by a space, `-`, `(` or `)` (`1 - Benidorm Intermodal`, `P (Pink Route)`), the form MobilityData checks. A single letter inside the long name still does not count. Finding counts rise on feeds that number their routes with one digit or letter.
 - **Changed:** `FIN_019` (feed expires soon) no longer fires when `feed_end_date` is exactly the warning window away (7 days by default). The end date is inclusive, so such a feed still covers the whole window; MobilityData treats the boundary the same way. A feed ending today still fires.
@@ -2915,6 +2919,7 @@ filters (R2).
   audit (`cargo audit` blocking; `npm audit` reported, non-blocking).
 - GitHub Pages deploy builds from source to guarantee the live site matches `HEAD`.
 
+[0.20.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.16.0...v0.17.0
