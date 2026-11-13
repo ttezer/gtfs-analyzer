@@ -6808,10 +6808,72 @@ fn same_place_stop_pair_is_one_finding_across_trips_and_directions() {
 }
 
 #[test]
+fn stm025_is_one_finding_per_route_direction_and_stop_pair() {
+    // Three R1 trips run S1 -> S2 in 5, 5 and 3 s; one R2 trip runs the same pair in 4 s.
+    // Before 2026-11-13 that was four findings; now one per (route, direction, pair): two.
+    // segment_count adds back up to four and every trip is listed.
+    static ROUTES2: &[u8] =
+        b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,202,3\n";
+    static TRIPS3: &[u8] =
+        b"route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC1,T3\nR2,SVC1,T4\n";
+    static STOPS_NEAR: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
+          S1,Near1,41.0,29.0\nS2,Near2,41.0005,29.0\n";
+    static TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:00:05,08:00:05,S2,2\n\
+          T2,09:00:00,09:00:00,S1,1\nT2,09:00:05,09:00:05,S2,2\n\
+          T3,10:00:00,10:00:00,S1,1\nT3,10:00:03,10:00:03,S2,2\n\
+          T4,11:00:00,11:00:00,S1,1\nT4,11:00:04,11:00:04,S2,2\n";
+    let mut files = base_files();
+    files[1] = ("stops.txt", STOPS_NEAR);
+    files[2] = ("routes.txt", ROUTES2);
+    files[3] = ("trips.txt", TRIPS3);
+    files[4] = ("stop_times.txt", TIMES);
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("ValidateResult::Ok beklendi");
+    };
+    let found: Vec<_> = vr
+        .notices
+        .iter()
+        .filter(|n| n.rule_id == "STM_025")
+        .collect();
+    assert_eq!(found.len(), 2, "rota başına bir STM_025");
+    let total: usize = found
+        .iter()
+        .map(|n| {
+            n.details
+                .as_ref()
+                .unwrap()
+                .get("segment_count")
+                .unwrap()
+                .parse::<usize>()
+                .unwrap()
+        })
+        .sum();
+    assert_eq!(total, 4, "segment_count eski bulgu sayısına toplanmalı");
+    let r1 = found
+        .iter()
+        .find(|n| n.scope_key.as_deref() == Some("R1"))
+        .expect("R1 bulgusu");
+    let d = r1.details.as_ref().unwrap();
+    let get = |k: &str| d.get(k).map(|v| v.to_string());
+    assert_eq!(get("trip_count").as_deref(), Some("3"));
+    assert_eq!(get("segment_count").as_deref(), Some("3"));
+    assert_eq!(get("trips").as_deref(), Some("T1,T2,T3"));
+    assert_eq!(get("trips_parts").as_deref(), Some("1"));
+    assert_eq!(get("duration_min_seconds").as_deref(), Some("3"));
+    assert_eq!(get("duration_max_seconds").as_deref(), Some("5"));
+    // The example is the shortest trip, and its own rows travel with it.
+    assert_eq!(get("example_trip_id").as_deref(), Some("T3"));
+    assert_eq!(get("duration_seconds").as_deref(), Some("3"));
+    assert_eq!(get("stop_b_arrival").as_deref(), Some("10:00:03"));
+    assert_eq!(r1.observed_value.as_deref(), Some("3-5s"));
+}
+
+#[test]
 fn short_time_and_long_distance_segments_carry_their_stops_and_measures() {
     // STM_025 (under 10 s) and STM_026 (over 50 km straight line) carry the segment context the
     // planner card lists: both stops' sequences and times, the neighbours, and the measured
-    // duration or distance. One finding per trip segment, as before.
+    // duration or distance. STM_025 is one finding per route, direction and stop pair (2026-11-13).
     static STOPS_FAR: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
           S1,Near1,41.0,29.0\nS2,Near2,41.0005,29.0\nS3,Far,42.0,29.0\n";
     static TIMES_FAR: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\

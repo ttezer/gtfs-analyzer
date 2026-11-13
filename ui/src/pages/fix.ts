@@ -470,13 +470,15 @@ function hasMapCoords(notice: Notice, nameIndex: NameIndex): boolean {
     if (sb && sb in nameIndex.stop_coords) return true;
     return !!(eid && eid in nameIndex.trip_shapes);
   }
-  // STM_025: short segment — two stop pins + trip shape.
+  // STM_025: short segment — two stop pins + the example trip's shape (one finding per route
+  // and stop pair since 2026-11-13; entity_id is the segment, the trip is in details).
   if (notice.rule_id === 'STM_025') {
     const sa = notice.details?.['stop_a'] ?? '';
     const sb = notice.details?.['stop_b'] ?? '';
     if (sa && sa in nameIndex.stop_coords) return true;
     if (sb && sb in nameIndex.stop_coords) return true;
-    return !!(eid && eid in nameIndex.trip_shapes);
+    const trip = notice.details?.['example_trip_id'] ?? eid;
+    return !!(trip && trip in nameIndex.trip_shapes);
   }
   // OPR_015: single-shape warning — shape_id is in details.
   if (notice.rule_id === 'OPR_015') {
@@ -832,9 +834,10 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
 
   // STM_025: short segment — shape (yellow) + all stops (small blue) + 2 problematic stops (blue/red).
   if (notice.rule_id === 'STM_025') {
-    const shapeId = entityId ? (nameIndex.trip_shapes[entityId] ?? '') : '';
+    const tripId = notice.details?.['example_trip_id'] ?? entityId;
+    const shapeId = tripId ? (nameIndex.trip_shapes[tripId] ?? '') : '';
     const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
-    const stopIds = entityId ? (nameIndex.trip_stops[entityId] ?? []) : [];
+    const stopIds = tripId ? (nameIndex.trip_stops[tripId] ?? []) : [];
     const stopA = notice.details?.['stop_a'] ?? '';
     const stopB = notice.details?.['stop_b'] ?? '';
 

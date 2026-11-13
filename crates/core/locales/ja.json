@@ -186,7 +186,7 @@
     "STM_022": "stop_times.txtでtimepointが無効な行が{observed_value}件あります。",
     "STM_024": "便'{entity_id}'：shape_dist_traveledの単位が一致しません。",
     "STM_024.feed_summary": "{observed_value} 件の shape で stop_times.txt と shapes.txt の shape_dist_traveled の比が異常です({affected_trips} 便)。単位の不一致(メートル/フィート/km)の可能性があります。",
-    "STM_025": "便'{entity_id}'：区間の予定時間は{observed_value}です。意図しない場合は確認してください。",
+    "STM_025": "路線'{route_label}'（方向{direction_id}）：停留所{stop_a}〜{stop_b}間の予定時間は{trip_count}便で{observed_value}です。意図しない場合は確認してください。",
     "STM_026": "便'{entity_id}'：停留所間の距離が過大です — {observed_value}（制限：{expected_value}）。",
     "STM_028": "便'{entity_id}'：総所要時間{observed_value}が制限{expected_value}を超えています。",
     "STM_029": "便'{entity_id}'：総所要時間{observed_value}が最小{expected_value}を下回っています。",

@@ -185,7 +185,7 @@
     "STM_022": "{observed_value} rows in stop_times.txt have an invalid timepoint.",
     "STM_024": "Trip '{entity_id}': shape_dist_traveled unit inconsistency.",
     "STM_024.feed_summary": "{observed_value} shapes have an abnormal shape_dist_traveled ratio between stop_times.txt and shapes.txt ({affected_trips} trips) — possible unit mismatch (metres/feet/km).",
-    "STM_025": "Trip '{entity_id}': scheduled segment time is {observed_value} — review this short-timing signal if unintended.",
+    "STM_025": "Route '{route_label}' (direction {direction_id}): stops {stop_a} → {stop_b} are scheduled {observed_value} apart on {trip_count} trip(s) — review this short-timing signal if unintended.",
     "STM_026": "Trip '{entity_id}': excessive distance between stops — {observed_value} (limit: {expected_value}).",
     "STM_028": "Trip '{entity_id}': total duration {observed_value} exceeds limit {expected_value}.",
     "STM_029": "Trip '{entity_id}': total duration {observed_value} is below minimum {expected_value}.",

@@ -1162,7 +1162,7 @@ en	STM_020	Zero travel time (distance > 200m)	Trip 'T1': zero travel time with d
 en	STM_021	Distance between stops is zero or negative	Trip 'T1': different stops share the same coordinates.	Verify stop coordinates in stops.txt; consecutive distinct stops should not be at the same location.
 en	STM_022	timepoint invalid	1 rows in stop_times.txt have an invalid timepoint.	Set timepoint to 0 (approximate) or 1 (exact).
 en	STM_024	shape_dist_traveled unit inconsistency	Trip 'T1': shape_dist_traveled unit inconsistency.	Ensure shape_dist_traveled units are consistent across all stop_times rows for this trip.
-en	STM_025	Short segment timing	Trip 'T1': scheduled segment time is 5s — review this short-timing signal if unintended.	No action is needed if this timing is intentional; otherwise verify the stop_times.txt values.
+en	STM_025	Short segment timing	Route '101' (direction -): stops S1 → S2 are scheduled 5s apart on 1 trip(s) — review this short-timing signal if unintended.	No action is needed if this timing is intentional; otherwise verify the stop_times.txt values.
 en	STM_026	Excessive distance between stops	Trip 'T1': excessive distance between stops — 10840.0 km (limit: <= 50 km).	Verify stops.txt coordinates and stop_times.txt sequence.
 en	STM_026	Excessive distance between stops	Trip 'T1': excessive distance between stops — 111.2 km (limit: <= 50 km).	Verify stops.txt coordinates and stop_times.txt sequence.
 en	STM_026	Excessive distance between stops	Trip 'T1': excessive distance between stops — 134.7 km (limit: <= 50 km).	Verify stops.txt coordinates and stop_times.txt sequence.
@@ -2662,7 +2662,7 @@ fr	STM_020	Temps de parcours nul (distance > 200 m)	Course « T1 » : temp
 fr	STM_021	Distance entre arrêts nulle ou négative	Course « T1 » : des arrêts différents partagent les mêmes coordonnées.	Vérifiez les coordonnées des arrêts dans stops.txt ; des arrêts distincts consécutifs ne devraient pas être au même endroit.
 fr	STM_022	timepoint invalide	1 lignes de stop_times.txt ont un timepoint invalide.	Mettez timepoint à 0 (approximatif) ou 1 (exact).
 fr	STM_024	Incohérence d’unité pour shape_dist_traveled	Course « T1 » : incohérence d’unité pour shape_dist_traveled.	Assurez-vous que les unités de shape_dist_traveled sont cohérentes sur tous les enregistrements stop_times de cette course.
-fr	STM_025	Durée de segment très courte	Course « T1 » : la durée de segment planifiée est de 5s — vérifiez ce signal de durée très courte s’il n’est pas intentionnel.	Aucune action n’est nécessaire si cette durée est intentionnelle ; sinon vérifiez les valeurs de stop_times.txt.
+fr	STM_025	Durée de segment très courte	Ligne « 101 » (sens -) : les arrêts S1 → S2 sont espacés de 5s sur 1 course(s) — vérifiez ce signal de durée très courte s’il n’est pas intentionnel.	Aucune action n’est nécessaire si cette durée est intentionnelle ; sinon vérifiez les valeurs de stop_times.txt.
 fr	STM_026	Distance excessive entre deux arrêts	Course « T1 » : distance excessive entre arrêts — 10840.0 km (limite : <= 50 km).	Vérifiez les coordonnées de stops.txt et la séquence de stop_times.txt.
 fr	STM_026	Distance excessive entre deux arrêts	Course « T1 » : distance excessive entre arrêts — 111.2 km (limite : <= 50 km).	Vérifiez les coordonnées de stops.txt et la séquence de stop_times.txt.
 fr	STM_026	Distance excessive entre deux arrêts	Course « T1 » : distance excessive entre arrêts — 134.7 km (limite : <= 50 km).	Vérifiez les coordonnées de stops.txt et la séquence de stop_times.txt.
@@ -4162,7 +4162,7 @@ ja	STM_020	距離 > 200mでの走行時間ゼロ	便'T1'：移動時間ゼロで
 ja	STM_021	異なる停留所が同座標を共有	便'T1'：異なる停留所が同じ座標を共有しています。	stops.txtの停留所座標を確認してください。連続する異なる停留所は同じ場所にあるべきではありません。
 ja	STM_022	timepointが無効	stop_times.txtでtimepointが無効な行が1件あります。	timepointを0（概算）または1（正確）に設定してください。
 ja	STM_024	shape_dist_traveled単位の不一致	便'T1'：shape_dist_traveledの単位が一致しません。	この便のすべてのstop_times行でshape_dist_traveled単位が一致していることを確認してください。
-ja	STM_025	短い区間時刻	便'T1'：区間の予定時間は5sです。意図しない場合は確認してください。	意図した時刻設定であれば対応不要です。そうでなければstop_times.txtの時刻値を確認してください。
+ja	STM_025	短い区間時刻	路線'101'（方向-）：停留所S1〜S2間の予定時間は1便で5sです。意図しない場合は確認してください。	意図した時刻設定であれば対応不要です。そうでなければstop_times.txtの時刻値を確認してください。
 ja	STM_026	停留所間距離が超過	便'T1'：停留所間の距離が過大です — 10840.0 km（制限：<= 50 km）。	stops.txtの座標とstop_times.txtの順序を確認してください。
 ja	STM_026	停留所間距離が超過	便'T1'：停留所間の距離が過大です — 111.2 km（制限：<= 50 km）。	stops.txtの座標とstop_times.txtの順序を確認してください。
 ja	STM_026	停留所間距離が超過	便'T1'：停留所間の距離が過大です — 134.7 km（制限：<= 50 km）。	stops.txtの座標とstop_times.txtの順序を確認してください。
@@ -5949,7 +5949,7 @@ tr	STM_020	Sıfır geçiş süresi (mesafe > 200m)	'R1' hattının 08:00 seferin
 tr	STM_021	Duraklar arası mesafe sıfır veya negatif	trip_id 'T1' 08:00 kalkışlı stop_sequence 1-2 arası mesafe 0: 'S1' ve 'S2' farklı duraklar ama aynı koordinatta.	stops.txt'te durak koordinatlarını doğrulayın; ardışık farklı duraklar aynı konumda olmamalıdır.
 tr	STM_022	timepoint geçersiz	stop_times.txt içinde 1 satırda timepoint geçersiz.	timepoint değerini 0 (yaklaşık) veya 1 (kesin) olarak ayarlayın.
 tr	STM_024	shape_dist_traveled birim tutarsızlığı	'T1' seferinin stop_times.txt'teki shape_dist_traveled (max 1000.00) ile shape 'SH1' toplam mesafesi (100.00) arasındaki oran 10.00× — birim uyumsuzluğu (metre/ayak/km karışımı) olabilir.	stop_times.txt ve shapes.txt'teki shape_dist_traveled değerlerinin aynı birimi (metre, ayak veya kilometre) kullandığını doğrulayın.
-tr	STM_025	Kısa segment zamanlaması	trip_id 'T1' 08:00 kalkışlı stop_sequence 1-2 arası planlı süre 5s — kısa zamanlama sinyali.	Bu süre bilinçliyse işlem gerekmez; değilse stop_times.txt zaman değerlerini kontrol edin.
+tr	STM_025	Kısa segment zamanlaması	'101' kodlu hattın - yönünde 'T1' seferinde S1 → S2 arası planlı süre 5s — kısa zamanlama sinyali.	Bu süre bilinçliyse işlem gerekmez; değilse stop_times.txt zaman değerlerini kontrol edin.
 tr	STM_026	Durak arası mesafe aşırı uzun	trip_id 'T1' 08:00 kalkışlı stop_sequence 1-2 arası mesafe 10840.0 km.	stops.txt koordinatlarını ve stop_times.txt sırasını doğrulayın.
 tr	STM_026	Durak arası mesafe aşırı uzun	trip_id 'T1' 08:00 kalkışlı stop_sequence 1-2 arası mesafe 111.2 km.	stops.txt koordinatlarını ve stop_times.txt sırasını doğrulayın.
 tr	STM_026	Durak arası mesafe aşırı uzun	trip_id 'T1' 08:00 kalkışlı stop_sequence 1-2 arası mesafe 134.7 km.	stops.txt koordinatlarını ve stop_times.txt sırasını doğrulayın.

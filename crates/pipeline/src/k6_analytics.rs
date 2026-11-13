@@ -1679,6 +1679,30 @@ fn mark_whitespace_join(n: &mut Notice, file: &'static str) {
 /// Number of example trips to show in the details["trips"] list (the full count is trip_count).
 const STM014_TRIP_SAMPLE: usize = 12;
 
+/// STM_025 aggregation: sub-10-second segments accumulated per (route, direction, stop pair).
+///
+/// The rule produced one finding per trip segment. In mdb-2012 (Bogotá) its 16,097 findings came
+/// from 270 route/direction/stop-pair groups; one pair alone was 536 findings, every trip running
+/// the same two stops 3-9 s apart. Within a group the distance is the same on every trip (it comes
+/// from the two stops' coordinates) and only the seconds differ, so the trips share one defect.
+/// Detection is UNCHANGED; emission is aggregated like STM_014/STM_061 (2026-11-13). Nothing is
+/// dropped: `segment_count` sums back to the old finding count and `trips` lists every trip.
+struct Stm025Seg<'a> {
+    route_label: &'a str,
+    /// Smallest stop_times row — for deterministic output (map order is random).
+    line: u64,
+    duration_min: u32,
+    duration_max: u32,
+    distance_m: f64,
+    /// Every short segment counted, including a trip passing the same pair twice (loops).
+    segments: usize,
+    trips: Vec<&'a str>,
+    /// Planner example: the shortest segment (ties → smallest trip_id) and its index in the trip.
+    example_trip: &'a str,
+    example_index: usize,
+    example_seconds: u32,
+}
+
 /// STM_061 aggregation: impossible speeds accumulated per (route, direction, distant stop pair).
 ///
 /// The rule produced one finding per trip, which was NOT ENOUGH: the same physical stop pair was
@@ -1983,6 +2007,8 @@ fn check_speed_and_duration<'a>(
     // measures, and neither should scale with trip count.
     let mut stm061_pairs: FxHashMap<(&str, &str, &str, &str), Stm061Pair<'_>> =
         FxHashMap::default();
+    // STM_025 aggregation: same key form as STM_014/STM_061.
+    let mut stm025_segs: FxHashMap<(&str, &str, &str, &str), Stm025Seg<'_>> = FxHashMap::default();
     // STM_053: collect affected trips within one route into one route-level notice.
     // Detection and threshold are unchanged; only per-trip Quality noise moves into the Analytics summary.
     // The last field is the representative trip's planner context (`stm053_run_details`).
@@ -2671,27 +2697,35 @@ fn check_speed_and_duration<'a>(
                 }
 
                 // STM_025: <10s is not an error by itself; speed rules assess physical consistency.
+                // Emission is deferred: one notice per (route, direction, stop pair).
                 if dt_sec < 10 {
-                    let mut n025 = k6_notice(
-                    ctr, "STM_025", EntityType::Trip,
-                    Some(trip_id.to_string()), Some(trip_id.to_string()),
-                    "stop_times.txt", Some(b.line as u64), Some("arrival_time"),
-                    Some(format!("{dt_sec}s")), Some("inceleyin".to_string()),
-                    format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arası planlı süre {dt_sec}s — kısa zamanlama sinyali.",
-                        a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0)),
-                    "No action is needed if this timing is intentional; otherwise verify the stop_times.txt values.",
-                );
-                    let mut d = std::collections::BTreeMap::new();
-                    d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
-                    d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
-                    d.insert("duration_seconds".to_string(), dt_sec.to_string());
-                    d.insert(
-                        "distance_meters".to_string(),
-                        format!("{:.0}", haver_km * 1000.0),
-                    );
-                    add_segment_context(&mut d, idx, stimes, i);
-                    n025.details = Some(d.into());
-                    notices.push(n025);
+                    let dt = dt_sec;
+                    let seg = stm025_segs
+                        .entry((route, dir_sd, idx.stop_id_of(a), idx.stop_id_of(b)))
+                        .or_insert_with(|| Stm025Seg {
+                            route_label,
+                            line: b.line as u64,
+                            duration_min: dt,
+                            duration_max: dt,
+                            distance_m: haver_km * 1000.0,
+                            segments: 0,
+                            trips: Vec::new(),
+                            example_trip: trip_id,
+                            example_index: i,
+                            example_seconds: dt,
+                        });
+                    if dt < seg.example_seconds
+                        || (dt == seg.example_seconds && trip_id < seg.example_trip)
+                    {
+                        seg.example_trip = trip_id;
+                        seg.example_index = i;
+                        seg.example_seconds = dt;
+                    }
+                    seg.duration_min = seg.duration_min.min(dt);
+                    seg.duration_max = seg.duration_max.max(dt);
+                    seg.line = seg.line.min(b.line as u64);
+                    seg.segments += 1;
+                    seg.trips.push(trip_id);
                 }
 
                 // STM_026: the distance between stops is too long — because shape arc projection can be wrong,
@@ -3246,6 +3280,115 @@ fn check_speed_and_duration<'a>(
             if let Some(file) = seg.ws_file.filter(|_| !seg.ws_real) {
                 mark_whitespace_join(&mut n, file);
             }
+            notices.push(n);
+        }
+    }
+
+    // ── STM_025: emit accumulated short segments individually ───────────────
+    // FxHashMap iteration is unordered → sort by key (golden determinism).
+    {
+        let _t = Timer::start("K6::sd::stm025_emit");
+        let mut keys: Vec<(&str, &str, &str, &str)> = stm025_segs.keys().copied().collect();
+        keys.sort_unstable();
+        for key in keys {
+            let seg = &stm025_segs[&key];
+            let (route, dir, stop_a, stop_b) = key;
+            let Stm025Seg {
+                route_label,
+                line,
+                duration_min,
+                duration_max,
+                distance_m,
+                segments,
+                example_trip,
+                example_index,
+                ..
+            } = *seg;
+            let mut trips: Vec<&str> = seg.trips.clone();
+            trips.sort_unstable();
+            trips.dedup();
+            let n_trips = trips.len();
+            let observed = if duration_min == duration_max {
+                format!("{duration_max}s")
+            } else {
+                format!("{duration_min}-{duration_max}s")
+            };
+            let msg = if n_trips == 1 {
+                format!(
+                    "'{route_label}' kodlu hattın {dir} yönünde '{}' seferinde {stop_a} → {stop_b} arası \
+                    planlı süre {duration_max}s — kısa zamanlama sinyali.",
+                    trips[0]
+                )
+            } else {
+                format!(
+                    "'{route_label}' kodlu hattın {dir} yönünde {stop_a} → {stop_b} arası planlı süre \
+                    {n_trips} seferde 10 saniyenin altında ({duration_min}-{duration_max}s) — kısa zamanlama \
+                    sinyali. Tek durak çifti, tek kök neden: seferler ayrı ayrı listelenmez."
+                )
+            };
+            let mut n = k6_notice(
+                ctr,
+                "STM_025",
+                EntityType::Route,
+                // entity_id identifies the segment UNIQUELY (dedup=Entity), like STM_014.
+                Some(format!("{route}:{dir}:{stop_a}→{stop_b}")),
+                Some(route.to_string()),
+                "stop_times.txt",
+                Some(line),
+                Some("arrival_time"),
+                Some(observed),
+                Some("inceleyin".to_string()),
+                msg,
+                "No action is needed if this timing is intentional; otherwise verify the stop_times.txt values.",
+            );
+            let mut d = std::collections::BTreeMap::new();
+            d.insert("stop_a".to_string(), stop_a.to_string());
+            d.insert("stop_b".to_string(), stop_b.to_string());
+            d.insert("route_id".to_string(), route.to_string());
+            d.insert("route_label".to_string(), route_label.to_string());
+            d.insert("direction_id".to_string(), dir.to_string());
+            d.insert("trip_count".to_string(), n_trips.to_string());
+            d.insert("segment_count".to_string(), segments.to_string());
+            d.insert("duration_min_seconds".to_string(), duration_min.to_string());
+            d.insert("duration_max_seconds".to_string(), duration_max.to_string());
+            // The example trip's own duration: the card's sentence and its rows describe it.
+            d.insert(
+                "duration_seconds".to_string(),
+                seg.example_seconds.to_string(),
+            );
+            d.insert("distance_meters".to_string(), format!("{distance_m:.0}"));
+            d.insert("example_trip_id".to_string(), example_trip.to_string());
+            if let Some(stops) = idx.by_trip.get(example_trip) {
+                add_segment_context(&mut d, idx, stops, example_index);
+            }
+            // Every trip, not a sample: the findings this replaces each named one trip. A notice
+            // value is capped at MAX_NOTICE_VALUE_CHARS (security limit), so the list is split on
+            // trip boundaries into `trips`, `trips_2`, `trips_3`… and `trips_parts` says how many.
+            let mut parts: Vec<String> = vec![String::new()];
+            for trip in &trips {
+                let last = parts.last_mut().expect("parts is never empty");
+                let extra = if last.is_empty() { 0 } else { 1 } + trip.chars().count();
+                if !last.is_empty()
+                    && last.chars().count() + extra > gtfs_core::notice::MAX_NOTICE_VALUE_CHARS
+                {
+                    parts.push((*trip).to_string());
+                } else {
+                    if !last.is_empty() {
+                        last.push(',');
+                    }
+                    last.push_str(trip);
+                }
+            }
+            d.insert("trips_parts".to_string(), parts.len().to_string());
+            for (k, part) in parts.into_iter().enumerate() {
+                let key = if k == 0 {
+                    "trips".to_string()
+                } else {
+                    format!("trips_{}", k + 1)
+                };
+                d.insert(key, part);
+            }
+            n.details = Some(d.into());
             notices.push(n);
         }
     }

@@ -185,7 +185,7 @@
     "STM_022": "{observed_value} lignes de stop_times.txt ont un timepoint invalide.",
     "STM_024": "Course « {entity_id} » : incohérence d’unité pour shape_dist_traveled.",
     "STM_024.feed_summary": "{observed_value} tracés ont un rapport shape_dist_traveled anormal entre stop_times.txt et shapes.txt ({affected_trips} courses) — possible incohérence d’unités (mètres/pieds/km).",
-    "STM_025": "Course « {entity_id} » : la durée de segment planifiée est de {observed_value} — vérifiez ce signal de durée très courte s’il n’est pas intentionnel.",
+    "STM_025": "Ligne « {route_label} » (sens {direction_id}) : les arrêts {stop_a} → {stop_b} sont espacés de {observed_value} sur {trip_count} course(s) — vérifiez ce signal de durée très courte s’il n’est pas intentionnel.",
     "STM_026": "Course « {entity_id} » : distance excessive entre arrêts — {observed_value} (limite : {expected_value}).",
     "STM_028": "Course « {entity_id} » : la durée totale {observed_value} dépasse la limite {expected_value}.",
     "STM_029": "Course « {entity_id} » : la durée totale {observed_value} est inférieure au minimum {expected_value}.",

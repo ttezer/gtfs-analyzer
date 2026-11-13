@@ -2924,17 +2924,34 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         from: name(d.stop_a), to: name(d.stop_b),
         from_sequence: d.stop_a_sequence || '—', to_sequence: d.stop_b_sequence || '—',
       };
-      const what = g.ruleId === 'STM_025'
-        ? t('producer.card.STM_025.what_detail', { ...common, duration: d.duration_seconds ?? '—', distance: localizedNumber(d.distance_meters) })
-        : t('producer.card.STM_026.what_detail', {
-          ...common,
-          distance: localizedNumber(String(Number(d.distance_meters) / 1000)),
-          threshold: d.threshold_km ?? '—',
-        });
+      if (g.ruleId === 'STM_025') {
+        // One finding per route, direction and stop pair (2026-11-13): the trips that run the
+        // pair under 10 s, the range of their times and the shortest one's rows.
+        const routeId = routeIdOfNotice(n) || d.route_id;
+        const route = (routeId ? result.name_index.routes?.[routeId] : undefined) || d.route_label;
+        return {
+          title: t('producer.card.STM_025.title'),
+          context: [
+            route ? t('producer.card.route_context', { route }) : '',
+            d.trip_count ? t('producer.card.trip_count_context', { count: localizedNumber(d.trip_count) }) : '',
+          ].filter(Boolean).join(t('producer.card.context_separator')) || undefined,
+          what: t('producer.card.STM_025.what_detail', {
+            ...common,
+            duration: stm025Range(d),
+            trips: localizedNumber(d.trip_count ?? '1'),
+            distance: localizedNumber(d.distance_meters),
+          }),
+          action: t('producer.card.STM_025.action'),
+        };
+      }
       return {
         title: t(`producer.card.${g.ruleId}.title`),
         context: tripContextText(tripContext(n, result)),
-        what,
+        what: t('producer.card.STM_026.what_detail', {
+          ...common,
+          distance: localizedNumber(String(Number(d.distance_meters) / 1000)),
+          threshold: d.threshold_km ?? '—',
+        }),
         action: t(`producer.card.${g.ruleId}.action`),
       };
     }
@@ -4749,7 +4766,7 @@ function timeSpot(n: Notice, result: ValidationResult): string | null {
     return t('producer.times.spot_timepoint', { stop: name(d.stop_id), sequence: d.stop_sequence || '—', value: n.observed_value ?? '—' });
   }
   if (n.rule_id === 'STM_025' && d.stop_a && d.stop_b && d.duration_seconds) {
-    return `${stopPair(d.stop_a, d.stop_b, result)} · ${t('producer.times.seconds', { n: d.duration_seconds })}`;
+    return `${stopPair(d.stop_a, d.stop_b, result)} · ${t('producer.times.seconds', { n: stm025Range(d) })}`;
   }
   if (n.rule_id === 'STM_026' && d.stop_a && d.stop_b && d.distance_meters) {
     return `${stopPair(d.stop_a, d.stop_b, result)} · ${localizedNumber(String(Number(d.distance_meters) / 1000))} km`;
@@ -4865,6 +4882,14 @@ function timeSpot(n: Notice, result: ValidationResult): string | null {
 }
 
 /** "A → B"; iki durağın adı aynıysa (karşılıklı duraklar) planlamacı ayırt edebilsin diye durak kodlarıyla. */
+
+/** STM_025's seconds: the range across trips ("3–9"), or one value when every trip is the same. */
+function stm025Range(d: Record<string, string>): string {
+  const low = d.duration_min_seconds ?? d.duration_seconds ?? '—';
+  const high = d.duration_max_seconds ?? low;
+  return low === high ? low : `${low}–${high}`;
+}
+
 function stopPair(a: string, b: string, result: ValidationResult): string {
   const ni = result.name_index;
   const nameA = ni.stops?.[a] || a;
@@ -5473,9 +5498,9 @@ function plannerMapRaw(n: Notice, result: ValidationResult): PlannerMap {
     const routeId = routeIdOfNotice(n)!;
     const color = routeColor(routeId);
     stopRing = color;
-    if (n.rule_id === 'STM_014' || n.rule_id === 'STM_061') {
-      // STM_061 draws its fastest example trip; STM_014 the first sample with a line.
-      const sampleTripId = (n.rule_id === 'STM_061' ? n.details?.example_trip_id : undefined) || stm014SampleTripId(n, result);
+    if (n.rule_id === 'STM_014' || n.rule_id === 'STM_061' || n.rule_id === 'STM_025') {
+      // STM_061/STM_025 draw their example trip; STM_014 the first sample with a line.
+      const sampleTripId = (n.rule_id !== 'STM_014' ? n.details?.example_trip_id : undefined) || stm014SampleTripId(n, result);
       const tripStops = sampleTripId ? ni.trip_stops?.[sampleTripId] ?? [] : [];
       const stopSequences = sampleTripId ? ni.trip_stop_sequences?.[sampleTripId] ?? [] : [];
       const sampleShape = (sampleTripId ? ni.trip_shapes?.[sampleTripId] : undefined)
@@ -5517,7 +5542,7 @@ function plannerMapRaw(n: Notice, result: ValidationResult): PlannerMap {
       addStop(n.details?.stop_a, true, n.details?.stop_a_sequence);
       addStop(n.details?.stop_b, true, n.details?.stop_b_sequence);
     }
-    if (n.rule_id === 'STM_014') {
+    if (n.rule_id === 'STM_014' || n.rule_id === 'STM_025') {
       addStop(n.details?.prev_stop_id, false);
       addStop(n.details?.next_stop_id, false);
     }

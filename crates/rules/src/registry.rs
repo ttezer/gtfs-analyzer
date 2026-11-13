@@ -730,7 +730,7 @@ pub static RULES: &[RuleMeta] = &[
         "timepoint invalid"),
     r!("STM_024", Bilgi,  Quality, 2, &[], Some("trip_id"), VS, Row,
         "shape_dist_traveled unit inconsistency"),
-    r!("STM_025", Bilgi,  Analytics, 2, &[], Some("trip_id"), VA, Row,
+    r!("STM_025", Bilgi,  Analytics, 2, &[], Some("route_id"), VA, Entity,
         "Short segment timing"),
     r_noscore!("STM_026", Bilgi, Analytics, 2, &[], Some("trip_id"), VA, Row,
         "Excessive distance between stops"),
