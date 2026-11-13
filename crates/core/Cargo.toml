@@ -10,10 +10,14 @@ categories = ["data-structures"]
 
 [dependencies]
 serde = { workspace = true }
-serde_json = { workspace = true }
+# Only the `i18n` dictionaries parse JSON; without the feature the crate does not need it.
+serde_json = { workspace = true, optional = true }
 
 [features]
 # Notice text translation (en/ja/fr) with the embedded dictionaries in locales/.
 # CLI and the Python package enable it; the WASM build does not, so the web
 # bundle does not carry ~500 KB of JSON.
-i18n = []
+i18n = ["dep:serde_json"]
+
+[dev-dependencies]
+serde_json = { workspace = true }

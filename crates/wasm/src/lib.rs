@@ -20,6 +20,12 @@ use gtfs_pipeline::{
 #[cfg(feature = "sdk-en")]
 mod i18n;
 
+// `web-sys` writes the console timings and logs below, which `quiet` compiles out. With `quiet`
+// on (the public SDK build, and clippy's `--all-features`) Cargo would report the dependency as
+// unused; this reference keeps it named there. No code is added: the crate is linked either way.
+#[cfg(feature = "quiet")]
+use web_sys as _;
+
 macro_rules! t_start {
     ($label:expr) => {{
         #[cfg(not(feature = "quiet"))]

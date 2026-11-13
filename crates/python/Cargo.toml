@@ -5,7 +5,6 @@ edition = "2021"
 license.workspace = true
 description = "Python bindings for the GTFS Analyzer validation engine."
 repository = "https://github.com/ttezer/gtfs-analyzer"
-homepage = "https://github.com/ttezer/gtfs-analyzer"
 
 [lib]
 name = "gtfs_analyzer"
