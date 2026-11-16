@@ -646,7 +646,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                     Some("stop_url"),
                     Some(url.clone()),
                     None,
-                    "stop_url geçerli bir URL değil.".to_string(),
+                    "stop_url is not a valid URL.".to_string(),
                     "Use a valid http/https URL for stop_url.",
                 ));
             }

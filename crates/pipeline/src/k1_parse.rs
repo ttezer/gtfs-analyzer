@@ -3391,7 +3391,7 @@ pub fn parse_with_limits(
             None,
             None,
             None,
-            "calendar.txt ve calendar_dates.txt dosyalarının ikisi de eksik.".to_string(),
+            "Both calendar.txt and calendar_dates.txt are missing.".to_string(),
             "Include at least one of calendar.txt or calendar_dates.txt in the ZIP.",
         ));
     }
@@ -3404,7 +3404,7 @@ pub fn parse_with_limits(
             EntityType::Feed, None,
             None, None, None,
             None,
-            "translations.txt var ama feed_info.txt eksik; spec bu durumda feed_info.txt'i zorunlu kılar.".to_string(),
+            "translations.txt is present but feed_info.txt is missing; the spec requires feed_info.txt in that case.".to_string(),
             "Add feed_info.txt and fill in feed_lang — it says which language the translations are relative to.",
         ));
     }

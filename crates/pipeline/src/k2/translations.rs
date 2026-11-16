@@ -94,7 +94,7 @@ pub fn validate_translations_with_profile(
                 Some("table_name"),
                 Some(table_name.clone()),
                 None,
-                "table_name desteklenen bir GTFS tablosu değil.".to_string(),
+                "table_name is not a supported GTFS table.".to_string(),
                 "Use a valid GTFS table name for table_name.",
             ));
         }

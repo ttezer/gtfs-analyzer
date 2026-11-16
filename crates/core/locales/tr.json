@@ -928,6 +928,23 @@
     "AGN_018": {
       "agency_id is empty in a single-agency feed; the spec recommends it there too.": "Tek kuruluşlu feed'de agency_id boş; spec tek kuruluşta da önerir."
     },
+    "ARC_004": {
+      "Required GTFS file is missing: 'stops.txt'.": "Zorunlu GTFS dosyası eksik: 'stops.txt'."
+    },
+    "ARC_008": {
+      "Both calendar.txt and calendar_dates.txt are missing.": "calendar.txt ve calendar_dates.txt dosyalarının ikisi de eksik."
+    },
+    "ARC_020": {
+      "The feed has neither shapes.txt nor feed_info.txt — both are recommended.": "Feed'de shapes.txt ve feed_info.txt dosyaları yok — her ikisi de önerilir.",
+      "The feed has no feed_info.txt — it is recommended for publisher and validity information.": "Feed'de feed_info.txt dosyası yok — yayıncı ve geçerlilik bilgisi için önerilir.",
+      "The feed has no shapes.txt — it is recommended for route geometry.": "Feed'de shapes.txt dosyası yok — güzergah geometrisi için önerilir."
+    },
+    "ARC_031": {
+      "translations.txt is present but feed_info.txt is missing; the spec requires feed_info.txt in that case.": "translations.txt var ama feed_info.txt eksik; spec bu durumda feed_info.txt'i zorunlu kılar."
+    },
+    "ARC_035": {
+      "Required GTFS file 'stops.txt' contains no data rows.": "Zorunlu GTFS dosyası 'stops.txt' hiç veri satırı içermiyor."
+    },
     "ATR_002": {
       "organization_name is required.": "organization_name zorunludur."
     },
@@ -989,7 +1006,23 @@
     "CLD_001": {
       "service_id is required.": "service_id zorunludur."
     },
+    "CLD_003": {
+      "exception_type must be 1 or 2.": "exception_type 1 veya 2 olmalıdır."
+    },
+    "DQ_005": {
+      "No service in the feed has active trips as of today.": "Feed'de bugün itibarıyla aktif seferi olan servis bulunamadı."
+    },
+    "DQ_005b": {
+      "No stop_times records were found for any trip in the feed.": "Feed'deki hiçbir sefer için stop_times kaydı bulunamadı."
+    },
+    "DQ_009": {
+      "The feed has trips but no stop_times records.": "Feed'de sefer var ancak hiç stop_times kaydı yok."
+    },
+    "DQ_011": {
+      "The feed has only 1 stop — it cannot form usable transit data.": "Feed'de yalnızca 1 durak var — işlevsel transit verisi oluşturulamaz."
+    },
     "FAR_002": {
+      "price is required and cannot be empty.": "price zorunludur ve boş bırakılamaz.",
       "price cannot be negative.": "price negatif olamaz."
     },
     "FAR_003": {
@@ -1025,6 +1058,9 @@
     "FIN_014": {
       "feed_start_date and/or feed_end_date is missing; the feed validity period cannot be determined.": "feed_start_date ve/veya feed_end_date eksik; feed geçerlilik aralığı belirlenemiyor."
     },
+    "FIN_018": {
+      "feed_info.txt has no technical contact (feed_contact_email or feed_contact_url).": "feed_info.txt'te teknik iletişim bilgisi yok (feed_contact_email veya feed_contact_url)."
+    },
     "FLG_008": {
       "fare_product_id is required.": "fare_product_id zorunludur."
     },
@@ -1049,6 +1085,9 @@
     "FRQ_005": {
       "end_time must be after start_time.": "end_time, start_time'dan sonra olmalıdır."
     },
+    "FRQ_007": {
+      "exact_times must be 0 or 1.": "exact_times 0 veya 1 olmalıdır."
+    },
     "FRQ_008": {
       "headway_secs must be greater than zero.": "headway_secs sıfırdan büyük olmalıdır."
     },
@@ -1065,6 +1104,7 @@
       "duration_limit must also be set when duration_limit_type is defined.": "duration_limit_type tanımlandığında duration_limit de belirtilmelidir."
     },
     "FTR_008": {
+      "transfer_count is not a numeric value.": "transfer_count sayısal bir değer değil.",
       "transfer_count must be -1 or a positive integer.": "transfer_count -1 veya pozitif bir tam sayı olmalıdır."
     },
     "FTR_009": {
@@ -1080,6 +1120,8 @@
       "translations.txt is missing — GTFS-JP requires it, especially for stop_name kana (ja-Hrkt) readings.": "GTFS-JP feed'inde translations.txt eksik — profil bunu (özellikle stop_name kana/ja-Hrkt okumaları için) zorunlu kılar."
     },
     "JPN_006": {
+      "The GTFS-JP V4 fare file is present but has no usable fare_attributes records; the complex-fare exception does not cover an empty or broken file.": "GTFS-JP V4 ücret dosyası mevcut olsa da kullanılabilir fare_attributes kaydı içermiyor; karmaşık ücret istisnası boş veya bozuk dosyayı kapsamaz.",
+      "The GTFS-JP feed has different fare profiles but fare_rules.txt does not map them to routes or areas.": "GTFS-JP feed'inde farklı ücret profilleri var ancak fare_rules.txt bunları hat veya bölgelere eşlemiyor.",
       "fare_attributes.txt is missing, empty or has no usable records for GTFS-JP fare coverage.": "GTFS-JP ücret kapsamı için fare_attributes.txt eksik, boş veya kullanılabilir kayıt içermiyor.",
       "fare_attributes.txt is normally required in GTFS-JP V4; it may be omitted when all fares are complex tariffs this format cannot represent. Manual review is needed; this informational finding does not lower the score.": "GTFS-JP V4'te fare_attributes.txt normalde zorunludur; ücretlerin tamamı bu formatta temsil edilemeyen karmaşık tarifelerden oluşuyorsa dosya dışarıda bırakılabilir. Elle inceleme gerekir; bu bilgi bulgusu puan düşürmez.",
       "fare_attributes.txt is required in GTFS-JP V3 but the file is missing, empty or has no usable records.": "GTFS-JP V3'te fare_attributes.txt zorunludur ancak dosya eksik, boş veya kullanılabilir kayıt içermiyor."
@@ -1093,11 +1135,22 @@
     "JPN_014": {
       "office_jp.txt row is missing office_id — every office record must carry a unique identifier.": "office_jp.txt satırında office_id eksik — her ofis kaydı benzersiz bir kimlik taşımalıdır."
     },
+    "JPN_015": {
+      "routes_jp.txt row is missing route_id.": "routes_jp.txt satırında route_id eksik."
+    },
     "JPN_017": {
       "pattern_jp.txt row is missing jp_pattern_id — the field is required when the file is present.": "pattern_jp.txt satırında jp_pattern_id eksik — dosya mevcutsa bu alan zorunludur."
     },
     "JPN_019": {
       "GTFS-JP kana translation points to an invalid field, record, or sub-record.": "ja-Hrkt çevirisi geçerli bir tablo alanını veya mevcut GTFS kaydını göstermiyor."
+    },
+    "JPN_021": {
+      "The GTFS-JP ja-Hrkt translation is empty.": "GTFS-JP ja-Hrkt çevirisi boş.",
+      "The ja-Hrkt translation contains no Hiragana or Katakana; Kanji alone is not enough.": "ja-Hrkt çevirisi Hiragana veya Katakana içermiyor; yalnız Kanji yeterli değildir."
+    },
+    "JPN_022": {
+      "The location_type column is required in GTFS-JP v4 but the column is missing.": "GTFS-JP v4'te location_type sütunu zorunludur ancak sütun eksik.",
+      "agency_lang is required in GTFS-JP v4 but the value is missing.": "GTFS-JP v4'te agency_lang zorunludur ancak değer eksik."
     },
     "JPN_023": {
       "The selected GTFS-JP profile requires feed_lang to be 'ja'.": "Açık GTFS-JP profilinde feed_lang değeri 'ja' olmalıdır."
@@ -1116,6 +1169,15 @@
     },
     "LVL_008": {
       "level_id is required.": "level_id zorunludur."
+    },
+    "NET_002": {
+      "network_id is required on a route_networks.txt row.": "route_networks.txt satırında network_id zorunludur."
+    },
+    "NET_003": {
+      "route_id is required on a route_networks.txt row.": "route_networks.txt satırında route_id zorunludur."
+    },
+    "OPR_016": {
+      "No service_id in the feed has an active calendar day — every trip is inactive.": "Feed'deki hiçbir service_id aktif takvim günü içermiyor — tüm seferler pasif."
     },
     "PTH_011": {
       "from_stop_id and to_stop_id are the same.": "from_stop_id ve to_stop_id aynı."
@@ -1186,6 +1248,9 @@
     "STM_006": {
       "stop_id is required.": "stop_id zorunludur."
     },
+    "STM_022": {
+      "timepoint must be 0 or 1.": "timepoint 0 veya 1 olmalıdır."
+    },
     "STM_030": {
       "shape_dist_traveled cannot be negative.": "shape_dist_traveled negatif olamaz."
     },
@@ -1201,6 +1266,9 @@
     "STP_018": {
       "No stops found in stops.txt.": "stops.txt dosyasında hiç durak kaydı yok."
     },
+    "STP_042": {
+      "stop_url is not a valid URL.": "stop_url geçerli bir URL değil."
+    },
     "TFR_001": {
       "timeframe_group_id is required.": "timeframe_group_id zorunludur."
     },
@@ -1212,6 +1280,12 @@
     },
     "TRF_002": {
       "to_stop_id is required.": "to_stop_id zorunludur."
+    },
+    "TRF_005": {
+      "min_transfer_time is required for transfer_type=2.": "transfer_type=2 için min_transfer_time zorunludur."
+    },
+    "TRN_001": {
+      "table_name is not a supported GTFS table.": "table_name desteklenen bir GTFS tablosu değil."
     },
     "TRN_002": {
       "field_name is not valid for this table_name.": "field_name bu table_name için geçerli değil."
@@ -1252,6 +1326,9 @@
     "TRP_007": {
       "bikes_allowed must be 0, 1 or 2.": "bikes_allowed 0, 1 veya 2 olmalıdır."
     },
+    "TRP_023": {
+      "No active trips in the next 7 days — the feed may soon go out of service.": "Önümüzdeki 7 günde aktif sefer bulunamadı — feed yakında devre dışı kalabilir."
+    },
     "TRP_031": {
       "route_id is required.": "route_id zorunludur."
     },
@@ -1260,6 +1337,9 @@
     },
     "TRP_035": {
       "service_id is required; a trip left empty is attached to no calendar.": "service_id zorunludur; boş bırakılan sefer hiçbir takvime bağlanmaz."
+    },
+    "XFL_016": {
+      "translations.txt has table_name='feed_info' records but feed_info.txt is missing.": "translations.txt'te table_name='feed_info' kaydı var ama feed_info.txt dosyası yok."
     },
     "XFL_028": {
       "agency cemv_support=1 but Fares v2 has no contactless fare media.": "agency_cemv_support=1 var ve Fares v2 kullaniliyor ama hic contactless fare media (fare_media_type=3) yok."

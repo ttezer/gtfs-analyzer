@@ -361,7 +361,7 @@ pub fn validate_calendar_dates_with_limits(
                         &mut counter, "CLD_003", EntityType::Service, entity_id.clone(),
                         None, &file.name, Some(line), Some("exception_type"),
                         Some(val.to_string()), Some("1 or 2".to_string()),
-                        "exception_type 1 veya 2 olmalıdır.".to_string(),
+                        "exception_type must be 1 or 2.".to_string(),
                         "Set exception_type to 1 (service added) or 2 (service removed).",
                     ));
                         Some(val)

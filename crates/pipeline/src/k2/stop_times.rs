@@ -2352,7 +2352,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     &mut st.counter, "ARC_034", EntityType::File, Some(file.name.clone()),
                     None, &file.name, Some(line), None, None, None,
                     format!("'{}' {line}. satırı başlık satırının tekrarı — veri olarak okunuyor.", file.name),
-                    "Dosyanın ortasındaki tekrar eden başlık satırını kaldırın; genellikle iki dosyanın uç uca eklenmesinden doğar.",
+                    "Remove the repeated header row in the middle of the file; it usually comes from two files being concatenated.",
                 ));
                 return;
             }
@@ -2371,7 +2371,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     None,
                     None,
                     format!("'{}' {line}. satırı tamamen boş.", file.name),
-                    "Boş satırları kaldırın.",
+                    "Remove empty rows from the file.",
                 ));
                 return;
             }
@@ -2812,7 +2812,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             &mut st.counter, "STM_022", EntityType::Trip, eid(),
                             None, &file.name, Some(line), Some("timepoint"),
                             Some(val.to_string()), Some("0 or 1".to_string()),
-                            "timepoint 0 veya 1 olmalıdır.".to_string(),
+                            "timepoint must be 0 or 1.".to_string(),
                             "Set timepoint to 0 (approximate) or 1 (exact).",
                         ));
                             }
@@ -3514,7 +3514,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         None,
                         None,
                         format!("'{}' ZIP yeniden açılamadı: {e}.", file.name),
-                        "ZIP arşivini kontrol edin.",
+                        "Check the ZIP archive.",
                     ));
                 }
                 Ok(mut archive) => {
@@ -3532,7 +3532,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                 None,
                                 None,
                                 format!("'{}' ZIP girdisi bulunamadı: {e}.", file.name),
-                                "ZIP arşivini kontrol edin.",
+                                "Check the ZIP archive.",
                             ));
                         }
                         #[cfg(feature = "parallel")]

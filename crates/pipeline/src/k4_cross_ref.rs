@@ -5282,7 +5282,7 @@ fn check_gtfs_jp(
                     Some("agency_lang"),
                     None,
                     None,
-                    "GTFS-JP v4'te agency_lang zorunludur ancak değer eksik.".to_string(),
+                    "agency_lang is required in GTFS-JP v4 but the value is missing.".to_string(),
                     "Fill in agency_lang in agency.txt.",
                 ));
             }
@@ -5304,7 +5304,7 @@ fn check_gtfs_jp(
                     Some("location_type"),
                     None,
                     None,
-                    "GTFS-JP v4'te location_type sütunu zorunludur ancak sütun eksik.".to_string(),
+                    "The location_type column is required in GTFS-JP v4 but the column is missing.".to_string(),
                     "Add the location_type column to stops.txt; 0 or an empty cell is valid for an ordinary stop.",
                 ));
             }
@@ -5770,14 +5770,14 @@ fn check_gtfs_jp(
                     "fare_attributes.txt is required in GTFS-JP V3 but the file is missing, empty or has no usable records."
                 }
                 GtfsJpProfile::V4 => {
-                    "GTFS-JP V4 ücret dosyası mevcut olsa da kullanılabilir fare_attributes kaydı içermiyor; karmaşık ücret istisnası boş veya bozuk dosyayı kapsamaz."
+                    "The GTFS-JP V4 fare file is present but has no usable fare_attributes records; the complex-fare exception does not cover an empty or broken file."
                 }
                 GtfsJpProfile::Auto => {
                     "fare_attributes.txt is missing, empty or has no usable records for GTFS-JP fare coverage."
                 }
             }
         } else {
-            "GTFS-JP feed'inde farklı ücret profilleri var ancak fare_rules.txt bunları hat veya bölgelere eşlemiyor."
+            "The GTFS-JP feed has different fare profiles but fare_rules.txt does not map them to routes or areas."
         };
         let missing_review = fare_file_missing && records.gtfs_jp_profile == GtfsJpProfile::V4;
         let unusable = fare_attributes_unusable;
@@ -5939,7 +5939,7 @@ fn check_gtfs_jp(
                         Some("route_id"),
                         Some(String::new()),
                         Some("routes.txt'te tanımlı route_id".to_string()),
-                        "routes_jp.txt satırında route_id eksik.".to_string(),
+                        "routes_jp.txt row is missing route_id.".to_string(),
                         "Use a route_id in routes_jp.txt that is defined in routes.txt.",
                     ));
                     jp_record_issue(notices.last_mut(), "empty", None);
@@ -6334,7 +6334,7 @@ fn check_gtfs_jp(
                     Some("translation"),
                     Some(translation.translation.clone()),
                     Some("dolu Japonca kana".to_string()),
-                    "GTFS-JP ja-Hrkt çevirisi boş.".to_string(),
+                    "The GTFS-JP ja-Hrkt translation is empty.".to_string(),
                     "Fill in the ja-Hrkt translation with a Hiragana or Katakana reading.",
                 ));
                 jp_translation_target(notices.last_mut(), translation, "empty", None);
@@ -6389,7 +6389,7 @@ fn check_gtfs_jp(
                     Some("translation"),
                     Some(translation.translation.clone()),
                     Some("Hiragana/Katakana".to_string()),
-                    "ja-Hrkt çevirisi Hiragana veya Katakana içermiyor; yalnız Kanji yeterli değildir.".to_string(),
+                    "The ja-Hrkt translation contains no Hiragana or Katakana; Kanji alone is not enough.".to_string(),
                     "Write the Japanese reading in the ja-Hrkt translation.",
                 ));
                 jp_translation_target(notices.last_mut(), translation, "no_kana", None);
@@ -6628,7 +6628,7 @@ fn check_route_networks(
                 Some("network_id"),
                 Some(String::new()),
                 None,
-                "route_networks.txt satırında network_id zorunludur.".to_string(),
+                "network_id is required on a route_networks.txt row.".to_string(),
                 "Enter a network_id defined in networks.txt.",
             ));
         } else if !declared.contains(rec.network_id.as_str()) {
@@ -6664,7 +6664,7 @@ fn check_route_networks(
                 Some("route_id"),
                 Some(String::new()),
                 None,
-                "route_networks.txt satırında route_id zorunludur.".to_string(),
+                "route_id is required on a route_networks.txt row.".to_string(),
                 "Enter a route_id defined in routes.txt.",
             ));
         } else if !map.routes.contains_key(rec.route_id.as_str()) {
@@ -7695,7 +7695,7 @@ fn check_xfl(
                 Some("table_name"),
                 Some("feed_info".to_string()),
                 None,
-                "translations.txt'te table_name='feed_info' kaydı var ama feed_info.txt dosyası yok.".to_string(),
+                "translations.txt has table_name='feed_info' records but feed_info.txt is missing.".to_string(),
                 "Add feed_info.txt or remove the translation rows referencing feed_info.",
             ));
         }

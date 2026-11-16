@@ -123,7 +123,7 @@ fn validate_fare_attributes_inner(
                         Some("price"),
                         Some(String::new()),
                         Some("sayısal değer".to_string()),
-                        "price zorunludur ve boş bırakılamaz.".to_string(),
+                        "price is required and cannot be empty.".to_string(),
                         "Enter a valid numeric value in price.",
                     ));
                 }

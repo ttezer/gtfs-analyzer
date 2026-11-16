@@ -227,7 +227,7 @@ pub fn validate_fare_transfer_rules(
                         Some("transfer_count"),
                         Some(raw.clone()),
                         Some("-1 or > 0".to_string()),
-                        "transfer_count sayısal bir değer değil.".to_string(),
+                        "transfer_count is not a numeric value.".to_string(),
                         "Enter -1 (unlimited) or a positive integer.",
                     ));
                     None

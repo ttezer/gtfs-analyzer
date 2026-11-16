@@ -177,7 +177,7 @@ pub fn reconcile_flex_stop_requirement(
             None,
             Some("stops.txt".to_string()),
             None,
-            "Zorunlu GTFS dosyası eksik: 'stops.txt'.".to_string(),
+            "Required GTFS file is missing: 'stops.txt'.".to_string(),
             "Add the missing file to the feed ZIP archive.",
         ));
     } else if stops_empty
@@ -196,7 +196,7 @@ pub fn reconcile_flex_stop_requirement(
             None,
             Some("stops.txt".to_string()),
             None,
-            "Zorunlu GTFS dosyası 'stops.txt' hiç veri satırı içermiyor.".to_string(),
+            "Required GTFS file 'stops.txt' contains no data rows.".to_string(),
             "Add the real records to the file; leaving it empty is equivalent to omitting it.",
         ));
     }

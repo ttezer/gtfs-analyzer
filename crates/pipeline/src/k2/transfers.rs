@@ -183,7 +183,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
                 Some("min_transfer_time"),
                 Some(String::new()),
                 None,
-                "transfer_type=2 için min_transfer_time zorunludur.".to_string(),
+                "min_transfer_time is required for transfer_type=2.".to_string(),
                 "Fill in min_transfer_time.",
             ));
         }

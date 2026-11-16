@@ -931,7 +931,7 @@ fn finalize_stm007_pending(
             Some(n.to_string()),
             None,
             format!("{n} stop_times satırında departure_time arrival_time değerinden önce — aynı satır-içi zaman ihlali yüksek hacimde tekrarlanıyor."),
-            "stop_times.txt'te kalkış zamanını varış zamanından sonra (veya eşit) ayarlayın.",
+            "Set departure_time to be equal to or after arrival_time.",
         );
         let mut details = BTreeMap::new();
         details.insert("affected_rows".to_string(), n.to_string());
@@ -5574,7 +5574,7 @@ fn check_operational_analytics(
                     None,
                     Some("0".to_string()),
                     Some("≥ 1".to_string()),
-                    "Feed'deki hiçbir service_id aktif takvim günü içermiyor — tüm seferler pasif.".to_string(),
+                    "No service_id in the feed has an active calendar day — every trip is inactive.".to_string(),
                     "Define at least one active day for a service in calendar.txt or calendar_dates.txt.",
                 ));
             }
@@ -5595,7 +5595,7 @@ fn check_operational_analytics(
                 ctr, "TRP_023", EntityType::Feed,
                 None, None, "calendar.txt", None, None,
                 Some("0".to_string()), None,
-                "Önümüzdeki 7 günde aktif sefer bulunamadı — feed yakında devre dışı kalabilir.".to_string(),
+                "No active trips in the next 7 days — the feed may soon go out of service.".to_string(),
                 "Update calendar.txt or calendar_dates.txt, or publish a new feed.",
             );
             // Planner context: the next day any calendar runs, when there is one.
@@ -7227,7 +7227,7 @@ fn check_data_quality(
             None,
             None,
             None,
-            "Feed'de bugün itibarıyla aktif seferi olan servis bulunamadı.".to_string(),
+            "No service in the feed has active trips as of today.".to_string(),
             "Update calendar.txt or calendar_dates.txt data.",
         ));
         // Planner context: how many calendars exist and the last day any of them runs (tie → the
@@ -7314,7 +7314,7 @@ fn check_data_quality(
             None,
             Some("0".to_string()),
             None,
-            "Feed'de sefer var ancak hiç stop_times kaydı yok.".to_string(),
+            "The feed has trips but no stop_times records.".to_string(),
             "Create and populate stop_times.txt.",
         ));
         if let Some(n) = notices.last_mut() {
@@ -7338,7 +7338,7 @@ fn check_data_quality(
             None,
             Some("1".to_string()),
             Some("≥ 2".to_string()),
-            "Feed'de yalnızca 1 durak var — işlevsel transit verisi oluşturulamaz.".to_string(),
+            "The feed has only 1 stop — it cannot form usable transit data.".to_string(),
             "Add at least 2 stops to stops.txt.",
         ));
         // The one stop, so the planner sees which record it is and where it sits on the map.
@@ -7635,7 +7635,7 @@ fn check_data_quality(
                     ctr, "FIN_018", EntityType::Feed,
                     None, None, "feed_info.txt", None, Some("feed_contact_email"),
                     None, None,
-                    "feed_info.txt'te teknik iletişim bilgisi yok (feed_contact_email veya feed_contact_url).".to_string(),
+                    "feed_info.txt has no technical contact (feed_contact_email or feed_contact_url).".to_string(),
                     "Recommended: add feed_contact_email or feed_contact_url to feed_info.txt. These fields are optional in the GTFS Spec.",
                 ));
             }
@@ -8323,7 +8323,7 @@ fn check_data_quality(
                 None,
                 None,
                 None,
-                "Feed'de shapes.txt ve feed_info.txt dosyaları yok — her ikisi de önerilir."
+                "The feed has neither shapes.txt nor feed_info.txt — both are recommended."
                     .to_string(),
                 "Add shapes.txt for route geometry and feed_info.txt for publisher information.",
             ));
@@ -8339,7 +8339,7 @@ fn check_data_quality(
                 None,
                 None,
                 None,
-                "Feed'de shapes.txt dosyası yok — güzergah geometrisi için önerilir.".to_string(),
+                "The feed has no shapes.txt — it is recommended for route geometry.".to_string(),
                 "Create shapes.txt to add route geometry.",
             ));
         } else if missing_feed_info {
@@ -8354,7 +8354,7 @@ fn check_data_quality(
                 None,
                 None,
                 None,
-                "Feed'de feed_info.txt dosyası yok — yayıncı ve geçerlilik bilgisi için önerilir."
+                "The feed has no feed_info.txt — it is recommended for publisher and validity information."
                     .to_string(),
                 "Create feed_info.txt to describe the publisher.",
             ));
@@ -9691,7 +9691,7 @@ fn check_remaining_analytics<'a>(
                     None,
                     None,
                     None,
-                    "Feed'deki hiçbir sefer için stop_times kaydı bulunamadı.".to_string(),
+                    "No stop_times records were found for any trip in the feed.".to_string(),
                     "Create stop_times.txt with arrival/departure_time and stop_sequence entries.",
                 ));
                 if let Some(n) = notices.last_mut() {
