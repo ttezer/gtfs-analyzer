@@ -73,6 +73,10 @@ struct Dictionary {
     /// so no per-notice key is needed (issue #201). Only the primary dictionary is read.
     #[serde(default)]
     remediation_texts: HashMap<String, HashMap<String, String>>,
+    /// `RULE` → engine message text → this language's text. Same model as
+    /// `remediation_texts`, for fixed (value-free) messages (issue #201).
+    #[serde(default)]
+    message_texts: HashMap<String, HashMap<String, String>>,
     #[serde(default)]
     cards: HashMap<String, RuleCard>,
 }
@@ -150,7 +154,14 @@ impl Translator {
                     |key| format!("{key}.{kind}"),
                 )
             });
-        if let Some(template) = specific
+        if let Some(message) = self
+            .primary
+            .message_texts
+            .get(&notice.rule_id)
+            .and_then(|by_text| by_text.get(&notice.message))
+        {
+            notice.message = message.clone();
+        } else if let Some(template) = specific
             .as_deref()
             .and_then(|key| self.lookup(|d| &d.messages, key))
             .or_else(|| {
@@ -496,6 +507,31 @@ mod tests {
         // Messages and remediations stay the pipeline's Turkish text (issue #201).
         assert_eq!(n.message, "Türkçe mesaj");
         assert_eq!(&*n.remediation, "Türkçe çözüm");
+    }
+
+    #[test]
+    fn turkish_matches_a_fixed_message_by_the_engine_text() {
+        let translator = Translator::new(Lang::Tr).unwrap().unwrap();
+        let (rule, by_text) = translator
+            .primary
+            .message_texts
+            .iter()
+            .min_by_key(|(rule, _)| rule.as_str())
+            .expect("the Turkish dictionary maps fixed messages");
+        let (engine, turkish) = by_text.iter().min_by_key(|(engine, _)| engine.as_str()).unwrap();
+
+        let mut n = notice();
+        n.rule_id = rule.clone();
+        n.message = engine.clone();
+        translator.translate(&mut n);
+        assert_eq!(&n.message, turkish);
+
+        // A message built with values is not in the map and keeps the engine's text.
+        let mut other = notice();
+        other.rule_id = rule.clone();
+        other.message = "Değerli motor mesajı 42".to_string();
+        translator.translate(&mut other);
+        assert_eq!(other.message, "Değerli motor mesajı 42");
     }
 
     #[test]

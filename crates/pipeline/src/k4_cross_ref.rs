@@ -457,17 +457,17 @@ pub fn check_with_files_and_whitespace_roots(
             };
             if has_agency_cemv1 && has_fares_v2 && !has_type3 {
                 feed_cemv("XFL_028",
-                    "agency_cemv_support=1 var ve Fares v2 kullaniliyor ama hic contactless fare media (fare_media_type=3) yok.".to_string(),
+                    "agency cemv_support=1 but Fares v2 has no contactless fare media.".to_string(),
                     "Define a fare_media_type=3 media in fare_media.txt and link it to fare products.");
             }
             if has_route_cemv1 && has_fares_v2 && !has_type3 {
                 feed_cemv("XFL_029",
-                    "route_cemv_support=1 var ve Fares v2 kullaniliyor ama hic contactless fare media (fare_media_type=3) yok.".to_string(),
+                    "route cemv_support=1 but Fares v2 has no contactless fare media.".to_string(),
                     "Define a fare_media_type=3 media in fare_media.txt and link it to fare products.");
             }
             if has_type3 && !has_any_cemv1 {
                 feed_cemv("XFL_030",
-                    "Contactless fare media (fare_media_type=3) tanimli ama hicbir agency/route'da cemv_support=1 yok.".to_string(),
+                    "Contactless fare media defined but no cemv_support=1 anywhere.".to_string(),
                     "Consider setting cemv_support=1 at agency or route level.");
             }
         }
@@ -913,7 +913,7 @@ fn check_agencies(
             Some("agency_timezone"),
             Some(zones.join(", ")),
             None,
-            "Birden fazla işletici farklı timezone değeri kullanıyor.".to_string(),
+            "Timezone inconsistency across agencies.".to_string(),
             "Use the same IANA timezone for all agencies.",
         ));
     }
@@ -3617,7 +3617,7 @@ fn check_fares_v2(
                 ctr, "FLG_008", EntityType::Row, eid.clone(), eid.clone(),
                 "fare_leg_rules.txt", Some(rec.line), Some("fare_product_id"),
                 Some(String::new()), None,
-                "fare_product_id zorunludur.".to_string(),
+                "fare_product_id is required.".to_string(),
                 "Give every row in fare_leg_rules.txt a fare_product_id defined in fare_products.txt.",
             ));
         }
@@ -4056,7 +4056,7 @@ fn check_translations(
                 Some("record_sub_id"),
                 rec.record_sub_id.clone(),
                 Some("stop_sequence".to_string()),
-                "record_sub_id, record_id ile belirlenen trip içindeki geçerli bir stop_sequence değil."
+                "record_sub_id is not a valid stop_sequence in the trip identified by record_id."
                     .to_string(),
                 "Set record_sub_id to the stop_sequence value.",
             ));
@@ -5164,7 +5164,7 @@ fn check_gtfs_jp(
             Some("translations"),
             None,
             None,
-            "GTFS-JP feed'inde translations.txt eksik — profil bunu (özellikle stop_name kana/ja-Hrkt okumaları için) zorunlu kılar.".to_string(),
+            "translations.txt is missing — GTFS-JP requires it, especially for stop_name kana (ja-Hrkt) readings.".to_string(),
             "Add translations.txt with at least language=ja-Hrkt (kana) readings for stop_name.",
         ));
     }
@@ -5366,7 +5366,7 @@ fn check_gtfs_jp(
                     Some("feed_lang"),
                     Some(value.to_string()),
                     Some("ja".to_string()),
-                    "Açık GTFS-JP profilinde feed_lang değeri 'ja' olmalıdır.".to_string(),
+                    "The selected GTFS-JP profile requires feed_lang to be 'ja'.".to_string(),
                     "Set feed_info.feed_lang to ja.",
                 ));
             }
@@ -5389,7 +5389,7 @@ fn check_gtfs_jp(
                         Some("agency_lang"),
                         Some(value.to_string()),
                         Some("ja".to_string()),
-                        "Açık GTFS-JP profilinde agency_lang değeri 'ja' olmalıdır.".to_string(),
+                        "The selected GTFS-JP profile requires agency_lang to be 'ja'.".to_string(),
                         "Set each non-empty agency_lang value to ja.",
                     ));
                 }
@@ -5407,7 +5407,7 @@ fn check_gtfs_jp(
                     Some("agency_timezone"),
                     Some(timezone.to_string()),
                     Some("Asia/Tokyo".to_string()),
-                    "Açık GTFS-JP profilinde agency_timezone değeri Asia/Tokyo olmalıdır."
+                    "The selected GTFS-JP profile requires agency_timezone to be Asia/Tokyo."
                         .to_string(),
                     "Set agency_timezone to Asia/Tokyo.",
                 ));
@@ -5763,17 +5763,17 @@ fn check_gtfs_jp(
         let fare_file_missing =
             availability.has_inventory() && !availability.present("fare_attributes.txt");
         let message = if fare_file_missing && matches!(records.gtfs_jp_profile, GtfsJpProfile::V4) {
-            "GTFS-JP V4'te fare_attributes.txt normalde zorunludur; ücretlerin tamamı bu formatta temsil edilemeyen karmaşık tarifelerden oluşuyorsa dosya dışarıda bırakılabilir. Elle inceleme gerekir; bu bilgi bulgusu puan düşürmez."
+            "fare_attributes.txt is normally required in GTFS-JP V4; it may be omitted when all fares are complex tariffs this format cannot represent. Manual review is needed; this informational finding does not lower the score."
         } else if fare_attributes_unusable {
             match records.gtfs_jp_profile {
                 GtfsJpProfile::V3 => {
-                    "GTFS-JP V3'te fare_attributes.txt zorunludur ancak dosya eksik, boş veya kullanılabilir kayıt içermiyor."
+                    "fare_attributes.txt is required in GTFS-JP V3 but the file is missing, empty or has no usable records."
                 }
                 GtfsJpProfile::V4 => {
                     "GTFS-JP V4 ücret dosyası mevcut olsa da kullanılabilir fare_attributes kaydı içermiyor; karmaşık ücret istisnası boş veya bozuk dosyayı kapsamaz."
                 }
                 GtfsJpProfile::Auto => {
-                    "GTFS-JP ücret kapsamı için fare_attributes.txt eksik, boş veya kullanılabilir kayıt içermiyor."
+                    "fare_attributes.txt is missing, empty or has no usable records for GTFS-JP fare coverage."
                 }
             }
         } else {
@@ -5834,7 +5834,7 @@ fn check_gtfs_jp(
             Some("feed_info"),
             None,
             None,
-            "GTFS-JP feed'inde feed_info.txt eksik — profil bunu (feed_lang=ja, yayıncı bilgisi) zorunlu kılar.".to_string(),
+            "feed_info.txt is missing — GTFS-JP requires it (feed_lang=ja and publisher information).".to_string(),
             "Add feed_info.txt with feed_lang=ja and publisher information.",
         ));
     }
@@ -5851,7 +5851,7 @@ fn check_gtfs_jp(
                 ctr, "JPN_012", EntityType::Agency, None, None,
                 "agency_jp.txt", Some(aj.line), Some("agency_id"),
                 Some(String::new()), Some("dolu".to_string()),
-                "agency_jp.txt satırında agency_id eksik — GTFS-JP bu alanı zorunlu kılar.".to_string(),
+                "agency_jp.txt row is missing agency_id.".to_string(),
                 "Set agency_jp.txt agency_id to an agency_id defined in agency.txt.",
             ));
             }
@@ -5885,7 +5885,7 @@ fn check_gtfs_jp(
                     ctr, "JPN_014", EntityType::Agency, None, None,
                     "office_jp.txt", Some(office.line), Some("office_id"),
                     Some(String::new()), Some("dolu ve tekil".to_string()),
-                    "office_jp.txt satırında office_id eksik — her ofis kaydı benzersiz bir kimlik taşımalıdır.".to_string(),
+                    "office_jp.txt row is missing office_id — every office record must carry a unique identifier.".to_string(),
                     "Enter a unique office_id on every row of office_jp.txt.",
                 ));
                     jp_record_issue(notices.last_mut(), "empty", None);
@@ -6051,7 +6051,7 @@ fn check_gtfs_jp(
                     ctr, "JPN_017", EntityType::Row, None, None,
                     "pattern_jp.txt", Some(pattern.line), Some("jp_pattern_id"),
                     Some(String::new()), Some("dolu ve tekil".to_string()),
-                    "pattern_jp.txt satırında jp_pattern_id eksik — dosya mevcutsa bu alan zorunludur.".to_string(),
+                    "pattern_jp.txt row is missing jp_pattern_id — the field is required when the file is present.".to_string(),
                     "Enter a unique jp_pattern_id on every row of pattern_jp.txt.",
                 ));
                     jp_record_issue(notices.last_mut(), "empty", None);
@@ -6242,7 +6242,7 @@ fn check_gtfs_jp(
                     "translations.txt", Some(translation.line), Some("record_id|record_sub_id|field_name"),
                     translation.record_id.clone().or_else(|| translation.field_value.clone()).or_else(|| Some(translation.field_name.clone())),
                     None,
-                    "ja-Hrkt çevirisi geçerli bir tablo alanını veya mevcut GTFS kaydını göstermiyor.".to_string(),
+                    "GTFS-JP kana translation points to an invalid field, record, or sub-record.".to_string(),
                     "Correct the ja-Hrkt translation table, field, record_id, and record_sub_id references.",
                 ));
                 jp_translation_target(notices.last_mut(), translation, "invalid_target", None);

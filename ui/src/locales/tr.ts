@@ -5160,3 +5160,376 @@ export const trRemediationTexts: Record<string, Record<string, string>> = {
 
 export default tr;
 export type LocaleShape = typeof tr;
+
+/**
+ * `RULE` → engine message text → Turkish. Fixed (value-free) messages whose engine text moved
+ * to English (issue #201); messages built with values keep the engine's Turkish text for now.
+ */
+export const trMessageTexts: Record<string, Record<string, string>> = {
+  'AGN_002': {
+    'agency_name is required.': 'agency_name zorunludur.',
+  },
+  'AGN_003': {
+    'agency_url is not a valid URL.': 'agency_url geçerli bir URL değil.',
+  },
+  'AGN_005': {
+    'Timezone inconsistency across agencies.': 'Birden fazla işletici farklı timezone değeri kullanıyor.',
+  },
+  'AGN_008': {
+    'agency_fare_url is not a valid URL.': 'agency_fare_url geçerli bir URL değil.',
+  },
+  'AGN_009': {
+    'agency_email is not a valid email address.': 'agency_email geçerli bir e-posta adresi değil.',
+  },
+  'AGN_012': {
+    'cemv_support must be 0, 1 or 2.': 'cemv_support 0, 1 veya 2 olmalıdır.',
+  },
+  'AGN_014': {
+    'agency_id is required when multiple agencies are defined in agency.txt.': 'Birden fazla kuruluş tanımlıyken agency_id zorunludur.',
+  },
+  'AGN_018': {
+    'agency_id is empty in a single-agency feed; the spec recommends it there too.': 'Tek kuruluşlu feed\'de agency_id boş; spec tek kuruluşta da önerir.',
+  },
+  'ATR_002': {
+    'organization_name is required.': 'organization_name zorunludur.',
+  },
+  'ATR_007': {
+    'attribution_url is not a valid URL.': 'attribution_url geçerli bir URL değil.',
+  },
+  'ATR_008': {
+    'attribution_email is not a valid email address.': 'attribution_email geçerli bir e-posta adresi değil.',
+  },
+  'BKR_003': {
+    'prior_notice_start_time can only be used together with prior_notice_start_day.': 'prior_notice_start_time yalnızca prior_notice_start_day ile birlikte kullanılabilir.',
+  },
+  'BKR_004': {
+    'prior_notice fields must be empty when booking_type=0 (real-time booking).': 'booking_type=0 (anlık rezervasyon) iken prior_notice alanları dolu olmamalı.',
+  },
+  'BKR_005': {
+    'prior_notice_duration_max is forbidden when booking_type=2.': 'booking_type=2 iken prior_notice_duration_max yasaktır.',
+  },
+  'BKR_006': {
+    'prior_notice_duration_min cannot be zero or negative.': 'prior_notice_duration_min sıfır veya negatif olamaz.',
+    'prior_notice_duration_min is not a numeric value.': 'prior_notice_duration_min sayısal bir değer değil.',
+  },
+  'BKR_007': {
+    'prior_notice_duration_min is required when booking_type=1.': 'booking_type=1 iken prior_notice_duration_min zorunludur.',
+  },
+  'BKR_008': {
+    'prior_notice_last_day is required when booking_type=2.': 'booking_type=2 iken prior_notice_last_day zorunludur.',
+  },
+  'BKR_009': {
+    'prior_notice_last_time is required when booking_type=2.': 'booking_type=2 iken prior_notice_last_time zorunludur.',
+  },
+  'BKR_010': {
+    'prior_notice_start_time is required when prior_notice_start_day is set.': 'prior_notice_start_day belirtilmişse prior_notice_start_time zorunludur.',
+  },
+  'BKR_012': {
+    'prior_notice_duration_min is forbidden when booking_type=2.': 'booking_type=2 iken prior_notice_duration_min yasaktır.',
+  },
+  'BKR_013': {
+    'prior_notice_last_time can only be used together with prior_notice_last_day.': 'prior_notice_last_time yalnızca prior_notice_last_day ile birlikte kullanılabilir.',
+  },
+  'BKR_020': {
+    'booking_url is not a valid URL.': 'booking_url geçerli bir URL değil.',
+  },
+  'BKR_021': {
+    'info_url is not a valid URL.': 'info_url geçerli bir URL değil.',
+  },
+  'BKR_024': {
+    'prior_notice_start_day is forbidden when booking_type=1 and prior_notice_duration_max is set.': 'booking_type=1 ve prior_notice_duration_max tanımlıyken prior_notice_start_day yasaktır.',
+  },
+  'CAL_003': {
+    'start_date is required.': 'start_date zorunludur.',
+  },
+  'CAL_004': {
+    'end_date is required.': 'end_date zorunludur.',
+  },
+  'CAL_022': {
+    'service_id is required.': 'service_id zorunludur.',
+  },
+  'CLD_001': {
+    'service_id is required.': 'service_id zorunludur.',
+  },
+  'FAR_002': {
+    'price cannot be negative.': 'price negatif olamaz.',
+  },
+  'FAR_003': {
+    'currency_type is not a valid ISO 4217 code.': 'currency_type geçerli bir ISO 4217 kodu değil.',
+  },
+  'FAR_011': {
+    'payment_method is required.': 'payment_method zorunludur.',
+  },
+  'FAR_012': {
+    'fare_id is required.': 'fare_id zorunludur.',
+  },
+  'FIN_001': {
+    'feed_publisher_name is required.': 'feed_publisher_name zorunludur.',
+  },
+  'FIN_002': {
+    'feed_publisher_url is missing or invalid.': 'feed_publisher_url eksik veya geçersiz.',
+  },
+  'FIN_003': {
+    'feed_lang is missing or invalid.': 'feed_lang eksik veya geçersiz.',
+  },
+  'FIN_004': {
+    'default_lang is not a valid BCP 47 language tag.': 'default_lang geçerli bir BCP 47 dil etiketi değil.',
+  },
+  'FIN_007': {
+    'feed_version is recommended but missing.': 'feed_version önerilen ancak eksik.',
+  },
+  'FIN_008': {
+    'feed_contact_email is not a valid email address.': 'feed_contact_email geçerli bir e-posta adresi değil.',
+  },
+  'FIN_009': {
+    'feed_contact_url is not a valid URL.': 'feed_contact_url geçerli bir URL değil.',
+  },
+  'FIN_014': {
+    'feed_start_date and/or feed_end_date is missing; the feed validity period cannot be determined.': 'feed_start_date ve/veya feed_end_date eksik; feed geçerlilik aralığı belirlenemiyor.',
+  },
+  'FLG_008': {
+    'fare_product_id is required.': 'fare_product_id zorunludur.',
+  },
+  'FMD_002': {
+    'fare_media_type is not a valid enum value.': 'fare_media_type geçerli bir enum değeri değil.',
+  },
+  'FPD_003': {
+    'currency is not a valid ISO 4217 code.': 'currency geçerli bir ISO 4217 kodu değil.',
+  },
+  'FRQ_001': {
+    'trip_id is required.': 'trip_id zorunludur.',
+  },
+  'FRQ_002': {
+    'start_time is required.': 'start_time zorunludur.',
+  },
+  'FRQ_003': {
+    'end_time is required.': 'end_time zorunludur.',
+  },
+  'FRQ_004': {
+    'headway_secs is required.': 'headway_secs zorunludur.',
+  },
+  'FRQ_005': {
+    'end_time must be after start_time.': 'end_time, start_time\'dan sonra olmalıdır.',
+  },
+  'FRQ_008': {
+    'headway_secs must be greater than zero.': 'headway_secs sıfırdan büyük olmalıdır.',
+  },
+  'FTR_001': {
+    'fare_transfer_type is not a valid enum value.': 'fare_transfer_type geçerli bir enum değeri değil.',
+  },
+  'FTR_005': {
+    'duration_limit_type is not a valid enum value.': 'duration_limit_type geçerli bir enum değeri değil.',
+  },
+  'FTR_006': {
+    'duration_limit must be positive.': 'duration_limit pozitif olmalıdır.',
+  },
+  'FTR_007': {
+    'duration_limit must also be set when duration_limit_type is defined.': 'duration_limit_type tanımlandığında duration_limit de belirtilmelidir.',
+  },
+  'FTR_008': {
+    'transfer_count must be -1 or a positive integer.': 'transfer_count -1 veya pozitif bir tam sayı olmalıdır.',
+  },
+  'FTR_009': {
+    'transfer_count is required when from_leg_group_id equals to_leg_group_id.': 'from_leg_group_id ile to_leg_group_id aynı olduğunda transfer_count zorunludur.',
+  },
+  'FTR_010': {
+    'transfer_count cannot be defined when from_leg_group_id differs from to_leg_group_id.': 'from_leg_group_id ile to_leg_group_id farklı olduğunda transfer_count tanımlanamaz.',
+  },
+  'FTR_011': {
+    'duration_limit_type must also be set when duration_limit is defined.': 'duration_limit tanımlandığında duration_limit_type de belirtilmelidir.',
+  },
+  'JPN_004': {
+    'translations.txt is missing — GTFS-JP requires it, especially for stop_name kana (ja-Hrkt) readings.': 'GTFS-JP feed\'inde translations.txt eksik — profil bunu (özellikle stop_name kana/ja-Hrkt okumaları için) zorunlu kılar.',
+  },
+  'JPN_006': {
+    'fare_attributes.txt is missing, empty or has no usable records for GTFS-JP fare coverage.': 'GTFS-JP ücret kapsamı için fare_attributes.txt eksik, boş veya kullanılabilir kayıt içermiyor.',
+    'fare_attributes.txt is normally required in GTFS-JP V4; it may be omitted when all fares are complex tariffs this format cannot represent. Manual review is needed; this informational finding does not lower the score.': 'GTFS-JP V4\'te fare_attributes.txt normalde zorunludur; ücretlerin tamamı bu formatta temsil edilemeyen karmaşık tarifelerden oluşuyorsa dosya dışarıda bırakılabilir. Elle inceleme gerekir; bu bilgi bulgusu puan düşürmez.',
+    'fare_attributes.txt is required in GTFS-JP V3 but the file is missing, empty or has no usable records.': 'GTFS-JP V3\'te fare_attributes.txt zorunludur ancak dosya eksik, boş veya kullanılabilir kayıt içermiyor.',
+  },
+  'JPN_007': {
+    'feed_info.txt is missing — GTFS-JP requires it (feed_lang=ja and publisher information).': 'GTFS-JP feed\'inde feed_info.txt eksik — profil bunu (feed_lang=ja, yayıncı bilgisi) zorunlu kılar.',
+  },
+  'JPN_012': {
+    'agency_jp.txt row is missing agency_id.': 'agency_jp.txt satırında agency_id eksik — GTFS-JP bu alanı zorunlu kılar.',
+  },
+  'JPN_014': {
+    'office_jp.txt row is missing office_id — every office record must carry a unique identifier.': 'office_jp.txt satırında office_id eksik — her ofis kaydı benzersiz bir kimlik taşımalıdır.',
+  },
+  'JPN_017': {
+    'pattern_jp.txt row is missing jp_pattern_id — the field is required when the file is present.': 'pattern_jp.txt satırında jp_pattern_id eksik — dosya mevcutsa bu alan zorunludur.',
+  },
+  'JPN_019': {
+    'GTFS-JP kana translation points to an invalid field, record, or sub-record.': 'ja-Hrkt çevirisi geçerli bir tablo alanını veya mevcut GTFS kaydını göstermiyor.',
+  },
+  'JPN_023': {
+    'The selected GTFS-JP profile requires feed_lang to be \'ja\'.': 'Açık GTFS-JP profilinde feed_lang değeri \'ja\' olmalıdır.',
+  },
+  'JPN_024': {
+    'The selected GTFS-JP profile requires agency_lang to be \'ja\'.': 'Açık GTFS-JP profilinde agency_lang değeri \'ja\' olmalıdır.',
+  },
+  'JPN_025': {
+    'The selected GTFS-JP profile requires agency_timezone to be Asia/Tokyo.': 'Açık GTFS-JP profilinde agency_timezone değeri Asia/Tokyo olmalıdır.',
+  },
+  'LVL_003': {
+    'level_name is recommended but missing.': 'level_name önerilen ancak eksik.',
+  },
+  'LVL_007': {
+    'level_index is required.': 'level_index zorunludur.',
+  },
+  'LVL_008': {
+    'level_id is required.': 'level_id zorunludur.',
+  },
+  'PTH_011': {
+    'from_stop_id and to_stop_id are the same.': 'from_stop_id ve to_stop_id aynı.',
+  },
+  'PTH_016': {
+    'Exit gate pathways cannot be bidirectional.': 'Çıkış kapısı geçitleri çift yönlü olamaz.',
+  },
+  'PTH_020': {
+    'pathway_id is required.': 'pathway_id zorunludur.',
+  },
+  'PTH_021': {
+    'from_stop_id is required.': 'from_stop_id zorunludur.',
+  },
+  'PTH_022': {
+    'to_stop_id is required.': 'to_stop_id zorunludur.',
+  },
+  'PTH_023': {
+    'pathway_mode is required.': 'pathway_mode zorunludur.',
+  },
+  'PTH_024': {
+    'is_bidirectional is required.': 'is_bidirectional zorunludur.',
+  },
+  'PTH_027': {
+    'stair_count cannot be zero — a positive value means up, a negative value means down.': 'stair_count sıfır olamaz — pozitif değer yukarı, negatif aşağı yönü gösterir.',
+  },
+  'PTH_028': {
+    'max_slope is only valid for pathway_mode 1 or 3.': 'max_slope yalnızca pathway_mode 1 veya 3 için geçerlidir.',
+  },
+  'RCT_002': {
+    'rider_category_name is required.': 'rider_category_name zorunludur.',
+  },
+  'RCT_003': {
+    'is_default_fare_category is not a valid enum value.': 'is_default_fare_category geçerli bir enum değeri değil.',
+  },
+  'RCT_007': {
+    'eligibility_url is not a valid URL.': 'eligibility_url geçerli bir URL değil.',
+  },
+  'RTS_003': {
+    'Both route_short_name and route_long_name are empty; at least one is required.': 'route_short_name ve route_long_name alanlarının her ikisi de boş; en az biri zorunludur.',
+  },
+  'RTS_005': {
+    'route_url is not a valid URL.': 'route_url geçerli bir URL değil.',
+  },
+  'RTS_006': {
+    'route_color must be a 6-character hex color code.': 'route_color 6 karakterli hex renk kodu olmalıdır.',
+  },
+  'RTS_007': {
+    'route_text_color must be a 6-character hex color code.': 'route_text_color 6 karakterli hex renk kodu olmalıdır.',
+  },
+  'RTS_024': {
+    'cemv_support must be 0, 1 or 2.': 'cemv_support 0, 1 veya 2 olmalıdır.',
+  },
+  'RTS_031': {
+    'route_id is required.': 'route_id zorunludur.',
+  },
+  'SHP_001': {
+    'shape_id is required.': 'shape_id zorunludur.',
+  },
+  'SHP_004': {
+    'shape_pt_sequence is required.': 'shape_pt_sequence zorunludur.',
+  },
+  'SHP_021': {
+    'shape_dist_traveled cannot be negative.': 'shape_dist_traveled negatif olamaz.',
+  },
+  'STM_005': {
+    'stop_sequence is required.': 'stop_sequence zorunludur.',
+  },
+  'STM_006': {
+    'stop_id is required.': 'stop_id zorunludur.',
+  },
+  'STM_030': {
+    'shape_dist_traveled cannot be negative.': 'shape_dist_traveled negatif olamaz.',
+  },
+  'STM_046': {
+    'trip_id is required.': 'trip_id zorunludur.',
+  },
+  'STP_002': {
+    'stop_id is required.': 'stop_id zorunludur.',
+  },
+  'STP_013': {
+    'wheelchair_boarding must be 0, 1 or 2.': 'wheelchair_boarding 0, 1 veya 2 olmalıdır.',
+  },
+  'STP_018': {
+    'No stops found in stops.txt.': 'stops.txt dosyasında hiç durak kaydı yok.',
+  },
+  'TFR_001': {
+    'timeframe_group_id is required.': 'timeframe_group_id zorunludur.',
+  },
+  'TFR_004': {
+    'end_time must be greater than start_time.': 'end_time, start_time\'dan büyük olmalıdır.',
+  },
+  'TRF_001': {
+    'from_stop_id is required.': 'from_stop_id zorunludur.',
+  },
+  'TRF_002': {
+    'to_stop_id is required.': 'to_stop_id zorunludur.',
+  },
+  'TRN_002': {
+    'field_name is not valid for this table_name.': 'field_name bu table_name için geçerli değil.',
+  },
+  'TRN_003': {
+    'language is not a valid BCP 47 tag.': 'language geçerli bir BCP 47 etiketi değil.',
+  },
+  'TRN_008': {
+    'The translation value is empty; no translated content is provided.': 'translation değeri boş; çeviri içeriği sağlanmamış.',
+  },
+  'TRN_009': {
+    'record_id and field_value cannot both be specified.': 'record_id ve field_value aynı anda kullanılamaz.',
+  },
+  'TRN_010': {
+    'record_sub_id is not a valid stop_sequence in the trip identified by record_id.': 'record_sub_id, record_id ile belirlenen trip içindeki geçerli bir stop_sequence değil.',
+  },
+  'TRN_011': {
+    'field_name does not look like a translatable text/url/email/phone field.': 'field_name çevrilebilir bir metin/url/e-posta/telefon alanına benzemiyor.',
+  },
+  'TRN_013': {
+    'feed_info translations cannot use record_id, record_sub_id or field_value.': 'feed_info çevirileri record_id, record_sub_id veya field_value kullanamaz.',
+  },
+  'TRN_014': {
+    'record_sub_id is only valid for stop_times translations.': 'record_sub_id yalnızca stop_times çevirileri için kullanılabilir.',
+  },
+  'TRN_015': {
+    'Translation row: record_id and field_value are both empty, so the row does not say which record it translates.': 'record_id ve field_value ikisi de boş; çevirinin hangi kayda ait olduğu belirsiz.',
+  },
+  'TRN_017': {
+    'A stop_times translation sets record_id but omits record_sub_id, so the row it belongs to is ambiguous.': 'stop_times çevirisinde record_id verilmiş ama record_sub_id eksik — çeviri hangi satıra ait olduğunu söylemiyor.',
+  },
+  'TRP_001': {
+    'trip_id is required.': 'trip_id zorunludur.',
+  },
+  'TRP_006': {
+    'wheelchair_accessible must be 0, 1 or 2.': 'wheelchair_accessible 0, 1 veya 2 olmalıdır.',
+  },
+  'TRP_007': {
+    'bikes_allowed must be 0, 1 or 2.': 'bikes_allowed 0, 1 veya 2 olmalıdır.',
+  },
+  'TRP_031': {
+    'route_id is required.': 'route_id zorunludur.',
+  },
+  'TRP_032': {
+    'cars_allowed must be 0, 1 or 2.': 'cars_allowed 0, 1 veya 2 olmalıdır.',
+  },
+  'TRP_035': {
+    'service_id is required; a trip left empty is attached to no calendar.': 'service_id zorunludur; boş bırakılan sefer hiçbir takvime bağlanmaz.',
+  },
+  'XFL_028': {
+    'agency cemv_support=1 but Fares v2 has no contactless fare media.': 'agency_cemv_support=1 var ve Fares v2 kullaniliyor ama hic contactless fare media (fare_media_type=3) yok.',
+  },
+  'XFL_029': {
+    'route cemv_support=1 but Fares v2 has no contactless fare media.': 'route_cemv_support=1 var ve Fares v2 kullaniliyor ama hic contactless fare media (fare_media_type=3) yok.',
+  },
+  'XFL_030': {
+    'Contactless fare media defined but no cemv_support=1 anywhere.': 'Contactless fare media (fare_media_type=3) tanimli ama hicbir agency/route\'da cemv_support=1 yok.',
+  },
+};

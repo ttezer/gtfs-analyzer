@@ -46,7 +46,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
                 Some("feed_publisher_name"),
                 Some(String::new()),
                 None,
-                "feed_publisher_name zorunludur.".to_string(),
+                "feed_publisher_name is required.".to_string(),
                 "Fill in the feed_publisher_name field.",
             ));
         }
@@ -66,7 +66,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
                 Some("feed_publisher_url"),
                 Some(publisher_url.clone()),
                 None,
-                "feed_publisher_url eksik veya geçersiz.".to_string(),
+                "feed_publisher_url is missing or invalid.".to_string(),
                 "Enter a valid http/https URL for feed_publisher_url.",
             ));
         }
@@ -86,7 +86,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
                 Some("feed_lang"),
                 Some(feed_lang.clone()),
                 None,
-                "feed_lang eksik veya geçersiz.".to_string(),
+                "feed_lang is missing or invalid.".to_string(),
                 "Enter a valid IETF BCP 47 language tag for feed_lang.",
             ));
         }
@@ -107,7 +107,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
                     Some("default_lang"),
                     Some(lang.clone()),
                     None,
-                    "default_lang geçerli bir BCP 47 dil etiketi değil.".to_string(),
+                    "default_lang is not a valid BCP 47 language tag.".to_string(),
                     "Enter a valid IETF BCP 47 language tag for default_lang.",
                 );
                 if whitespace_only_format_failure(lang, looks_like_bcp47) {
@@ -148,7 +148,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
                 &mut counter, "FIN_014", EntityType::Feed, None,
                 Some(&row_map), &file.name, Some(line), None,
                 None, None,
-                "feed_start_date ve/veya feed_end_date eksik; feed geçerlilik aralığı belirlenemiyor.".to_string(),
+                "feed_start_date and/or feed_end_date is missing; the feed validity period cannot be determined.".to_string(),
                 "Fill in feed_start_date and feed_end_date in YYYYMMDD format.",
             ));
         }
@@ -187,7 +187,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
                 Some("feed_version"),
                 Some(String::new()),
                 None,
-                "feed_version önerilen ancak eksik.".to_string(),
+                "feed_version is recommended but missing.".to_string(),
                 "Fill in feed_version for version tracking.",
             ));
         }
@@ -208,7 +208,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
                     Some("feed_contact_email"),
                     Some(email.to_string()),
                     None,
-                    "feed_contact_email geçerli bir e-posta adresi değil.".to_string(),
+                    "feed_contact_email is not a valid email address.".to_string(),
                     "Use a valid e-mail address for feed_contact_email, with no leading or trailing spaces.",
                 ));
             }
@@ -230,7 +230,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
                     Some("feed_contact_url"),
                     Some(url.to_string()),
                     None,
-                    "feed_contact_url geçerli bir URL değil.".to_string(),
+                    "feed_contact_url is not a valid URL.".to_string(),
                     "Use a valid http/https URL for feed_contact_url.",
                 ));
             }

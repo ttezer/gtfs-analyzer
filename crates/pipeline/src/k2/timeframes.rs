@@ -41,7 +41,7 @@ pub fn validate_timeframes(file: &RawFile) -> (Vec<TimeframeRecord>, Vec<gtfs_co
                 Some("timeframe_group_id"),
                 None,
                 Some("dolu".to_string()),
-                "timeframe_group_id zorunludur.".to_string(),
+                "timeframe_group_id is required.".to_string(),
                 "Enter a timeframe_group_id for each timeframe record.",
             ));
         }
@@ -162,7 +162,7 @@ pub fn validate_timeframes(file: &RawFile) -> (Vec<TimeframeRecord>, Vec<gtfs_co
                     Some("end_time"),
                     get_trimmed_field(&row_map, "end_time").map(str::to_string),
                     Some("> start_time".to_string()),
-                    "end_time, start_time'dan büyük olmalıdır.".to_string(),
+                    "end_time must be greater than start_time.".to_string(),
                     "Set end_time to be after start_time.",
                 ));
             }

@@ -54,7 +54,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                 Some("service_id"),
                 Some(String::new()),
                 None,
-                "service_id zorunludur.".to_string(),
+                "service_id is required.".to_string(),
                 "Fill in the service_id field.",
             ));
         }
@@ -149,7 +149,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                         Some("start_date"),
                         Some(String::new()),
                         None,
-                        "start_date zorunludur.".to_string(),
+                        "start_date is required.".to_string(),
                         "Fill in start_date in YYYYMMDD format.",
                     ));
                 }
@@ -191,7 +191,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                         Some("end_date"),
                         Some(String::new()),
                         None,
-                        "end_date zorunludur.".to_string(),
+                        "end_date is required.".to_string(),
                         "Fill in end_date in YYYYMMDD format.",
                     ));
                 }

@@ -36,7 +36,7 @@ pub fn validate_fare_media(file: &RawFile) -> (Vec<FareMediaRecord>, Vec<gtfs_co
                             &mut counter, "FMD_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                             &file.name, Some(line), Some("fare_media_type"), Some(v.to_string()),
                             Some("0–4".to_string()),
-                            "fare_media_type geçerli bir enum değeri değil.".to_string(),
+                            "fare_media_type is not a valid enum value.".to_string(),
                             "Use 0 (none), 1 (physical paper ticket), 2 (physical transit card), 3 (cEMV) or 4 (mobile app).",
                         ));
                     }

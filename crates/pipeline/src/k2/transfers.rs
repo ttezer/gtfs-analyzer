@@ -126,7 +126,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
                 Some("from_stop_id"),
                 Some(String::new()),
                 None,
-                "from_stop_id zorunludur.".to_string(),
+                "from_stop_id is required.".to_string(),
                 "Add from_stop_id to the transfer record.",
             ));
         }
@@ -144,7 +144,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
                 Some("to_stop_id"),
                 Some(String::new()),
                 None,
-                "to_stop_id zorunludur.".to_string(),
+                "to_stop_id is required.".to_string(),
                 "Add to_stop_id to the transfer record.",
             ));
         }

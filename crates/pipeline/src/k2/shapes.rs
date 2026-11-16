@@ -431,7 +431,7 @@ pub fn validate_shapes_with_limits(
                     Some("shape_id"),
                     Some(String::new()),
                     None,
-                    "shape_id zorunludur.".to_string(),
+                    "shape_id is required.".to_string(),
                     "Fill in the shape_id field.",
                 ));
             }
@@ -452,7 +452,7 @@ pub fn validate_shapes_with_limits(
                             Some("shape_pt_sequence"),
                             Some(String::new()),
                             None,
-                            "shape_pt_sequence zorunludur.".to_string(),
+                            "shape_pt_sequence is required.".to_string(),
                             "Enter shape_pt_sequence as a non-negative integer.",
                         ));
                     }
@@ -627,7 +627,7 @@ pub fn validate_shapes_with_limits(
                                 &mut counter, "SHP_021", EntityType::Shape, entity_id(),
                                 None, &file.name, Some(line), Some("shape_dist_traveled"),
                                 Some(d.to_string()), Some(">= 0".to_string()),
-                                "shape_dist_traveled negatif olamaz.".to_string(),
+                                "shape_dist_traveled cannot be negative.".to_string(),
                                 "Set shape_dist_traveled to zero or a positive value.",
                             ));
                         }

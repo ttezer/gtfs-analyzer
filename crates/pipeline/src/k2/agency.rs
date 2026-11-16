@@ -52,7 +52,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 Some("agency_id"),
                 Some(String::new()),
                 None,
-                "Birden fazla kuruluş tanımlıyken agency_id zorunludur.".to_string(),
+                "agency_id is required when multiple agencies are defined in agency.txt.".to_string(),
                 "Assign a unique agency_id to every agency row when multiple agencies are present.",
             ));
         }
@@ -72,7 +72,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 Some("agency_id"),
                 Some(String::new()),
                 None,
-                "Tek kuruluşlu feed'de agency_id boş; spec tek kuruluşta da önerir.".to_string(),
+                "agency_id is empty in a single-agency feed; the spec recommends it there too.".to_string(),
                 "Add an agency_id to agency.txt so routes and fares can reference it once a second agency is added.",
             ));
         }
@@ -100,7 +100,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 Some("agency_name"),
                 Some(String::new()),
                 None,
-                "agency_name zorunludur.".to_string(),
+                "agency_name is required.".to_string(),
                 "Fill in the agency_name field.",
             ));
         }
@@ -140,7 +140,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 Some("agency_url"),
                 Some(agency_url.clone()),
                 None,
-                "agency_url geçerli bir URL değil.".to_string(),
+                "agency_url is not a valid URL.".to_string(),
                 "Use a valid http/https URL.",
             )),
             _ => {}
@@ -264,7 +264,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                     Some("agency_fare_url"),
                     Some(url.clone()),
                     None,
-                    "agency_fare_url geçerli bir URL değil.".to_string(),
+                    "agency_fare_url is not a valid URL.".to_string(),
                     "Use a valid http/https URL for agency_fare_url.",
                 );
                 if whitespace_only_format_failure(url, looks_like_url) {
@@ -291,7 +291,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                     Some("agency_email"),
                     Some(email.clone()),
                     None,
-                    "agency_email geçerli bir e-posta adresi değil.".to_string(),
+                    "agency_email is not a valid email address.".to_string(),
                     "Use a valid e-mail address for agency_email.",
                 );
                 if whitespace_only_format_failure(email, looks_like_email) {
@@ -310,7 +310,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                             &mut counter, "AGN_012", EntityType::Agency, entity_id.clone(), Some(&row_map),
                             &file.name, Some(line), Some("cemv_support"), Some(val.to_string()),
                             Some("0, 1 or 2".to_string()),
-                            "cemv_support 0, 1 veya 2 olmalıdır.".to_string(),
+                            "cemv_support must be 0, 1 or 2.".to_string(),
                             "Set cemv_support to 0 (no info), 1 (supported) or 2 (not supported).",
                         ));
                     }

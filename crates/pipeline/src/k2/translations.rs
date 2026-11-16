@@ -128,7 +128,7 @@ pub fn validate_translations_with_profile(
                 Some("field_name"),
                 Some(field_name.clone()),
                 None,
-                "field_name bu table_name için geçerli değil.".to_string(),
+                "field_name is not valid for this table_name.".to_string(),
                 "Use a valid translatable field name for the selected table_name.",
             ));
         }
@@ -148,7 +148,7 @@ pub fn validate_translations_with_profile(
                 Some("language"),
                 Some(language.clone()),
                 None,
-                "language geçerli bir BCP 47 etiketi değil.".to_string(),
+                "language is not a valid BCP 47 tag.".to_string(),
                 "Use a valid IETF BCP 47 language tag.",
             ));
         }
@@ -168,7 +168,7 @@ pub fn validate_translations_with_profile(
                 Some("translation"),
                 Some(String::new()),
                 None,
-                "translation değeri boş; çeviri içeriği sağlanmamış.".to_string(),
+                "The translation value is empty; no translated content is provided.".to_string(),
                 "Enter the translated text in the translation field.",
             ));
         }
@@ -207,7 +207,7 @@ pub fn validate_translations_with_profile(
                 Some("field_value"),
                 Some(String::new()),
                 None,
-                "record_id ve field_value ikisi de boş; çevirinin hangi kayda ait olduğu belirsiz."
+                "Translation row: record_id and field_value are both empty, so the row does not say which record it translates."
                     .to_string(),
                 "Fill in either record_id or field_value.",
             ));
@@ -226,7 +226,7 @@ pub fn validate_translations_with_profile(
                 Some("record_id|field_value"),
                 None,
                 None,
-                "record_id ve field_value aynı anda kullanılamaz.".to_string(),
+                "record_id and field_value cannot both be specified.".to_string(),
                 "Use only one of record_id or field_value.",
             ));
         }
@@ -264,7 +264,7 @@ pub fn validate_translations_with_profile(
                 Some("field_name"),
                 Some(field_name.clone()),
                 None,
-                "field_name çevrilebilir bir metin/url/e-posta/telefon alanına benzemiyor.".to_string(),
+                "field_name does not look like a translatable text/url/email/phone field.".to_string(),
                 "Only translate fields designed for text, URL, e-mail or phone content.",
             ));
         }
@@ -284,7 +284,7 @@ pub fn validate_translations_with_profile(
                 Some("record_id|record_sub_id|field_value"),
                 None,
                 None,
-                "feed_info çevirileri record_id, record_sub_id veya field_value kullanamaz.".to_string(),
+                "feed_info translations cannot use record_id, record_sub_id or field_value.".to_string(),
                 "Leave record_id, record_sub_id and field_value empty for feed_info rows.",
             ));
         }
@@ -301,7 +301,7 @@ pub fn validate_translations_with_profile(
                 &mut counter, "TRN_017", EntityType::Row, record_id.clone(),
                 Some(&row_map), &file.name, Some(line), Some("record_sub_id"),
                 None, Some("stop_sequence".to_string()),
-                "stop_times çevirisinde record_id verilmiş ama record_sub_id eksik — çeviri hangi satıra ait olduğunu söylemiyor.".to_string(),
+                "A stop_times translation sets record_id but omits record_sub_id, so the row it belongs to is ambiguous.".to_string(),
                 "Enter the matching stop_sequence value in record_sub_id.",
             ));
         }
@@ -322,7 +322,7 @@ pub fn validate_translations_with_profile(
                 Some("record_sub_id"),
                 record_sub_id.clone(),
                 None,
-                "record_sub_id yalnızca stop_times çevirileri için kullanılabilir.".to_string(),
+                "record_sub_id is only valid for stop_times translations.".to_string(),
                 "Leave record_sub_id empty unless table_name=stop_times.",
             ));
         }

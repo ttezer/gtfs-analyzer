@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import tr, { trRemediationTexts } from '../locales/tr';
-import { tRemediationForLocale } from '../i18n';
+import tr, { trMessageTexts, trRemediationTexts } from '../locales/tr';
+import { tMsgForLocale, tRemediationForLocale } from '../i18n';
 
 // Issue #201: the engine's source text moves to English step by step. Rules already moved
 // show the Turkish dictionary text in the Turkish UI; the others still show the engine text.
@@ -32,5 +32,15 @@ describe('Turkish remediation dictionary', () => {
 
   it('keeps the engine text for a rule that is not in the dictionary', () => {
     expect(tRemediationForLocale('tr', { rule_id: 'NOPE_999', remediation: 'motorun metni' })).toBe('motorun metni');
+  });
+
+  it('matches a fixed message by the engine message text', () => {
+    const fixed = Object.entries(trMessageTexts)
+      .flatMap(([ruleId, byText]) => Object.entries(byText).map(([engine, text]) => ({ ruleId, engine, text })));
+    expect(fixed.length).toBeGreaterThan(0);
+    for (const { ruleId, engine, text } of fixed) {
+      expect(tMsgForLocale('tr', { rule_id: ruleId, message: engine })).toBe(text);
+    }
+    expect(tMsgForLocale('tr', { rule_id: fixed[0].ruleId, message: 'değerli motor mesajı' })).toBe('değerli motor mesajı');
   });
 });

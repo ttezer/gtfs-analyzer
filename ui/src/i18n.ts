@@ -1,5 +1,5 @@
 import type { Severity, RuleClass, FatalCode, FatalError } from './types';
-import tr, { trRemediationTexts } from './locales/tr';
+import tr, { trMessageTexts, trRemediationTexts } from './locales/tr';
 import en from './locales/en';
 import ja from './locales/ja';
 import fr from './locales/fr';
@@ -113,7 +113,8 @@ export function tMsg(n: NoticeLike): string {
 
 /** Translate a notice without mutating the application's active locale. */
 export function tMsgForLocale(locale: Locale, n: NoticeLike): string {
-  if (locale === 'tr') return n.message;
+  // Fixed messages moved to the Turkish dictionary are matched by the engine's own text (issue #201).
+  if (locale === 'tr') return trMessageTexts[n.rule_id]?.[n.message] ?? n.message;
   // JA: fall back to the EN template when there is no Japanese message
   const profile = n.details?.jp_profile?.toLowerCase();
   const variant = profile ? `${n.rule_id}.${profile}` : n.rule_id;

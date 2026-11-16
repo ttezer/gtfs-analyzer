@@ -107,7 +107,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 Some("pathway_id"),
                 Some(String::new()),
                 None,
-                "pathway_id zorunludur.".to_string(),
+                "pathway_id is required.".to_string(),
                 "Give every pathway a unique pathway_id.",
             ));
         }
@@ -154,7 +154,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 Some("pathway_mode"),
                 Some(String::new()),
                 None,
-                "pathway_mode zorunludur.".to_string(),
+                "pathway_mode is required.".to_string(),
                 "Set pathway_mode to a value between 1 and 7.",
             ));
         }
@@ -170,7 +170,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 Some("is_bidirectional"),
                 Some(String::new()),
                 None,
-                "is_bidirectional zorunludur.".to_string(),
+                "is_bidirectional is required.".to_string(),
                 "Set is_bidirectional to 0 or 1.",
             ));
         }
@@ -245,7 +245,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 Some("from_stop_id"),
                 Some(String::new()),
                 None,
-                "from_stop_id zorunludur.".to_string(),
+                "from_stop_id is required.".to_string(),
                 "Enter the pathway start stop.",
             ));
         }
@@ -261,7 +261,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 Some("to_stop_id"),
                 Some(String::new()),
                 None,
-                "to_stop_id zorunludur.".to_string(),
+                "to_stop_id is required.".to_string(),
                 "Enter the pathway end stop.",
             ));
         }
@@ -278,7 +278,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 Some("from_stop_id|to_stop_id"),
                 Some(from_stop_id.to_string()),
                 None,
-                "from_stop_id ve to_stop_id aynı.".to_string(),
+                "from_stop_id and to_stop_id are the same.".to_string(),
                 "Specify two different stops in each pathway row.",
             ));
         }
@@ -298,7 +298,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 Some("pathway_mode|is_bidirectional"),
                 Some("pathway_mode=7, is_bidirectional=1".to_string()),
                 Some("is_bidirectional=0".to_string()),
-                "Çıkış kapısı geçitleri çift yönlü olamaz.".to_string(),
+                "Exit gate pathways cannot be bidirectional.".to_string(),
                 "Set is_bidirectional to 0 for pathway_mode=7.",
             ));
         }
@@ -338,7 +338,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 Some("max_slope"),
                 max_slope.map(|v| v.to_string()),
                 Some("pathway_mode 1 or 3".to_string()),
-                "max_slope yalnızca pathway_mode 1 veya 3 için geçerlidir.".to_string(),
+                "max_slope is only valid for pathway_mode 1 or 3.".to_string(),
                 "The specification recommends max_slope only for walkways (pathway_mode=1) and moving sidewalks (3).",
             ));
         }
@@ -352,7 +352,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                     &mut counter, "PTH_027", EntityType::Pathway, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("stair_count"),
                     Some("0".to_string()), Some("0 dışında tam sayı".to_string()),
-                    "stair_count sıfır olamaz — pozitif değer yukarı, negatif aşağı yönü gösterir.".to_string(),
+                    "stair_count cannot be zero — a positive value means up, a negative value means down.".to_string(),
                     "Change stair_count to the real number of steps (positive going up, negative going down) or leave the field empty.",
                 ));
                 None

@@ -52,7 +52,7 @@ pub fn validate_rider_categories(
                 Some("rider_category_name"),
                 None,
                 Some("dolu".to_string()),
-                "rider_category_name zorunludur.".to_string(),
+                "rider_category_name is required.".to_string(),
                 "Provide a name for each rider category.",
             ));
         }
@@ -72,7 +72,7 @@ pub fn validate_rider_categories(
                             Some("is_default_fare_category"),
                             Some(v.to_string()),
                             Some("0 or 1".to_string()),
-                            "is_default_fare_category geçerli bir enum değeri değil.".to_string(),
+                            "is_default_fare_category is not a valid enum value.".to_string(),
                             "Use 0 (not the default) or 1 (default).",
                         ));
                     }
@@ -176,7 +176,7 @@ pub fn validate_rider_categories(
                     Some("eligibility_url"),
                     Some(url.clone()),
                     None,
-                    "eligibility_url geçerli bir URL değil.".to_string(),
+                    "eligibility_url is not a valid URL.".to_string(),
                     "Use a valid http/https URL for eligibility_url.",
                 ));
             }

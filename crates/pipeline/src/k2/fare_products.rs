@@ -108,7 +108,7 @@ pub fn validate_fare_products(file: &RawFile) -> (Vec<FareProductRecord>, Vec<gt
                 Some("currency"),
                 Some(currency.clone()),
                 Some("ISO 4217".to_string()),
-                "currency geçerli bir ISO 4217 kodu değil.".to_string(),
+                "currency is not a valid ISO 4217 code.".to_string(),
                 "Use a 3-letter uppercase ISO 4217 currency code (e.g., TRY, EUR, USD).",
             ));
         }

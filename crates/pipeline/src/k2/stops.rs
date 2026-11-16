@@ -65,7 +65,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                 Some("stop_id"),
                 Some(String::new()),
                 None,
-                "stop_id zorunludur.".to_string(),
+                "stop_id is required.".to_string(),
                 "Fill in the stop_id field.",
             );
             // Planner context: the code-less row's name, code and position.
@@ -448,7 +448,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                             &mut counter, "STP_013", EntityType::Stop, entity_id.clone(),
                             Some(&row_map), &file.name, Some(line), Some("wheelchair_boarding"),
                             Some(val.to_string()), Some("0, 1 or 2".to_string()),
-                            "wheelchair_boarding 0, 1 veya 2 olmalıdır.".to_string(),
+                            "wheelchair_boarding must be 0, 1 or 2.".to_string(),
                             "Set wheelchair_boarding to 0 (no info), 1 (accessible) or 2 (not accessible).",
                         ));
                     }
@@ -783,7 +783,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             None,
             None,
             None,
-            "stops.txt dosyasında hiç durak kaydı yok.".to_string(),
+            "No stops found in stops.txt.".to_string(),
             "Add at least one stop record to stops.txt, or reference a valid locations.geojson zone with stop_times.location_id.",
         ));
     }

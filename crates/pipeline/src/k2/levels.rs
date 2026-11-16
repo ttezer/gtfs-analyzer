@@ -38,7 +38,7 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
                 Some("level_id"),
                 Some(String::new()),
                 None,
-                "level_id zorunludur.".to_string(),
+                "level_id is required.".to_string(),
                 "Give every level a unique level_id.",
             ));
         }
@@ -59,7 +59,7 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
                         Some("level_index"),
                         Some(String::new()),
                         None,
-                        "level_index zorunludur.".to_string(),
+                        "level_index is required.".to_string(),
                         "Fill in the level_index field with a numeric value.",
                     ));
                 }
@@ -99,7 +99,7 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
                 Some("level_name"),
                 Some(String::new()),
                 None,
-                "level_name önerilen ancak eksik.".to_string(),
+                "level_name is recommended but missing.".to_string(),
                 "Add a readable level_name.",
             ));
         }

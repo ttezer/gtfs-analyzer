@@ -61,7 +61,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                 Some("trip_id"),
                 Some(String::new()),
                 None,
-                "trip_id zorunludur.".to_string(),
+                "trip_id is required.".to_string(),
                 "Fill in trip_id.",
             ));
         }
@@ -81,7 +81,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                         Some("start_time"),
                         Some(String::new()),
                         Some("HH:MM:SS".to_string()),
-                        "start_time zorunludur.".to_string(),
+                        "start_time is required.".to_string(),
                         "Enter start_time in HH:MM:SS format.",
                     ));
                 }
@@ -121,7 +121,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                         Some("end_time"),
                         Some(String::new()),
                         Some("HH:MM:SS".to_string()),
-                        "end_time zorunludur.".to_string(),
+                        "end_time is required.".to_string(),
                         "Enter end_time in HH:MM:SS format.",
                     ));
                 }
@@ -164,7 +164,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                                 Some("headway_secs"),
                                 Some(String::new()),
                                 Some("> 0".to_string()),
-                                "headway_secs zorunludur.".to_string(),
+                                "headway_secs is required.".to_string(),
                                 "Enter headway_secs as a positive integer.",
                             ));
                         }
@@ -184,7 +184,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                                 Some("headway_secs"),
                                 Some("0".to_string()),
                                 Some("> 0".to_string()),
-                                "headway_secs sıfırdan büyük olmalıdır.".to_string(),
+                                "headway_secs must be greater than zero.".to_string(),
                                 "Set headway_secs to a positive number of seconds.",
                             ));
                         }
@@ -237,7 +237,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                     Some("end_time"),
                     get_trimmed_field(&row_map, "end_time").map(str::to_string),
                     Some("start_time'dan sonra".to_string()),
-                    "end_time, start_time'dan sonra olmalıdır.".to_string(),
+                    "end_time must be after start_time.".to_string(),
                     "Set end_time to be after start_time.",
                 ));
             }

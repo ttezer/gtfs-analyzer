@@ -2454,7 +2454,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     Some("trip_id"),
                     Some(String::new()),
                     None,
-                    "trip_id zorunludur.".to_string(),
+                    "trip_id is required.".to_string(),
                     "Enter a valid trip_id on every stop_times row.",
                 ));
             }
@@ -2475,7 +2475,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             Some("stop_sequence"),
                             Some(String::new()),
                             None,
-                            "stop_sequence zorunludur.".to_string(),
+                            "stop_sequence is required.".to_string(),
                             "Enter stop_sequence as a non-negative integer.",
                         ));
                     }
@@ -2602,7 +2602,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     Some("stop_id"),
                     Some(String::new()),
                     None,
-                    "stop_id zorunludur.".to_string(),
+                    "stop_id is required.".to_string(),
                     "Fill in the stop_id field.",
                 ));
             }
@@ -2976,7 +2976,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             &mut st.counter, "STM_030", EntityType::Trip, eid(),
                             None, &file.name, Some(line), Some("shape_dist_traveled"),
                             Some(d.to_string()), Some(">= 0".to_string()),
-                            "shape_dist_traveled negatif olamaz.".to_string(),
+                            "shape_dist_traveled cannot be negative.".to_string(),
                             "Set shape_dist_traveled to zero or a positive number.",
                         ));
                         }

@@ -68,7 +68,7 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
                 Some("organization_name"),
                 Some(String::new()),
                 None,
-                "organization_name zorunludur.".to_string(),
+                "organization_name is required.".to_string(),
                 "Fill in the organization_name field.",
             ));
         }
@@ -130,7 +130,7 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
                     Some("attribution_url"),
                     Some(url.to_string()),
                     None,
-                    "attribution_url geçerli bir URL değil.".to_string(),
+                    "attribution_url is not a valid URL.".to_string(),
                     "Use a valid http/https URL for attribution_url.",
                 ));
             }
@@ -152,7 +152,7 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
                     Some("attribution_email"),
                     Some(email.to_string()),
                     None,
-                    "attribution_email geçerli bir e-posta adresi değil.".to_string(),
+                    "attribution_email is not a valid email address.".to_string(),
                     "Use a valid e-mail address for attribution_email.",
                 ));
             }

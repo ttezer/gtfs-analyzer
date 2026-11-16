@@ -91,7 +91,7 @@ fn validate_fare_attributes_inner(
                 Some("fare_id"),
                 Some(String::new()),
                 None,
-                "fare_id zorunludur.".to_string(),
+                "fare_id is required.".to_string(),
                 "Give every fare a unique fare_id.",
             ));
         }
@@ -140,7 +140,7 @@ fn validate_fare_attributes_inner(
                             Some("price"),
                             Some(v.to_string()),
                             Some(">= 0".to_string()),
-                            "price negatif olamaz.".to_string(),
+                            "price cannot be negative.".to_string(),
                             "Set price to zero or a positive value.",
                         ));
                     }
@@ -235,7 +235,7 @@ fn validate_fare_attributes_inner(
                 Some("currency_type"),
                 Some(currency_type.clone()),
                 Some("ISO 4217".to_string()),
-                "currency_type geçerli bir ISO 4217 kodu değil.".to_string(),
+                "currency_type is not a valid ISO 4217 code.".to_string(),
                 "Use a 3-letter uppercase ISO 4217 currency code (e.g., TRY, EUR).",
             ));
         }
@@ -266,7 +266,7 @@ fn validate_fare_attributes_inner(
                 Some("payment_method"),
                 Some(String::new()),
                 None,
-                "payment_method zorunludur.".to_string(),
+                "payment_method is required.".to_string(),
                 "Set payment_method to 0 (on board) or 1 (before boarding).",
             ));
         }

@@ -253,7 +253,7 @@ pub fn validate_calendar_dates_with_limits(
                 Some("service_id"),
                 Some(String::new()),
                 None,
-                "service_id zorunludur.".to_string(),
+                "service_id is required.".to_string(),
                 "Fill in the service_id field.",
             ));
             // Planner context: a row without a calendar is found by its date and kind.

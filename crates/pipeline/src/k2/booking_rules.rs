@@ -246,7 +246,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     &mut ctr, "BKR_004", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_duration_min"),
                     Some(btype_str.clone()), Some("(boş)".to_string()),
-                    "booking_type=0 (anlık rezervasyon) iken prior_notice alanları dolu olmamalı.".to_string(),
+                    "prior_notice fields must be empty when booking_type=0 (real-time booking).".to_string(),
                     "Remove prior_notice fields for instant booking or correct the booking_type value.",
                 ));
             }
@@ -258,7 +258,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     &file.name, Some(line), Some("prior_notice_duration_max"),
                     get_trimmed_field(&row_map, "prior_notice_duration_max").map(str::to_string),
                     Some("(boş)".to_string()),
-                    "booking_type=2 iken prior_notice_duration_max yasaktır.".to_string(),
+                    "prior_notice_duration_max is forbidden when booking_type=2.".to_string(),
                     "prior_notice_duration_max can only be used with booking_type=1 (same-day).",
                 ));
             }
@@ -273,7 +273,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     &file.name, Some(line), Some("prior_notice_duration_min"),
                     get_trimmed_field(&row_map, "prior_notice_duration_min").map(str::to_string),
                     Some("(boş)".to_string()),
-                    "booking_type=2 iken prior_notice_duration_min yasaktır.".to_string(),
+                    "prior_notice_duration_min is forbidden when booking_type=2.".to_string(),
                     "prior_notice_duration_min can only be used with booking_type=1 (same-day).",
                 ));
             }
@@ -304,7 +304,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     Some("prior_notice_duration_min"),
                     None,
                     Some("integer > 0".to_string()),
-                    "booking_type=1 iken prior_notice_duration_min zorunludur.".to_string(),
+                    "prior_notice_duration_min is required when booking_type=1.".to_string(),
                     "Enter the minimum advance notice (minutes) for same-day booking.",
                 ));
             }
@@ -353,7 +353,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     Some("prior_notice_last_day"),
                     None,
                     Some("integer ≥ 0".to_string()),
-                    "booking_type=2 iken prior_notice_last_day zorunludur.".to_string(),
+                    "prior_notice_last_day is required when booking_type=2.".to_string(),
                     "Enter the last notice day for prior-day booking.",
                 ));
             }
@@ -371,7 +371,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     Some("prior_notice_last_time"),
                     None,
                     Some("HH:MM:SS".to_string()),
-                    "booking_type=2 iken prior_notice_last_time zorunludur.".to_string(),
+                    "prior_notice_last_time is required when booking_type=2.".to_string(),
                     "Enter the time of the last notice day (HH:MM:SS).",
                 ));
             }
@@ -392,7 +392,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                         Some("prior_notice_duration_min"),
                         Some(v.to_string()),
                         Some("> 0".to_string()),
-                        "prior_notice_duration_min sıfır veya negatif olamaz.".to_string(),
+                        "prior_notice_duration_min cannot be zero or negative.".to_string(),
                         "Enter the minimum notice period as a positive number of minutes.",
                     ));
                 }
@@ -409,7 +409,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                         get_trimmed_field(&row_map, "prior_notice_duration_min")
                             .map(str::to_string),
                         Some("integer > 0".to_string()),
-                        "prior_notice_duration_min sayısal bir değer değil.".to_string(),
+                        "prior_notice_duration_min is not a numeric value.".to_string(),
                         "Enter a valid integer (minutes).",
                     ));
                 }
@@ -426,7 +426,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 &file.name, Some(line), Some("prior_notice_start_day"),
                 get_trimmed_field(&row_map, "prior_notice_start_day").map(str::to_string),
                 Some("(boş)".to_string()),
-                "booking_type=1 ve prior_notice_duration_max tanımlıyken prior_notice_start_day yasaktır.".to_string(),
+                "prior_notice_start_day is forbidden when booking_type=1 and prior_notice_duration_max is set.".to_string(),
                 "Clear prior_notice_start_day, or remove prior_notice_duration_max.",
             ));
         }
@@ -437,7 +437,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 &mut ctr, "BKR_003", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("prior_notice_start_time"),
                 get_trimmed_field(&row_map, "prior_notice_start_time").map(str::to_string), None,
-                "prior_notice_start_time yalnızca prior_notice_start_day ile birlikte kullanılabilir.".to_string(),
+                "prior_notice_start_time can only be used together with prior_notice_start_day.".to_string(),
                 "Add prior_notice_start_day or remove prior_notice_start_time.",
             ));
         }
@@ -451,7 +451,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 &mut ctr, "BKR_013", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("prior_notice_last_time"),
                 get_trimmed_field(&row_map, "prior_notice_last_time").map(str::to_string), None,
-                "prior_notice_last_time yalnızca prior_notice_last_day ile birlikte kullanılabilir.".to_string(),
+                "prior_notice_last_time can only be used together with prior_notice_last_day.".to_string(),
                 "Add prior_notice_last_day or remove prior_notice_last_time.",
             ));
         }
@@ -469,7 +469,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 Some("prior_notice_start_time"),
                 None,
                 Some("HH:MM:SS".to_string()),
-                "prior_notice_start_day belirtilmişse prior_notice_start_time zorunludur."
+                "prior_notice_start_time is required when prior_notice_start_day is set."
                     .to_string(),
                 "Enter the start time of the early booking window (HH:MM:SS).",
             ));
@@ -495,13 +495,13 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
             (
                 "booking_url",
                 "BKR_020",
-                "booking_url geçerli bir URL değil.",
+                "booking_url is not a valid URL.",
                 "Use a valid http/https URL for booking_url.",
             ),
             (
                 "info_url",
                 "BKR_021",
-                "info_url geçerli bir URL değil.",
+                "info_url is not a valid URL.",
                 "Use a valid http/https URL for info_url.",
             ),
         ] {

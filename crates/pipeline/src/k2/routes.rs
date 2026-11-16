@@ -82,7 +82,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                 Some("route_id"),
                 Some(String::new()),
                 None,
-                "route_id zorunludur.".to_string(),
+                "route_id is required.".to_string(),
                 "Give every row in routes.txt a unique route_id.",
             );
             // Planner context: the code-less row's number and name.
@@ -116,7 +116,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             notices.push(make_k2_notice(
                 &mut counter, "RTS_003", EntityType::Route, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("route_short_name|route_long_name"), None, None,
-                "route_short_name ve route_long_name alanlarının her ikisi de boş; en az biri zorunludur.".to_string(),
+                "Both route_short_name and route_long_name are empty; at least one is required.".to_string(),
                 "Fill in route_short_name or route_long_name.",
             ));
         }
@@ -293,7 +293,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                     Some("route_url"),
                     Some(url.clone()),
                     None,
-                    "route_url geçerli bir URL değil.".to_string(),
+                    "route_url is not a valid URL.".to_string(),
                     "Use a valid http/https URL for route_url.",
                 ));
             }
@@ -316,7 +316,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                     Some("route_color"),
                     Some(color.clone()),
                     Some("6 haneli hex".to_string()),
-                    "route_color 6 karakterli hex renk kodu olmalıdır.".to_string(),
+                    "route_color must be a 6-character hex color code.".to_string(),
                     "Use a valid 6-digit hex colour (e.g., FF0000).",
                 ));
             }
@@ -339,7 +339,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                     Some("route_text_color"),
                     Some(color.clone()),
                     Some("6 haneli hex".to_string()),
-                    "route_text_color 6 karakterli hex renk kodu olmalıdır.".to_string(),
+                    "route_text_color must be a 6-character hex color code.".to_string(),
                     "Use a valid 6-digit hex colour (e.g., FFFFFF).",
                 ));
             }
@@ -479,7 +479,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                             &mut counter, "RTS_024", EntityType::Route, entity_id.clone(), Some(&row_map),
                             &file.name, Some(line), Some("cemv_support"), Some(val.to_string()),
                             Some("0, 1 or 2".to_string()),
-                            "cemv_support 0, 1 veya 2 olmalıdır.".to_string(),
+                            "cemv_support must be 0, 1 or 2.".to_string(),
                             "Set cemv_support to 0 (no info), 1 (supported) or 2 (not supported).",
                         ));
                     }

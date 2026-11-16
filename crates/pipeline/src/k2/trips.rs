@@ -426,7 +426,7 @@ pub fn validate_trips_with_limits(
                 Some("trip_id"),
                 Some(String::new()),
                 None,
-                "trip_id zorunludur.".to_string(),
+                "trip_id is required.".to_string(),
                 "Assign a unique trip_id to each trip.",
             );
             // A row without an identity cannot say which trip is its root: if scope_key remains
@@ -472,7 +472,7 @@ pub fn validate_trips_with_limits(
                 Some("route_id"),
                 Some(String::new()),
                 None,
-                "route_id zorunludur.".to_string(),
+                "route_id is required.".to_string(),
                 "Assign a valid route_id to every trip.",
             );
             row_context(
@@ -502,7 +502,7 @@ pub fn validate_trips_with_limits(
                 Some("service_id"),
                 Some(String::new()),
                 Some("(dolu)".to_string()),
-                "service_id zorunludur; boş bırakılan sefer hiçbir takvime bağlanmaz.".to_string(),
+                "service_id is required; a trip left empty is attached to no calendar.".to_string(),
                 "Assign every trip a service_id defined in calendar.txt or calendar_dates.txt.",
             );
             row_context(
@@ -637,7 +637,7 @@ pub fn validate_trips_with_limits(
                             &mut counter, "TRP_006", EntityType::Trip, entity_id.clone(),
                             None, &file.name, Some(line), Some("wheelchair_accessible"),
                             Some(val.to_string()), Some("0, 1 or 2".to_string()),
-                            "wheelchair_accessible 0, 1 veya 2 olmalıdır.".to_string(),
+                            "wheelchair_accessible must be 0, 1 or 2.".to_string(),
                             "Set wheelchair_accessible to 0 (no info), 1 (accessible) or 2 (not accessible).",
                         ));
                     }
@@ -669,7 +669,7 @@ pub fn validate_trips_with_limits(
                             &mut counter, "TRP_007", EntityType::Trip, entity_id.clone(),
                             None, &file.name, Some(line), Some("bikes_allowed"),
                             Some(val.to_string()), Some("0, 1 or 2".to_string()),
-                            "bikes_allowed 0, 1 veya 2 olmalıdır.".to_string(),
+                            "bikes_allowed must be 0, 1 or 2.".to_string(),
                             "Set bikes_allowed to 0 (no info), 1 (allowed) or 2 (not allowed).",
                         ));
                     }
@@ -715,7 +715,7 @@ pub fn validate_trips_with_limits(
                             &mut counter, "TRP_032", EntityType::Trip, entity_id.clone(),
                             None, &file.name, Some(line), Some("cars_allowed"),
                             Some(val.to_string()), Some("0, 1 or 2".to_string()),
-                            "cars_allowed 0, 1 veya 2 olmalıdır.".to_string(),
+                            "cars_allowed must be 0, 1 or 2.".to_string(),
                             "Set cars_allowed to 0 (no info), 1 (allowed) or 2 (not allowed).",
                         ));
                     }
