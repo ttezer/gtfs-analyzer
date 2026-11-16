@@ -3117,7 +3117,7 @@ fn check_fare_rules(
             "fare_rules.txt", Some(*line), Some(field),
             Some((*zid).to_string()), None,
             format!("{field} '{zid}' stops.txt'te tanımlı bir zone_id değil ({rows} fare_rules satırında kullanılıyor)."),
-            "Geçerli bir zone_id kullanın.",
+            "Use a valid zone_id.",
         ), *rows));
         if let Some(rec) = rule_by_line.get(line) {
             fare_rule_context(notices.last_mut(), rec, records, map);
@@ -6934,7 +6934,7 @@ fn check_xfl(
                         Some(stop_id.to_string()),
                         None,
                         format!("{field} '{stop_id}' stops.txt'te tanımlı değil."),
-                        "Geçerli bir stop_id kullanın.",
+                        "Use a valid stop_id.",
                     ));
                 }
             }

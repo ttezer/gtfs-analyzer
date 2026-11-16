@@ -619,7 +619,7 @@ fn parse_nonnegative_f64(
                         Some(v.to_string()),
                         Some(">= 0".to_string()),
                         format!("{field} alanı negatif olamaz."),
-                        "Alanı sıfır veya pozitif bir değere ayarlayın.",
+                        "Set the field to zero or a positive value.",
                     ));
                 }
             }
@@ -638,7 +638,7 @@ fn parse_nonnegative_f64(
                 get_trimmed_field(row_map, field).map(str::to_string),
                 None,
                 err,
-                "Alanı geçerli bir sayısal değere ayarlayın.",
+                "Set the field to a valid numeric value.",
             ));
             None
         }
@@ -674,7 +674,7 @@ fn parse_positive_f64(
                         Some(v.to_string()),
                         Some("> 0".to_string()),
                         format!("{field} alanı pozitif olmalıdır."),
-                        "Alanı pozitif bir değere ayarlayın.",
+                        "Set the field to a positive value.",
                     ));
                 }
             }
@@ -693,7 +693,7 @@ fn parse_positive_f64(
                 get_trimmed_field(row_map, field).map(str::to_string),
                 None,
                 err,
-                "Alanı geçerli bir sayısal değere ayarlayın.",
+                "Set the field to a valid numeric value.",
             ));
             None
         }
@@ -729,7 +729,7 @@ fn parse_positive_u32(
                         Some(v.to_string()),
                         Some("> 0".to_string()),
                         format!("{field} alanı pozitif olmalıdır."),
-                        "Alanı pozitif bir tam sayıya ayarlayın.",
+                        "Set the field to a positive integer.",
                     ));
                 }
             }
@@ -748,7 +748,7 @@ fn parse_positive_u32(
                 get_trimmed_field(row_map, field).map(str::to_string),
                 None,
                 err,
-                "Alanı geçerli bir tam sayıya ayarlayın.",
+                "Set the field to a valid integer.",
             ));
             None
         }

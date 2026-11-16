@@ -158,6 +158,9 @@
     "FPD_007": "Tutarları para biriminin ondalık basamak sayısıyla yazın (ör. EUR için 0.90, JPY için 150).",
     "FRL_001": "Geçerli bir fare_id kullanın ya da fare_attributes.txt'e tanımını ekleyin.",
     "FRL_002": "Geçerli bir route_id kullanın.",
+    "FRL_003": "Geçerli bir zone_id kullanın.",
+    "FRL_004": "Geçerli bir zone_id kullanın.",
+    "FRL_005": "Geçerli bir zone_id kullanın.",
     "FRL_006": "fare_rules.txt'e ücret kuralları ekleyin veya ücret tarifelerini kaldırın.",
     "FRL_007": "En az bir ayrıştırıcı kriter (route_id, origin_id, destination_id veya contains_id) belirtin.",
     "FRL_008": "Tüm hatlar için fare_rules.txt'e kapsayan kurallar ekleyin veya zone tabanlı ücretlendirmeye geçin.",
@@ -257,6 +260,8 @@
     "OPR_025": "stop_times.txt'deki departure_time ve arrival_time değerlerini kontrol edin.",
     "PDW_006": "Aynı trip+zone içinde biniş (veya iniş) açık satırların zaman pencerelerinin örtüşmediğinden emin olun.",
     "PTH_001": "Her geçide benzersiz bir pathway_id atayın.",
+    "PTH_002": "Geçerli bir stop_id kullanın.",
+    "PTH_003": "Geçerli bir stop_id kullanın.",
     "PTH_008": "İlgili pathways.txt kayıtlarına stair_count ekleyin veya veri kaynağını düzeltin.",
     "PTH_009": "İlgili pathways.txt kayıtlarına max_slope ekleyin veya veri kaynağını düzeltin.",
     "PTH_011": "Her pathway satırında iki farklı durak belirtin.",
@@ -614,6 +619,18 @@
       "Make the accessibility information consistent across all trips of the route.": "Aynı hattaki tüm seferlerin erişilebilirlik bilgisini tutarlı hâle getirin.",
       "Make the bike policy consistent across all trips of the route.": "Aynı hattaki tüm seferlerin bisiklet politikasını tutarlı hâle getirin."
     },
+    "PTH_006": {
+      "Set the field to a valid numeric value.": "Alanı geçerli bir sayısal değere ayarlayın.",
+      "Set the field to zero or a positive value.": "Alanı sıfır veya pozitif bir değere ayarlayın."
+    },
+    "PTH_007": {
+      "Set the field to a positive integer.": "Alanı pozitif bir tam sayıya ayarlayın.",
+      "Set the field to a valid integer.": "Alanı geçerli bir tam sayıya ayarlayın."
+    },
+    "PTH_010": {
+      "Set the field to a positive value.": "Alanı pozitif bir değere ayarlayın.",
+      "Set the field to a valid numeric value.": "Alanı geçerli bir sayısal değere ayarlayın."
+    },
     "PTH_012": {
       "Add a station entrance (location_type=2) and complete the pathway connections.": "İstasyona giriş noktası (location_type=2) ekleyin ve pathway bağlantılarını tamamlayın.",
       "Complete the pathway connections between an entrance and this platform.": "Entrance ile bu platform arasındaki pathway bağlantılarını tamamlayın."
@@ -634,6 +651,14 @@
       "Enter a numeric route_type.": "Geçerli bir sayısal route_type girin.",
       "Enter a valid route_type (0-7, 11, 12).": "Geçerli bir route_type girin (0-7, 11, 12).",
       "Use a valid route_type (0-7, 11, 12).": "Geçerli bir route_type kullanın (0-7, 11, 12)."
+    },
+    "RTS_013": {
+      "Enter one of the values 0, 1, 2 or 3.": "Alanı 0, 1, 2 veya 3 değerlerinden biri olarak girin.",
+      "Set the field to a valid GTFS continuous service value (0-3).": "Alanı geçerli bir GTFS sürekli servis değerine ayarlayın (0-3)."
+    },
+    "RTS_018": {
+      "Enter one of the values 0, 1, 2 or 3.": "Alanı 0, 1, 2 veya 3 değerlerinden biri olarak girin.",
+      "Set the field to a valid GTFS continuous service value (0-3).": "Alanı geçerli bir GTFS sürekli servis değerine ayarlayın (0-3)."
     },
     "SHP_002": {
       "Enter a value between -90 and 90 for shape_pt_lat.": "shape_pt_lat için -90 ile 90 arasında bir değer girin.",

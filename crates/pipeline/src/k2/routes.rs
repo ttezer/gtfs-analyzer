@@ -781,7 +781,7 @@ fn parse_continuous_field(
                         Some(val.to_string()),
                         Some("0-3".to_string()),
                         format!("{field} alanı 0, 1, 2 veya 3 olmalıdır."),
-                        "Alanı geçerli bir GTFS sürekli servis değerine ayarlayın (0-3).",
+                        "Set the field to a valid GTFS continuous service value (0-3).",
                     ));
                 }
             }
@@ -800,7 +800,7 @@ fn parse_continuous_field(
                 get_trimmed_field(row_map, field).map(str::to_string),
                 Some("0-3".to_string()),
                 err,
-                "Alanı 0, 1, 2 veya 3 değerlerinden biri olarak girin.",
+                "Enter one of the values 0, 1, 2 or 3.",
             ));
             None
         }
