@@ -1354,6 +1354,60 @@
       "Contactless fare media defined but no cemv_support=1 anywhere.": "Contactless fare media (fare_media_type=3) tanimli ama hicbir agency/route'da cemv_support=1 yok."
     }
   },
+  "message_templates": {
+    "STP_003": {
+      "A stop name (stop_name) is required for stop '{a0}'.": "'{a0}' durağı için durak adı (stop_name) zorunludur.",
+      "stop_lat {lat} is outside the range [-90, 90].": "stop_lat {lat} değeri [-90, 90] aralığı dışında."
+    },
+    "STP_005": {
+      "stop_lon {lon} is outside the range [-180, 180].": "stop_lon {lon} değeri [-180, 180] aralığı dışında."
+    },
+    "STP_006": {
+      "A latitude (stop_lat) is required for stop '{a0}'.": "'{a0}' durağı için enlem (stop_lat) zorunludur."
+    },
+    "STP_007": {
+      "A longitude (stop_lon) is required for stop '{a0}'.": "'{a0}' durağı için boylam (stop_lon) zorunludur."
+    },
+    "STP_008": {
+      "location_type {val} is not a valid value (must be 0-4).": "location_type {val} geçerli bir değer değil (0-4 olmalı)."
+    },
+    "STP_014": {
+      "stop_timezone '{tz}' is not a valid IANA time zone.": "stop_timezone '{tz}' geçerli bir IANA saat dilimi değil."
+    },
+    "STP_019": {
+      "Stop '{a0}' has a stop_name of {a1} characters; it exceeds 100 characters.": "'{a0}' durağının stop_name değeri {a1} karakter; 100 karakteri aşıyor."
+    },
+    "STP_022": {
+      "Stop '{a0}' has no stop_code.": "'{a0}' durağında stop_code eksik.",
+      "stop_code is missing on {n} stops (the feed uses stop_code partly) — riders cannot recognise these stops by a short code.": "{n} durakta stop_code eksik (feed'de stop_code kısmen kullanılıyor) — yolcular bu durakları kısa kodla tanıyamaz.",
+      "stop_code is not used anywhere in the feed: missing on {n} stops — riders cannot recognise a stop by a short code.": "Feed genelinde stop_code hiç kullanılmamış: {n} durakta eksik — yolcular durağı kısa kodla tanıyamaz."
+    },
+    "STP_023": {
+      "Stop '{a0}' has '<' or '>' in tts_stop_name.": "'{a0}' durağının tts_stop_name değeri '<' veya '>' karakteri içeriyor."
+    },
+    "STP_024": {
+      "Stop '{a0}' has an invalid stop_access '{val}'.": "'{a0}' durağında stop_access '{val}' geçersiz."
+    },
+    "STP_028": {
+      "Stop '{a0}' has a stop_code of {a1} characters; it exceeds 50 characters.": "'{a0}' durağının stop_code değeri {a1} karakter; 50 karakteri aşıyor."
+    },
+    "STP_031": {
+      "Stop '{a0}' has the same stop_name and stop_desc: '{a1}'.": "'{a0}' durağının stop_name ve stop_desc değerleri aynı: '{a1}'."
+    },
+    "STP_033": {
+      "Stop '{a0}' has no zone_id; fare calculations may be affected.": "'{a0}' durağında zone_id eksik; ücret hesaplamaları etkilenebilir.",
+      "zone_id is missing on {n33} stops — zone-based fare calculations may be affected.": "{n33} durakta zone_id eksik — ücret bölgesi tabanlı hesaplamalar etkilenebilir."
+    },
+    "STP_039": {
+      "stop_code '{code}' is used by both stop '{first_stop}' and stop '{stop_id}'.": "stop_code '{code}' hem '{first_stop}' hem '{stop_id}' duraklarında kullanılıyor."
+    },
+    "STP_044": {
+      "platform_code '{pc}' contains an unnecessary platform/track word; it should be the identifier only.": "platform_code '{pc}' gereksiz platform/track sözcüğü içeriyor; yalnız tanımlayıcı olmalı."
+    },
+    "STP_045": {
+      "{stp045_count} stops carry platform_code but have no parent_station — the platform is not linked to a station.": "{stp045_count} durak platform_code taşıyor ama parent_station boş — peron bir istasyona bağlanmamış."
+    }
+  },
   "titles": {
     "ARC_001": "ZIP arşivi açılamadı",
     "ARC_002": "Dosya UTF-8 ile okunamıyor",

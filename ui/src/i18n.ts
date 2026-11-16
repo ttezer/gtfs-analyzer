@@ -1,5 +1,5 @@
 import type { Severity, RuleClass, FatalCode, FatalError } from './types';
-import tr, { trMessageTexts, trRemediationTexts } from './locales/tr';
+import tr, { trMessageTemplates, trMessageTexts, trRemediationTexts } from './locales/tr';
 import en from './locales/en';
 import ja from './locales/ja';
 import fr from './locales/fr';
@@ -111,10 +111,78 @@ export function tMsg(n: NoticeLike): string {
   return tMsgForLocale(_locale, n);
 }
 
+type TemplatePart = { text: string } | { hole: string };
+
+function templateParts(template: string): TemplatePart[] {
+  const parts: TemplatePart[] = [];
+  const re = /\{(\w+)\}/g;
+  let textStart = 0;
+  for (let m = re.exec(template); m; m = re.exec(template)) {
+    if (m.index > textStart) parts.push({ text: template.slice(textStart, m.index) });
+    parts.push({ hole: m[1] });
+    textStart = m.index + m[0].length;
+  }
+  if (textStart < template.length) parts.push({ text: template.slice(textStart) });
+  return parts;
+}
+
+/**
+ * Recovers the hole values of `template` from `text` — same rules as the Rust
+ * `match_template`: every split is tried, and an ambiguous message (two different splits)
+ * returns `null` so it keeps the engine's text.
+ */
+export function matchTemplate(template: string, text: string): Record<string, string> | null {
+  const parts = templateParts(template);
+  const found: Record<string, string>[] = [];
+  const caps: Record<string, string> = {};
+  const go = (i: number, pos: number): void => {
+    if (found.length > 1) return;
+    const part = parts[i];
+    if (!part) {
+      if (pos === text.length) found.push({ ...caps });
+      return;
+    }
+    if ('text' in part) {
+      if (text.startsWith(part.text, pos)) go(i + 1, pos + part.text.length);
+      return;
+    }
+    const next = parts[i + 1];
+    if (!next) {
+      caps[part.hole] = text.slice(pos);
+      go(i + 1, text.length);
+      delete caps[part.hole];
+      return;
+    }
+    if (!('text' in next)) return; // two holes in a row cannot be split
+    for (let at = text.indexOf(next.text, pos); at !== -1; at = text.indexOf(next.text, at + 1)) {
+      caps[part.hole] = text.slice(pos, at);
+      go(i + 1, at);
+      delete caps[part.hole];
+      if (found.length > 1) return;
+    }
+  };
+  go(0, 0);
+  return found.length === 1 ? found[0] : null;
+}
+
+/** The first template of the rule (in Rust's sorted order) that matches `message`, filled. */
+function translateByTemplate(templates: Record<string, string> | undefined, message: string): string | undefined {
+  if (!templates) return undefined;
+  for (const engine of Object.keys(templates).sort()) {
+    const caps = matchTemplate(engine, message);
+    if (caps) return templates[engine].replace(/\{(\w+)\}/g, (_, k: string) => caps[k] ?? '');
+  }
+  return undefined;
+}
+
 /** Translate a notice without mutating the application's active locale. */
 export function tMsgForLocale(locale: Locale, n: NoticeLike): string {
   // Fixed messages moved to the Turkish dictionary are matched by the engine's own text (issue #201).
-  if (locale === 'tr') return trMessageTexts[n.rule_id]?.[n.message] ?? n.message;
+  if (locale === 'tr') {
+    return trMessageTexts[n.rule_id]?.[n.message]
+      ?? translateByTemplate(trMessageTemplates[n.rule_id], n.message)
+      ?? n.message;
+  }
   // JA: fall back to the EN template when there is no Japanese message
   const profile = n.details?.jp_profile?.toLowerCase();
   const variant = profile ? `${n.rule_id}.${profile}` : n.rule_id;

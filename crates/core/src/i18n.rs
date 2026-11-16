@@ -16,7 +16,7 @@
 //! `crates/core/locales/`; the TypeScript locales stay
 //! the single source of truth and `locale-parity.test.ts` fails on drift.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
 
 use serde::Deserialize;
@@ -77,6 +77,12 @@ struct Dictionary {
     /// `remediation_texts`, for fixed (value-free) messages (issue #201).
     #[serde(default)]
     message_texts: HashMap<String, HashMap<String, String>>,
+    /// `RULE` → engine message TEMPLATE → this language's template. For messages that carry
+    /// runtime values (issue #201, phase F3): the engine writes the English message with the
+    /// values in it; the English template (`Stop '{stop}' has no name.`) recovers the values
+    /// and fills this language's template. Ordered so the match is deterministic.
+    #[serde(default)]
+    message_templates: BTreeMap<String, BTreeMap<String, String>>,
     #[serde(default)]
     cards: HashMap<String, RuleCard>,
 }
@@ -161,6 +167,13 @@ impl Translator {
             .and_then(|by_text| by_text.get(&notice.message))
         {
             notice.message = message.clone();
+        } else if let Some(message) = self
+            .primary
+            .message_templates
+            .get(&notice.rule_id)
+            .and_then(|templates| translate_by_template(templates, &notice.message))
+        {
+            notice.message = message;
         } else if let Some(template) = specific
             .as_deref()
             .and_then(|key| self.lookup(|d| &d.messages, key))
@@ -296,6 +309,106 @@ fn has_placeholder(text: &str) -> bool {
         part.split_once('}').is_some_and(|(key, _)| {
             !key.is_empty() && key.chars().all(|c| c.is_alphanumeric() || c == '_')
         })
+    })
+}
+
+/// A template split into literal text and `{name}` holes (same syntax as [`fill_with`]).
+enum Part<'a> {
+    Text(&'a str),
+    Hole(&'a str),
+}
+
+fn template_parts(template: &str) -> Vec<Part<'_>> {
+    let mut parts = Vec::new();
+    let mut text_start = 0;
+    let mut i = 0;
+    while let Some(rel) = template[i..].find('{') {
+        let open = i + rel;
+        let after = &template[open + 1..];
+        if let Some(close) = after.find('}') {
+            let key = &after[..close];
+            if !key.is_empty() && key.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                if open > text_start {
+                    parts.push(Part::Text(&template[text_start..open]));
+                }
+                parts.push(Part::Hole(key));
+                i = open + close + 2;
+                text_start = i;
+                continue;
+            }
+        }
+        i = open + 1;
+    }
+    if text_start < template.len() {
+        parts.push(Part::Text(&template[text_start..]));
+    }
+    parts
+}
+
+/// Recovers the hole values of `template` from `text`. Every way of splitting is tried;
+/// `None` when nothing matches OR when two splits give different values — an ambiguous
+/// message keeps the engine's text rather than risk a wrong translation.
+pub fn match_template(template: &str, text: &str) -> Option<HashMap<String, String>> {
+    fn go<'a>(
+        parts: &[Part<'a>],
+        text: &str,
+        pos: usize,
+        caps: &mut Vec<(&'a str, String)>,
+        found: &mut Vec<Vec<(&'a str, String)>>,
+    ) {
+        if found.len() > 1 {
+            return;
+        }
+        match parts.first() {
+            None => {
+                if pos == text.len() {
+                    found.push(caps.clone());
+                }
+            }
+            Some(Part::Text(lit)) => {
+                if text[pos..].starts_with(lit) {
+                    go(&parts[1..], text, pos + lit.len(), caps, found);
+                }
+            }
+            Some(Part::Hole(name)) => match parts.get(1) {
+                None => {
+                    caps.push((name, text[pos..].to_string()));
+                    go(&parts[1..], text, text.len(), caps, found);
+                    caps.pop();
+                }
+                Some(Part::Text(lit)) => {
+                    let mut from = pos;
+                    while let Some(at) = text[from..].find(lit) {
+                        let end = from + at;
+                        caps.push((name, text[pos..end].to_string()));
+                        go(&parts[1..], text, end, caps, found);
+                        caps.pop();
+                        // Next start: one character on, so overlapping occurrences are tried too.
+                        from = end + text[end..].chars().next().map_or(1, char::len_utf8);
+                        if from > text.len() {
+                            break;
+                        }
+                    }
+                }
+                // Two holes in a row cannot be split; templates are checked against this.
+                Some(Part::Hole(_)) => {}
+            },
+        }
+    }
+    let parts = template_parts(template);
+    let mut found = Vec::new();
+    go(&parts, text, 0, &mut Vec::new(), &mut found);
+    match found.as_slice() {
+        [one] => Some(one.iter().map(|(k, v)| ((*k).to_string(), v.clone())).collect()),
+        _ => None,
+    }
+}
+
+/// The first template of the rule that matches `message` exactly once, filled in this language.
+fn translate_by_template(templates: &BTreeMap<String, String>, message: &str) -> Option<String> {
+    templates.iter().find_map(|(engine, local)| {
+        let caps = match_template(engine, message)?;
+        Some(fill_with(local, |key| caps.get(key).cloned().unwrap_or_default()))
     })
 }
 
@@ -507,6 +620,70 @@ mod tests {
         // Messages and remediations stay the pipeline's Turkish text (issue #201).
         assert_eq!(n.message, "Türkçe mesaj");
         assert_eq!(&*n.remediation, "Türkçe çözüm");
+    }
+
+    /// Shared with `ui/src/__tests__/i18n-message-templates.test.ts`: both matchers must agree.
+    #[test]
+    fn template_matcher_follows_the_shared_cases() {
+        #[derive(serde::Deserialize)]
+        struct Case {
+            name: String,
+            template: String,
+            text: String,
+            expect: Option<HashMap<String, String>>,
+        }
+        let cases: Vec<Case> =
+            serde_json::from_str(include_str!("../../../tests/fixtures/i18n/template_match_cases.json"))
+                .expect("template cases");
+        assert!(cases.len() >= 10);
+        for case in cases {
+            assert_eq!(match_template(&case.template, &case.text), case.expect, "{}", case.name);
+        }
+    }
+
+    /// Every Turkish message template is usable: holes are separated by text and not repeated,
+    /// the Turkish side uses only holes the English side captures, and within a rule a message
+    /// built from one template matches that template only (so the order cannot matter).
+    #[test]
+    fn turkish_message_templates_are_well_formed_and_exclusive() {
+        let translator = Translator::new(Lang::Tr).unwrap().unwrap();
+        for (rule, templates) in &translator.primary.message_templates {
+            for (engine, turkish) in templates {
+                let parts = template_parts(engine);
+                let holes: Vec<&str> = parts
+                    .iter()
+                    .filter_map(|p| match p {
+                        Part::Hole(h) => Some(*h),
+                        Part::Text(_) => None,
+                    })
+                    .collect();
+                for pair in parts.windows(2) {
+                    assert!(
+                        !matches!(pair, [Part::Hole(_), Part::Hole(_)]),
+                        "{rule}: two holes in a row in {engine:?}"
+                    );
+                }
+                let unique: std::collections::BTreeSet<_> = holes.iter().collect();
+                assert_eq!(unique.len(), holes.len(), "{rule}: repeated hole in {engine:?}");
+                for part in template_parts(turkish) {
+                    if let Part::Hole(h) = part {
+                        assert!(holes.contains(&h), "{rule}: Turkish uses unknown hole {h}");
+                    }
+                }
+                let sample: HashMap<String, String> = holes
+                    .iter()
+                    .enumerate()
+                    .map(|(i, h)| ((*h).to_string(), format!("v{i}x")))
+                    .collect();
+                let message = fill_with(engine, |k| sample.get(k).cloned().unwrap_or_default());
+                assert_eq!(match_template(engine, &message).as_ref(), Some(&sample), "{rule}: {engine:?}");
+                let others: Vec<_> = templates
+                    .keys()
+                    .filter(|other| *other != engine && match_template(other, &message).is_some())
+                    .collect();
+                assert!(others.is_empty(), "{rule}: {engine:?} also matches {others:?}");
+            }
+        }
     }
 
     #[test]

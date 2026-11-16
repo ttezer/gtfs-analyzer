@@ -1,0 +1,16 @@
+[
+  { "name": "one hole", "template": "Stop '{a}' has no name.", "text": "Stop 'S1' has no name.", "expect": { "a": "S1" } },
+  { "name": "two holes", "template": "From {a} to {b}.", "text": "From X to Y.", "expect": { "a": "X", "b": "Y" } },
+  { "name": "trailing hole", "template": "Value: {v}", "text": "Value: 3 km", "expect": { "v": "3 km" } },
+  { "name": "leading hole", "template": "{n} rows are empty.", "text": "12 rows are empty.", "expect": { "n": "12" } },
+  { "name": "empty value", "template": "Stop '{a}'.", "text": "Stop ''.", "expect": { "a": "" } },
+  { "name": "unicode", "template": "Stop '{a}' is {d} away.", "text": "Stop 'Süd İğdır' is 3,5 km away.", "expect": { "a": "Süd İğdır", "d": "3,5 km" } },
+  { "name": "brace that is not a hole", "template": "Set {not a key} to {v}.", "text": "Set {not a key} to 3.", "expect": { "v": "3" } },
+  { "name": "value contains part of the next literal", "template": "Stop '{a}' is far.", "text": "Stop 'O'Hare' is far.", "expect": { "a": "O'Hare" } },
+  { "name": "no match", "template": "Stop '{a}'.", "text": "Route 'R'.", "expect": null },
+  { "name": "extra text after", "template": "Stop '{a}'.", "text": "Stop 'S1'. More", "expect": null },
+  { "name": "ambiguous split", "template": "{a} and {b}.", "text": "x and y and z.", "expect": null },
+  { "name": "ambiguous overlap", "template": "{a}aa{b}", "text": "xaaab", "expect": null },
+  { "name": "no holes, equal", "template": "Plain text.", "text": "Plain text.", "expect": {} },
+  { "name": "no holes, different", "template": "Plain text.", "text": "Plain text!", "expect": null }
+]

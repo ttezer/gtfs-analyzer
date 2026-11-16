@@ -89,7 +89,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                 let mut n039 = make_k2_notice(&mut counter, "STP_039", EntityType::Stop, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("stop_code"), Some(code.clone()),
                     Some("unique within the feed".to_string()),
-                    format!("stop_code '{code}' hem '{first_stop}' hem '{stop_id}' duraklarında kullanılıyor."),
+                    format!("stop_code '{code}' is used by both stop '{first_stop}' and stop '{stop_id}'."),
                     "Make every rider-facing stop_code unique within the feed.");
                 // Planner context: the stop that already carries the code.
                 n039.details
@@ -116,7 +116,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                     Some(code.len().to_string()),
                     Some("≤50".to_string()),
                     format!(
-                        "'{}' durağının stop_code değeri {} karakter; 50 karakteri aşıyor.",
+                        "Stop '{}' has a stop_code of {} characters; it exceeds 50 characters.",
                         stop_id,
                         code.len()
                     ),
@@ -146,7 +146,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                             Some("location_type"),
                             Some(val.to_string()),
                             Some("0-4".to_string()),
-                            format!("location_type {val} geçerli bir değer değil (0-4 olmalı)."),
+                            format!("location_type {val} is not a valid value (must be 0-4)."),
                             "Set location_type to 0, 1, 2, 3 or 4.",
                         ));
                     }
@@ -195,7 +195,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                 Some("stop_code"),
                 Some(String::new()),
                 None,
-                format!("'{}' durağında stop_code eksik.", stop_id),
+                format!("Stop '{}' has no stop_code.", stop_id),
                 "Enter a short stop_code that riders can recognise.",
             );
             // The rule is emitted at two scales (per stop / feed summary) but has one message
@@ -224,7 +224,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                 Some(String::new()),
                 None,
                 format!(
-                    "'{}' durağı için durak adı (stop_name) zorunludur.",
+                    "A stop name (stop_name) is required for stop '{}'.",
                     stop_id
                 ),
                 "Enter a readable stop_name value.",
@@ -246,7 +246,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                     Some(name.len().to_string()),
                     Some("≤100".to_string()),
                     format!(
-                        "'{}' durağının stop_name değeri {} karakter; 100 karakteri aşıyor.",
+                        "Stop '{}' has a stop_name of {} characters; it exceeds 100 characters.",
                         stop_id,
                         name.len()
                     ),
@@ -286,7 +286,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                     Some(desc.clone()),
                     None,
                     format!(
-                        "'{}' durağının stop_name ve stop_desc değerleri aynı: '{}'.",
+                        "Stop '{}' has the same stop_name and stop_desc: '{}'.",
                         stop_id, name
                     ),
                     "stop_desc should contain a value different from and more descriptive than stop_name.",
@@ -310,7 +310,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                             Some("stop_lat"),
                             Some(String::new()),
                             Some("[-90, 90]".to_string()),
-                            format!("'{}' durağı için enlem (stop_lat) zorunludur.", stop_id),
+                            format!("A latitude (stop_lat) is required for stop '{}'.", stop_id),
                             "Fill in stop_lat with a decimal latitude value.",
                         ));
                     }
@@ -329,7 +329,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                             Some("stop_lat"),
                             Some(lat.to_string()),
                             Some("[-90, 90]".to_string()),
-                            format!("stop_lat {lat} değeri [-90, 90] aralığı dışında."),
+                            format!("stop_lat {lat} is outside the range [-90, 90]."),
                             "Enter a value between -90 and 90 for stop_lat.",
                         ));
                     }
@@ -371,7 +371,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                             Some("stop_lon"),
                             Some(String::new()),
                             Some("[-180, 180]".to_string()),
-                            format!("'{}' durağı için boylam (stop_lon) zorunludur.", stop_id),
+                            format!("A longitude (stop_lon) is required for stop '{}'.", stop_id),
                             "Fill in stop_lon with a decimal longitude value.",
                         ));
                     }
@@ -390,7 +390,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                             Some("stop_lon"),
                             Some(lon.to_string()),
                             Some("[-180, 180]".to_string()),
-                            format!("stop_lon {lon} değeri [-180, 180] aralığı dışında."),
+                            format!("stop_lon {lon} is outside the range [-180, 180]."),
                             "Enter a value between -180 and 180 for stop_lon.",
                         ));
                     }
@@ -433,7 +433,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                     Some("stop_timezone"),
                     Some(tz.clone()),
                     None,
-                    format!("stop_timezone '{tz}' geçerli bir IANA saat dilimi değil."),
+                    format!("stop_timezone '{tz}' is not a valid IANA time zone."),
                     "Enter a valid IANA timezone (e.g., Europe/Istanbul).",
                 ));
             }
@@ -481,7 +481,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                             &mut counter, "STP_024", EntityType::Stop, entity_id.clone(),
                             Some(&row_map), &file.name, Some(line), Some("stop_access"),
                             Some(val.to_string()), Some("0–2".to_string()),
-                            super::common::K2Message::parse_failure(format!("'{}' durağında stop_access '{val}' geçersiz.", stop_id)),
+                            super::common::K2Message::parse_failure(format!("Stop '{}' has an invalid stop_access '{val}'.", stop_id)),
                             "Use 0 or 1 for stop_access; 2 is not defined by GTFS.",
                         ));
                         }
@@ -553,7 +553,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                     &mut counter, "STP_044", EntityType::Stop, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("platform_code"),
                     Some(pc.to_string()), None,
-                    format!("platform_code '{pc}' gereksiz platform/track sözcüğü içeriyor; yalnız tanımlayıcı olmalı."),
+                    format!("platform_code '{pc}' contains an unnecessary platform/track word; it should be the identifier only."),
                     "Leave only the platform identifier in platform_code (for example '5' instead of 'Gleis 5').",
                 ));
             }
@@ -590,7 +590,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                     Some(tts.clone()),
                     None,
                     format!(
-                        "'{}' durağının tts_stop_name değeri '<' veya '>' karakteri içeriyor.",
+                        "Stop '{}' has '<' or '>' in tts_stop_name.",
                         stop_id
                     ),
                     "Do not use HTML/SSML markup characters in tts_stop_name.",
@@ -616,7 +616,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                 None,
                 None,
                 format!(
-                    "'{}' durağında zone_id eksik; ücret hesaplamaları etkilenebilir.",
+                    "Stop '{}' has no zone_id; fare calculations may be affected.",
                     stop_id
                 ),
                 "Fill in zone_id for fare calculation.",
@@ -679,9 +679,9 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
     let n = stp022_pending.len();
     if n > 1 && (!any_stop_code_present || n > STP022_AGG_THRESHOLD) {
         let msg = if !any_stop_code_present {
-            format!("Feed genelinde stop_code hiç kullanılmamış: {n} durakta eksik — yolcular durağı kısa kodla tanıyamaz.")
+            format!("stop_code is not used anywhere in the feed: missing on {n} stops — riders cannot recognise a stop by a short code.")
         } else {
-            format!("{n} durakta stop_code eksik (feed'de stop_code kısmen kullanılıyor) — yolcular bu durakları kısa kodla tanıyamaz.")
+            format!("stop_code is missing on {n} stops (the feed uses stop_code partly) — riders cannot recognise these stops by a short code.")
         };
         let examples: Vec<String> = stp022_pending
             .iter()
@@ -728,7 +728,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             Some(n33.to_string()),
             None,
             format!(
-                "{n33} durakta zone_id eksik — ücret bölgesi tabanlı hesaplamalar etkilenebilir."
+                "zone_id is missing on {n33} stops — zone-based fare calculations may be affected."
             ),
             "Add zone_id to the affected stops if fares need it.",
         );
@@ -757,7 +757,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             Some(stp045_count.to_string()),
             None,
             format!(
-                "{stp045_count} durak platform_code taşıyor ama parent_station boş — peron bir istasyona bağlanmamış."
+                "{stp045_count} stops carry platform_code but have no parent_station — the platform is not linked to a station."
             ),
             "Link platforms to their station (location_type=1) through parent_station; if the stop is not a platform, remove platform_code.",
         );
