@@ -386,7 +386,7 @@ fn build_shape_geometry(
                             "shapes.txt", Some(pt.line_u64()), Some("shape_dist_traveled"),
                             Some(format!("{d}")), Some(format!("≥ {prev} (önceki sıra)")),
                             format!("shape_id '{shape_id}' için shape_dist_traveled shape_pt_sequence ile azalıyor: {prev} → {d}."),
-                            "shape_dist_traveled değerlerini her shape için shape_pt_sequence'e göre artan yazın.",
+                            "Write shape_dist_traveled values in ascending order for each shape.",
                         );
                         // Planner context: the point, its order and both distances, and the
                         // point before it (where the line seems to run backwards).

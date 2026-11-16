@@ -281,7 +281,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                             Some(&row_map), &file.name, Some(line), Some("exact_times"),
                             Some(val.to_string()), Some("0 or 1".to_string()),
                             "exact_times 0 veya 1 olmalıdır.".to_string(),
-                            "exact_times değerini 0 (frekans bazlı) veya 1 (tarifeli) olarak ayarlayın.",
+                            "Set exact_times to 0 (frequency-based) or 1 (schedule-based).",
                         ));
                     }
                 }
@@ -303,7 +303,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                     get_trimmed_field(&row_map, "exact_times").map(str::to_string),
                     Some("0 or 1".to_string()),
                     err,
-                    "exact_times değerini 0 (frekans bazlı) veya 1 (tarifeli) olarak ayarlayın.",
+                    "Set exact_times to 0 (frequency-based) or 1 (schedule-based).",
                 ));
                 None
             }

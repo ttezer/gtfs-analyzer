@@ -196,7 +196,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
                 &file.name, Some(line), Some("transfer_type"),
                 Some(ttype.to_string()), None,
                 format!("transfer_type={ttype} (in-seat aktarma) Google Transit tarafından yoksayılıyor."),
-                "Google Transit uyumluluğu gerekiyorsa transfer_type değerini 0–3 arasında seçin.",
+                "Select a transfer_type between 0 and 3 for Google Transit compatibility.",
             ));
         }
 

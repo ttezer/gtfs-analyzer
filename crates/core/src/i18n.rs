@@ -485,10 +485,13 @@ mod tests {
     fn turkish_takes_titles_from_the_dictionary_and_keeps_native_messages() {
         let translator = Translator::new(Lang::Tr).unwrap().unwrap();
         let mut n = notice();
+        // ARC_001 is a fatal-path rule with no Turkish remediation in the dictionary, so the
+        // pipeline's own text must survive (STM_004 now has a dictionary remediation).
+        n.rule_id = "ARC_001".to_string();
         n.title = "English title from the registry".to_string().into();
         translator.translate(&mut n);
 
-        assert_eq!(&*n.title, translator.rule_title("STM_004", ""));
+        assert_eq!(&*n.title, translator.rule_title("ARC_001", ""));
         assert!(!n.title.is_empty() && &*n.title != "English title from the registry");
         // Messages and remediations stay the pipeline's Turkish text (issue #201).
         assert_eq!(n.message, "Türkçe mesaj");

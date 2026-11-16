@@ -349,7 +349,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                     get_trimmed_field(&row_map, "stop_lat").map(str::to_string),
                     Some("[-90, 90]".to_string()),
                     err,
-                    "stop_lat alanını ondalıklı enlem değeriyle doldurun.",
+                    "Fill in stop_lat with a decimal latitude value.",
                 ));
                 None
             }
@@ -647,7 +647,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                     Some(url.clone()),
                     None,
                     "stop_url geçerli bir URL değil.".to_string(),
-                    "stop_url için geçerli bir http/https URL'si kullanın.",
+                    "Use a valid http/https URL for stop_url.",
                 ));
             }
         }

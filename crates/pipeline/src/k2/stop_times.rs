@@ -2455,7 +2455,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     Some(String::new()),
                     None,
                     "trip_id zorunludur.".to_string(),
-                    "Her stop_times satırına geçerli bir trip_id girin.",
+                    "Enter a valid trip_id on every stop_times row.",
                 ));
             }
 
@@ -2476,7 +2476,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             Some(String::new()),
                             None,
                             "stop_sequence zorunludur.".to_string(),
-                            "stop_sequence negatif olmayan bir tam sayı olarak girin.",
+                            "Enter stop_sequence as a non-negative integer.",
                         ));
                     }
                     v
@@ -2494,7 +2494,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         Some(seq_raw.to_string()),
                         None,
                         err,
-                        "stop_sequence negatif olmayan bir tam sayı olarak girin.",
+                        "Enter stop_sequence as a non-negative integer.",
                     ));
                     None
                 }
@@ -2603,7 +2603,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     Some(String::new()),
                     None,
                     "stop_id zorunludur.".to_string(),
-                    "stop_id alanını doldurun.",
+                    "Fill in the stop_id field.",
                 ));
             }
             // stop intern: raw_stop → u32 indeks (CompactStopTime.stop_idx)
@@ -2648,7 +2648,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         Some(arr_raw.to_string()),
                         Some("HH:MM:SS".to_string()),
                         err,
-                        "HH:MM:SS formatında arrival_time girin.",
+                        "Enter arrival_time in HH:MM:SS format.",
                     ));
                     arr_malformed = true;
                     None
@@ -2673,7 +2673,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         Some(dep_raw.to_string()),
                         Some("HH:MM:SS".to_string()),
                         err,
-                        "HH:MM:SS formatında departure_time girin.",
+                        "Enter departure_time in HH:MM:SS format.",
                     ));
                     dep_malformed = true;
                     None
@@ -2813,7 +2813,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             None, &file.name, Some(line), Some("timepoint"),
                             Some(val.to_string()), Some("0 or 1".to_string()),
                             "timepoint 0 veya 1 olmalıdır.".to_string(),
-                            "timepoint değerini 0 (yaklaşık) veya 1 (kesin) olarak ayarlayın.",
+                            "Set timepoint to 0 (approximate) or 1 (exact).",
                         ));
                             }
                         }
@@ -2834,7 +2834,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             Some(tp_raw.to_string()),
                             Some("0 or 1".to_string()),
                             err,
-                            "timepoint değerini 0 (yaklaşık) veya 1 (kesin) olarak ayarlayın.",
+                            "Set timepoint to 0 (approximate) or 1 (exact).",
                         ));
                         None
                     }
@@ -2877,7 +2877,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                 "trip_id '{}' satırında arrival_time tanımlı ama departure_time eksik.",
                                 trip_id
                             ),
-                            "Her iki zaman alanını birlikte doldurun veya ikisini de boş bırakın.",
+                            "Fill in both arrival_time and departure_time together or leave both empty.",
                         ));
                     }
                     (None, Some(_)) => {
@@ -2896,7 +2896,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                 "trip_id '{}' satırında departure_time tanımlı ama arrival_time eksik.",
                                 trip_id
                             ),
-                            "Her iki zaman alanını birlikte doldurun veya ikisini de boş bırakın.",
+                            "Fill in both arrival_time and departure_time together or leave both empty.",
                         ));
                     }
                     _ => {}
@@ -2977,7 +2977,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             None, &file.name, Some(line), Some("shape_dist_traveled"),
                             Some(d.to_string()), Some(">= 0".to_string()),
                             "shape_dist_traveled negatif olamaz.".to_string(),
-                            "shape_dist_traveled değerini sıfır veya pozitif bir sayıya ayarlayın.",
+                            "Set shape_dist_traveled to zero or a positive number.",
                         ));
                         }
                     }
@@ -2998,7 +2998,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         Some(sdt_raw.to_string()),
                         Some(">= 0".to_string()),
                         err,
-                        "shape_dist_traveled değerini sıfır veya pozitif bir sayıya ayarlayın.",
+                        "Set shape_dist_traveled to zero or a positive number.",
                     ));
                     None
                 }
@@ -3029,7 +3029,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     None, &file.name, Some(line), Some("stop_headsign"),
                     Some(bad.to_string()), None,
                     format!("stop_headsign '{}' Google Transit tarafından desteklenmeyen karakter içeriyor: '{bad}'.", hs),
-                    "stop_headsign değerinden ! $ % \\ * = _ karakterlerini kaldırın.",
+                    "Remove the characters ! $ % \\ * = _ from the stop_headsign value.",
                 );
                     // Planner context: the stop row and the headsign text as written in the feed.
                     let mut details = stop_time_details();
@@ -3066,7 +3066,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     None, &file.name, Some(line), Some(field),
                     None, None,
                     format!("trip_id '{}' {which} (telefonla rezervasyon) ama {field} eksik.", trip_id),
-                    "Talep-üzerine biniş/iniş için booking_rules.txt'teki ilgili kuralı bu alana bağlayın.",
+                    "Point this field at the matching rule in booking_rules.txt for on-demand pickup or drop-off.",
                 ));
                     // Planner context: the row's stop (or zone and window) and both sides' settings.
                     let mut details = stop_time_details();
@@ -3139,7 +3139,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                     Some(raw.to_string()),
                                     Some("HH:MM:SS".to_string()),
                                     err,
-                                    "Flex pencere alanlarını HH:MM:SS formatında girin.",
+                                    "Write the Flex window fields as HH:MM:SS.",
                                 ));
                                 None
                             }
@@ -3160,7 +3160,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 None, &file.name, Some(line), Some("arrival_time"),
                 Some(arr_raw.to_string()), Some("(boş)".to_string()),
                 format!("trip_id '{}' Flex penceresi tanımlı iken arrival_time/departure_time yasaktır.", trip_id),
-                "Flex stop_times satırlarında arrival_time ve departure_time alanlarını kaldırın.",
+                "Remove arrival_time and departure_time fields from flex stop_times rows.",
             ));
                 }
 
@@ -3214,7 +3214,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             "trip_id '{trip_id}' Flex penceresi tanımlı iken pickup_type={pt} yasaktır.{}",
                             if implicit_pickup { " Alan boş bırakılmış; spec boş değeri 0 sayar." } else { "" }
                         ),
-                        "Flex penceresi olan stop_times satırlarında pickup_type'ı 1 (alış yok) veya 2 (telefonla) yapın.",
+                        "Use pickup_type 1 (none) or 2 (phone agency) on stop_times that have a Flex window.",
                     ));
                         }
                     }
@@ -3234,7 +3234,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         "trip_id '{trip_id}' Flex penceresi tanımlı iken drop_off_type=0 yasaktır.{}",
                         if implicit_drop_off { " Alan boş bırakılmış; spec boş değeri 0 sayar." } else { "" }
                     ),
-                    "Flex penceresi olan stop_times satırlarında drop_off_type'ı 1 (iniş yok) veya 2 (telefonla) yapın.",
+                    "Use drop_off_type 1 (none) or 2 (phone agency) on stop_times that have a Flex window.",
                 ));
                     }
                     // STM_054/055: when a Flex window is defined, continuous_pickup/continuous_drop_off values
@@ -3249,7 +3249,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     None, &file.name, Some(line), Some("continuous_pickup"),
                     Some(cp.to_string()), Some("1 or empty".to_string()),
                     format!("trip_id '{trip_id}' Flex penceresi tanımlı iken continuous_pickup={cp} yasaktır."),
-                    "Flex penceresi olan stop_times satırlarında continuous_pickup'ı 1 yapın veya alanı boş bırakın.",
+                    "Set continuous_pickup to 1 or leave it empty on stop_times that have a Flex window.",
                 ));
                     }
                     if matches!(continuous_drop_off, Some(0) | Some(2) | Some(3)) {
@@ -3259,7 +3259,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     None, &file.name, Some(line), Some("continuous_drop_off"),
                     Some(cd.to_string()), Some("1 or empty".to_string()),
                     format!("trip_id '{trip_id}' Flex penceresi tanımlı iken continuous_drop_off={cd} yasaktır."),
-                    "Flex penceresi olan stop_times satırlarında continuous_drop_off'u 1 yapın veya alanı boş bırakın.",
+                    "Set continuous_drop_off to 1 or leave it empty on stop_times that have a Flex window.",
                 ));
                     }
                 }
@@ -3279,7 +3279,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     None, &file.name, Some(line), Some("start_pickup_drop_off_window"),
                     Some(format!("{start_window_raw} >= {end_window_raw}")), None,
                     format!("trip_id '{}' start_pickup_drop_off_window, end_pickup_drop_off_window'dan önce değil.", trip_id),
-                    "start_pickup_drop_off_window değerini end_pickup_drop_off_window'dan kesin olarak küçük yapın.",
+                    "Set start_pickup_drop_off_window to be strictly earlier than end_pickup_drop_off_window.",
                 ));
                     }
                 }
@@ -3296,7 +3296,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 None, &file.name, Some(line), Some(missing),
                 None, Some("HH:MM:SS".to_string()),
                 format!("trip_id '{}' location_id/group_id tanımlı ama {missing} eksik.", trip_id),
-                "Flex stop_times için hem start_pickup_drop_off_window hem end_pickup_drop_off_window girin.",
+                "Enter both start_pickup_drop_off_window and end_pickup_drop_off_window for flex stop_times.",
             ));
                 }
 
@@ -3307,7 +3307,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 None, &file.name, Some(line), Some("pickup_booking_rule_id"),
                 None, None,
                 format!("trip_id '{}' Flex penceresi tanımlı ama pickup/drop_off_booking_rule_id eksik.", trip_id),
-                "Flex rezervasyon için pickup_booking_rule_id veya drop_off_booking_rule_id girin.",
+                "Enter pickup_booking_rule_id or drop_off_booking_rule_id for flex booking.",
             ));
                 }
 
@@ -3322,7 +3322,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 Some(if loc_id_raw.is_empty() { loc_grp_raw.to_string() } else { loc_id_raw.to_string() }),
                 Some("(boş)".to_string()),
                 format!("trip_id '{}' stop_id ve location_id/group_id aynı anda tanımlı olamaz.", trip_id),
-                "Standart stop için yalnızca stop_id, Flex stop için yalnızca location_id veya location_group_id kullanın.",
+                "For a standard stop use only stop_id; for a flex stop use only location_id or location_group_id.",
             ));
                 }
                 // Planner context for the Flex row findings (STM_037–041, STM_051/052/054/055, STM_058): the
@@ -3949,7 +3949,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             None, &file.name, None, Some("timepoint"),
             Some(format!("{}", st.stm050_empty)), None,
             format!("{} stop_times satırında timepoint sütunu var ama değer boş; bu satırlar örtük olarak 1 (kesin zaman) sayılır.", st.stm050_empty),
-            "Yaklaşık zamanlı duraklarda timepoint=0, kesin zamanlı duraklarda timepoint=1 olarak açıkça girin.",
+            "Set timepoint explicitly to 0 (approximate) or 1 (exact) for this stop_time.",
         ));
         if let Some(notice) = st.notices.last_mut() {
             notice.details = Some(details.into());
@@ -4149,7 +4149,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             "trip_id '{}' için stop_sequence {} tekrar ediyor.",
                             tid, b.sequence
                         ),
-                        "Her (trip_id, stop_sequence) çifti stop_times.txt'te benzersiz olmalıdır.",
+                        "Each (trip_id, stop_sequence) pair must be unique in stop_times.txt.",
                     );
                     // Same pattern as STM_056: the feed-summary branch writes affected_rows/example_trips,
                     // and the pinpoint branch must carry them too because one template serves both branches.
@@ -4195,7 +4195,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             "'{}' seferinde {}. durakta güzergâh mesafesi artmıyor: önceki {}. durakta {}, bu durakta {}. Güzergâh başlangıcından itibaren kümülatif mesafe artmalıdır.",
                             tid, b.sequence, a.sequence, a.dist_f32, b.dist_f32
                         ),
-                        "stop_times.txt'te shape_dist_traveled değerlerini stop_sequence sırasına göre artan biçimde düzeltin.",
+                        "Correct shape_dist_traveled in stop_times.txt so the values increase along stop_sequence.",
                     );
                     let d = n056.details.get_or_insert_with(Default::default);
                     if let Some(id) = previous_stop_id {
@@ -4301,7 +4301,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             &file.name,
             "STM_032",
             "stop_sequence",
-            "Her (trip_id, stop_sequence) çifti stop_times.txt'te benzersiz olmalıdır.",
+            "Each (trip_id, stop_sequence) pair must be unique in stop_times.txt.",
             "stop_sequence tekrar ediyor — aynı (trip_id, stop_sequence) ihlali yüksek hacimde tekrarlanıyor.",
             STM032_AGG_THRESHOLD,
         );
@@ -4316,7 +4316,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             &file.name,
             "STM_056",
             "shape_dist_traveled",
-            "stop_times.txt'te shape_dist_traveled değerlerini stop_sequence sırasına göre artan biçimde düzeltin.",
+            "Correct shape_dist_traveled in stop_times.txt so the values increase along stop_sequence.",
             "shape_dist_traveled stop_sequence boyunca artmıyor — aynı mesafe sırası ihlali yüksek hacimde tekrarlanıyor.",
             STM056_AGG_THRESHOLD,
         );
@@ -4372,7 +4372,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             format!("'{}' trip'inde {} satırında {} değeri {} olarak yazılmış; önceki saat {}. \
                 GTFS servis günü için {} kullanılmalıdır.",
                 violation.trip_id, violation.line, violation.field, observed, previous, expected),
-            "Gece yarısından sonraki stop_times saatini 24:00:00, 25:00:00… biçiminde yazın; 00:xx kullanmayın.",
+            "Write after-midnight times as 24:00:00, 25:00:00, etc. instead of 00:xx.",
         );
         notice.details = Some(
             [
@@ -4400,7 +4400,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             format!("'{}' trip'inde {} satırında departure_time {} olarak yazılmış; aynı satırın arrival_time değeri {}. \
                 GTFS servis günü için {} kullanılmalıdır.",
                 violation.trip_id, violation.line, observed, previous, expected),
-            "Aynı satırdaki gece yarısı sonrası departure_time değerini 24:00:00+ biçiminde yazın; 00:xx kullanmayın.",
+            "Write after-midnight departure times as 24:00:00+ instead of 00:xx.",
         );
         notice.details = Some(
             [

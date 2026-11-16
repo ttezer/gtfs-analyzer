@@ -492,7 +492,7 @@ pub fn validate_shapes_with_limits(
                         Some(seq.to_string()),
                         None,
                         format!("shape_id '{shape_id}' için shape_pt_sequence {seq} yineleniyor."),
-                        "Her shape noktasına benzersiz bir shape_pt_sequence atayın.",
+                        "Assign a unique shape_pt_sequence to each shape point.",
                     ));
                 }
             }

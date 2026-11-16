@@ -2306,7 +2306,7 @@ fn check_speed_and_duration<'a>(
                         Some(format!("{arr_hms} < {dep_hms}")),
                         Some(format!(">= {dep_hms}")),
                         format!("'{route_label}' hattı '{trip_id}'{dep_suffix} seferi: {name_a} durağından (sıra {seq_a}) kalkış {dep_hms}, {name_b} durağına (sıra {seq_b}) varış {arr_hms} — varış kalkıştan önce, zaman geriye gidiyor. (yön {dir_sd}{hs_sep}{headsign})"),
-                        "stop_times.txt zaman değerlerini gözden geçirin; seferler boyunca zamanlar monoton artmalıdır.",
+                        "Review stop_times.txt time values; times must increase monotonically across trips.",
                     );
                         let mut d = std::collections::BTreeMap::new();
                         d.insert(
@@ -2684,7 +2684,7 @@ fn check_speed_and_duration<'a>(
                         Some("> 0 m".to_string()),
                         format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arası mesafe 0: '{}' ve '{}' farklı duraklar ama aynı koordinatta.",
                             a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0), idx.stop_id_of(a), idx.stop_id_of(b)),
-                        "stops.txt'te durak koordinatlarını doğrulayın; ardışık farklı duraklar aynı konumda olmamalıdır.",
+                        "Verify stop coordinates in stops.txt; consecutive distinct stops should not be at the same location.",
                     );
                         let mut d = std::collections::BTreeMap::new();
                         d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
@@ -4170,7 +4170,7 @@ fn check_calendar_analytics(
                         cal.service_id,
                         end_jdn - today_jdn
                     ),
-                    "Feed'i güncellemeyi planlayın.",
+                    "Plan to update the feed before it expires.",
                 );
                 // Planner context: days left until the calendar ends.
                 n.details
@@ -4606,7 +4606,7 @@ fn check_geo_stop_analytics(
                             sa.stop_name.as_deref().unwrap_or(sa.stop_id.as_str()), sa.stop_id,
                             sb.stop_name.as_deref().unwrap_or(sb.stop_id.as_str()), sb.stop_id,
                         ),
-                        "İki durak aynı konumdaysa birleştirin; farklı duraklar ise koordinatları düzeltin.",
+                        "Merge the two stops if they share a location; otherwise fix the coordinates.",
                     );
                     n016.details = Some(pair_details(0.0).into());
                     notices.push(n016);
@@ -4631,7 +4631,7 @@ fn check_geo_stop_analytics(
                             sa.stop_name.as_deref().unwrap_or(sa.stop_id.as_str()), sa.stop_id,
                             sb.stop_name.as_deref().unwrap_or(sb.stop_id.as_str()), sb.stop_id,
                             config.stop_too_close_m),
-                        "Durakları birleştirin ya da konumlarını doğrulayın.",
+                        "Merge the stops or verify their locations.",
                     );
                     n.details = Some(pair_details(dist_m).into());
                     notices.push(n);
@@ -5548,7 +5548,7 @@ fn check_operational_analytics(
                     Some("0".to_string()),
                     Some("≥ 1".to_string()),
                     format!("'{svc}' takviminde hiçbir aktif gün yok — bu takvimi kullanan seferler çalışmayacak."),
-                    "calendar.txt veya calendar_dates.txt'de geçerli aktif günler tanımlayın.",
+                    "Define active service dates in calendar.txt or calendar_dates.txt.",
                 ));
             }
         }
@@ -5704,7 +5704,7 @@ fn check_operational_analytics(
                     Some(svc.to_string()), None,
                     format!("service_id '{}' için geçerli hizmet tarihi yok; '{}' seferi hiçbir zaman çalışmayacak.",
                         svc, trip.trip_id),
-                    "service_id'nin calendar.txt veya calendar_dates.txt'te aktif tarihlere sahip olduğundan emin olun.",
+                    "Ensure the service_id has active dates in calendar.txt or calendar_dates.txt.",
                 ));
             }
         }
@@ -6476,7 +6476,7 @@ fn check_route_trip_quality(
                     let rname = route_short.get(*route_id).copied().unwrap_or(route_id);
                     format!("'{rname}' hattının hiçbir seferinde aktif takvim günü yok.")
                 },
-                "calendar.txt veya calendar_dates.txt'deki servis tanımlarını düzeltin.",
+                "Fix service definitions in calendar.txt or calendar_dates.txt.",
             );
             // Planner context: the calendars the route's trips are on.
             let mut services: Vec<&str> = trips
@@ -6542,7 +6542,7 @@ fn check_route_trip_quality(
                     let dep = trip_first_dep.get(trip.trip_id.as_str()).map(|s| format!(" {} kalkışlı", s)).unwrap_or_default();
                     format!("'{}' hattının{dep} seferinde yön adı (trip_headsign) ve kısa ad girilmemiş — yolcu bilgisi yok.", rname)
                 },
-                "trip_headsign veya trip_short_name alanını doldurun.",
+                "Fill in trip_headsign or trip_short_name.",
             ));
         }
     }
@@ -10095,7 +10095,7 @@ fn check_remaining_analytics<'a>(
                             name, stop.stop_id
                         )
                     },
-                    "Durağı kaldırın veya ilgili bir sefere ekleyin.",
+                    "Remove the stop or add it to a trip.",
                 );
                 if let Some((m, id)) = nearest_used(stop) {
                     let mut d = std::collections::BTreeMap::new();

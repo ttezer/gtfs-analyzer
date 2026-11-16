@@ -178,7 +178,7 @@ pub fn reconcile_flex_stop_requirement(
             Some("stops.txt".to_string()),
             None,
             "Zorunlu GTFS dosyası eksik: 'stops.txt'.".to_string(),
-            "Eksik dosyayı feed ZIP arşivine ekleyin.",
+            "Add the missing file to the feed ZIP archive.",
         ));
     } else if stops_empty
         && !k1_notices.iter().any(|n| is_stops_notice(n, "ARC_035"))

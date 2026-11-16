@@ -602,7 +602,7 @@ pub fn validate_trips_with_limits(
                             Some(val.to_string()),
                             Some("0 or 1".to_string()),
                             format!("direction_id {val} geçersiz; 0 veya 1 olmalıdır."),
-                            "direction_id değerini 0 (gidiş) veya 1 (dönüş) olarak ayarlayın.",
+                            "Set direction_id to 0 (outbound) or 1 (inbound).",
                         ));
                     }
                 }
@@ -621,7 +621,7 @@ pub fn validate_trips_with_limits(
                     Some(dir_raw.to_string()),
                     Some("0 or 1".to_string()),
                     format!("direction_id '{dir_raw}' geçersiz; 0 veya 1 olmalıdır."),
-                    "direction_id değerini 0 (gidiş) veya 1 (dönüş) olarak ayarlayın.",
+                    "Set direction_id to 0 (outbound) or 1 (inbound).",
                 ));
                 None
             }

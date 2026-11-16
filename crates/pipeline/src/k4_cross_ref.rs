@@ -2585,7 +2585,7 @@ fn check_transfers(
                             format!(
                                 "In-seat aktarma: from_trip_id '{fti}' route_type={fr}, to_trip_id '{tti}' route_type={tr} — uyumsuz."
                             ),
-                            "In-seat aktarma yapan seferler aynı route_type'a sahip olmalıdır.",
+                            "Ensure both trips in an in-seat transfer use the same route_type.",
                         ));
                     }
                 }
@@ -2891,7 +2891,7 @@ fn check_fare_attributes(
                         Some(aid.clone()),
                         None,
                         format!("'{}' işletici kodu agency.txt'te tanımlı değil.", aid),
-                        "Geçerli bir agency_id kullanın.",
+                        "Use a valid agency_id from agency.txt.",
                     ));
                 }
             }
@@ -3207,7 +3207,7 @@ fn check_fare_rules(
                             "Ücret tarifesi '{}' için tanımlanan kural, '{}' ile çakışıyor — aynı koşul kümesine birden fazla tarife uygulanıyor.",
                             rec.fare_id, prev_fare
                         ),
-                        "Her (route_id, origin_id, destination_id, contains_id) kombinasyonu için yalnızca bir ücret tarifesi tanımlayın.",
+                        "Review fare rules to remove overlapping origin/destination/zone combinations.",
                     ));
                 }
             } else {
@@ -4498,7 +4498,7 @@ impl<'a> JpMissingReadings<'a> {
                         "aggregate",
                         "ja",
                         format!("GTFS-JP V3: {table}.{field} = '{source}' için zorunlu language=ja çevirisi eksik — {} satırı etkiliyor. Örnekler: {examples}.", group.count),
-                        "translations.txt'e bu kaynak değeri kapsayan language=ja çevirisini ekleyin.",
+                        "Add the matching language=ja translation row.",
                     )
             };
             let mut finding = notice(
@@ -6835,7 +6835,7 @@ fn check_xfl(
                             .map(|h| format!(" '{}' istikametli", h))
                             .unwrap_or_default(),
                     ),
-                    "Bu sefer için stop_times kayıtları ekleyin.",
+                    "Add stop_times records for this trip.",
                 ));
                 // Planner context: a trip without times is found by its route, headsign and
                 // calendar (details only).
@@ -6878,7 +6878,7 @@ fn check_xfl(
                         "'{}' seferinin stop_times.txt'te yalnızca 1 durağı var; sefer kullanılamaz.",
                         rec.trip_id
                     ),
-                    "Sefere en az iki durak durağı ekleyin.",
+                    "Add at least two stops to the trip in stop_times.txt.",
                 );
                 // Planner context: the trip's only stop and its time.
                 if let Some(row) = records
@@ -7406,7 +7406,7 @@ fn check_xfl(
                             "route_id '{}' için tüm seferlerin stop_times.txt kaydı yok; rota fiilen hizmet vermiyor.",
                             rec.route_id
                         ),
-                        "Bu rotanın seferlerine stop_times kayıtları ekleyin veya rotayı kaldırın.",
+                        "Add stop_times records to this route's trips or remove the route.",
                     ));
                 }
             }

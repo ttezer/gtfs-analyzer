@@ -3333,7 +3333,7 @@ pub fn parse_with_limits(
                 None,
                 Some(f.to_string()),
                 format!("Zorunlu GTFS dosyası eksik: '{f}'."),
-                "Eksik dosyayı feed ZIP arşivine ekleyin.",
+                "Add the missing file to the feed ZIP archive.",
             ));
         }
     }

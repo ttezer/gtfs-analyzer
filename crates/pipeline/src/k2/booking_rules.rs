@@ -496,13 +496,13 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 "booking_url",
                 "BKR_020",
                 "booking_url geçerli bir URL değil.",
-                "booking_url için geçerli bir http/https URL'si kullanın.",
+                "Use a valid http/https URL for booking_url.",
             ),
             (
                 "info_url",
                 "BKR_021",
                 "info_url geçerli bir URL değil.",
-                "info_url için geçerli bir http/https URL'si kullanın.",
+                "Use a valid http/https URL for info_url.",
             ),
         ] {
             if let Some(url) = opt_str(&row_map, field) {
