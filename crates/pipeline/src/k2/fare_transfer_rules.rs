@@ -65,7 +65,7 @@ pub fn validate_fare_transfer_rules(
                         Some("fare_transfer_type"),
                         None,
                         Some("0–2".to_string()),
-                        "fare_transfer_type zorunludur.".to_string(),
+                        "fare_transfer_type is required.".to_string(),
                         "Use 0, 1 or 2.",
                     ));
                 }

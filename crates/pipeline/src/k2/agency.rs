@@ -126,7 +126,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 Some("agency_url"),
                 Some(String::new()),
                 None,
-                "agency_url zorunludur.".to_string(),
+                "agency_url is required.".to_string(),
                 "Enter a valid http/https URL.",
             )),
             Some(_) if !looks_like_url(&agency_url) => notices.push(make_k2_notice(
@@ -197,7 +197,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 Some("agency_timezone"),
                 Some(String::new()),
                 None,
-                "agency_timezone zorunludur.".to_string(),
+                "agency_timezone is required.".to_string(),
                 "Enter a valid IANA time zone.",
             )),
             Some(_) if !looks_like_iana_timezone(&agency_timezone) => notices.push(make_k2_notice(

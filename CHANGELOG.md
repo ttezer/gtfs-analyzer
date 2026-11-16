@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`GGL_001` summary), and `OPR_019`/`OPR_020` `details.active_service_patterns` now say `days`
   instead of `gün`. The most common one, `dolu` (expected value of "required" findings), is now
   `non-empty`, and `(dolu)` is `(non-empty)`. `DQ_021` (repeated calendar dates) writes `(+N more dates)`
-  instead of `(+N tarih daha)` in `observed_value`. `GEO_002` `observed_value` is now `(lat,lon) — <distance>km`; the English,
+  instead of `(+N tarih daha)` in `observed_value`. `FRQ_006` `observed_value` writes `(N min)` instead of `(Ndk)`, and the
+  `STM_012` speed value over untimed stops writes `km / 0 min` instead of `km / 0 dk`. `GEO_002` `observed_value` is now `(lat,lon) — <distance>km`; the English,
   Japanese and French messages no longer contain the Turkish word "median'dan". Consumers that
   match these exact strings must update them; finding counts, rule IDs and scores are unchanged.
 - **Library API (`gtfs-pipeline`): K2 value parsers return `ParseError`.** `k2::common::parse_f64`,
@@ -27,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`FRQ_006` message in English, French and Japanese.** The template added a unit to a value that
+  already carries one (`20000s (333dk) min`); it now reads `headway 20000s (333 min) is too long (limit: ≤ 14400s)`.
 - **Turkish text for the `JPN_033` remediation and the `AGN_015` message.** Both were shown in
   English to Turkish users.
 - **`FIN_002`/`FIN_003` whitespace detection.** A `feed_publisher_url` or `feed_lang` padded with

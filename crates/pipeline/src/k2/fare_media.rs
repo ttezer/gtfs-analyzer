@@ -52,7 +52,7 @@ pub fn validate_fare_media(file: &RawFile) -> (Vec<FareMediaRecord>, Vec<gtfs_co
                         Some("fare_media_type"),
                         None,
                         Some("0–4".to_string()),
-                        "fare_media_type zorunludur.".to_string(),
+                        "fare_media_type is required.".to_string(),
                         "Enter a valid fare_media_type value.",
                     ));
                 }

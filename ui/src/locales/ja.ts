@@ -3892,7 +3892,7 @@ const ja: LocaleShape = {
     'FRQ_003': "頻度'{entity_id}'：end_time'{observed_value}'が無効です。",
     'FRQ_004': "頻度'{entity_id}'：headway_secsがないか無効です。",
     'FRQ_005': "頻度'{entity_id}'：end_timeがstart_timeより前です。",
-    'FRQ_006': "頻度'{entity_id}'：ヘッドウェイ{observed_value}分が長すぎます（制限：{expected_value}分）。",
+    'FRQ_006': "頻度'{entity_id}'：ヘッドウェイ{observed_value}が長すぎます（制限：{expected_value}）。",
     'FRQ_007': '{observed_value}件の頻度運行でexact_timesが無効です。',
     'FRQ_008': "頻度'{entity_id}'：headway_secsがゼロ — 無効な頻度です。",
     'FRQ_009': "頻度'{entity_id}'：頻度間隔が短すぎます。",

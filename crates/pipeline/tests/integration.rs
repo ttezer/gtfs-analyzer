@@ -6202,7 +6202,7 @@ fn url92_whitespace_only_url_is_missing_not_invalid() {
                 .map(|n| n.message.clone())
                 .unwrap_or_default();
             assert!(
-                msg.contains("zorunludur"),
+                msg.contains("is required"),
                 "boşluk-yalnız değer EKSİK alan olarak bildirilmeli, gelen: {msg}"
             );
         }

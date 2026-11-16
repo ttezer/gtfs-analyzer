@@ -284,7 +284,7 @@ pub fn validate_calendar_dates_with_limits(
                         Some("date"),
                         Some(String::new()),
                         Some("YYYYMMDD".to_string()),
-                        "date zorunludur.".to_string(),
+                        "date is required.".to_string(),
                         "Enter the date in YYYYMMDD format.",
                     ));
                 }
@@ -347,7 +347,7 @@ pub fn validate_calendar_dates_with_limits(
                         Some("exception_type"),
                         Some(String::new()),
                         Some("1 or 2".to_string()),
-                        "exception_type zorunludur.".to_string(),
+                        "exception_type is required.".to_string(),
                         "Set exception_type to 1 (added) or 2 (removed).",
                     ));
                 }

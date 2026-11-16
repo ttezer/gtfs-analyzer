@@ -3067,7 +3067,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     &mut st.counter, "STM_059", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some(field),
                     None, None,
-                    format!("trip_id '{}' {which} (telefonla rezervasyon) ama {field} eksik.", trip_id),
+                    format!("trip_id '{}' has {which} (phone booking) but {field} is missing.", trip_id),
                     "Point this field at the matching rule in booking_rules.txt for on-demand pickup or drop-off.",
                 ));
                     // Planner context: the row's stop (or zone and window) and both sides' settings.

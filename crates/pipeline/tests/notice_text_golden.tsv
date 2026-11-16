@@ -766,7 +766,7 @@ en	FRQ_002	start_time invalid	Frequency 'T1': start_time '' is invalid.	Enter st
 en	FRQ_003	end_time invalid	Frequency 'T1': end_time '' is invalid.	Enter end_time in HH:MM:SS format.
 en	FRQ_004	headway_secs missing or invalid	Frequency 'T1': headway_secs is missing or invalid.	Enter headway_secs as a positive integer.
 en	FRQ_005	end_time is before start_time	Frequency 'T1': end_time is before start_time.	Set end_time to be after start_time.
-en	FRQ_006	headway_secs too long	Frequency 'T1': headway 20000s (333dk) min is too long (limit: ≤ 14400s min).	Reduce the gap between trips or add extra runs.
+en	FRQ_006	headway_secs too long	Frequency 'T1': headway 20000s (333 min) is too long (limit: ≤ 14400s).	Reduce the gap between trips or add extra runs.
 en	FRQ_007	exact_times invalid	1 frequency trips have invalid exact_times.	Set exact_times to 0 (frequency-based) or 1 (schedule-based).
 en	FRQ_008	headway_secs is zero (invalid frequency)	Frequency 'T1': headway_secs is zero — invalid frequency.	Set headway_secs to a positive number of seconds.
 en	FRQ_009	Frequency interval too short	Frequency 'T1': frequency interval is too short.	Set headway_secs to at least 60 seconds.
@@ -2266,7 +2266,7 @@ fr	FRQ_002	start_time invalide	Fréquence « T1 » : start_time «  »
 fr	FRQ_003	end_time invalide	Fréquence « T1 » : end_time «  » est invalide.	Saisissez end_time au format HH:MM:SS.
 fr	FRQ_004	headway_secs manquant ou invalide	Fréquence « T1 » : headway_secs est absent ou invalide.	Saisissez headway_secs sous forme d’entier positif.
 fr	FRQ_005	end_time antérieure à start_time	Fréquence « T1 » : end_time est antérieure à start_time.	Faites en sorte que end_time soit postérieure à start_time.
-fr	FRQ_006	headway_secs trop long	Fréquence « T1 » : l’intervalle de 20000s (333dk) min est trop long (limite : ≤ 14400s min).	Réduisez l’écart entre les courses ou ajoutez des passages supplémentaires.
+fr	FRQ_006	headway_secs trop long	Fréquence « T1 » : l’intervalle de 20000s (333 min) est trop long (limite : ≤ 14400s).	Réduisez l’écart entre les courses ou ajoutez des passages supplémentaires.
 fr	FRQ_007	exact_times invalide	1 trajets de fréquence ont un exact_times invalide.	Mettez exact_times à 0 (basé sur la fréquence) ou 1 (basé sur l’horaire).
 fr	FRQ_008	headway_secs nul (fréquence invalide)	Fréquence « T1 » : headway_secs est nul — fréquence invalide.	Mettez headway_secs à un nombre de secondes positif.
 fr	FRQ_009	Intervalle de fréquence trop court	Fréquence « T1 » : l’intervalle de fréquence est trop court.	Mettez headway_secs à au moins 60 secondes.
@@ -3766,7 +3766,7 @@ ja	FRQ_002	start_timeが無効	頻度'T1'：start_time''が無効です。	start
 ja	FRQ_003	end_timeが無効	頻度'T1'：end_time''が無効です。	end_timeをHH:MM:SS形式で入力してください。
 ja	FRQ_004	headway_secsが不足または無効	頻度'T1'：headway_secsがないか無効です。	headway_secsに正の整数を入力してください。
 ja	FRQ_005	end_timeがstart_timeより前	頻度'T1'：end_timeがstart_timeより前です。	end_timeをstart_timeより後の時刻に設定してください。
-ja	FRQ_006	headway_secsが長すぎる	頻度'T1'：ヘッドウェイ20000s (333dk)分が長すぎます（制限：≤ 14400s分）。	便の間隔を短縮するか、増便してください。
+ja	FRQ_006	headway_secsが長すぎる	頻度'T1'：ヘッドウェイ20000s (333 min)が長すぎます（制限：≤ 14400s）。	便の間隔を短縮するか、増便してください。
 ja	FRQ_007	exact_timesが無効	1件の頻度運行でexact_timesが無効です。	exact_timesを0（頻度ベース）または1（スケジュールベース）に設定してください。
 ja	FRQ_008	headway_secsがゼロ（無効な頻度）	頻度'T1'：headway_secsがゼロ — 無効な頻度です。	headway_secsを正の秒数に設定してください。
 ja	FRQ_009	頻度間隔が短すぎる	頻度'T1'：頻度間隔が短すぎます。	headway_secsを少なくとも60秒に設定してください。

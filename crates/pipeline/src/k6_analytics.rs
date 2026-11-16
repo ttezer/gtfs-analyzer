@@ -2913,7 +2913,7 @@ fn check_speed_and_duration<'a>(
                         && b.arrival_time().or(b.departure_time()).map(|(_, _, s)| s) == Some(0);
                     if whole && direct_km >= threshold / 60.0 {
                         // Lower speed bound: assume that one full minute elapsed (for OPR_008's maximum speed).
-                        Some((format!("{direct_km:.1} km / 0 dk"), direct_km * 60.0))
+                        Some((format!("{direct_km:.1} km / 0 min"), direct_km * 60.0))
                     } else {
                         if direct_km > 0.2
                             && worst_zero_seg
@@ -3532,7 +3532,7 @@ fn check_frequency_headway(
                 "frequencies.txt",
                 Some(frq.line),
                 Some("headway_secs"),
-                Some(format!("{hw}s ({:.0}dk)", hw as f64 / 60.0)),
+                Some(format!("{hw}s ({:.0} min)", hw as f64 / 60.0)),
                 Some(format!("≤ {}s", max_secs)),
                 format!(
                     "Trip '{trip_id}' has a headway of {hw}s — threshold {max_secs}s ({} min).",
@@ -5752,7 +5752,7 @@ fn check_operational_analytics(
                     None, None,
                     "trips.txt", None, Some("wheelchair_accessible"),
                     Some(format!("{unset}/{total}")), Some("0".to_string()),
-                    format!("{total} seferin {unset} tanesinde wheelchair_accessible bilgisi eksik ({:.0}%).",
+                    format!("wheelchair_accessible is missing on {unset} of {total} trips ({:.0}%).",
                         unset as f64 / total as f64 * 100.0),
                     "Fill the wheelchair_accessible field for all trips (1=accessible, 2=not accessible).",
                 );

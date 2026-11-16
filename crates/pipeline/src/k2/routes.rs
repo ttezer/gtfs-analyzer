@@ -213,7 +213,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                                 Some("route_type"),
                                 Some(String::new()),
                                 None,
-                                "route_type zorunludur.".to_string(),
+                                "route_type is required.".to_string(),
                                 "Enter a valid route_type (0-7, 11, 12).",
                             ));
                         }

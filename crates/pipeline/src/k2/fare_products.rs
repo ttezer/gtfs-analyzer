@@ -66,7 +66,7 @@ pub fn validate_fare_products(file: &RawFile) -> (Vec<FareProductRecord>, Vec<gt
                         Some("amount"),
                         None,
                         Some("numeric value".to_string()),
-                        "amount zorunludur.".to_string(),
+                        "amount is required.".to_string(),
                         "Enter an amount for the fare product.",
                     ));
                 }

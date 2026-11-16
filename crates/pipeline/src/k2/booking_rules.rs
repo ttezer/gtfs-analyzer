@@ -104,7 +104,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     Some("booking_rule_id"),
                     Some(String::new()),
                     None,
-                    "booking_rule_id zorunludur.".to_string(),
+                    "booking_rule_id is required.".to_string(),
                     "Give every booking rule a unique booking_rule_id.",
                 ));
             }
@@ -139,7 +139,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
         // (BKR_001/004/005/007/008/009/012/014) silently become inactive — hence `blocks` lists them.
         if booking_type.is_none() && get_trimmed_field(&row_map, "booking_type").is_some() {
             let (observed, message) = if btype_str.is_empty() {
-                (String::new(), "booking_type zorunludur.".to_string())
+                (String::new(), "booking_type is required.".to_string())
             } else {
                 (btype_str.clone(), format!("booking_type '{btype_str}' is not a valid value (must be 0, 1 or 2)."))
             };

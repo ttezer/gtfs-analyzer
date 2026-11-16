@@ -513,7 +513,7 @@ pub fn validate_shapes_with_limits(
                             Some("shape_pt_lat"),
                             Some(String::new()),
                             Some("[-90, 90]".to_string()),
-                            "shape_pt_lat zorunludur.".to_string(),
+                            "shape_pt_lat is required.".to_string(),
                             "Fill in shape_pt_lat with a decimal latitude.",
                         ));
                     }
@@ -573,7 +573,7 @@ pub fn validate_shapes_with_limits(
                             Some("shape_pt_lon"),
                             Some(String::new()),
                             Some("[-180, 180]".to_string()),
-                            "shape_pt_lon zorunludur.".to_string(),
+                            "shape_pt_lon is required.".to_string(),
                             "Fill in shape_pt_lon with a decimal longitude.",
                         ));
                     }
