@@ -1211,12 +1211,12 @@ pub(crate) fn arc012_check(
         let missing = header_count - row_len;
         (
             format!("'{file_name}' {line}. satırda sondaki {missing} isteğe bağlı alan atlanmış ({row_len} sütun, başlık: {header_count})."),
-            "CSV'de sondaki boş alanlar atlanabilir; zorunlu alanlar boş bırakılmamalıdır.",
+            "Trailing empty fields may be omitted in CSV; required fields must not be left empty.",
         )
     } else {
         (
             format!("'{file_name}' {line}. satırda fazla alan: {row_len} (beklenen {header_count}) — kaçmamış virgül veya format hatası."),
-            "Her satırın başlık sayısı kadar virgülle ayrılmış değer içerdiğinden emin olun.",
+            "Ensure each row contains exactly as many comma-separated values as the header.",
         )
     };
     Some((

@@ -541,7 +541,7 @@ fn build_shape_geometry(
                     "'{}' güzergahı hiçbir sefer tarafından referans edilmiyor.",
                     shape_id
                 ),
-                "Kullanılmayan güzergah şeklini kaldırın ya da bir sefere atayın.",
+                "Remove the unused shape or assign it to a trip via shape_id in trips.txt.",
             ));
         }
     }

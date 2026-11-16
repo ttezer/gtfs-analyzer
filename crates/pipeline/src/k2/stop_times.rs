@@ -2922,19 +2922,19 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     (true, true) => Some((
                         "arrival_time ve departure_time",
                         "arrival_time|departure_time",
-                        "Kesin zaman noktalarında arrival_time ve departure_time alanlarını geçerli HH:MM:SS değerleriyle doldurun.",
+                        "Provide the missing arrival_time and departure_time on exact time points (timepoint=1).",
                         "missing_both",
                     )),
                     (true, false) => Some((
                         "arrival_time",
                         "arrival_time",
-                        "Kesin zaman noktalarında arrival_time alanını geçerli HH:MM:SS değeriyle doldurun.",
+                        "Provide the missing arrival_time on exact time points (timepoint=1).",
                         "missing_arrival",
                     )),
                     (false, true) => Some((
                         "departure_time",
                         "departure_time",
-                        "Kesin zaman noktalarında departure_time alanını geçerli HH:MM:SS değeriyle doldurun.",
+                        "Provide the missing departure_time on exact time points (timepoint=1).",
                         "missing_departure",
                     )),
                     (false, false) => None,

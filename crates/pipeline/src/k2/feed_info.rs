@@ -298,7 +298,7 @@ fn parse_date_field(
                 get_trimmed_field(row_map, field).map(str::to_string),
                 Some("YYYYMMDD".to_string()),
                 err,
-                "Alanı geçerli bir GTFS servis tarihi formatına (YYYYMMDD) ayarlayın.",
+                "Set the field to a valid GTFS service date format (YYYYMMDD).",
             ));
             // Same decision as calendar: the rule used the raw value, while the validity window
             // carries the trimmed date. Otherwise `" 20260301"` would suppress CAL_014 (mdb-3155).

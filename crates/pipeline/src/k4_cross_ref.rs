@@ -1322,7 +1322,7 @@ fn check_stops(
                     "'{}' platformu pathway ağına bağlı ama parent_station tanımlı değil.",
                     rec.stop_id
                 ),
-                "Bu platforma bir istasyon (location_type=1) parent_station olarak atayın.",
+                "Assign a station (location_type=1) as parent_station for this pathway-connected platform.",
             ));
         }
     }
@@ -1566,7 +1566,7 @@ fn check_booking_rules(
                     Some(br.to_string()),
                     None,
                     format!("'{br}' rezervasyon kuralı booking_rules.txt'te tanımlı değil."),
-                    "Geçerli bir booking_rule_id kullanın ya da kuralı booking_rules.txt'e ekleyin.",
+                    "Reference an existing booking_rule_id or add the rule to booking_rules.txt.",
                 ));
             }
         }
@@ -1665,7 +1665,7 @@ fn check_trips(
                     "service_id '{}' calendar veya calendar_dates'te tanımlı değil.",
                     rec_service_id
                 ),
-                "Geçerli bir service_id kullanın.",
+                "Use a valid service_id.",
             ));
         }
 
@@ -2119,7 +2119,7 @@ fn check_calendar(
                     "'{}' takvimi hiçbir sefer tarafından kullanılmıyor.",
                     rec.service_id
                 ),
-                "Kullanılmayan servisi silin veya bir sefere atayın.",
+                "Remove the unused service or assign it to at least one trip.",
             ));
         }
     }
@@ -5447,7 +5447,7 @@ fn check_gtfs_jp(
                     "Açık GTFS-JP profilinde currency_type değeri JPY olmalıdır; {count} ücret kaydı '{currency}' kullanıyor. Örnekler: {}.",
                     examples.join(", ")
                 ),
-                "fare_attributes.txt içindeki currency_type değerini JPY yapın.",
+                "Set fare_attributes.currency_type to JPY.",
             );
             finding.details = Some(BTreeMap::from([
                 ("message_variant".to_string(), "aggregate".to_string()),
@@ -5507,7 +5507,7 @@ fn check_gtfs_jp(
                     "GTFS-JP V3 otobüs profilinde route_type={route_type} kullanan {count} hat var; 3 olmalıdır. Örnekler: {}.",
                     examples.join(", ")
                 ),
-                "Açık V3 profilinde routes.txt içindeki route_type değerlerini 3 yapın.",
+                "Use route_type=3 for the V3 bus profile, or select the profile appropriate for multimodal data.",
             );
             finding.details = Some(BTreeMap::from([
                 ("message_variant".to_string(), "aggregate".to_string()),
@@ -6541,7 +6541,7 @@ fn check_fare_leg_join_rules(
                         Some(String::new()),
                         None,
                         format!("{other_field} tanımlıyken {field} da zorunludur."),
-                        "İki durak alanını birlikte doldurun ya da ikisini de boş bırakın.",
+                        "Fill in both stop fields or leave both empty.",
                     ));
                 }
                 continue;
@@ -6563,7 +6563,7 @@ fn check_fare_leg_join_rules(
                     Some(value.clone()),
                     None,
                     format!("'{value}' durağı stops.txt'te tanımlı değil."),
-                    "stops.txt'te tanımlı bir stop_id kullanın.",
+                    "Use a stop_id defined in stops.txt.",
                 )),
                 Some(stop) if !matches!(stop.location_type.unwrap_or(0), 0 | 1) => {
                     notices.push(notice(
@@ -6581,7 +6581,7 @@ fn check_fare_leg_join_rules(
                             "'{value}' bir durak veya istasyon değil (location_type={}).",
                             stop.location_type.unwrap_or(0)
                         ),
-                        "Durak (location_type 0/boş) veya istasyon (location_type=1) gösterin.",
+                        "Point at a stop (location_type 0/empty) or a station (location_type=1).",
                     ));
                 }
                 Some(_) => {}
@@ -7310,7 +7310,7 @@ fn check_xfl(
                     "'{}' güzergah şekli {} sefer tarafından referans alınmış ama bu seferlerin hiçbirinde stop_times kaydı yok.",
                     shape_id, trip_count
                 ),
-                "Seferlere stop_times ekleyin veya ilgili sefer ve güzergah şekli kayıtlarını kaldırın.",
+                "Add stop_times records to the referenced trips or remove the shape and trip records.",
             );
             // Planner context: the trips without stop times (first few, sorted).
             if let Some(trip_ids) = shape_to_trips.get(shape_id) {
@@ -8058,7 +8058,7 @@ fn check_stm_shape_dist(records: &EntityRecords, notices: &mut Vec<Notice>, ctr:
                 "'{}' seferinin stop_times.txt'teki shape_dist_traveled (max {:.2}) ile shape '{}' toplam mesafesi ({:.2}) arasındaki oran {ratio:.2}× — birim uyumsuzluğu (metre/ayak/km karışımı) olabilir.",
                 flag.trip_id, flag.stm_max, flag.shape_id, flag.shape_max
             ),
-            "stop_times.txt ve shapes.txt'teki shape_dist_traveled değerlerinin aynı birimi (metre, ayak veya kilometre) kullandığını doğrulayın.",
+            "Ensure shape_dist_traveled units are consistent across all stop_times rows for this trip.",
         );
         let mut d = BTreeMap::new();
         flag_details(flag, "", &mut d);
@@ -8084,7 +8084,7 @@ fn check_stm_shape_dist(records: &EntityRecords, notices: &mut Vec<Notice>, ctr:
             flags.len(),
             affected_trips
         ),
-        "stop_times.txt ve shapes.txt'teki shape_dist_traveled değerlerinin aynı birimi (metre, ayak veya kilometre) kullandığını doğrulayın.",
+        "Ensure shape_dist_traveled units are consistent across all stop_times rows for this trip.",
     );
     let mut d = BTreeMap::new();
     d.insert("message_variant".to_string(), "feed_summary".to_string());

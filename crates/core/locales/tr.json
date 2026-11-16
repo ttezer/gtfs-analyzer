@@ -539,6 +539,10 @@
       "Add at least one data row to the file (or remove the file if it is not needed).": "Dosyaya en az bir veri satırı ekleyin (veya gereksizse dosyayı kaldırın).",
       "Check the ZIP archive.": "ZIP arşivini kontrol edin."
     },
+    "ARC_012": {
+      "Ensure each row contains exactly as many comma-separated values as the header.": "Her satırın başlık sayısı kadar virgülle ayrılmış değer içerdiğinden emin olun.",
+      "Trailing empty fields may be omitted in CSV; required fields must not be left empty.": "CSV'de sondaki boş alanlar atlanabilir; zorunlu alanlar boş bırakılmamalıdır."
+    },
     "ARC_020": {
       "Add shapes.txt for route geometry and feed_info.txt for publisher information.": "shapes.txt ile güzergah geometrisi ve feed_info.txt ile yayıncı bilgisi ekleyin.",
       "Create feed_info.txt to describe the publisher.": "feed_info.txt dosyası oluşturarak yayıncı bilgisini tanımlayın.",
@@ -552,9 +556,18 @@
       "Enter a valid integer (minutes).": "Geçerli bir tam sayı (dakika) girin.",
       "Enter the minimum notice period as a positive number of minutes.": "Minimum bildirim süresini pozitif bir dakika değeri olarak girin."
     },
+    "BKR_017": {
+      "Reference an existing booking_rule_id or add the rule to booking_rules.txt.": "Geçerli bir booking_rule_id kullanın ya da kuralı booking_rules.txt'e ekleyin."
+    },
+    "BKR_018": {
+      "Reference an existing booking_rule_id or add the rule to booking_rules.txt.": "Geçerli bir booking_rule_id kullanın ya da kuralı booking_rules.txt'e ekleyin."
+    },
     "BKR_019": {
       "Give every booking rule a unique booking_rule_id.": "Her rezervasyon kuralına benzersiz bir booking_rule_id verin.",
       "Give every row a unique booking_rule_id.": "Her satıra benzersiz bir booking_rule_id verin."
+    },
+    "CAL_011": {
+      "Remove the unused service or assign it to at least one trip.": "Kullanılmayan servisi silin veya bir sefere atayın."
     },
     "CAL_015": {
       "No action needed; publish this GTFS-JP dataset before the service start date.": "İşlem gerekmez; servis başlangıç tarihinden önce bu GTFS-JP veri kümesini yayınlayın.",
@@ -596,6 +609,12 @@
       "Enter a valid numeric value in price.": "price alanına geçerli bir sayısal değer girin.",
       "Set price to zero or a positive value.": "price alanını sıfır veya pozitif bir değere ayarlayın."
     },
+    "FIN_005": {
+      "Set the field to a valid GTFS service date format (YYYYMMDD).": "Alanı geçerli bir GTFS servis tarihi formatına (YYYYMMDD) ayarlayın."
+    },
+    "FIN_006": {
+      "Set the field to a valid GTFS service date format (YYYYMMDD).": "Alanı geçerli bir GTFS servis tarihi formatına (YYYYMMDD) ayarlayın."
+    },
     "FLJ_001": {
       "Enter a network id defined in networks.txt or routes.network_id.": "networks.txt veya routes.network_id içinde tanımlı bir ağ kodu girin.",
       "Use a network id defined in networks.txt or routes.network_id.": "networks.txt veya routes.network_id içinde tanımlı bir ağ kodu kullanın."
@@ -603,6 +622,16 @@
     "FLJ_002": {
       "Enter a network id defined in networks.txt or routes.network_id.": "networks.txt veya routes.network_id içinde tanımlı bir ağ kodu girin.",
       "Use a network id defined in networks.txt or routes.network_id.": "networks.txt veya routes.network_id içinde tanımlı bir ağ kodu kullanın."
+    },
+    "FLJ_003": {
+      "Fill in both stop fields or leave both empty.": "İki durak alanını birlikte doldurun ya da ikisini de boş bırakın.",
+      "Point at a stop (location_type 0/empty) or a station (location_type=1).": "Durak (location_type 0/boş) veya istasyon (location_type=1) gösterin.",
+      "Use a stop_id defined in stops.txt.": "stops.txt'te tanımlı bir stop_id kullanın."
+    },
+    "FLJ_004": {
+      "Fill in both stop fields or leave both empty.": "İki durak alanını birlikte doldurun ya da ikisini de boş bırakın.",
+      "Point at a stop (location_type 0/empty) or a station (location_type=1).": "Durak (location_type 0/boş) veya istasyon (location_type=1) gösterin.",
+      "Use a stop_id defined in stops.txt.": "stops.txt'te tanımlı bir stop_id kullanın."
     },
     "FMD_002": {
       "Enter a valid fare_media_type value.": "Geçerli bir fare_media_type değeri girin.",
@@ -666,6 +695,12 @@
       "Add the location_type column to stops.txt; 0 or an empty cell is valid for an ordinary stop.": "stops.txt'e location_type sütununu ekleyin; normal durak için 0 veya boş hücre geçerlidir.",
       "Fill in agency_lang in agency.txt.": "agency.txt'teki agency_lang alanını doldurun.",
       "Fill in the required field in feed_info.txt.": "feed_info.txt'teki ilgili zorunlu alanı doldurun."
+    },
+    "JPN_026": {
+      "Set fare_attributes.currency_type to JPY.": "fare_attributes.txt içindeki currency_type değerini JPY yapın."
+    },
+    "JPN_027": {
+      "Use route_type=3 for the V3 bus profile, or select the profile appropriate for multimodal data.": "Açık V3 profilinde routes.txt içindeki route_type değerlerini 3 yapın."
     },
     "JPN_028": {
       "Add the matching ja-Hrkt and language=ja translation rows.": "translations.txt'e bu kaynak değeri kapsayan ja-Hrkt ve language=ja çevirilerini ekleyin.",
@@ -757,6 +792,15 @@
       "If this extension is intentional no action is needed; otherwise check the shape end and the last stop.": "Bu uzantı bilinçliyse işlem gerekmez; değilse shape bitişini ve son durağı doğrulayın.",
       "If this extension is intentional no action is needed; otherwise check the shape start and the first stop.": "Bu uzantı bilinçliyse işlem gerekmez; değilse shape başlangıcını ve ilk durağı doğrulayın."
     },
+    "SHP_016": {
+      "Reverse the shape_pt_sequence order or define a separate shape_id for this direction.": "shape_pt_sequence sırasını tersine çevirin veya bu yön için ayrı bir shape_id tanımlayın."
+    },
+    "SHP_018": {
+      "Remove the unused shape or assign it to a trip via shape_id in trips.txt.": "Kullanılmayan güzergah şeklini kaldırın ya da bir sefere atayın."
+    },
+    "SHP_019": {
+      "Add stop_times records to the referenced trips or remove the shape and trip records.": "Seferlere stop_times ekleyin veya ilgili sefer ve güzergah şekli kayıtlarını kaldırın."
+    },
     "SHP_020": {
       "Remove repeated points in the shape generation process; individual shapes do not need to be checked one by one.": "Güzergah üretim sürecinde tekrarlayan noktaları eleyin; tek tek shape incelemesi gerekmez.",
       "Remove the repeated points from the shape.": "Güzergah şeklindeki tekrarlayan noktaları temizleyin."
@@ -783,9 +827,17 @@
       "Correct the continuous_drop_off fields to one of 0, 1, 2 or 3.": "continuous_drop_off alanlarını 0, 1, 2 veya 3 değerlerinden biri olarak düzeltin.",
       "Set the field to a valid GTFS pickup/drop-off enum value (0-3).": "Alanı geçerli bir GTFS biniş/iniş enum değerine (0-3) ayarlayın."
     },
+    "STM_024": {
+      "Ensure shape_dist_traveled units are consistent across all stop_times rows for this trip.": "stop_times.txt ve shapes.txt'teki shape_dist_traveled değerlerinin aynı birimi (metre, ayak veya kilometre) kullandığını doğrulayın."
+    },
     "STM_036": {
       "Order the stop_times.txt rows by ascending trip_id and stop_sequence.": "stop_times.txt satırlarını trip_id ve stop_sequence değerine göre artan sırada düzenleyin.",
       "Sort stop_times.txt by trip_id and stop_sequence.": "stop_times.txt'i trip_id ve stop_sequence'a göre sıralayın."
+    },
+    "STM_047": {
+      "Provide the missing arrival_time and departure_time on exact time points (timepoint=1).": "Kesin zaman noktalarında arrival_time ve departure_time alanlarını geçerli HH:MM:SS değerleriyle doldurun.",
+      "Provide the missing arrival_time on exact time points (timepoint=1).": "Kesin zaman noktalarında arrival_time alanını geçerli HH:MM:SS değeriyle doldurun.",
+      "Provide the missing departure_time on exact time points (timepoint=1).": "Kesin zaman noktalarında departure_time alanını geçerli HH:MM:SS değeriyle doldurun."
     },
     "STP_003": {
       "Enter a readable stop_name value.": "Okunabilir bir stop_name değeri girin.",
@@ -799,9 +851,24 @@
       "Add stop_code values riders can recognise to the affected stops in stops.txt.": "stops.txt'teki ilgili duraklara yolcuların tanıyabileceği stop_code değerleri ekleyin.",
       "Enter a short stop_code that riders can recognise.": "Yolcuların tanıyabileceği kısa bir stop_code değeri girin."
     },
+    "STP_032": {
+      "Assign a station (location_type=1) as parent_station for this pathway-connected platform.": "Bu platforma bir istasyon (location_type=1) parent_station olarak atayın."
+    },
     "STP_033": {
       "Add zone_id to the affected stops if fares need it.": "Ücret hesabı gerekiyorsa ilgili duraklara zone_id ekleyin.",
       "Fill in zone_id for fare calculation.": "Ücret hesabı için zone_id alanını doldurun."
+    },
+    "STP_034": {
+      "Point stop_url to a stop-specific page or leave it empty.": "stop_url'yi bu durağa özgü bir sayfaya yönlendirin ya da boş bırakın."
+    },
+    "STP_035": {
+      "Point stop_url to a stop-specific page or leave it empty.": "stop_url'yi bu durağa özgü bir sayfaya yönlendirin ya da boş bırakın."
+    },
+    "STP_039": {
+      "Make every rider-facing stop_code unique within the feed.": "Her yolcu-facing stop_code değerini feed içinde benzersiz yapın."
+    },
+    "STP_045": {
+      "Link platforms to their station (location_type=1) through parent_station; if the stop is not a platform, remove platform_code.": "Peronları location_type=1 olan istasyona parent_station ile bağlayın; peron değilse platform_code'u kaldırın."
     },
     "TFR_003": {
       "Enter a valid end_time in HH:MM:SS format.": "end_time için HH:MM:SS formatında geçerli bir değer girin.",
@@ -818,6 +885,9 @@
     "TRN_007": {
       "Add translations only for languages other than feed_lang.": "Çevirileri yalnızca feed_lang'dan farklı diller için ekleyin.",
       "Remove translation rows in the feed_lang language from translations.txt.": "feed_lang ile aynı dildeki çeviri satırlarını translations.txt'ten kaldırın."
+    },
+    "TRP_003": {
+      "Use a valid service_id.": "Geçerli bir service_id kullanın."
     },
     "TRP_021": {
       "Fill in bikes_allowed on every trip with 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty mean no information.": "Tüm seferlerin bikes_allowed alanını 1 (bisiklet izinli) veya 2 (bisiklet izinsiz) olarak doldurun; 0 ve boş 'bilgi yok' demektir.",

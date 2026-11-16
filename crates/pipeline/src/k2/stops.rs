@@ -90,7 +90,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                     Some(&row_map), &file.name, Some(line), Some("stop_code"), Some(code.clone()),
                     Some("unique within the feed".to_string()),
                     format!("stop_code '{code}' hem '{first_stop}' hem '{stop_id}' duraklarında kullanılıyor."),
-                    "Her yolcu-facing stop_code değerini feed içinde benzersiz yapın.");
+                    "Make every rider-facing stop_code unique within the feed.");
                 // Planner context: the stop that already carries the code.
                 n039.details
                     .get_or_insert_with(Default::default)
@@ -759,7 +759,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             format!(
                 "{stp045_count} durak platform_code taşıyor ama parent_station boş — peron bir istasyona bağlanmamış."
             ),
-            "Peronları location_type=1 olan istasyona parent_station ile bağlayın; peron değilse platform_code'u kaldırın.",
+            "Link platforms to their station (location_type=1) through parent_station; if the stop is not a platform, remove platform_code.",
         );
         let mut d = std::collections::BTreeMap::new();
         d.insert("affected_stops".to_string(), stp045_count.to_string());

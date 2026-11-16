@@ -6927,7 +6927,7 @@ fn check_route_trip_quality(
                     "stops.txt", Some(representative.line), Some("stop_url"),
                     Some(raw_url.to_string()), None,
                     format!("'{}' durağının stop_url değeri bir {message_name} URL'siyle aynı; {count} durak aynı URL'yi kullanıyor: '{raw_url}'.", representative.stop_id, count = stop_indices.len()),
-                    "stop_url'yi bu durağa özgü bir sayfaya yönlendirin ya da boş bırakın.",
+                    "Point stop_url to a stop-specific page or leave it empty.",
                 );
                 notice.details = Some(details.into());
                 // Planner context (STP_035): the routes whose web address the stops repeat.
@@ -10240,7 +10240,7 @@ fn check_remaining_analytics<'a>(
                     "'{route}' hattının '{shape_id}' güzergahı ters yönde çizilmiş — bu shape'i kullanan tüm seferlerin ilk durağı shape'in başından değil sonuna yakın projekte oluyor (en yakını {:.0}m / {:.0}m).",
                     min_arc * 1000.0, total * 1000.0
                 ),
-                "shape_pt_sequence sırasını tersine çevirin veya bu yön için ayrı bir shape_id tanımlayın.",
+                "Reverse the shape_pt_sequence order or define a separate shape_id for this direction.",
             );
             let mut d = std::collections::BTreeMap::new();
             d.insert("first_stop".to_string(), first_stop.clone());
