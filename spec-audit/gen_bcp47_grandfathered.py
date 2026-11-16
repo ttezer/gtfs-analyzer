@@ -32,7 +32,11 @@ def fetch(argv: list[str]) -> bytes:
     local = [a for a in argv[1:] if not a.startswith("--")]
     if local:
         return pathlib.Path(local[0]).read_bytes()
-    p = subprocess.run(["curl", "-sSL", "--max-time", "90", SRC], capture_output=True)
+    p = subprocess.run(
+        # A slow or dropped connection used to fail the gate as NOT MEASURED; retry first.
+        ["curl", "-sSL", "--retry", "3", "--retry-delay", "5", "--retry-all-errors", "--connect-timeout", "20", "--max-time", "90", SRC],
+        capture_output=True,
+    )
     if p.returncode != 0:
         raise RuntimeError(f"curl failed: {p.stderr.decode()[:120]}")
     return p.stdout
