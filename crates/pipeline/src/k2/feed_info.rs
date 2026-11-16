@@ -306,3 +306,36 @@ fn parse_date_field(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use smol_str::SmolStr;
+
+    fn feed_info(row: Vec<&str>) -> RawFile {
+        RawFile {
+            name: "feed_info.txt".to_string(),
+            headers: ["feed_publisher_name", "feed_publisher_url", "feed_lang"]
+                .iter()
+                .map(|s| (*s).to_string())
+                .collect(),
+            rows: vec![row.into_iter().map(SmolStr::from).collect()],
+            bytes: 0,
+            raw_text: None,
+            zip_entry_name: None,
+        }
+    }
+
+    /// The whitespace gate must not depend on the message language (issue #201): a valid URL or
+    /// language tag padded with spaces is still marked as whitespace-derived.
+    #[test]
+    fn padded_publisher_url_and_feed_lang_are_whitespace_derived() {
+        let (_, notices) =
+            validate_feed_info(&feed_info(vec!["P", " https://example.org ", " en "]));
+        for rule in ["FIN_002", "FIN_003"] {
+            let found: Vec<_> = notices.iter().filter(|n| n.rule_id == rule).collect();
+            assert_eq!(found.len(), 1, "{rule}: {notices:?}");
+            assert!(found[0].whitespace_derived, "{rule} must be whitespace-derived");
+        }
+    }
+}

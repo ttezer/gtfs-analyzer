@@ -1036,7 +1036,10 @@ fn whitespace_parser_derivative(
     let parser_error = message.contains("bekleniyor, alınan:")
         || message.contains("sayı olarak okunamıyor")
         || message.contains("ondalık sayı olarak okunamıyor")
-        || message.contains("geçersiz.");
+        || message.contains("geçersiz.")
+        // FIN_002 / FIN_003 messages moved to English (issue #201); they used to match
+        // "geçersiz." above. Keep them recognized so the whitespace flag does not change.
+        || message.contains("is missing or invalid.");
     if !parser_error {
         return false;
     }
