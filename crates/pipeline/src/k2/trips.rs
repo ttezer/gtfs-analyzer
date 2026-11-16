@@ -750,7 +750,7 @@ pub fn validate_trips_with_limits(
                         Some(line),
                         Some(field),
                         Some(raw.to_string()),
-                        Some("ondalık sayı".to_string()),
+                        Some("decimal number".to_string()),
                         format!("{field} '{raw}' ondalık sayı olarak okunamıyor."),
                         "Enter the safe_duration fields as decimal numbers.",
                     ));

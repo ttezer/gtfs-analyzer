@@ -351,7 +351,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 notices.push(make_k2_notice(
                     &mut counter, "PTH_027", EntityType::Pathway, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("stair_count"),
-                    Some("0".to_string()), Some("0 dışında tam sayı".to_string()),
+                    Some("0".to_string()), Some("non-zero integer".to_string()),
                     "stair_count cannot be zero — a positive value means up, a negative value means down.".to_string(),
                     "Change stair_count to the real number of steps (positive going up, negative going down) or leave the field empty.",
                 ));
@@ -363,7 +363,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                     &mut counter, "PTH_027", EntityType::Pathway, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("stair_count"),
                     get_trimmed_field(&row_map, "stair_count").map(str::to_string),
-                    Some("0 dışında tam sayı".to_string()), err,
+                    Some("non-zero integer".to_string()), err,
                     "Enter stair_count as an integer (positive going up, negative going down).",
                 ));
                 None

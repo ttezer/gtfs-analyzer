@@ -1976,7 +1976,7 @@ fn check_speed_and_duration<'a>(
             ctr, "STM_036", EntityType::Trip,
             Some(trip_id.to_string()), Some(trip_id.to_string()),
             "stop_times.txt", Some(lo as u64), Some("stop_sequence"),
-            Some(format!("line_range={lo}-{hi}")), Some("trip'e göre gruplu".to_string()),
+            Some(format!("line_range={lo}-{hi}")), Some("grouped by trip".to_string()),
             format!("'{trip_id}' seferinin stop_times satırları dosyada dağınık (trip_id'ye göre gruplu değil); {lo}–{hi} arasına yayılmış."),
             "Sort stop_times.txt by trip_id and stop_sequence.",
         );
@@ -4709,8 +4709,8 @@ fn check_geo_stop_analytics(
                     "stops.txt",
                     Some(stop.line),
                     Some("stop_lat|stop_lon"),
-                    Some(format!("({lat:.5},{lon:.5}) — median'dan {d:.0}km")),
-                    Some(format!("≤ {threshold_km:.0}km (feed medianından)")),
+                    Some(format!("({lat:.5},{lon:.5}) — {d:.0}km")),
+                    Some(format!("≤ {threshold_km:.0}km (from feed median)")),
                     format!("'{}' durağı (kod: '{}') feed medianından {d:.0}km uzakta (eşik {threshold_km:.0}km) — koordinat hatası olabilir.",
                         stop.stop_name.as_deref().unwrap_or(stop.stop_id.as_str()), stop.stop_id),
                     "Verify stop_lat and stop_lon values.",
@@ -7151,7 +7151,7 @@ fn check_data_quality(
                 None,
                 Some("source_url"),
                 Some(source_url.to_string()),
-                Some("kalıcı URL .../dosya.zip".to_string()),
+                Some("permanent URL .../file.zip".to_string()),
                 format!("GTFS yayın URL'si bir .zip dosya adıyla bitmiyor: '{source_url}'."),
                 "Publish the feed at a permanent URL that ends with an explicit .zip filename.",
             ));
@@ -7191,7 +7191,7 @@ fn check_data_quality(
                     if !lower.contains(&parent_name.to_lowercase()) {
                         let mut n041 = k6_notice(ctr, "STP_041", EntityType::Stop, Some(stop.stop_id.clone()),
                             Some(stop.stop_id.clone()), "stops.txt", Some(stop.line), Some("stop_name"),
-                            Some(name.to_string()), Some(format!("{} içermeli", parent_name)),
+                            Some(name.to_string()), Some(format!("must contain {}", parent_name)),
                             format!("Alt durak '{}' adı üst istasyon '{}' adını içermiyor.", name, parent_name),
                             "Use the parent station name inside the child stop name, or turn the profile off if local naming differs.");
                         // Planner context: the station the stop belongs to.
@@ -8877,7 +8877,7 @@ fn check_remaining_analytics<'a>(
                 Some(shape_id.to_string()), Some(shape_id.to_string()),
                 "shapes.txt", None, Some("shape_dist_traveled"),
                 Some(format!("{with_sdt}/{point_count}")),
-                Some("tüm shape noktalarında değer".to_string()),
+                Some("value on every shape point".to_string()),
                 format!("'{shape_id}' shape'i kullanan {affected_trips} trip stop_times.txt'te shape_dist_traveled kullanıyor, ancak shape noktalarının {missing}/{point_count} tanesinde shapes.txt shape_dist_traveled değeri eksik."),
                 "Add shape_dist_traveled to every point of the referenced shape using the same units as stop_times.txt, or remove the field consistently from the affected trips.",
             );
@@ -13010,7 +13010,7 @@ fn summarize_patterns(patterns: &[String]) -> String {
     }
     counts
         .iter()
-        .map(|(k, &v)| format!("{}: {} gün", k, v))
+        .map(|(k, &v)| format!("{}: {} days", k, v))
         .collect::<Vec<_>>()
         .join("; ")
 }
@@ -13245,7 +13245,7 @@ fn check_pathway_analytics(
                 None,
                 None,
                 Some("max_slope > 8% or min_width < 0.9m".to_string()),
-                Some("max_slope ≤ 8% ve min_width ≥ 0.9m olan en az 1 path".to_string()),
+                Some("at least 1 path with max_slope ≤ 8% and min_width ≥ 0.9m".to_string()),
                 format!(
                     "İstasyon '{station_id}' — entrance'tan platforma tekerlekli sandalye ile erişilebilir pathway rotası yok (tüm pathlarda max_slope > 8% veya min_width < 0.9m).",
                 ),

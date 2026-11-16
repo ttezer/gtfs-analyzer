@@ -359,7 +359,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                     Some(cur_line),
                     Some("start_time"),
                     get_trimmed_field(cur_row, "start_time").map(str::to_string),
-                    Some("önceki dönemle çakışmamalı".to_string()),
+                    Some("must not overlap the previous period".to_string()),
                     format!("trip_id '{trip}' için frequencies dönemleri zaman aralığı çakışıyor."),
                     "Adjust the trip's frequencies periods so their time ranges do not overlap.",
                 ));

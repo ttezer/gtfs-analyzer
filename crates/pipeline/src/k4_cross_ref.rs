@@ -1285,7 +1285,7 @@ fn check_stops(
                     Some(rec.line),
                     Some("stop_access"),
                     Some(stop_access_raw.to_string()),
-                    Some("(boş)".to_string()),
+                    Some("(empty)".to_string()),
                     format!("stop_access yalnız üst istasyonu olan platformlarda kullanılabilir ({why})."),
                     "Fill in stop_access only on platforms that have a parent_station.",
                 );
@@ -5938,7 +5938,7 @@ fn check_gtfs_jp(
                         Some(route.line),
                         Some("route_id"),
                         Some(String::new()),
-                        Some("routes.txt'te tanımlı route_id".to_string()),
+                        Some("route_id defined in routes.txt".to_string()),
                         "routes_jp.txt row is missing route_id.".to_string(),
                         "Use a route_id in routes_jp.txt that is defined in routes.txt.",
                     ));
@@ -6271,7 +6271,7 @@ fn check_gtfs_jp(
                         Some(office.line),
                         Some("office_url"),
                         Some(url.to_string()),
-                        Some("http:// veya https:// URL".to_string()),
+                        Some("http:// or https:// URL".to_string()),
                         format!(
                             "office_url '{}' geçerli bir http/https URL'si gibi görünmüyor.",
                             url
@@ -6302,7 +6302,7 @@ fn check_gtfs_jp(
                         Some(office.line),
                         Some("office_phone"),
                         Some(phone.to_string()),
-                        Some("telefon numarası".to_string()),
+                        Some("phone number".to_string()),
                         format!(
                             "office_phone '{}' geçerli bir telefon numarası gibi görünmüyor.",
                             phone

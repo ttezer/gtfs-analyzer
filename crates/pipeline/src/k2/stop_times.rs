@@ -3158,7 +3158,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     st.notices.push(make_k2_notice(
                 &mut st.counter, "STM_037", EntityType::Trip, eid(),
                 None, &file.name, Some(line), Some("arrival_time"),
-                Some(arr_raw.to_string()), Some("(boş)".to_string()),
+                Some(arr_raw.to_string()), Some("(empty)".to_string()),
                 format!("trip_id '{}' Flex penceresi tanımlı iken arrival_time/departure_time yasaktır.", trip_id),
                 "Remove arrival_time and departure_time fields from flex stop_times rows.",
             ));
@@ -3320,7 +3320,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 // the conflict was with location_group_id the user looked at the wrong field.
                 Some("stop_id|location_id|location_group_id"),
                 Some(if loc_id_raw.is_empty() { loc_grp_raw.to_string() } else { loc_id_raw.to_string() }),
-                Some("(boş)".to_string()),
+                Some("(empty)".to_string()),
                 format!("trip_id '{}' stop_id ve location_id/group_id aynı anda tanımlı olamaz.", trip_id),
                 "For a standard stop use only stop_id; for a flex stop use only location_id or location_group_id.",
             ));

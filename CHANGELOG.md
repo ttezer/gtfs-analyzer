@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Turkish words removed from finding values in every language.** About 30 `observed_value`,
+  `expected_value` and `details` values were written in Turkish and appeared as such in the
+  English, Japanese and French output too. They are now English, for example `(boş)` → `(empty)`,
+  `tam sayı` → `integer`, `0 dışında tam sayı` → `non-zero integer`, `0, 1, 2 veya 3` → `0, 1, 2 or 3`
+  (`GGL_001` summary), and `OPR_019`/`OPR_020` `details.active_service_patterns` now say `days`
+  instead of `gün`. `GEO_002` `observed_value` is now `(lat,lon) — <distance>km`; the English,
+  Japanese and French messages no longer contain the Turkish word "median'dan". Consumers that
+  match these exact strings must update them; finding counts, rule IDs and scores are unchanged.
+
+### Fixed
+
+- **Turkish text for the `JPN_033` remediation.** It was shown in English to Turkish users.
+
 ## [0.20.0] - 2026-11-13
 
 Highlights. **Security:** hostile feeds can no longer make the engine work without bound, and a file the engine could not read to the end now returns `status: PARTIAL` (CLI exit code 1) instead of `COMPLETE`; a single very long value is capped at 4,096 characters per finding field; many stops at one coordinate no longer cost quadratic time; the web app refuses private-network URLs, ships a Content-Security-Policy and guards CSV exports; the ChatGPT plugin server adds a global rate limit and IPv6-embedded private address checks. Upgrade if you validate feeds you do not control. **Behaviour:** `STM_025` reports one finding per route, direction and stop pair (its count drops sharply; `details.segment_count` adds up to the old count), `STM_061` measures distance stop by stop, `FIN_019` no longer fires exactly at the window boundary, and `RTS_022` catches one-character short names at the start of the long name. **Output size:** planner cards add `details` fields to many findings, so full JSON reports carry more per finding; with `STM_025` aggregated, large reports still shrink (mdb-1220: 979 MiB → 158 MiB). For machine consumers of large feeds, `--compact-json` returns the scores, reports and per-rule counts without the finding list (mdb-2012: 35.9 MB → 43 KB).

@@ -122,7 +122,7 @@ fn validate_fare_attributes_inner(
                         Some(line),
                         Some("price"),
                         Some(String::new()),
-                        Some("sayısal değer".to_string()),
+                        Some("numeric value".to_string()),
                         "price is required and cannot be empty.".to_string(),
                         "Enter a valid numeric value in price.",
                     ));
@@ -336,10 +336,12 @@ fn validate_fare_attributes_inner(
         let want = iso4217_minor_unit(&currency)
             .map(|u| u.to_string())
             .unwrap_or_else(|| "tanımsız".to_string());
+        // The expected value is language-neutral data; only the Turkish message says "tanımsız".
+        let want_value = iso4217_minor_unit(&currency).map_or_else(|| "undefined".to_string(), |u| u.to_string());
         notices.push(make_k2_notice(
             &mut counter, "FAR_013", EntityType::File, None, None,
             &file.name, Some(line), Some("price"),
-            Some(format!("{iso_bad} rows")), Some(format!("{want} decimal places")),
+            Some(format!("{iso_bad} rows")), Some(format!("{want_value} decimal places")),
             format!(
                 "fare_attributes.txt dosyasında {iso_bad} tutar, para biriminin ISO 4217 ondalık basamak \
                  sayısını taşımıyor (ör. satır {line}: {currency} {amount} — {want} basamak beklenir)."

@@ -215,7 +215,7 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
             // The rule is that all three role fields are empty TOGETHER; all three are named.
             Some("is_producer|is_operator|is_authority"),
             Some(format!("{no_role_count} rows")),
-            Some("en az bir rol = 1".to_string()),
+            Some("at least one role = 1".to_string()),
             format!(
                 "attributions.txt dosyasındaki {no_role_count} kayıtta hiçbir attribution rolü                  tanımlı değil (ör. satır {first})."
             ),

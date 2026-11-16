@@ -790,10 +790,10 @@ en	FTR_009	transfer_count required when leg groups equal	Fare transfer rule: tra
 en	FTR_010	transfer_count forbidden when leg groups differ	Fare transfer rule: transfer_count '-5' is not allowed when from_leg_group_id differs from to_leg_group_id.	Remove transfer_count or make the leg groups equal.
 en	FTR_010	transfer_count forbidden when leg groups differ	Fare transfer rule: transfer_count '3' is not allowed when from_leg_group_id differs from to_leg_group_id.	Remove transfer_count or make the leg groups equal.
 en	FTR_011	duration_limit set but duration_limit_type missing	Fare transfer rule: duration_limit_type is required when duration_limit is defined.	Fill duration_limit_type (0–3) or remove duration_limit.
-en	GEO_002	Stop too far from feed median	Stop 'S3' is (10.12300,10.12300) — median'dan 3901km from the feed median — possible coordinate error.	Verify stop_lat and stop_lon values.
-en	GEO_002	Stop too far from feed median	Stop 'S5' is (10.00000,10.00000) — median'dan 3921km from the feed median — possible coordinate error.	Verify stop_lat and stop_lon values.
-en	GEO_002	Stop too far from feed median	Stop 'S5' is (41.10000,29.10000) — median'dan 935km from the feed median — possible coordinate error.	Verify stop_lat and stop_lon values.
-en	GEO_002	Stop too far from feed median	Stop 'S6' is (10.01000,10.01000) — median'dan 3919km from the feed median — possible coordinate error.	Verify stop_lat and stop_lon values.
+en	GEO_002	Stop too far from feed median	Stop 'S3' is (10.12300,10.12300) — 3901km from the feed median — possible coordinate error.	Verify stop_lat and stop_lon values.
+en	GEO_002	Stop too far from feed median	Stop 'S5' is (10.00000,10.00000) — 3921km from the feed median — possible coordinate error.	Verify stop_lat and stop_lon values.
+en	GEO_002	Stop too far from feed median	Stop 'S5' is (41.10000,29.10000) — 935km from the feed median — possible coordinate error.	Verify stop_lat and stop_lon values.
+en	GEO_002	Stop too far from feed median	Stop 'S6' is (10.01000,10.01000) — 3919km from the feed median — possible coordinate error.	Verify stop_lat and stop_lon values.
 en	GEO_006	Large jump in shape	Shape 'SH1': jump of 11.12 km (segment 0→1) (limit: ≤ 10 km).	Add intermediate shape points to close the large gap.
 en	GEO_006	Large jump in shape	Shape 'SH1': jump of 11.12 km (segment 1→2) (limit: ≤ 10 km).	Add intermediate shape points to close the large gap.
 en	GEO_006	Large jump in shape	Shape 'SH1': jump of 13.93 km (segment 0→1) (limit: ≤ 10 km).	Add intermediate shape points to close the large gap.
@@ -2290,10 +2290,10 @@ fr	FTR_009	transfer_count obligatoire lorsque les groupes de trajets sont identi
 fr	FTR_010	transfer_count interdit lorsque les groupes de trajets diffèrent	Règle de correspondance tarifaire : transfer_count « -5 » n’est pas autorisé lorsque from_leg_group_id diffère de to_leg_group_id.	Retirez transfer_count, ou rendez les groupes de trajets identiques.
 fr	FTR_010	transfer_count interdit lorsque les groupes de trajets diffèrent	Règle de correspondance tarifaire : transfer_count « 3 » n’est pas autorisé lorsque from_leg_group_id diffère de to_leg_group_id.	Retirez transfer_count, ou rendez les groupes de trajets identiques.
 fr	FTR_011	duration_limit défini mais duration_limit_type manquant	Règle de correspondance tarifaire : duration_limit_type est obligatoire lorsque duration_limit est défini.	Renseignez duration_limit_type (0–3), ou retirez duration_limit.
-fr	GEO_002	Arrêt trop éloigné de la médiane du jeu de données	L’arrêt « S3 » se situe à (10.12300,10.12300) — median'dan 3901km de la médiane du jeu de données — possible erreur de coordonnées.	Vérifiez les valeurs stop_lat et stop_lon.
-fr	GEO_002	Arrêt trop éloigné de la médiane du jeu de données	L’arrêt « S5 » se situe à (10.00000,10.00000) — median'dan 3921km de la médiane du jeu de données — possible erreur de coordonnées.	Vérifiez les valeurs stop_lat et stop_lon.
-fr	GEO_002	Arrêt trop éloigné de la médiane du jeu de données	L’arrêt « S5 » se situe à (41.10000,29.10000) — median'dan 935km de la médiane du jeu de données — possible erreur de coordonnées.	Vérifiez les valeurs stop_lat et stop_lon.
-fr	GEO_002	Arrêt trop éloigné de la médiane du jeu de données	L’arrêt « S6 » se situe à (10.01000,10.01000) — median'dan 3919km de la médiane du jeu de données — possible erreur de coordonnées.	Vérifiez les valeurs stop_lat et stop_lon.
+fr	GEO_002	Arrêt trop éloigné de la médiane du jeu de données	L’arrêt « S3 » se situe à (10.12300,10.12300) — 3901km de la médiane du jeu de données — possible erreur de coordonnées.	Vérifiez les valeurs stop_lat et stop_lon.
+fr	GEO_002	Arrêt trop éloigné de la médiane du jeu de données	L’arrêt « S5 » se situe à (10.00000,10.00000) — 3921km de la médiane du jeu de données — possible erreur de coordonnées.	Vérifiez les valeurs stop_lat et stop_lon.
+fr	GEO_002	Arrêt trop éloigné de la médiane du jeu de données	L’arrêt « S5 » se situe à (41.10000,29.10000) — 935km de la médiane du jeu de données — possible erreur de coordonnées.	Vérifiez les valeurs stop_lat et stop_lon.
+fr	GEO_002	Arrêt trop éloigné de la médiane du jeu de données	L’arrêt « S6 » se situe à (10.01000,10.01000) — 3919km de la médiane du jeu de données — possible erreur de coordonnées.	Vérifiez les valeurs stop_lat et stop_lon.
 fr	GEO_006	Saut important dans le tracé	Tracé « SH1 » : saut de 11.12 km (segment 0→1) (limite : ≤ 10 km).	Ajoutez des points de tracé intermédiaires pour combler l’écart important.
 fr	GEO_006	Saut important dans le tracé	Tracé « SH1 » : saut de 11.12 km (segment 1→2) (limite : ≤ 10 km).	Ajoutez des points de tracé intermédiaires pour combler l’écart important.
 fr	GEO_006	Saut important dans le tracé	Tracé « SH1 » : saut de 13.93 km (segment 0→1) (limite : ≤ 10 km).	Ajoutez des points de tracé intermédiaires pour combler l’écart important.
@@ -3790,10 +3790,10 @@ ja	FTR_009	leg groupが同じ場合transfer_count必須	運賃乗り換えルー
 ja	FTR_010	leg groupが異なる場合transfer_count禁止	運賃乗り換えルール：from_leg_group_idとto_leg_group_idが異なる場合、transfer_count'-5'は指定できません。	transfer_countを削除するか、leg groupを一致させてください。
 ja	FTR_010	leg groupが異なる場合transfer_count禁止	運賃乗り換えルール：from_leg_group_idとto_leg_group_idが異なる場合、transfer_count'3'は指定できません。	transfer_countを削除するか、leg groupを一致させてください。
 ja	FTR_011	duration_limit定義済みだがduration_limit_type欠如	運賃乗り換えルール：duration_limitが定義されている場合、duration_limit_typeは必須です。	duration_limit_type（0–3）を入力するか、duration_limitを削除してください。
-ja	GEO_002	停留所がフィードの中央値から非常に遠い	停留所'S3'はフィードの中央値から(10.12300,10.12300) — median'dan 3901km離れています — 座標エラーの可能性があります。	stop_latとstop_lonの値を確認してください。
-ja	GEO_002	停留所がフィードの中央値から非常に遠い	停留所'S5'はフィードの中央値から(10.00000,10.00000) — median'dan 3921km離れています — 座標エラーの可能性があります。	stop_latとstop_lonの値を確認してください。
-ja	GEO_002	停留所がフィードの中央値から非常に遠い	停留所'S5'はフィードの中央値から(41.10000,29.10000) — median'dan 935km離れています — 座標エラーの可能性があります。	stop_latとstop_lonの値を確認してください。
-ja	GEO_002	停留所がフィードの中央値から非常に遠い	停留所'S6'はフィードの中央値から(10.01000,10.01000) — median'dan 3919km離れています — 座標エラーの可能性があります。	stop_latとstop_lonの値を確認してください。
+ja	GEO_002	停留所がフィードの中央値から非常に遠い	停留所'S3'はフィードの中央値から(10.12300,10.12300) — 3901km離れています — 座標エラーの可能性があります。	stop_latとstop_lonの値を確認してください。
+ja	GEO_002	停留所がフィードの中央値から非常に遠い	停留所'S5'はフィードの中央値から(10.00000,10.00000) — 3921km離れています — 座標エラーの可能性があります。	stop_latとstop_lonの値を確認してください。
+ja	GEO_002	停留所がフィードの中央値から非常に遠い	停留所'S5'はフィードの中央値から(41.10000,29.10000) — 935km離れています — 座標エラーの可能性があります。	stop_latとstop_lonの値を確認してください。
+ja	GEO_002	停留所がフィードの中央値から非常に遠い	停留所'S6'はフィードの中央値から(10.01000,10.01000) — 3919km離れています — 座標エラーの可能性があります。	stop_latとstop_lonの値を確認してください。
 ja	GEO_006	経路形状に大きなジャンプ	シェープ'SH1'：11.12 km (segment 0→1)のジャンプ（制限：≤ 10 km）。	大きなギャップを埋めるために中間形状点を追加してください。
 ja	GEO_006	経路形状に大きなジャンプ	シェープ'SH1'：11.12 km (segment 1→2)のジャンプ（制限：≤ 10 km）。	大きなギャップを埋めるために中間形状点を追加してください。
 ja	GEO_006	経路形状に大きなジャンプ	シェープ'SH1'：13.93 km (segment 0→1)のジャンプ（制限：≤ 10 km）。	大きなギャップを埋めるために中間形状点を追加してください。

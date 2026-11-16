@@ -384,7 +384,7 @@ fn build_shape_geometry(
                             ctr, "SHP_005", EntityType::Shape,
                             Some(shape_id.clone()), Some(shape_id.clone()),
                             "shapes.txt", Some(pt.line_u64()), Some("shape_dist_traveled"),
-                            Some(format!("{d}")), Some(format!("≥ {prev} (önceki sıra)")),
+                            Some(format!("{d}")), Some(format!("≥ {prev} (previous point)")),
                             format!("shape_id '{shape_id}' için shape_dist_traveled shape_pt_sequence ile azalıyor: {prev} → {d}."),
                             "Write shape_dist_traveled values in ascending order for each shape.",
                         );

@@ -2015,7 +2015,7 @@ fn aggregate_trf019(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.line = None;
     aggregate.field = Some("route_type".to_string());
     aggregate.observed_value = Some(affected_transfers.to_string());
-    aggregate.expected_value = Some("from_trip_id ve to_trip_id aynı route_type".to_string());
+    aggregate.expected_value = Some("same route_type for from_trip_id and to_trip_id".to_string());
     aggregate.message = format!("transfers.txt içinde {affected_transfers} in-seat aktarmada route_type uyumsuz.");
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
@@ -2139,7 +2139,7 @@ fn aggregate_ggl001(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.line = None;
     aggregate.field = Some("transfer_type".to_string());
     aggregate.observed_value = Some(affected_transfers.to_string());
-    aggregate.expected_value = Some("0, 1, 2 veya 3".to_string());
+    aggregate.expected_value = Some("0, 1, 2 or 3".to_string());
     aggregate.message = format!("transfers.txt içinde {affected_transfers} kayıt Google Transit tarafından yoksayılıyor.");
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();

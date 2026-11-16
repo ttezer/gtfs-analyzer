@@ -261,7 +261,7 @@ pub fn validate_fare_transfer_rules(
                 notices.push(make_k2_notice(
                     &mut counter, "FTR_010", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("transfer_count"),
-                    transfer_count_raw.clone(), Some("(boş)".to_string()),
+                    transfer_count_raw.clone(), Some("(empty)".to_string()),
                     "transfer_count cannot be defined when from_leg_group_id differs from to_leg_group_id.".to_string(),
                     "Remove transfer_count or make the leg groups equal.",
                 ));

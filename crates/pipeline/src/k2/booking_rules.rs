@@ -63,7 +63,7 @@ fn opt_int_checked(
                 Some(line),
                 Some(field),
                 Some(raw.to_string()),
-                Some("tam sayı".to_string()),
+                Some("integer".to_string()),
                 format!("{field} '{raw}' tam sayı olarak okunamıyor."),
                 "Enter the prior_notice numeric fields as whole numbers.",
             ));
@@ -245,7 +245,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 notices.push(make_k2_notice(
                     &mut ctr, "BKR_004", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_duration_min"),
-                    Some(btype_str.clone()), Some("(boş)".to_string()),
+                    Some(btype_str.clone()), Some("(empty)".to_string()),
                     "prior_notice fields must be empty when booking_type=0 (real-time booking).".to_string(),
                     "Remove prior_notice fields for instant booking or correct the booking_type value.",
                 ));
@@ -257,7 +257,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     &mut ctr, "BKR_005", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_duration_max"),
                     get_trimmed_field(&row_map, "prior_notice_duration_max").map(str::to_string),
-                    Some("(boş)".to_string()),
+                    Some("(empty)".to_string()),
                     "prior_notice_duration_max is forbidden when booking_type=2.".to_string(),
                     "prior_notice_duration_max can only be used with booking_type=1 (same-day).",
                 ));
@@ -272,7 +272,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     &mut ctr, "BKR_012", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_duration_min"),
                     get_trimmed_field(&row_map, "prior_notice_duration_min").map(str::to_string),
-                    Some("(boş)".to_string()),
+                    Some("(empty)".to_string()),
                     "prior_notice_duration_min is forbidden when booking_type=2.".to_string(),
                     "prior_notice_duration_min can only be used with booking_type=1 (same-day).",
                 ));
@@ -334,7 +334,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 notices.push(make_k2_notice(
                     &mut ctr, "BKR_001", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_start_day"),
-                    Some(btype_str.clone()), Some("(boş)".to_string()),
+                    Some(btype_str.clone()), Some("(empty)".to_string()),
                     format!("{neden} iken prior_notice_start_day yasaktır."),
                     "Remove prior_notice_start_day, or correct booking_type / prior_notice_duration_max.",
                 ));
@@ -425,7 +425,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 &mut ctr, "BKR_024", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("prior_notice_start_day"),
                 get_trimmed_field(&row_map, "prior_notice_start_day").map(str::to_string),
-                Some("(boş)".to_string()),
+                Some("(empty)".to_string()),
                 "prior_notice_start_day is forbidden when booking_type=1 and prior_notice_duration_max is set.".to_string(),
                 "Clear prior_notice_start_day, or remove prior_notice_duration_max.",
             ));

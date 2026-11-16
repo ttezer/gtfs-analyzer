@@ -409,7 +409,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                     Some(line),
                     Some("route_sort_order"),
                     get_trimmed_field(&row_map, "route_sort_order").map(str::to_string),
-                    Some("negatif olmayan tam sayı".to_string()),
+                    Some("non-negative integer".to_string()),
                     err,
                     "Give route_sort_order as a non-negative whole number.",
                 ));
