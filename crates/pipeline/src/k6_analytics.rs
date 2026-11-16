@@ -1978,7 +1978,7 @@ fn check_speed_and_duration<'a>(
             "stop_times.txt", Some(lo as u64), Some("stop_sequence"),
             Some(format!("line_range={lo}-{hi}")), Some("trip'e göre gruplu".to_string()),
             format!("'{trip_id}' seferinin stop_times satırları dosyada dağınık (trip_id'ye göre gruplu değil); {lo}–{hi} arasına yayılmış."),
-            "stop_times.txt'i trip_id ve stop_sequence'a göre sıralayın.",
+            "Sort stop_times.txt by trip_id and stop_sequence.",
         );
         // Planner context: the trip's rows are spread over these file lines.
         n.details = Some(
@@ -2661,7 +2661,7 @@ fn check_speed_and_duration<'a>(
                         None,
                         format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arasında aynı durak ({}) ardışık iki kez ziyaret ediliyor.",
                             a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0), idx.stop_id_of(a)),
-                        "Terminal veya döngü hattıysa beklenen bir durumdur. Değilse stop_times.txt'teki yinelenen satırı kaldırın.",
+                        "Expected for terminal or loop routes. Otherwise, remove the duplicate row in stop_times.txt.",
                     );
                         // Planner context: the two rows of the repeated stop with their sequence and
                         // times, and the stops before and after them.
@@ -4314,7 +4314,7 @@ fn check_calendar_analytics(
                     None, None, "calendar.txt", None, None,
                     Some(format!("{first}")), Some(format!("≤ {today_yyyymmdd}")),
                     format!("Feed'in en erken servis tarihi {first}; bu tarih henüz gelmedi — seferler bugün için mevcut değil."),
-                    "Feed yayınlama zamanlamasını gözden geçirin ya da calendar.txt'i düzeltin.",
+                    "Review the feed publishing schedule or fix calendar.txt.",
                 );
                 if future_only_jp_date == Some(first) {
                     notice.severity = gtfs_core::Severity::Bilgi;
@@ -4322,7 +4322,7 @@ fn check_calendar_analytics(
                         "Yaklaşan servis veri kümesi — GTFS-JP feed'indeki tüm aktif servis tarihleri gelecekte başlıyor ({first}); bu beklenen yayınlama deseni kalite skorunu etkilemez."
                     );
                     notice.remediation =
-                        "İşlem gerekmez; servis başlangıç tarihinden önce bu GTFS-JP veri kümesini yayınlayın."
+                        "No action needed; publish this GTFS-JP dataset before the service start date."
                             .to_string().into();
                     // Without `message_variant`, the en/ja/fr template printed the generic CAL_015
                     // text ("fix the calendar"); non-Turkish users could not see the correction.

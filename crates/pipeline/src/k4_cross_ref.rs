@@ -4482,7 +4482,7 @@ impl<'a> JpMissingReadings<'a> {
                         "aggregate_both",
                         "ja-Hrkt,ja",
                         format!("GTFS-JP V3: {table}.{field} = '{source}' için zorunlu ja-Hrkt ve language=ja çevirileri eksik — {} satırı etkiliyor. Örnekler: {examples}.", group.count),
-                        "translations.txt'e bu kaynak değeri kapsayan ja-Hrkt ve language=ja çevirilerini ekleyin.",
+                        "Add the matching ja-Hrkt and language=ja translation rows.",
                     )
             } else if group.missing_kana {
                 (
@@ -4490,7 +4490,7 @@ impl<'a> JpMissingReadings<'a> {
                         "aggregate",
                         "ja-Hrkt",
                         format!("GTFS-JP V3: {table}.{field} = '{source}' için zorunlu ja-Hrkt çevirisi eksik — {} satırı etkiliyor. Örnekler: {examples}.", group.count),
-                        "translations.txt'e bu kaynak değeri kapsayan ja-Hrkt çevirisini ekleyin.",
+                        "Add the matching language=ja-Hrkt translation row.",
                     )
             } else {
                 (
@@ -5798,11 +5798,11 @@ fn check_gtfs_jp(
             None,
             None,
             message.to_string(),
-            "fare_attributes.txt'i ekleyin; hatlara/alanlara göre farklı ücret profilleri varsa fare_rules.txt ile bunları eşleyin.",
+            "Add fare_attributes.txt; when fare profiles differ by route or area, add fare_rules.txt to map them.",
         );
         if missing_review {
             finding.severity = gtfs_core::Severity::Bilgi;
-            finding.remediation = "Ücret tarifesinin MLIT karmaşık ücret istisnasına uyduğunu elle doğrulayın; uymuyorsa fare_attributes.txt ekleyin.".to_string().into();
+            finding.remediation = "Check manually that the fares meet the MLIT complex-fare exception; otherwise add fare_attributes.txt.".to_string().into();
         }
         finding.details = Some(BTreeMap::from([
             (
@@ -6489,7 +6489,7 @@ fn check_fare_leg_join_rules(
                     Some(String::new()),
                     None,
                     format!("fare_leg_join_rules.txt satırında {field} zorunludur."),
-                    "networks.txt veya routes.network_id içinde tanımlı bir ağ kodu girin.",
+                    "Enter a network id defined in networks.txt or routes.network_id.",
                 ));
             } else if !map.network_ids.contains(value.as_str()) {
                 notices.push(notice(
@@ -6504,7 +6504,7 @@ fn check_fare_leg_join_rules(
                     Some(value.clone()),
                     None,
                     format!("'{value}' ağ kodu networks.txt/routes.txt içinde tanımlı değil."),
-                    "networks.txt veya routes.network_id içinde tanımlı bir ağ kodu kullanın.",
+                    "Use a network id defined in networks.txt or routes.network_id.",
                 ));
             }
         }

@@ -41,6 +41,7 @@
     "ARC_032": "HTML etiketlerini ve karakter kaçışlarını alan değerlerinden kaldırın; GTFS alanları düz metin taşır ve tüketiciler bu işaretleri olduğu gibi gösterir.",
     "ARC_033": "Tırnak veya virgül içeren alan değerlerini tırnak içine alın; değerin içindeki her tırnağı ikiye katlayarak kaçırın (\"12\"\" Street\").",
     "ARC_034": "Dosyanın ortasındaki tekrar eden başlık satırını kaldırın; genellikle iki dosyanın uç uca eklenmesinden doğar.",
+    "ARC_035": "Dosyaya gerçek verileri ekleyin; boş bırakmak dosyayı eklememekle aynıdır.",
     "ARC_036": "Arşivi standart bir ZIP aracıyla yeniden paketleyin; data-descriptor bayrağı ile yerel başlıktaki boyutlar tutarlı olmalıdır.",
     "ARC_037": "ID değerlerinde yalnız yazdırılabilir ASCII karakterler kullanın; ID'ler yolculara gösterilmez, görünen ad için name/desc alanları vardır.",
     "ARS_001": "Her alana benzersiz bir area_id atayın.",
@@ -366,6 +367,7 @@
     "STM_032": "Her (trip_id, stop_sequence) çifti stop_times.txt'te benzersiz olmalıdır.",
     "STM_033": "Sefere en az iki durak durağı ekleyin.",
     "STM_034": "Her iki zaman alanını birlikte doldurun veya ikisini de boş bırakın.",
+    "STM_035": "Terminal veya döngü hattıysa beklenen bir durumdur. Değilse stop_times.txt'teki yinelenen satırı kaldırın.",
     "STM_037": "Flex stop_times satırlarında arrival_time ve departure_time alanlarını kaldırın.",
     "STM_038": "start_pickup_drop_off_window değerini end_pickup_drop_off_window'dan kesin olarak küçük yapın.",
     "STM_039": "Flex stop_times için hem start_pickup_drop_off_window hem end_pickup_drop_off_window girin.",
@@ -554,6 +556,10 @@
       "Give every booking rule a unique booking_rule_id.": "Her rezervasyon kuralına benzersiz bir booking_rule_id verin.",
       "Give every row a unique booking_rule_id.": "Her satıra benzersiz bir booking_rule_id verin."
     },
+    "CAL_015": {
+      "No action needed; publish this GTFS-JP dataset before the service start date.": "İşlem gerekmez; servis başlangıç tarihinden önce bu GTFS-JP veri kümesini yayınlayın.",
+      "Review the feed publishing schedule or fix calendar.txt.": "Feed yayınlama zamanlamasını gözden geçirin ya da calendar.txt'i düzeltin."
+    },
     "CLD_003": {
       "Set exception_type to 1 (added) or 2 (removed).": "exception_type değerini 1 (eklendi) veya 2 (kaldırıldı) olarak ayarlayın.",
       "Set exception_type to 1 (service added) or 2 (service removed).": "exception_type değerini 1 (hizmet eklendi) veya 2 (hizmet kaldırıldı) olarak ayarlayın."
@@ -590,6 +596,14 @@
       "Enter a valid numeric value in price.": "price alanına geçerli bir sayısal değer girin.",
       "Set price to zero or a positive value.": "price alanını sıfır veya pozitif bir değere ayarlayın."
     },
+    "FLJ_001": {
+      "Enter a network id defined in networks.txt or routes.network_id.": "networks.txt veya routes.network_id içinde tanımlı bir ağ kodu girin.",
+      "Use a network id defined in networks.txt or routes.network_id.": "networks.txt veya routes.network_id içinde tanımlı bir ağ kodu kullanın."
+    },
+    "FLJ_002": {
+      "Enter a network id defined in networks.txt or routes.network_id.": "networks.txt veya routes.network_id içinde tanımlı bir ağ kodu girin.",
+      "Use a network id defined in networks.txt or routes.network_id.": "networks.txt veya routes.network_id içinde tanımlı bir ağ kodu kullanın."
+    },
     "FMD_002": {
       "Enter a valid fare_media_type value.": "Geçerli bir fare_media_type değeri girin.",
       "Use 0 (none), 1 (physical paper ticket), 2 (physical transit card), 3 (cEMV) or 4 (mobile app).": "0 (yok), 1 (fiziksel kağıt bilet), 2 (fiziksel transit kartı), 3 (cEMV), 4 (mobil uygulama) kullanın."
@@ -617,6 +631,10 @@
     "FTR_008": {
       "Enter -1 (unlimited) or a positive integer.": "-1 (sınırsız) veya pozitif bir tam sayı girin.",
       "Enter -1 (unlimited) or a positive value such as 1.": "-1 (sınırsız) veya 1 gibi pozitif bir değer girin."
+    },
+    "JPN_006": {
+      "Add fare_attributes.txt; when fare profiles differ by route or area, add fare_rules.txt to map them.": "fare_attributes.txt'i ekleyin; hatlara/alanlara göre farklı ücret profilleri varsa fare_rules.txt ile bunları eşleyin.",
+      "Check manually that the fares meet the MLIT complex-fare exception; otherwise add fare_attributes.txt.": "Ücret tarifesinin MLIT karmaşık ücret istisnasına uyduğunu elle doğrulayın; uymuyorsa fare_attributes.txt ekleyin."
     },
     "JPN_011": {
       "Enter a unique agency_id on every row of agency.txt.": "agency.txt'teki her satıra benzersiz bir agency_id girin.",
@@ -648,6 +666,10 @@
       "Add the location_type column to stops.txt; 0 or an empty cell is valid for an ordinary stop.": "stops.txt'e location_type sütununu ekleyin; normal durak için 0 veya boş hücre geçerlidir.",
       "Fill in agency_lang in agency.txt.": "agency.txt'teki agency_lang alanını doldurun.",
       "Fill in the required field in feed_info.txt.": "feed_info.txt'teki ilgili zorunlu alanı doldurun."
+    },
+    "JPN_028": {
+      "Add the matching ja-Hrkt and language=ja translation rows.": "translations.txt'e bu kaynak değeri kapsayan ja-Hrkt ve language=ja çevirilerini ekleyin.",
+      "Add the matching language=ja-Hrkt translation row.": "translations.txt'e bu kaynak değeri kapsayan ja-Hrkt çevirisini ekleyin."
     },
     "JPN_030": {
       "Add the matching language=ja translation row.": "translations.txt'e bu kaynak değeri kapsayan language=ja çevirisini ekleyin."
@@ -739,6 +761,12 @@
       "Remove repeated points in the shape generation process; individual shapes do not need to be checked one by one.": "Güzergah üretim sürecinde tekrarlayan noktaları eleyin; tek tek shape incelemesi gerekmez.",
       "Remove the repeated points from the shape.": "Güzergah şeklindeki tekrarlayan noktaları temizleyin."
     },
+    "STM_009": {
+      "Set the field to a valid GTFS pickup/drop-off enum value (0-3).": "Alanı geçerli bir GTFS biniş/iniş enum değerine (0-3) ayarlayın."
+    },
+    "STM_010": {
+      "Set the field to a valid GTFS pickup/drop-off enum value (0-3).": "Alanı geçerli bir GTFS biniş/iniş enum değerine (0-3) ayarlayın."
+    },
     "STM_012": {
       "Check the stop_times.txt times and the stops.txt coordinates.": "stop_times.txt zaman ve stops.txt koordinat verilerini doğrulayın.",
       "Check the stop_times.txt times; two stops share the same minute but are too far apart to be covered in one minute.": "stop_times.txt zaman değerlerini doğrulayın; iki durak aynı dakikaya yazılmış ama aralarındaki mesafe bir dakikada alınamaz."
@@ -746,6 +774,18 @@
     "STM_017": {
       "Add shape_dist_traveled to every stop_times row, or provide distance data per shape.": "Tüm stop_times satırlarına shape_dist_traveled ekleyin ya da güzergah bazlı mesafe verisi sağlayın.",
       "Add shape_dist_traveled to every stop_times row, or remove it from all of them.": "Tüm stop_times satırlarına shape_dist_traveled ekleyin ya da tümünden kaldırın."
+    },
+    "STM_018": {
+      "Correct the continuous_pickup fields to one of 0, 1, 2 or 3.": "continuous_pickup alanlarını 0, 1, 2 veya 3 değerlerinden biri olarak düzeltin.",
+      "Set the field to a valid GTFS pickup/drop-off enum value (0-3).": "Alanı geçerli bir GTFS biniş/iniş enum değerine (0-3) ayarlayın."
+    },
+    "STM_019": {
+      "Correct the continuous_drop_off fields to one of 0, 1, 2 or 3.": "continuous_drop_off alanlarını 0, 1, 2 veya 3 değerlerinden biri olarak düzeltin.",
+      "Set the field to a valid GTFS pickup/drop-off enum value (0-3).": "Alanı geçerli bir GTFS biniş/iniş enum değerine (0-3) ayarlayın."
+    },
+    "STM_036": {
+      "Order the stop_times.txt rows by ascending trip_id and stop_sequence.": "stop_times.txt satırlarını trip_id ve stop_sequence değerine göre artan sırada düzenleyin.",
+      "Sort stop_times.txt by trip_id and stop_sequence.": "stop_times.txt'i trip_id ve stop_sequence'a göre sıralayın."
     },
     "STP_003": {
       "Enter a readable stop_name value.": "Okunabilir bir stop_name değeri girin.",

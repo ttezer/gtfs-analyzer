@@ -197,7 +197,7 @@ pub fn reconcile_flex_stop_requirement(
             Some("stops.txt".to_string()),
             None,
             "Zorunlu GTFS dosyası 'stops.txt' hiç veri satırı içermiyor.".to_string(),
-            "Dosyaya gerçek verileri ekleyin; boş bırakmak dosyayı eklememekle aynıdır.",
+            "Add the real records to the file; leaving it empty is equivalent to omitting it.",
         ));
     }
 }

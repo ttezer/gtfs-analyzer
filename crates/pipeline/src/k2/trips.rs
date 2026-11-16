@@ -1053,7 +1053,7 @@ pub fn validate_trips_with_limits(
                 "Zorunlu GTFS dosyası '{}' hiç veri satırı içermiyor.",
                 file.name
             ),
-            "Dosyaya gerçek verileri ekleyin; boş bırakmak dosyayı eklememekle aynıdır.",
+            "Add the real records to the file; leaving it empty is equivalent to omitting it.",
         ));
     }
 

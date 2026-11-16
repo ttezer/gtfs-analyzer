@@ -2555,7 +2555,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                     trip_id, cur_stop, prev_stop
                                 )
                             },
-                            "stop_times.txt satırlarını trip_id ve stop_sequence değerine göre artan sırada düzenleyin.",
+                            "Order the stop_times.txt rows by ascending trip_id and stop_sequence.",
                         );
                             let mut d = std::collections::BTreeMap::new();
                             d.insert("curr_stop".to_string(), cur_stop.to_string());
@@ -3863,7 +3863,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 "Zorunlu GTFS dosyası '{}' hiç veri satırı içermiyor.",
                 file.name
             ),
-            "Dosyaya gerçek verileri ekleyin; boş bırakmak dosyayı eklememekle aynıdır.",
+            "Add the real records to the file; leaving it empty is equivalent to omitting it.",
         ));
     }
 
@@ -3967,7 +3967,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         &file.name,
         "STM_018",
         "continuous_pickup",
-        "continuous_pickup alanlarını 0, 1, 2 veya 3 değerlerinden biri olarak düzeltin.",
+        "Correct the continuous_pickup fields to one of 0, 1, 2 or 3.",
         "continuous_pickup alanı 0-3 dışında — aynı enum ihlali yüksek hacimde tekrarlanıyor.",
         STM018_019_AGG_THRESHOLD,
     );
@@ -3978,7 +3978,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         &file.name,
         "STM_019",
         "continuous_drop_off",
-        "continuous_drop_off alanlarını 0, 1, 2 veya 3 değerlerinden biri olarak düzeltin.",
+        "Correct the continuous_drop_off fields to one of 0, 1, 2 or 3.",
         "continuous_drop_off alanı 0-3 dışında — aynı enum ihlali yüksek hacimde tekrarlanıyor.",
         STM018_019_AGG_THRESHOLD,
     );
@@ -4685,7 +4685,7 @@ fn parse_pickup_dropoff_col(
                         Some(val.to_string()),
                         Some("0-3".to_string()),
                         format!("{field} 0, 1, 2 veya 3 olmalıdır."),
-                        "Alanı geçerli bir GTFS biniş/iniş enum değerine (0-3) ayarlayın.",
+                        "Set the field to a valid GTFS pickup/drop-off enum value (0-3).",
                     ));
                 }
             }
@@ -4705,7 +4705,7 @@ fn parse_pickup_dropoff_col(
                 Some(raw.to_string()),
                 Some("0-3".to_string()),
                 err,
-                "Alanı geçerli bir GTFS biniş/iniş enum değerine (0-3) ayarlayın.",
+                "Set the field to a valid GTFS pickup/drop-off enum value (0-3).",
             ));
             None
         }

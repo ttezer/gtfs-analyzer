@@ -3359,7 +3359,7 @@ pub fn parse_with_limits(
             None,
             Some(f.to_string()),
             format!("Zorunlu GTFS dosyası '{f}' hiç veri satırı içermiyor."),
-            "Dosyaya gerçek verileri ekleyin; boş bırakmak dosyayı eklememekle aynıdır.",
+            "Add the real records to the file; leaving it empty is equivalent to omitting it.",
         ));
     }
 
