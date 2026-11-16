@@ -136,18 +136,20 @@ pub fn validate_fare_products(file: &RawFile) -> (Vec<FareProductRecord>, Vec<gt
     if let Some((line, amount, currency)) = iso_first {
         // ⚠️ `None` = the code is not in the table or its decimal places are undefined;
         // the message must say this instead of inventing a "2 places" expectation.
-        let want = iso4217_minor_unit(&currency)
-            .map(|u| u.to_string())
-            .unwrap_or_else(|| "tanımsız".to_string());
-        // The expected value is language-neutral data; only the Turkish message says "tanımsız".
-        let want_value = iso4217_minor_unit(&currency).map_or_else(|| "undefined".to_string(), |u| u.to_string());
+        let minor_unit = iso4217_minor_unit(&currency);
+        let want_value = minor_unit.map_or_else(|| "undefined".to_string(), |u| u.to_string());
+        // An undefined minor unit is its own sentence, so the Turkish dictionary can say "tanımsız".
+        let want = minor_unit.map_or_else(
+            || "decimal places undefined".to_string(),
+            |u| format!("{u} decimal places expected"),
+        );
         notices.push(make_k2_notice(
             &mut counter, "FPD_007", EntityType::File, None, None,
             &file.name, Some(line), Some("amount"),
             Some(format!("{iso_bad} rows")), Some(format!("{want_value} decimal places")),
             format!(
-                "fare_products.txt dosyasında {iso_bad} tutar, para biriminin ISO 4217 ondalık basamak \
-                 sayısını taşımıyor (ör. satır {line}: {currency} {amount} — {want} basamak beklenir)."
+                "fare_products.txt has {iso_bad} amounts without the ISO 4217 decimal places of their currency \
+                 (e.g. line {line}: {currency} {amount} — {want})."
             ),
             "Write amounts with the decimal places of their currency (for example 0.90 for EUR, 150 for JPY).",
         ));

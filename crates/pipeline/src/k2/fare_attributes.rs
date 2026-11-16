@@ -194,7 +194,7 @@ fn validate_fare_attributes_inner(
                         Some(v.to_string()),
                         Some("-1 or >= 0".to_string()),
                         format!(
-                            "ic_price '{v}' geçersiz: -1 veya sıfır/pozitif (>= 0) bir değer olmalıdır."
+                            "ic_price '{v}' is invalid: it must be -1 or zero/positive (>= 0)."
                         ),
                         "Set ic_price to -1 (unknown) or a zero-or-positive number.",
                     ));
@@ -211,7 +211,7 @@ fn validate_fare_attributes_inner(
                         Some("ic_price"),
                         Some(ic_price_raw.to_string()),
                         Some("-1 or >= 0".to_string()),
-                        format!("ic_price '{ic_price_raw}' sayısal değil."),
+                        format!("ic_price '{ic_price_raw}' is not numeric."),
                         "Set ic_price to -1 (unknown) or a zero-or-positive number.",
                     ));
                 }
@@ -333,18 +333,20 @@ fn validate_fare_attributes_inner(
     if let Some((line, amount, currency)) = iso_first {
         // ⚠️ `None` = the code is not in the table or its decimal places are undefined;
         // the message must say this instead of inventing a "2 places" expectation.
-        let want = iso4217_minor_unit(&currency)
-            .map(|u| u.to_string())
-            .unwrap_or_else(|| "tanımsız".to_string());
-        // The expected value is language-neutral data; only the Turkish message says "tanımsız".
-        let want_value = iso4217_minor_unit(&currency).map_or_else(|| "undefined".to_string(), |u| u.to_string());
+        let minor_unit = iso4217_minor_unit(&currency);
+        let want_value = minor_unit.map_or_else(|| "undefined".to_string(), |u| u.to_string());
+        // An undefined minor unit is its own sentence, so the Turkish dictionary can say "tanımsız".
+        let want = minor_unit.map_or_else(
+            || "decimal places undefined".to_string(),
+            |u| format!("{u} decimal places expected"),
+        );
         notices.push(make_k2_notice(
             &mut counter, "FAR_013", EntityType::File, None, None,
             &file.name, Some(line), Some("price"),
             Some(format!("{iso_bad} rows")), Some(format!("{want_value} decimal places")),
             format!(
-                "fare_attributes.txt dosyasında {iso_bad} tutar, para biriminin ISO 4217 ondalık basamak \
-                 sayısını taşımıyor (ör. satır {line}: {currency} {amount} — {want} basamak beklenir)."
+                "fare_attributes.txt has {iso_bad} amounts without the ISO 4217 decimal places of their currency \
+                 (e.g. line {line}: {currency} {amount} — {want})."
             ),
             "Write amounts with the decimal places of their currency (for example 0.90 for EUR, 150 for JPY).",
         ));
@@ -384,7 +386,7 @@ fn parse_enum_u32(
                         Some(field),
                         Some(v.to_string()),
                         None,
-                        format!("{field} alanı geçerli bir enum değeri değil."),
+                        format!("{field} is not a valid enum value."),
                         "Set the field to a valid spec enum value.",
                     ));
                 }

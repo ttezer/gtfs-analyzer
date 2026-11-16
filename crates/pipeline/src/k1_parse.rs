@@ -587,8 +587,8 @@ impl Rfc4180Acc {
 const ARC033_REMEDIATION: &str =
     "Quote any field value that contains a quotation mark or a comma, and double every quotation mark inside it (\"12\"\" Street\").";
 
-pub(crate) const RFC4180_BARE_QUOTE: &str = "tırnaksız alan tırnak işareti içeriyor";
-pub(crate) const RFC4180_AFTER_CLOSE: &str = "kapanış tırnağından sonra karakter var";
+pub(crate) const RFC4180_BARE_QUOTE: &str = "unquoted field contains a quote";
+pub(crate) const RFC4180_AFTER_CLOSE: &str = "characters after the closing quote";
 
 pub(crate) fn rfc4180_issue_code(kind: &str) -> &'static str {
     match kind {
@@ -3205,7 +3205,7 @@ pub fn parse_with_limits(
                     rfc4180_issue_code(kind)
                 )),
                 format!(
-                    "'{raw_name}' RFC 4180'e uymuyor: {kind} ({} satırda; ilk örnek: '{example}').",
+                    "'{raw_name}' does not follow RFC 4180: {kind} ({} rows; first example: '{example}').",
                     rfc4180.rows
                 ),
                 ARC033_REMEDIATION,

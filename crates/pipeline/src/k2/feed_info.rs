@@ -264,7 +264,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
             Some(records.len().to_string()),
             Some("1".to_string()),
             format!(
-                "feed_info.txt'de {} kayıt var; yalnızca 1 satır olmalıdır.",
+                "feed_info.txt has {} records; it must have exactly 1 row.",
                 records.len()
             ),
             "Keep only one record in feed_info.txt.",

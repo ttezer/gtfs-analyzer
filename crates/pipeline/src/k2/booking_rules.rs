@@ -64,7 +64,7 @@ fn opt_int_checked(
                 Some(field),
                 Some(raw.to_string()),
                 Some("integer".to_string()),
-                super::common::K2Message::parse_failure(format!("{field} '{raw}' tam sayı olarak okunamıyor.")),
+                super::common::K2Message::parse_failure(format!("{field} '{raw}' cannot be read as an integer.")),
                 "Enter the prior_notice numeric fields as whole numbers.",
             ));
             None
@@ -121,7 +121,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 Some(id.clone()),
                 None,
                 format!(
-                    "booking_rule_id '{id}' yineleniyor; bu alan dosyanın birincil anahtarıdır."
+                    "booking_rule_id '{id}' is repeated; this field is the file's primary key."
                 ),
                 "Give every row a unique booking_rule_id.",
             ));
@@ -141,7 +141,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
             let (observed, message) = if btype_str.is_empty() {
                 (String::new(), "booking_type zorunludur.".to_string())
             } else {
-                (btype_str.clone(), format!("booking_type '{btype_str}' geçerli bir değer değil (0, 1 veya 2 olmalıdır)."))
+                (btype_str.clone(), format!("booking_type '{btype_str}' is not a valid value (must be 0, 1 or 2)."))
             };
             notices.push(make_k2_notice(
                 &mut ctr,
@@ -184,7 +184,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     &mut ctr, "BKR_025", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some(field),
                     Some(raw.to_string()), Some("HH:MM:SS".to_string()),
-                    format!("{field} '{}' geçerli bir GTFS saati değil.",
+                    format!("{field} '{}' is not a valid GTFS time.",
                             get_trimmed_field(&row_map, field).unwrap_or("")),
                     "Write the time as HH:MM:SS; for service past midnight use an hour above 24, such as 25:10:00.",
                 ));
@@ -286,7 +286,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     &mut ctr, "BKR_014", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_service_id"),
                     Some(btype_str.clone()), Some("2".to_string()),
-                    format!("booking_type={btype} iken prior_notice_service_id yasaktır; bu alan yalnızca booking_type=2 ile kullanılır."),
+                    format!("prior_notice_service_id is forbidden when booking_type={btype}; this field is used only with booking_type=2."),
                     "Remove prior_notice_service_id or set booking_type to 2 (prior-day booking).",
                 ));
             }
@@ -316,7 +316,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     &mut ctr, "BKR_001", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_last_day"),
                     Some(btype_str.clone()), Some("2".to_string()),
-                    format!("booking_type={btype} iken prior_notice_last_day yasaktır; bu alan yalnızca booking_type=2 ile kullanılır."),
+                    format!("prior_notice_last_day is forbidden when booking_type={btype}; this field is used only with booking_type=2."),
                     "Use prior_notice_last_day only with booking_type=2, or correct booking_type.",
                 ));
             }
@@ -329,13 +329,13 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 let neden = if btype == 0 {
                     "booking_type=0"
                 } else {
-                    "booking_type=1 ve prior_notice_duration_max tanımlı"
+                    "booking_type=1 with prior_notice_duration_max set"
                 };
                 notices.push(make_k2_notice(
                     &mut ctr, "BKR_001", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_start_day"),
                     Some(btype_str.clone()), Some("(empty)".to_string()),
-                    format!("{neden} iken prior_notice_start_day yasaktır."),
+                    format!("prior_notice_start_day is forbidden when {neden}."),
                     "Remove prior_notice_start_day, or correct booking_type / prior_notice_duration_max.",
                 ));
             }
@@ -482,7 +482,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     &mut ctr, "BKR_011", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_last_day"),
                     Some(format!("last_day={ld}, start_day={sd}")), None,
-                    super::common::K2Message::parse_failure(format!("prior_notice_last_day ({ld}) > prior_notice_start_day ({sd}): rezervasyon penceresi geçersiz.")),
+                    super::common::K2Message::parse_failure(format!("prior_notice_last_day ({ld}) > prior_notice_start_day ({sd}): the booking window is invalid.")),
                     "Set prior_notice_start_day to be greater than or equal to prior_notice_last_day.",
                 ));
             }
@@ -529,7 +529,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 notices.push(make_k2_notice(
                     &mut ctr, "BKR_022", EntityType::Row, Some(id.clone()), Some(&row_map),
                     &file.name, Some(line), Some("phone_number"), Some(phone.clone()), None,
-                    format!("phone_number '{phone}' geçerli bir telefon numarası formatında değil."),
+                    format!("phone_number '{phone}' is not in a valid phone number format."),
                     "Use a dialable phone number with no other descriptive text.",
                 ));
             }

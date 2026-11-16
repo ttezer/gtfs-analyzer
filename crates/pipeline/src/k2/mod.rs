@@ -731,7 +731,7 @@ pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
                 Some(format!("{rows}")),
                 None,
                 format!(
-                    "'{name}' dosyasında {rows} satır var; {} satırlık bilgi eşiğini aşıyor. Dosyanın tamamı doğrulandı.",
+                    "'{name}' has {rows} rows; it exceeds the {}-row information threshold. The whole file was validated.",
                     cfg.max_file_rows
                 ),
                 "Informational; no fix required. Very large files can increase processing time and memory use for consumers.",

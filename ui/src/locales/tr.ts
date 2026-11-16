@@ -5623,6 +5623,286 @@ export const trMessageTexts: Record<string, Record<string, string>> = {
  * message and placed into the Turkish sentence. Same matcher in Rust (`i18n::match_template`).
  */
 export const trMessageTemplates: Record<string, Record<string, string>> = {
+  '*': {
+    '\'{field}\' has a minute/second out of range: {raw}': '\'{field}\' için dakika/saniye aralığı geçersiz: {raw}',
+    '\'{field}\' has an invalid day part: {raw}': '\'{field}\' gün bölümü geçersiz: {raw}',
+    '\'{field}\' has an invalid hour part: {raw}': '\'{field}\' saat bölümü geçersiz: {raw}',
+    '\'{field}\' has an invalid minute part: {raw}': '\'{field}\' dakika bölümü geçersiz: {raw}',
+    '\'{field}\' has an invalid month part: {raw}': '\'{field}\' ay bölümü geçersiz: {raw}',
+    '\'{field}\' has an invalid second part: {raw}': '\'{field}\' saniye bölümü geçersiz: {raw}',
+    '\'{field}\' has an invalid year part: {raw}': '\'{field}\' yıl bölümü geçersiz: {raw}',
+    '\'{field}\' minute/second out of range: {raw}': '\'{field}\' dakika/saniye aralığı geçersiz: {raw}',
+    '\'{raw}\' has an invalid day.': '\'{raw}\' geçersiz gün.',
+    '\'{raw}\' has an invalid month.': '\'{raw}\' geçersiz ay.',
+    '\'{raw}\' has an invalid year.': '\'{raw}\' geçersiz yıl.',
+    '\'{raw}\' is not in YYYYMMDD format.': '\'{raw}\' YYYYMMDD formatında değil.',
+    'expected HH:MM:SS for \'{field}\', got: {raw}': '\'{field}\' için HH:MM:SS bekleniyor, alınan: {raw}',
+    'expected YYYYMMDD for \'{field}\', got: {raw}': '\'{field}\' için YYYYMMDD bekleniyor, alınan: {raw}',
+    'expected [H]H:MM:SS for \'{field}\' (two-digit minutes/seconds), got: {raw}': '\'{field}\' için [H]H:MM:SS bekleniyor (dakika/saniye iki basamaklı), alınan: {raw}',
+    'expected a finite f64 for \'{field}\', got: {raw}': '\'{field}\' için sonlu bir f64 bekleniyor, alınan: {raw}',
+    'expected f64 for \'{field}\', got: {raw}': '\'{field}\' için f64 bekleniyor, alınan: {raw}',
+    'expected i32 for \'{field}\', got: {raw}': '\'{field}\' için i32 bekleniyor, alınan: {raw}',
+    'expected u32 for \'{field}\', got: {raw}': '\'{field}\' için u32 bekleniyor, alınan: {raw}',
+    '{field} \'{raw}\' cannot be read as an integer.': '{field} \'{raw}\' tam sayı olarak okunamıyor.',
+    '{field} cannot be negative.': '{field} alanı negatif olamaz.',
+    '{field} is not a valid enum value.': '{field} alanı geçerli bir enum değeri değil.',
+    '{field} is not a valid value.': '{field} geçerli bir değer değil.',
+    '{field} must be 0 or 1.': '{field} alanı 0 veya 1 olmalıdır.',
+    '{field} must be 0, 1, 2 or 3.': '{field} alanı 0, 1, 2 veya 3 olmalıdır.',
+    '{field} must be one of 0, 1, 2, 3.': '{field} 0, 1, 2 veya 3 olmalıdır.',
+    '{field} must be positive.': '{field} alanı pozitif olmalıdır.',
+  },
+  'AGN_004': {
+    'agency_timezone \'{agency_timezone}\' is not a valid IANA time zone.': 'agency_timezone \'{agency_timezone}\' geçerli bir IANA saat dilimi değil.',
+  },
+  'AGN_006': {
+    'agency_lang \'{lang}\' is not a valid BCP-47 language code.': 'agency_lang \'{lang}\' geçerli bir BCP-47 dil kodu değil.',
+  },
+  'AGN_007': {
+    'agency_phone \'{phone}\' is not in a valid phone number format.': 'agency_phone \'{phone}\' geçerli bir telefon numarası formatında değil.',
+  },
+  'AGN_016': {
+    'agency_phone \'{phone}\' is a known placeholder/out-of-service number — it may not be a real contact number.': 'agency_phone \'{phone}\' bilinen bir yer-tutucu/hizmet-dışı numara — gerçek iletişim numarası olmayabilir.',
+  },
+  'ARC_009': {
+    '\'{a0}\' ZIP could not be reopened: {e}.': '\'{a0}\' ZIP yeniden açılamadı: {e}.',
+    '\'{a0}\' ZIP entry not found: {e}.': '\'{a0}\' ZIP girdisi bulunamadı: {e}.',
+    '\'{a0}\' has a header row but no data rows.': '\'{a0}\' dosyasında başlık satırı var ama veri satırı yok.',
+  },
+  'ARC_013': {
+    '\'{file}\' CSV tokenization error: unclosed quote — the rest of the record could not be read.': '\'{file}\' CSV tokenization hatası: Kapanmamış tırnak işareti (unclosed quote) — kaydın kalanı okunamadı.',
+  },
+  'ARC_018': {
+    '\'{a0}\' line {line} is completely empty.': '\'{a0}\' {line}. satırı tamamen boş.',
+  },
+  'ARC_022': {
+    '\'{name}\' has {rows} rows; it exceeds the {a0}-row information threshold. The whole file was validated.': '\'{name}\' dosyasında {rows} satır var; {a0} satırlık bilgi eşiğini aşıyor. Dosyanın tamamı doğrulandı.',
+  },
+  'ARC_033': {
+    '\'{file}\' does not follow RFC 4180: characters after the closing quote ({rows} rows; first example: \'{example}\').': '\'{file}\' RFC 4180\'e uymuyor: kapanış tırnağından sonra karakter var ({rows} satırda; ilk örnek: \'{example}\').',
+    '\'{file}\' does not follow RFC 4180: unquoted field contains a quote ({rows} rows; first example: \'{example}\').': '\'{file}\' RFC 4180\'e uymuyor: tırnaksız alan tırnak işareti içeriyor ({rows} satırda; ilk örnek: \'{example}\').',
+  },
+  'ARC_034': {
+    '\'{a0}\' line {line} repeats the header row — it is read as data.': '\'{a0}\' {line}. satırı başlık satırının tekrarı — veri olarak okunuyor.',
+  },
+  'ARC_035': {
+    'Required GTFS file \'{a0}\' contains no data rows.': 'Zorunlu GTFS dosyası \'{a0}\' hiç veri satırı içermiyor.',
+  },
+  'ATR_001': {
+    'attributions.txt has {missing_id_count} records without attribution_id (e.g. line {first}); these records cannot be told apart.': 'attributions.txt dosyasındaki {missing_id_count} kayıtta attribution_id yok                  (ör. satır {first}); bu kayıtlar tekrarda ayrılamaz.',
+  },
+  'ATR_003': {
+    'No attribution role is set on {no_role_count} records in attributions.txt (e.g. line {first}).': 'attributions.txt dosyasındaki {no_role_count} kayıtta hiçbir attribution rolü                  tanımlı değil (ör. satır {first}).',
+  },
+  'BKR_001': {
+    'prior_notice_last_day is forbidden when booking_type={btype}; this field is used only with booking_type=2.': 'booking_type={btype} iken prior_notice_last_day yasaktır; bu alan yalnızca booking_type=2 ile kullanılır.',
+    'prior_notice_start_day is forbidden when booking_type=0.': 'booking_type=0 iken prior_notice_start_day yasaktır.',
+    'prior_notice_start_day is forbidden when booking_type=1 with prior_notice_duration_max set.': 'booking_type=1 ve prior_notice_duration_max tanımlı iken prior_notice_start_day yasaktır.',
+  },
+  'BKR_011': {
+    'prior_notice_last_day ({ld}) > prior_notice_start_day ({sd}): the booking window is invalid.': 'prior_notice_last_day ({ld}) > prior_notice_start_day ({sd}): rezervasyon penceresi geçersiz.',
+  },
+  'BKR_014': {
+    'prior_notice_service_id is forbidden when booking_type={btype}; this field is used only with booking_type=2.': 'booking_type={btype} iken prior_notice_service_id yasaktır; bu alan yalnızca booking_type=2 ile kullanılır.',
+  },
+  'BKR_016': {
+    'booking_type \'{btype_str}\' is not a valid value (must be 0, 1 or 2).': 'booking_type \'{btype_str}\' geçerli bir değer değil (0, 1 veya 2 olmalıdır).',
+  },
+  'BKR_019': {
+    'booking_rule_id \'{id}\' is repeated; this field is the file\'s primary key.': 'booking_rule_id \'{id}\' yineleniyor; bu alan dosyanın birincil anahtarıdır.',
+  },
+  'BKR_022': {
+    'phone_number \'{phone}\' is not in a valid phone number format.': 'phone_number \'{phone}\' geçerli bir telefon numarası formatında değil.',
+  },
+  'BKR_025': {
+    '{field} \'{a0}\' is not a valid GTFS time.': '{field} \'{a0}\' geçerli bir GTFS saati değil.',
+  },
+  'CAL_005': {
+    'end_date ({ed}) is before start_date ({sd}).': 'end_date ({ed}), start_date ({sd}) tarihinden önce.',
+  },
+  'CAL_006': {
+    'All weekday fields of calendar \'{a0}\' are 0 — there is no weekly repetition; the service can only be active through calendar_dates.txt exceptions.': '\'{a0}\' takviminde haftalık gün alanlarının tümü 0 — haftalık tekrar yok; servis yalnızca calendar_dates.txt istisnalarıyla aktif olabilir.',
+  },
+  'CLD_003': {
+    'exception_type \'{et_raw}\' is invalid; it must be 1 or 2.': 'exception_type \'{et_raw}\' geçersiz; 1 veya 2 olmalıdır.',
+  },
+  'CLD_005': {
+    'Date {year}-{month}-{day} of service_id \'{a0}\' is outside the plausible year range.': 'service_id \'{a0}\' için tarih {year}-{month}-{day} makul yıl aralığı dışında.',
+  },
+  'CLD_006': {
+    'Service \'{sid}\' has {count} exception days; this may be too many.': '\'{sid}\' servisinin {count} istisna günü var; bu çok fazla olabilir.',
+  },
+  'FAR_013': {
+    'fare_attributes.txt has {n} amounts without the ISO 4217 decimal places of their currency (e.g. line {line}: {currency} {amount} — decimal places undefined).': 'fare_attributes.txt dosyasında {n} tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımıyor (ör. satır {line}: {currency} {amount} — tanımsız basamak beklenir).',
+    'fare_attributes.txt has {n} amounts without the ISO 4217 decimal places of their currency (e.g. line {line}: {currency} {amount} — {want} decimal places expected).': 'fare_attributes.txt dosyasında {n} tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımıyor (ör. satır {line}: {currency} {amount} — {want} basamak beklenir).',
+  },
+  'FIN_015': {
+    'feed_info.txt has {a0} records; it must have exactly 1 row.': 'feed_info.txt\'de {a0} kayıt var; yalnızca 1 satır olmalıdır.',
+  },
+  'FMD_003': {
+    'fare_media_name is recommended for fare_media_type={t} (mobile app).': 'fare_media_type={t} (mobil uygulama) için fare_media_name tavsiye edilir.',
+    'fare_media_name is recommended for fare_media_type={t} (payment medium).': 'fare_media_type={t} (ödeme aracı) için fare_media_name tavsiye edilir.',
+    'fare_media_name is recommended for fare_media_type={t} (physical transit card).': 'fare_media_type={t} (fiziksel transit kartı) için fare_media_name tavsiye edilir.',
+  },
+  'FPD_007': {
+    'fare_products.txt has {n} amounts without the ISO 4217 decimal places of their currency (e.g. line {line}: {currency} {amount} — decimal places undefined).': 'fare_products.txt dosyasında {n} tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımıyor (ör. satır {line}: {currency} {amount} — tanımsız basamak beklenir).',
+    'fare_products.txt has {n} amounts without the ISO 4217 decimal places of their currency (e.g. line {line}: {currency} {amount} — {want} decimal places expected).': 'fare_products.txt dosyasında {n} tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımıyor (ör. satır {line}: {currency} {amount} — {want} basamak beklenir).',
+  },
+  'FRQ_009': {
+    'headway_secs \'{val}\' seconds — a frequency under 1 minute is not realistic.': 'headway_secs \'{val}\' saniye — 1 dakikadan kısa frekans gerçekçi değil.',
+  },
+  'FRQ_011': {
+    'The frequencies periods of trip_id \'{trip}\' overlap in time.': 'trip_id \'{trip}\' için frequencies dönemleri zaman aralığı çakışıyor.',
+  },
+  'FRQ_012': {
+    'With exact_times=1, end_time ({a0}) is exactly one headway ({h} s) after the last departure — the last trip is ambiguous.': 'exact_times=1 iken end_time ({a0}) son seferin kalkışına headway ({h} sn) kadar uzakta — son sefer belirsiz kalıyor.',
+  },
+  'GGL_001': {
+    'transfer_type={ttype} (in-seat transfer) is ignored by Google Transit.': 'transfer_type={ttype} (in-seat aktarma) Google Transit tarafından yoksayılıyor.',
+  },
+  'GGL_002': {
+    'ic_price \'{ic_price_raw}\' is not numeric.': 'ic_price \'{ic_price_raw}\' sayısal değil.',
+    'ic_price \'{v}\' is invalid: it must be -1 or zero/positive (>= 0).': 'ic_price \'{v}\' geçersiz: -1 veya sıfır/pozitif (>= 0) bir değer olmalıdır.',
+  },
+  'LVL_005': {
+    'Level \'{a0}\' has a level_name of {a1} characters — it exceeds the 255 limit.': '\'{a0}\' katmanının level_name değeri {a1} karakter — 255 sınırını aşıyor.',
+  },
+  'PTH_008': {
+    'stair_count is missing on {pth008_count} stairs pathways (pathway_mode=2).': '{pth008_count} merdiven geçidinde (pathway_mode=2) stair_count eksik.',
+  },
+  'PTH_009': {
+    'max_slope is missing on {pth009_count} walkway pathways (pathway_mode=1).': '{pth009_count} yürüme yolu geçidinde (pathway_mode=1) max_slope eksik.',
+  },
+  'PTH_018': {
+    'signposted_as is {a0} characters long; the recommended maximum is 255.': 'signposted_as alanı {a0} karakter uzunluğunda; önerilen maksimum 255.',
+  },
+  'PTH_025': {
+    'The recommended length is missing on {pth025_count} walkway/fare gate/exit gate records.': '{pth025_count} walkway/fare gate/exit gate kaydında önerilen length eksik.',
+  },
+  'PTH_029': {
+    'The recommended traversal_time is missing on {pth029_count} moving sidewalk/escalator/elevator records.': '{pth029_count} yürüyen bant/yürüyen merdiven/asansör kaydında önerilen traversal_time eksik.',
+  },
+  'RCT_005': {
+    'max_age ({mx}) cannot be less than min_age ({mn}).': 'max_age ({mx}) min_age ({mn}) değerinden küçük olamaz.',
+  },
+  'RTS_004': {
+    'route_type {val} is not a valid GTFS route type.': 'route_type {val} geçerli bir GTFS hat tipi değil.',
+  },
+  'RTS_008': {
+    'The contrast ratio between route_text_color and route_color is low ({ratio}).': 'route_text_color ile route_color arasındaki kontrast oranı düşük ({ratio}).',
+  },
+  'RTS_010': {
+    'Route \'{a0}\' has a route_short_name of {a1} characters; short names should not exceed 12 characters.': '\'{a0}\' hattının route_short_name değeri {a1} karakter; kısa isimler 12 karakteri aşmamalıdır.',
+  },
+  'RTS_011': {
+    'Route \'{a0}\' has a route_long_name of {a1} characters; it exceeds 100 characters.': '\'{a0}\' hattının route_long_name değeri {a1} karakter; 100 karakteri aşıyor.',
+  },
+  'RTS_019': {
+    'The name \'{display}\' is used by more than one route: {group_str}.': '\'{display}\' adı birden fazla hatta kullanılıyor: {group_str}.',
+  },
+  'RTS_021': {
+    'Route \'{a0}\' has a route_short_name of {a1} characters; Google Transit recommends 6 characters.': '\'{a0}\' hattının route_short_name değeri {a1} karakter; Google Transit 6 karakteri tavsiye ediyor.',
+  },
+  'RTS_023': {
+    'Route \'{route_id}\' has a route_desc equal to {matched_field}: \'{d}\'.': '\'{route_id}\' hattının route_desc değeri {matched_field} ile aynı: \'{d}\'.',
+  },
+  'RTS_026': {
+    'The short route name \'{sn_disp}\' is shared by routes with different long names: {group_str}.': '\'{sn_disp}\' kısa hat adı, farklı uzun adlı şu hatlar tarafından paylaşılıyor: {group_str}.',
+  },
+  'RTS_027': {
+    'The long route name \'{ln_disp}\' is shared by routes with different short names: {group_str}.': '\'{ln_disp}\' uzun hat adı, farklı kısa adlı şu hatlar tarafından paylaşılıyor: {group_str}.',
+  },
+  'RTS_030': {
+    'route_type {val} is not in the core GTFS enum; it is an extended (HVT) route type.': 'route_type {val} çekirdek GTFS enum\'unda yok; genişletilmiş (HVT) hat tipi.',
+  },
+  'SHP_002': {
+    'shape_pt_lat \'{lat_raw}\' is invalid.': 'shape_pt_lat \'{lat_raw}\' geçersiz.',
+    'shape_pt_lat {lat} is outside the range [-90, 90].': 'shape_pt_lat {lat} değeri [-90, 90] aralığı dışında.',
+  },
+  'SHP_003': {
+    'shape_pt_lon \'{lon_raw}\' is invalid.': 'shape_pt_lon \'{lon_raw}\' geçersiz.',
+    'shape_pt_lon {lon} is outside the range [-180, 180].': 'shape_pt_lon {lon} değeri [-180, 180] aralığı dışında.',
+  },
+  'SHP_004': {
+    'shape_pt_sequence \'{seq_raw}\' is invalid.': 'shape_pt_sequence \'{seq_raw}\' geçersiz.',
+  },
+  'SHP_008': {
+    'shape_pt_sequence {seq} is repeated for shape_id \'{shape_id}\'.': 'shape_id \'{shape_id}\' için shape_pt_sequence {seq} yineleniyor.',
+  },
+  'SHP_021': {
+    'shape_dist_traveled \'{a0}\' cannot be read as a number.': 'shape_dist_traveled \'{a0}\' sayı olarak okunamıyor.',
+  },
+  'STM_018': {
+    '{n} stop_times rows: continuous_pickup is outside 0-3 — the same enum violation repeats at high volume.': '{n} stop_times satırında continuous_pickup alanı 0-3 dışında — aynı enum ihlali yüksek hacimde tekrarlanıyor.',
+  },
+  'STM_019': {
+    '{n} stop_times rows: continuous_drop_off is outside 0-3 — the same enum violation repeats at high volume.': '{n} stop_times satırında continuous_drop_off alanı 0-3 dışında — aynı enum ihlali yüksek hacimde tekrarlanıyor.',
+  },
+  'STM_032': {
+    'stop_sequence {a0} is repeated for trip_id \'{a1}\'.': 'trip_id \'{a0}\' için stop_sequence {a1} tekrar ediyor.',
+    '{n} stop_times rows: stop_sequence repeats — the same (trip_id, stop_sequence) violation repeats at high volume.': '{n} stop_times satırında stop_sequence tekrar ediyor — aynı (trip_id, stop_sequence) ihlali yüksek hacimde tekrarlanıyor.',
+  },
+  'STM_034': {
+    'The row of trip_id \'{a0}\' has arrival_time but no departure_time.': 'trip_id \'{a0}\' satırında arrival_time tanımlı ama departure_time eksik.',
+    'The row of trip_id \'{a0}\' has departure_time but no arrival_time.': 'trip_id \'{a0}\' satırında departure_time tanımlı ama arrival_time eksik.',
+  },
+  'STM_036': {
+    'The stop_times rows of trip \'{a0}\' are out of order: stop \'{a1}\' with stop_sequence {seq} is written after stop \'{a2}\' with the larger stop_sequence {last}. Rows must be in ascending stop_sequence order.': '\'{a0}\' seferinde stop_times satır sırası bozuk: stop_sequence {seq} olan \'{a1}\' durağı, daha büyük stop_sequence {last} olan \'{a2}\' durağından sonra yazılmış. Satırlar artan stop_sequence sırasında olmalı.',
+    'The stop_times rows of trip \'{a0}\' do not increase: stop \'{a1}\' carries the SAME stop_sequence ({seq}) as the previous stop \'{a2}\'. Values must increase along the trip.': '\'{a0}\' seferinde stop_times satır sırası artmıyor: \'{a1}\' durağı da bir önceki \'{a2}\' durağıyla AYNI stop_sequence ({seq}) değerini taşıyor. Değerler sefer boyunca artmalıdır.',
+  },
+  'STM_037': {
+    'arrival_time/departure_time are forbidden for trip_id \'{a0}\' while a Flex window is set.': 'trip_id \'{a0}\' Flex penceresi tanımlı iken arrival_time/departure_time yasaktır.',
+  },
+  'STM_038': {
+    'For trip_id \'{a0}\', start_pickup_drop_off_window is not before end_pickup_drop_off_window.': 'trip_id \'{a0}\' start_pickup_drop_off_window, end_pickup_drop_off_window\'dan önce değil.',
+  },
+  'STM_039': {
+    'Trip_id \'{a0}\' sets location_id/group_id but {missing} is missing.': 'trip_id \'{a0}\' location_id/group_id tanımlı ama {missing} eksik.',
+  },
+  'STM_040': {
+    'Trip_id \'{a0}\' has a Flex window but no pickup/drop_off_booking_rule_id.': 'trip_id \'{a0}\' Flex penceresi tanımlı ama pickup/drop_off_booking_rule_id eksik.',
+  },
+  'STM_041': {
+    'stop_id and location_id/group_id cannot both be set for trip_id \'{a0}\'.': 'trip_id \'{a0}\' stop_id ve location_id/group_id aynı anda tanımlı olamaz.',
+  },
+  'STM_042': {
+    'stop_headsign \'{a0}\' contains a character Google Transit does not support: \'{bad}\'.': 'stop_headsign \'{a0}\' Google Transit tarafından desteklenmeyen karakter içeriyor: \'{bad}\'.',
+  },
+  'STM_047': {
+    'The row of trip_id \'{trip}\' has timepoint=1 (exact time point) but arrival_time and departure_time are missing.': 'trip_id \'{trip}\' satırında timepoint=1 (kesin zaman noktası) ama arrival_time ve departure_time eksik.',
+    'The row of trip_id \'{trip}\' has timepoint=1 (exact time point) but arrival_time is missing.': 'trip_id \'{trip}\' satırında timepoint=1 (kesin zaman noktası) ama arrival_time eksik.',
+    'The row of trip_id \'{trip}\' has timepoint=1 (exact time point) but departure_time is missing.': 'trip_id \'{trip}\' satırında timepoint=1 (kesin zaman noktası) ama departure_time eksik.',
+  },
+  'STM_048': {
+    'In trip \'{a0}\', row {a1} writes {a2} as {a3}; the previous time is {a4}. Use {a5} for the GTFS service day.': '\'{a0}\' trip\'inde {a1} satırında {a2} değeri {a3} olarak yazılmış; önceki saat {a4}. GTFS servis günü için {a5} kullanılmalıdır.',
+  },
+  'STM_049': {
+    'In trip \'{a0}\', row {a1} writes departure_time as {a2}; the arrival_time of the same row is {a3}. Use {a4} for the GTFS service day.': '\'{a0}\' trip\'inde {a1} satırında departure_time {a2} olarak yazılmış; aynı satırın arrival_time değeri {a3}. GTFS servis günü için {a4} kullanılmalıdır.',
+  },
+  'STM_050': {
+    '{a0} stop_times rows have a timepoint column but an empty value; these rows implicitly count as 1 (exact time).': '{a0} stop_times satırında timepoint sütunu var ama değer boş; bu satırlar örtük olarak 1 (kesin zaman) sayılır.',
+  },
+  'STM_051': {
+    'pickup_type={pt} is forbidden for trip_id \'{trip}\' while a Flex window is set.': 'trip_id \'{trip}\' Flex penceresi tanımlı iken pickup_type={pt} yasaktır.',
+    'pickup_type={pt} is forbidden for trip_id \'{trip}\' while a Flex window is set. The field is empty; the spec counts an empty value as 0.': 'trip_id \'{trip}\' Flex penceresi tanımlı iken pickup_type={pt} yasaktır. Alan boş bırakılmış; spec boş değeri 0 sayar.',
+  },
+  'STM_052': {
+    'drop_off_type=0 is forbidden for trip_id \'{trip}\' while a Flex window is set.': 'trip_id \'{trip}\' Flex penceresi tanımlı iken drop_off_type=0 yasaktır.',
+    'drop_off_type=0 is forbidden for trip_id \'{trip}\' while a Flex window is set. The field is empty; the spec counts an empty value as 0.': 'trip_id \'{trip}\' Flex penceresi tanımlı iken drop_off_type=0 yasaktır. Alan boş bırakılmış; spec boş değeri 0 sayar.',
+  },
+  'STM_054': {
+    'continuous_pickup={cp} is forbidden for trip_id \'{trip_id}\' while a Flex window is set.': 'trip_id \'{trip_id}\' Flex penceresi tanımlı iken continuous_pickup={cp} yasaktır.',
+  },
+  'STM_055': {
+    'continuous_drop_off={cd} is forbidden for trip_id \'{trip_id}\' while a Flex window is set.': 'trip_id \'{trip_id}\' Flex penceresi tanımlı iken continuous_drop_off={cd} yasaktır.',
+  },
+  'STM_056': {
+    'In {n} stop_times rows, shape_dist_traveled of the next stop_sequence in the same trip is less than or equal to the previous stop. The value must increase along stop_sequence.': '{n} stop_times satırında aynı trip içinde sonraki stop_sequence\'ın shape_dist_traveled değeri önceki duraktan küçük veya eşit. Bu değer stop_sequence boyunca artmalıdır.',
+    'In {n} stop_times rows, shape_dist_traveled of the next stop_sequence in the same trip is less than or equal to the previous stop. The value must increase along stop_sequence. First 2 examples: {t1} (line {l1}: {o1}, expected {e1}); {t2} (line {l2}: {o2}, expected {e2}).': '{n} stop_times satırında aynı trip içinde sonraki stop_sequence\'ın shape_dist_traveled değeri önceki duraktan küçük veya eşit. Bu değer stop_sequence boyunca artmalıdır. İlk örnekler: {t1} (satır {l1}: {o1}, beklenen {e1}); {t2} (satır {l2}: {o2}, beklenen {e2}).',
+    'In {n} stop_times rows, shape_dist_traveled of the next stop_sequence in the same trip is less than or equal to the previous stop. The value must increase along stop_sequence. First 3 examples: {t1} (line {l1}: {o1}, expected {e1}); {t2} (line {l2}: {o2}, expected {e2}); {t3} (line {l3}: {o3}, expected {e3}).': '{n} stop_times satırında aynı trip içinde sonraki stop_sequence\'ın shape_dist_traveled değeri önceki duraktan küçük veya eşit. Bu değer stop_sequence boyunca artmalıdır. İlk örnekler: {t1} (satır {l1}: {o1}, beklenen {e1}); {t2} (satır {l2}: {o2}, beklenen {e2}); {t3} (satır {l3}: {o3}, beklenen {e3}).',
+    'In {n} stop_times rows, shape_dist_traveled of the next stop_sequence in the same trip is less than or equal to the previous stop. The value must increase along stop_sequence. First example: {t1} (line {l1}: {o1}, expected {e1}).': '{n} stop_times satırında aynı trip içinde sonraki stop_sequence\'ın shape_dist_traveled değeri önceki duraktan küçük veya eşit. Bu değer stop_sequence boyunca artmalıdır. İlk örnekler: {t1} (satır {l1}: {o1}, beklenen {e1}).',
+    'On trip \'{a0}\' the shape distance does not increase at stop #{a1}: previous stop #{a2} has {a3}, this stop has {a4}. The cumulative distance from the shape start must increase.': '\'{a0}\' seferinde {a1}. durakta güzergâh mesafesi artmıyor: önceki {a2}. durakta {a3}, bu durakta {a4}. Güzergâh başlangıcından itibaren kümülatif mesafe artmalıdır.',
+  },
   'STP_003': {
     'A stop name (stop_name) is required for stop \'{a0}\'.': '\'{a0}\' durağı için durak adı (stop_name) zorunludur.',
     'stop_lat {lat} is outside the range [-90, 90].': 'stop_lat {lat} değeri [-90, 90] aralığı dışında.',
@@ -5674,5 +5954,51 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
   },
   'STP_045': {
     '{stp045_count} stops carry platform_code but have no parent_station — the platform is not linked to a station.': '{stp045_count} durak platform_code taşıyor ama parent_station boş — peron bir istasyona bağlanmamış.',
+  },
+  'TFR_005': {
+    'timeframe_group_id \'{a0}\' service_id \'{a1}\': the ranges {prev_st}–{prev_et}s and {cur_st}s overlap.': 'timeframe_group_id \'{a0}\' service_id \'{a1}\': {prev_st}–{prev_et}s ile {cur_st}s aralıkları örtüşüyor.',
+  },
+  'TFR_006': {
+    '{field} cannot be greater than 24:00:00.': '{field} değeri 24:00:00\'dan büyük olamaz.',
+  },
+  'TFR_007': {
+    '{missing} must also be set when {present} is set.': '{present} tanımlıyken {missing} da tanımlanmalıdır.',
+  },
+  'TRF_004': {
+    'transfer_type \'{v}\' is invalid.': 'transfer_type \'{v}\' geçersiz.',
+  },
+  'TRP_005': {
+    'direction_id \'{dir_raw}\' is invalid; it must be 0 or 1.': 'direction_id \'{dir_raw}\' geçersiz; 0 veya 1 olmalıdır.',
+    'direction_id {val} is invalid; it must be 0 or 1.': 'direction_id {val} geçersiz; 0 veya 1 olmalıdır.',
+  },
+  'TRP_006': {
+    'wheelchair_accessible \'{a0}\' cannot be read as a number.': 'wheelchair_accessible \'{a0}\' sayı olarak okunamıyor.',
+  },
+  'TRP_007': {
+    'bikes_allowed \'{a0}\' cannot be read as a number.': 'bikes_allowed \'{a0}\' sayı olarak okunamıyor.',
+  },
+  'TRP_014': {
+    'trip_short_name is {a0} characters; it should not exceed 20.': 'trip_short_name {a0} karakter; 20\'yi aşmamalıdır.',
+  },
+  'TRP_021': {
+    'No trip in this feed has bike information: bikes_allowed is empty or 0 ({n} trips).': 'Bu feed\'de hiçbir seferde bisiklet bilgisi yok: bikes_allowed boş veya 0 ({n} sefer).',
+    '{missing} of {total} trips have no bike information: bikes_allowed is empty or 0 ({pct}%).': '{total} seferin {missing} tanesinde bisiklet bilgisi yok: bikes_allowed boş veya 0 ({pct}%).',
+    '{missing} of {total} trips have no bike information: bikes_allowed is empty or 0 ({pct}%). Example trips: {ex}.': '{total} seferin {missing} tanesinde bisiklet bilgisi yok: bikes_allowed boş veya 0 ({pct}%). Örnek seferler: {ex}.',
+  },
+  'TRP_032': {
+    'cars_allowed \'{a0}\' cannot be read as a number.': 'cars_allowed \'{a0}\' sayı olarak okunamıyor.',
+  },
+  'TRP_034': {
+    '{field} \'{raw}\' cannot be read as a decimal number.': '{field} \'{raw}\' ondalık sayı olarak okunamıyor.',
+  },
+};
+
+/** Same as `trMessageTemplates`, for remediations that carry runtime values (issue #201, F3). */
+export const trRemediationTemplates: Record<string, Record<string, string>> = {
+  'PTH_004': {
+    'Use one of these values for {field}: {allowed}.': '{field} için şu değerlerden birini kullanın: {allowed}.',
+  },
+  'PTH_005': {
+    'Use one of these values for {field}: {allowed}.': '{field} için şu değerlerden birini kullanın: {allowed}.',
   },
 };

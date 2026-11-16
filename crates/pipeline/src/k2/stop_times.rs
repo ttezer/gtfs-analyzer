@@ -1103,7 +1103,7 @@ fn parse_u32_raw(raw: &str, field: &str) -> Result<Option<u32>, ParseError> {
     }
     match parse_u32_ascii(raw) {
         Some(n) => Ok(Some(n)),
-        None => Err(ParseError::gated(format!("'{field}' için u32 bekleniyor, alınan: {raw}"))),
+        None => Err(ParseError::gated(format!("expected u32 for '{field}', got: {raw}"))),
     }
 }
 
@@ -1113,17 +1113,17 @@ fn parse_f64_raw(raw: &str, field: &str) -> Result<Option<f64>, ParseError> {
     }
     raw.parse::<f64>()
         .map(Some)
-        .map_err(|_| ParseError::gated(format!("'{field}' için f64 bekleniyor, alınan: {raw}")))
+        .map_err(|_| ParseError::gated(format!("expected f64 for '{field}', got: {raw}")))
 }
 
 fn parse_gtfs_time_raw(raw: &str, field: &str) -> Result<Option<(u32, u32, u32)>, ParseError> {
     if raw.is_empty() {
         return Ok(None);
     }
-    let bad = || ParseError::gated(format!("'{field}' için HH:MM:SS bekleniyor, alınan: {raw}"));
+    let bad = || ParseError::gated(format!("expected HH:MM:SS for '{field}', got: {raw}"));
     let width_bad = || {
         ParseError::plain(format!(
-            "'{field}' için [H]H:MM:SS bekleniyor (dakika/saniye iki basamaklı), alınan: {raw}"
+            "expected [H]H:MM:SS for '{field}' (two-digit minutes/seconds), got: {raw}"
         ))
     };
     // ⚠️ LEXICAL WIDTH—same decision as `common::gtfs_time_widths_ok` (issue #82).
@@ -1186,7 +1186,7 @@ fn parse_gtfs_time_raw(raw: &str, field: &str) -> Result<Option<(u32, u32, u32)>
         return Err(bad());
     }
     if minute > 59 || second > 59 {
-        return Err(ParseError::plain(format!("'{field}' dakika/saniye aralığı geçersiz: {raw}")));
+        return Err(ParseError::plain(format!("'{field}' minute/second out of range: {raw}")));
     }
     Ok(Some((hour, minute, second)))
 }
@@ -2353,7 +2353,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 st.notices.push(make_k2_notice(
                     &mut st.counter, "ARC_034", EntityType::File, Some(file.name.clone()),
                     None, &file.name, Some(line), None, None, None,
-                    format!("'{}' {line}. satırı başlık satırının tekrarı — veri olarak okunuyor.", file.name),
+                    format!("'{}' line {line} repeats the header row — it is read as data.", file.name),
                     "Remove the repeated header row in the middle of the file; it usually comes from two files being concatenated.",
                 ));
                 return;
@@ -2372,7 +2372,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     None,
                     None,
                     None,
-                    format!("'{}' {line}. satırı tamamen boş.", file.name),
+                    format!("'{}' line {line} is completely empty.", file.name),
                     "Remove empty rows from the file.",
                 ));
                 return;
@@ -2548,12 +2548,12 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             Some(format!("> {last} @ '{prev_stop}'")),
                             if seq == last {
                                 format!(
-                                    "'{}' seferinde stop_times satır sırası artmıyor: '{}' durağı da bir önceki '{}' durağıyla AYNI stop_sequence ({seq}) değerini taşıyor. Değerler sefer boyunca artmalıdır.",
+                                    "The stop_times rows of trip '{}' do not increase: stop '{}' carries the SAME stop_sequence ({seq}) as the previous stop '{}'. Values must increase along the trip.",
                                     trip_id, cur_stop, prev_stop
                                 )
                             } else {
                                 format!(
-                                    "'{}' seferinde stop_times satır sırası bozuk: stop_sequence {seq} olan '{}' durağı, daha büyük stop_sequence {last} olan '{}' durağından sonra yazılmış. Satırlar artan stop_sequence sırasında olmalı.",
+                                    "The stop_times rows of trip '{}' are out of order: stop '{}' with stop_sequence {seq} is written after stop '{}' with the larger stop_sequence {last}. Rows must be in ascending stop_sequence order.",
                                     trip_id, cur_stop, prev_stop
                                 )
                             },
@@ -2876,7 +2876,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             None,
                             Some("non-empty".to_string()),
                             format!(
-                                "trip_id '{}' satırında arrival_time tanımlı ama departure_time eksik.",
+                                "The row of trip_id '{}' has arrival_time but no departure_time.",
                                 trip_id
                             ),
                             "Fill in both arrival_time and departure_time together or leave both empty.",
@@ -2895,7 +2895,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             None,
                             Some("non-empty".to_string()),
                             format!(
-                                "trip_id '{}' satırında departure_time tanımlı ama arrival_time eksik.",
+                                "The row of trip_id '{}' has departure_time but no arrival_time.",
                                 trip_id
                             ),
                             "Fill in both arrival_time and departure_time together or leave both empty.",
@@ -2922,19 +2922,19 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 let departure_missing = departure_time.is_none() && !dep_malformed;
                 let missing = match (arrival_missing, departure_missing) {
                     (true, true) => Some((
-                        "arrival_time ve departure_time",
+                        "arrival_time and departure_time are",
                         "arrival_time|departure_time",
                         "Provide the missing arrival_time and departure_time on exact time points (timepoint=1).",
                         "missing_both",
                     )),
                     (true, false) => Some((
-                        "arrival_time",
+                        "arrival_time is",
                         "arrival_time",
                         "Provide the missing arrival_time on exact time points (timepoint=1).",
                         "missing_arrival",
                     )),
                     (false, true) => Some((
-                        "departure_time",
+                        "departure_time is",
                         "departure_time",
                         "Provide the missing departure_time on exact time points (timepoint=1).",
                         "missing_departure",
@@ -2954,7 +2954,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         Some(String::new()),
                         Some("non-empty".to_string()),
                         format!(
-                            "trip_id '{}' satırında timepoint=1 (kesin zaman noktası) ama {} eksik.",
+                            "The row of trip_id '{}' has timepoint=1 (exact time point) but {} missing.",
                             trip_id, missing_fields
                         ),
                         remediation,
@@ -3030,7 +3030,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     &mut st.counter, "STM_042", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("stop_headsign"),
                     Some(bad.to_string()), None,
-                    format!("stop_headsign '{}' Google Transit tarafından desteklenmeyen karakter içeriyor: '{bad}'.", hs),
+                    format!("stop_headsign '{}' contains a character Google Transit does not support: '{bad}'.", hs),
                     "Remove the characters ! $ % \\ * = _ from the stop_headsign value.",
                 );
                     // Planner context: the stop row and the headsign text as written in the feed.
@@ -3161,7 +3161,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 &mut st.counter, "STM_037", EntityType::Trip, eid(),
                 None, &file.name, Some(line), Some("arrival_time"),
                 Some(arr_raw.to_string()), Some("(empty)".to_string()),
-                format!("trip_id '{}' Flex penceresi tanımlı iken arrival_time/departure_time yasaktır.", trip_id),
+                format!("arrival_time/departure_time are forbidden for trip_id '{}' while a Flex window is set.", trip_id),
                 "Remove arrival_time and departure_time fields from flex stop_times rows.",
             ));
                 }
@@ -3213,8 +3213,8 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 }),
                         Some("1 or 2".to_string()),
                         format!(
-                            "trip_id '{trip_id}' Flex penceresi tanımlı iken pickup_type={pt} yasaktır.{}",
-                            if implicit_pickup { " Alan boş bırakılmış; spec boş değeri 0 sayar." } else { "" }
+                            "pickup_type={pt} is forbidden for trip_id '{trip_id}' while a Flex window is set.{}",
+                            if implicit_pickup { " The field is empty; the spec counts an empty value as 0." } else { "" }
                         ),
                         "Use pickup_type 1 (none) or 2 (phone agency) on stop_times that have a Flex window.",
                     ));
@@ -3233,8 +3233,8 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 }),
                     Some("1 or 2".to_string()),
                     format!(
-                        "trip_id '{trip_id}' Flex penceresi tanımlı iken drop_off_type=0 yasaktır.{}",
-                        if implicit_drop_off { " Alan boş bırakılmış; spec boş değeri 0 sayar." } else { "" }
+                        "drop_off_type=0 is forbidden for trip_id '{trip_id}' while a Flex window is set.{}",
+                        if implicit_drop_off { " The field is empty; the spec counts an empty value as 0." } else { "" }
                     ),
                     "Use drop_off_type 1 (none) or 2 (phone agency) on stop_times that have a Flex window.",
                 ));
@@ -3250,7 +3250,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     &mut st.counter, "STM_054", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("continuous_pickup"),
                     Some(cp.to_string()), Some("1 or empty".to_string()),
-                    format!("trip_id '{trip_id}' Flex penceresi tanımlı iken continuous_pickup={cp} yasaktır."),
+                    format!("continuous_pickup={cp} is forbidden for trip_id '{trip_id}' while a Flex window is set."),
                     "Set continuous_pickup to 1 or leave it empty on stop_times that have a Flex window.",
                 ));
                     }
@@ -3260,7 +3260,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     &mut st.counter, "STM_055", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("continuous_drop_off"),
                     Some(cd.to_string()), Some("1 or empty".to_string()),
-                    format!("trip_id '{trip_id}' Flex penceresi tanımlı iken continuous_drop_off={cd} yasaktır."),
+                    format!("continuous_drop_off={cd} is forbidden for trip_id '{trip_id}' while a Flex window is set."),
                     "Set continuous_drop_off to 1 or leave it empty on stop_times that have a Flex window.",
                 ));
                     }
@@ -3280,7 +3280,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     &mut st.counter, "STM_038", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("start_pickup_drop_off_window"),
                     Some(format!("{start_window_raw} >= {end_window_raw}")), None,
-                    format!("trip_id '{}' start_pickup_drop_off_window, end_pickup_drop_off_window'dan önce değil.", trip_id),
+                    format!("For trip_id '{}', start_pickup_drop_off_window is not before end_pickup_drop_off_window.", trip_id),
                     "Set start_pickup_drop_off_window to be strictly earlier than end_pickup_drop_off_window.",
                 ));
                     }
@@ -3297,7 +3297,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 &mut st.counter, "STM_039", EntityType::Trip, eid(),
                 None, &file.name, Some(line), Some(missing),
                 None, Some("HH:MM:SS".to_string()),
-                format!("trip_id '{}' location_id/group_id tanımlı ama {missing} eksik.", trip_id),
+                format!("Trip_id '{}' sets location_id/group_id but {missing} is missing.", trip_id),
                 "Enter both start_pickup_drop_off_window and end_pickup_drop_off_window for flex stop_times.",
             ));
                 }
@@ -3308,7 +3308,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 &mut st.counter, "STM_040", EntityType::Trip, eid(),
                 None, &file.name, Some(line), Some("pickup_booking_rule_id"),
                 None, None,
-                format!("trip_id '{}' Flex penceresi tanımlı ama pickup/drop_off_booking_rule_id eksik.", trip_id),
+                format!("Trip_id '{}' has a Flex window but no pickup/drop_off_booking_rule_id.", trip_id),
                 "Enter pickup_booking_rule_id or drop_off_booking_rule_id for flex booking.",
             ));
                 }
@@ -3323,7 +3323,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 Some("stop_id|location_id|location_group_id"),
                 Some(if loc_id_raw.is_empty() { loc_grp_raw.to_string() } else { loc_id_raw.to_string() }),
                 Some("(empty)".to_string()),
-                format!("trip_id '{}' stop_id ve location_id/group_id aynı anda tanımlı olamaz.", trip_id),
+                format!("stop_id and location_id/group_id cannot both be set for trip_id '{}'.", trip_id),
                 "For a standard stop use only stop_id; for a flex stop use only location_id or location_group_id.",
             ));
                 }
@@ -3515,7 +3515,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         None,
                         None,
                         None,
-                        format!("'{}' ZIP yeniden açılamadı: {e}.", file.name),
+                        format!("'{}' ZIP could not be reopened: {e}.", file.name),
                         "Check the ZIP archive.",
                     ));
                 }
@@ -3533,7 +3533,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                 None,
                                 None,
                                 None,
-                                format!("'{}' ZIP girdisi bulunamadı: {e}.", file.name),
+                                format!("'{}' ZIP entry not found: {e}.", file.name),
                                 "Check the ZIP archive.",
                             ));
                         }
@@ -3862,7 +3862,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             Some(file.name.clone()),
             None,
             format!(
-                "Zorunlu GTFS dosyası '{}' hiç veri satırı içermiyor.",
+                "Required GTFS file '{}' contains no data rows.",
                 file.name
             ),
             "Add the real records to the file; leaving it empty is equivalent to omitting it.",
@@ -3950,7 +3950,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             &mut st.counter, "STM_050", EntityType::Feed, None,
             None, &file.name, None, Some("timepoint"),
             Some(format!("{}", st.stm050_empty)), None,
-            format!("{} stop_times satırında timepoint sütunu var ama değer boş; bu satırlar örtük olarak 1 (kesin zaman) sayılır.", st.stm050_empty),
+            format!("{} stop_times rows have a timepoint column but an empty value; these rows implicitly count as 1 (exact time).", st.stm050_empty),
             "Set timepoint explicitly to 0 (approximate) or 1 (exact) for this stop_time.",
         ));
         if let Some(notice) = st.notices.last_mut() {
@@ -3970,7 +3970,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         "STM_018",
         "continuous_pickup",
         "Correct the continuous_pickup fields to one of 0, 1, 2 or 3.",
-        "continuous_pickup alanı 0-3 dışında — aynı enum ihlali yüksek hacimde tekrarlanıyor.",
+        "continuous_pickup is outside 0-3 — the same enum violation repeats at high volume.",
         STM018_019_AGG_THRESHOLD,
     );
     finalize_stm_pending(
@@ -3981,7 +3981,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         "STM_019",
         "continuous_drop_off",
         "Correct the continuous_drop_off fields to one of 0, 1, 2 or 3.",
-        "continuous_drop_off alanı 0-3 dışında — aynı enum ihlali yüksek hacimde tekrarlanıyor.",
+        "continuous_drop_off is outside 0-3 — the same enum violation repeats at high volume.",
         STM018_019_AGG_THRESHOLD,
     );
 
@@ -4148,7 +4148,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         Some(b.sequence.to_string()),
                         None,
                         format!(
-                            "trip_id '{}' için stop_sequence {} tekrar ediyor.",
+                            "stop_sequence {} is repeated for trip_id '{}'.",
                             tid, b.sequence
                         ),
                         "Each (trip_id, stop_sequence) pair must be unique in stop_times.txt.",
@@ -4194,7 +4194,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         None, &file.name, Some(b.line as u64), Some("shape_dist_traveled"),
                         Some(format!("{}", b.dist_f32)), Some(format!("> {}", a.dist_f32)),
                         format!(
-                            "'{}' seferinde {}. durakta güzergâh mesafesi artmıyor: önceki {}. durakta {}, bu durakta {}. Güzergâh başlangıcından itibaren kümülatif mesafe artmalıdır.",
+                            "On trip '{}' the shape distance does not increase at stop #{}: previous stop #{} has {}, this stop has {}. The cumulative distance from the shape start must increase.",
                             tid, b.sequence, a.sequence, a.dist_f32, b.dist_f32
                         ),
                         "Correct shape_dist_traveled in stop_times.txt so the values increase along stop_sequence.",
@@ -4304,7 +4304,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             "STM_032",
             "stop_sequence",
             "Each (trip_id, stop_sequence) pair must be unique in stop_times.txt.",
-            "stop_sequence tekrar ediyor — aynı (trip_id, stop_sequence) ihlali yüksek hacimde tekrarlanıyor.",
+            "stop_sequence repeats — the same (trip_id, stop_sequence) violation repeats at high volume.",
             STM032_AGG_THRESHOLD,
         );
         // Above the threshold STM_056 becomes one feed summary again (a broken distance column can
@@ -4319,7 +4319,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             "STM_056",
             "shape_dist_traveled",
             "Correct shape_dist_traveled in stop_times.txt so the values increase along stop_sequence.",
-            "shape_dist_traveled stop_sequence boyunca artmıyor — aynı mesafe sırası ihlali yüksek hacimde tekrarlanıyor.",
+            "shape_dist_traveled does not increase along stop_sequence — the same distance-order violation repeats at high volume.",
             STM056_AGG_THRESHOLD,
         );
     }
@@ -4371,8 +4371,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             Some(violation.trip_id.to_string()), None, &file.name,
             Some(violation.line), Some(violation.field), Some(observed.clone()),
             Some(expected.clone()),
-            format!("'{}' trip'inde {} satırında {} değeri {} olarak yazılmış; önceki saat {}. \
-                GTFS servis günü için {} kullanılmalıdır.",
+            format!("In trip '{}', row {} writes {} as {}; the previous time is {}. Use {} for the GTFS service day.",
                 violation.trip_id, violation.line, violation.field, observed, previous, expected),
             "Write after-midnight times as 24:00:00, 25:00:00, etc. instead of 00:xx.",
         );
@@ -4399,8 +4398,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             Some(violation.trip_id.to_string()), None, &file.name,
             Some(violation.line), Some(violation.field), Some(observed.clone()),
             Some(expected.clone()),
-            format!("'{}' trip'inde {} satırında departure_time {} olarak yazılmış; aynı satırın arrival_time değeri {}. \
-                GTFS servis günü için {} kullanılmalıdır.",
+            format!("In trip '{}', row {} writes departure_time as {}; the arrival_time of the same row is {}. Use {} for the GTFS service day.",
                 violation.trip_id, violation.line, observed, previous, expected),
             "Write after-midnight departure times as 24:00:00+ instead of 00:xx.",
         );
@@ -4489,25 +4487,27 @@ fn finalize_stm_pending(
                     let observed = notice.observed_value.as_deref()?;
                     let expected = notice.expected_value.as_deref()?;
                     Some(format!(
-                        "{trip_id} (satır {line}: {observed}, beklenen {expected})"
+                        "{trip_id} (line {line}: {observed}, expected {expected})"
                     ))
                 })
                 .collect();
             violation_examples.sort_unstable();
             violation_examples.dedup();
             violation_examples.truncate(3);
-            let examples = if violation_examples.is_empty() {
-                String::new()
-            } else {
-                format!(" İlk örnekler: {}.", violation_examples.join("; "))
+            // The count is written out so each length has its own template in the Turkish
+            // dictionary (a one-example template must not swallow a longer list).
+            let examples = match violation_examples.len() {
+                0 => String::new(),
+                1 => format!(" First example: {}.", violation_examples[0]),
+                k => format!(" First {k} examples: {}.", violation_examples.join("; ")),
             };
             format!(
-                "{n} stop_times satırında aynı trip içinde sonraki stop_sequence'ın \
-                 shape_dist_traveled değeri önceki duraktan küçük veya eşit. \
-                 Bu değer stop_sequence boyunca artmalıdır.{examples}"
+                "In {n} stop_times rows, shape_dist_traveled of the next stop_sequence in the same \
+                 trip is less than or equal to the previous stop. The value must increase along \
+                 stop_sequence.{examples}"
             )
         } else {
-            format!("{n} stop_times satırında {summary}")
+            format!("{n} stop_times rows: {summary}")
         };
         let mut notice = make_k2_notice(
             counter,
@@ -4686,7 +4686,7 @@ fn parse_pickup_dropoff_col(
                         Some(field),
                         Some(val.to_string()),
                         Some("0-3".to_string()),
-                        format!("{field} 0, 1, 2 veya 3 olmalıdır."),
+                        format!("{field} must be one of 0, 1, 2, 3."),
                         "Set the field to a valid GTFS pickup/drop-off enum value (0-3).",
                     ));
                 }
@@ -5135,7 +5135,7 @@ mod tests {
         assert_eq!(hit.field.as_deref(), Some("departure_time"));
         assert_eq!(hit.observed_value.as_deref(), Some(""));
         assert_eq!(hit.expected_value.as_deref(), Some("non-empty"));
-        assert!(hit.message.contains("departure_time eksik"));
+        assert!(hit.message.contains("departure_time is missing"));
     }
 
     #[test]
@@ -5162,7 +5162,7 @@ mod tests {
         assert_eq!(hit.field.as_deref(), Some("arrival_time"));
         assert_eq!(hit.observed_value.as_deref(), Some(""));
         assert_eq!(hit.expected_value.as_deref(), Some("non-empty"));
-        assert!(hit.message.contains("arrival_time eksik"));
+        assert!(hit.message.contains("arrival_time is missing"));
     }
 
     #[test]
@@ -6109,7 +6109,27 @@ mod tests {
         let summary = stm056[0];
         assert_eq!(summary.entity_type, EntityType::Feed);
         assert_eq!(summary.observed_value.as_deref(), Some("51"));
-        assert!(summary.message.contains("aynı trip içinde"));
+        assert_eq!(
+            summary.message,
+            "In 51 stop_times rows, shape_dist_traveled of the next stop_sequence in the same trip \
+             is less than or equal to the previous stop. The value must increase along \
+             stop_sequence. First 3 examples: T00 (line 254: 100, expected > 100); \
+             T01 (line 249: 100, expected > 100); T02 (line 244: 100, expected > 100)."
+        );
+        // The Turkish text is exactly what the engine wrote before the message moved to English
+        // (issue #201): this branch has no fixture, so the notice-text gate cannot see it.
+        let mut turkish = summary.clone();
+        gtfs_core::i18n::Translator::new(gtfs_core::i18n::Lang::Tr)
+            .unwrap()
+            .unwrap()
+            .translate(&mut turkish);
+        assert_eq!(
+            turkish.message,
+            "51 stop_times satırında aynı trip içinde sonraki stop_sequence'ın shape_dist_traveled \
+             değeri önceki duraktan küçük veya eşit. Bu değer stop_sequence boyunca artmalıdır. \
+             İlk örnekler: T00 (satır 254: 100, beklenen > 100); T01 (satır 249: 100, beklenen > 100); \
+             T02 (satır 244: 100, beklenen > 100)."
+        );
         let d = summary.details.as_ref().expect("STM_056 özeti ayrıntısı");
         assert_eq!(d.get("affected_rows").map(String::as_str), Some("51"));
         assert_eq!(

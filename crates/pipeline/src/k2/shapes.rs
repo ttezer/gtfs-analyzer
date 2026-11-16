@@ -293,7 +293,7 @@ pub fn validate_shapes_with_limits(
                 notices.push(make_k2_notice(
                     &mut counter, "ARC_034", EntityType::File, Some(file.name.clone()),
                     None, &file.name, Some(line), None, None, None,
-                    format!("'{}' {line}. satırı başlık satırının tekrarı — veri olarak okunuyor.", file.name),
+                    format!("'{}' line {line} repeats the header row — it is read as data.", file.name),
                     "Remove the repeated header row in the middle of the file; it usually comes from two files being concatenated.",
                 ));
                 return;
@@ -312,7 +312,7 @@ pub fn validate_shapes_with_limits(
                     None,
                     None,
                     None,
-                    format!("'{}' {line}. satırı tamamen boş.", file.name),
+                    format!("'{}' line {line} is completely empty.", file.name),
                     "Remove empty rows from the file.",
                 ));
                 return;
@@ -470,7 +470,7 @@ pub fn validate_shapes_with_limits(
                         Some("shape_pt_sequence"),
                         Some(seq_raw.to_string()),
                         None,
-                        super::common::K2Message::parse_failure(format!("shape_pt_sequence '{seq_raw}' geçersiz.")),
+                        super::common::K2Message::parse_failure(format!("shape_pt_sequence '{seq_raw}' is invalid.")),
                         "Enter shape_pt_sequence as a non-negative integer.",
                     ));
                     None
@@ -491,7 +491,7 @@ pub fn validate_shapes_with_limits(
                         Some("shape_pt_sequence"),
                         Some(seq.to_string()),
                         None,
-                        format!("shape_id '{shape_id}' için shape_pt_sequence {seq} yineleniyor."),
+                        format!("shape_pt_sequence {seq} is repeated for shape_id '{shape_id}'."),
                         "Assign a unique shape_pt_sequence to each shape point.",
                     ));
                 }
@@ -532,7 +532,7 @@ pub fn validate_shapes_with_limits(
                             Some("shape_pt_lat"),
                             Some(lat.to_string()),
                             Some("[-90, 90]".to_string()),
-                            format!("shape_pt_lat {lat} değeri [-90, 90] aralığı dışında."),
+                            format!("shape_pt_lat {lat} is outside the range [-90, 90]."),
                             "Enter a value between -90 and 90 for shape_pt_lat.",
                         ));
                     }
@@ -550,7 +550,7 @@ pub fn validate_shapes_with_limits(
                         Some("shape_pt_lat"),
                         Some(lat_raw.to_string()),
                         Some("[-90, 90]".to_string()),
-                        super::common::K2Message::parse_failure(format!("shape_pt_lat '{lat_raw}' geçersiz.")),
+                        super::common::K2Message::parse_failure(format!("shape_pt_lat '{lat_raw}' is invalid.")),
                         "Fill in shape_pt_lat with a decimal latitude.",
                     ));
                     None
@@ -592,7 +592,7 @@ pub fn validate_shapes_with_limits(
                             Some("shape_pt_lon"),
                             Some(lon.to_string()),
                             Some("[-180, 180]".to_string()),
-                            format!("shape_pt_lon {lon} değeri [-180, 180] aralığı dışında."),
+                            format!("shape_pt_lon {lon} is outside the range [-180, 180]."),
                             "Enter a value between -180 and 180 for shape_pt_lon.",
                         ));
                     }
@@ -610,7 +610,7 @@ pub fn validate_shapes_with_limits(
                         Some("shape_pt_lon"),
                         Some(lon_raw.to_string()),
                         Some("[-180, 180]".to_string()),
-                        super::common::K2Message::parse_failure(format!("shape_pt_lon '{lon_raw}' geçersiz.")),
+                        super::common::K2Message::parse_failure(format!("shape_pt_lon '{lon_raw}' is invalid.")),
                         "Fill in shape_pt_lon with a decimal longitude.",
                     ));
                     None
@@ -649,7 +649,7 @@ pub fn validate_shapes_with_limits(
                         Some("shape_dist_traveled"),
                         Some(sdt_raw.to_string()),
                         Some(">= 0".to_string()),
-                        super::common::K2Message::parse_failure(format!("shape_dist_traveled '{}' sayı olarak okunamıyor.", sdt_raw)),
+                        super::common::K2Message::parse_failure(format!("shape_dist_traveled '{}' cannot be read as a number.", sdt_raw)),
                         "Set shape_dist_traveled to zero or a positive value.",
                     ));
                     None
@@ -802,7 +802,7 @@ pub fn validate_shapes_with_limits(
             None,
             None,
             format!(
-                "'{}' dosyasında başlık satırı var ama veri satırı yok.",
+                "'{}' has a header row but no data rows.",
                 file.name
             ),
             "Add at least one data row to the file (or remove the file if it is not needed).",

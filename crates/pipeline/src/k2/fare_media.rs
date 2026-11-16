@@ -84,9 +84,9 @@ pub fn validate_fare_media(file: &RawFile) -> (Vec<FareMediaRecord>, Vec<gtfs_co
         // FMD_003: fare_media_name is recommended for TransitCard/MobileApp
         if fare_media_name.is_none() && matches!(fare_media_type, Some(2) | Some(4)) {
             let type_label = match fare_media_type {
-                Some(2) => "fiziksel transit kartı",
-                Some(4) => "mobil uygulama",
-                _ => "ödeme aracı",
+                Some(2) => "physical transit card",
+                Some(4) => "mobile app",
+                _ => "payment medium",
             };
             notices.push(make_k2_notice(
                 &mut counter,
@@ -100,7 +100,7 @@ pub fn validate_fare_media(file: &RawFile) -> (Vec<FareMediaRecord>, Vec<gtfs_co
                 None,
                 None,
                 format!(
-                    "fare_media_type={} ({type_label}) için fare_media_name tavsiye edilir.",
+                    "fare_media_name is recommended for fare_media_type={} ({type_label}).",
                     fare_media_type.unwrap()
                 ),
                 "Add fare_media_name so passengers can recognise the payment method.",

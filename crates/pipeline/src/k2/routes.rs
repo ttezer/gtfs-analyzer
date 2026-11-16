@@ -138,7 +138,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                     &mut counter, "RTS_010", EntityType::Route, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("route_short_name"),
                     Some(char_len.to_string()), Some("≤12".to_string()),
-                    format!("'{}' hattının route_short_name değeri {} karakter; kısa isimler 12 karakteri aşmamalıdır.", route_id, char_len),
+                    format!("Route '{}' has a route_short_name of {} characters; short names should not exceed 12 characters.", route_id, char_len),
                     "Keep route_short_name under 12 characters.",
                 );
                 // Planner context: the name itself.
@@ -155,7 +155,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                     &mut counter, "RTS_021", EntityType::Route, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("route_short_name"),
                     Some(char_len.to_string()), Some("≤6 (Google)".to_string()),
-                    format!("'{}' hattının route_short_name değeri {} karakter; Google Transit 6 karakteri tavsiye ediyor.", route_id, char_len),
+                    format!("Route '{}' has a route_short_name of {} characters; Google Transit recommends 6 characters.", route_id, char_len),
                     "Keep route_short_name under 6 characters for Google Transit compatibility, or fill in route_long_name.",
                 );
                 // Planner context: the name itself.
@@ -182,7 +182,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                     Some(char_len.to_string()),
                     Some("≤100".to_string()),
                     format!(
-                        "'{}' hattının route_long_name değeri {} karakter; 100 karakteri aşıyor.",
+                        "Route '{}' has a route_long_name of {} characters; it exceeds 100 characters.",
                         route_id, char_len
                     ),
                     "Keep route_long_name under 100 characters.",
@@ -233,7 +233,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                                 &mut counter, "RTS_030", EntityType::Route, entity_id.clone(), Some(&row_map),
                                 &file.name, Some(line), Some("route_type"),
                                 Some(val.to_string()), Some("0-7,11,12".to_string()),
-                                format!("route_type {val} çekirdek GTFS enum'unda yok; genişletilmiş (HVT) hat tipi."),
+                                format!("route_type {val} is not in the core GTFS enum; it is an extended (HVT) route type."),
                                 "Use a core route_type (0-7, 11, 12) for core GTFS compliance; the extended value may be deliberate if your consumers support it.",
                             ));
                         } else if !is_core_route_type(val) {
@@ -249,7 +249,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                                 Some("route_type"),
                                 Some(val.to_string()),
                                 Some("0-7,11,12".to_string()),
-                                format!("route_type {val} geçerli bir GTFS hat tipi değil."),
+                                format!("route_type {val} is not a valid GTFS route type."),
                                 "Use a valid route_type (0-7, 11, 12).",
                             ));
                         }
@@ -357,7 +357,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                             &mut counter, "RTS_008", EntityType::Route, entity_id.clone(), Some(&row_map),
                             &file.name, Some(line), Some("route_text_color"),
                             Some(format!("{ratio:.2}")), Some(">= 3.0".to_string()),
-                            format!("route_text_color ile route_color arasındaki kontrast oranı düşük ({ratio:.2})."),
+                            format!("The contrast ratio between route_text_color and route_color is low ({ratio:.2})."),
                             "Use colours with at least a 3:1 WCAG contrast ratio.",
                         );
                         // Planner context: the two colours, to preview the badge.
@@ -450,7 +450,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                 let mut n = make_k2_notice(
                     &mut counter, "RTS_023", EntityType::Route, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("route_desc"), Some(d.clone()), None,
-                    format!("'{route_id}' hattının route_desc değeri {matched_field} ile aynı: '{d}'."),
+                    format!("Route '{route_id}' has a route_desc equal to {matched_field}: '{d}'."),
                     "route_desc should describe the route, not repeat its name.",
                 );
                 n.details = Some(std::collections::BTreeMap::from([(
@@ -602,7 +602,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                 Some(anchor_id.clone()), None,
                 "routes.txt", Some(*anchor_line), Some("route_long_name"),
                 Some(display.clone()), None,
-                format!("'{display}' adı birden fazla hatta kullanılıyor: {group_str}."),
+                format!("The name '{display}' is used by more than one route: {group_str}."),
                 "Check the routes: give distinct names to separate services, or use one route_id for the same service. No action is needed if this is intentional.",
             );
             n.details = Some(
@@ -670,7 +670,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                 Some(anchor_id.clone()), None,
                 "routes.txt", Some(*anchor_line), Some("route_short_name"),
                 Some(sn_disp.to_string()), None,
-                format!("'{sn_disp}' kısa hat adı, farklı uzun adlı şu hatlar tarafından paylaşılıyor: {group_str}."),
+                format!("The short route name '{sn_disp}' is shared by routes with different long names: {group_str}."),
                 "Ignore if the route number is intentionally reused for variants/directions; otherwise make it unique.",
             );
             n.details = Some(
@@ -737,7 +737,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                 Some(anchor_id.clone()), None,
                 "routes.txt", Some(*anchor_line), Some("route_long_name"),
                 Some(ln_disp.to_string()), None,
-                format!("'{ln_disp}' uzun hat adı, farklı kısa adlı şu hatlar tarafından paylaşılıyor: {group_str}."),
+                format!("The long route name '{ln_disp}' is shared by routes with different short names: {group_str}."),
                 "Ignore if the long name is shared intentionally; otherwise give each route a distinguishing name.",
             );
             n.details = Some(
@@ -780,7 +780,7 @@ fn parse_continuous_field(
                         Some(field),
                         Some(val.to_string()),
                         Some("0-3".to_string()),
-                        format!("{field} alanı 0, 1, 2 veya 3 olmalıdır."),
+                        format!("{field} must be 0, 1, 2 or 3."),
                         "Set the field to a valid GTFS continuous service value (0-3).",
                     ));
                 }

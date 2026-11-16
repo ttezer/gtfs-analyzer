@@ -194,7 +194,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                                 &mut counter, "FRQ_009", EntityType::Trip, entity_id.clone(),
                                 Some(&row_map), &file.name, Some(line), Some("headway_secs"),
                                 Some(format!("{val}s")), Some("≥ 60s".to_string()),
-                                format!("headway_secs '{val}' saniye — 1 dakikadan kısa frekans gerçekçi değil."),
+                                format!("headway_secs '{val}' seconds — a frequency under 1 minute is not realistic."),
                                 "Set headway_secs to at least 60 seconds.",
                             ));
                         }
@@ -262,8 +262,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                     get_trimmed_field(&row_map, "end_time").map(str::to_string),
                     Some(format!("last departure + 1..{} s", h - 1)),
                     format!(
-                        "exact_times=1 iken end_time ({}) son seferin kalkışına headway ({h} sn) \
-                         kadar uzakta — son sefer belirsiz kalıyor.",
+                        "With exact_times=1, end_time ({}) is exactly one headway ({h} s) after the last departure — the last trip is ambiguous.",
                         get_trimmed_field(&row_map, "end_time").unwrap_or("")
                     ),
                     "Set end_time after the last departure but BEFORE the next one.",
@@ -360,7 +359,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                     Some("start_time"),
                     get_trimmed_field(cur_row, "start_time").map(str::to_string),
                     Some("must not overlap the previous period".to_string()),
-                    format!("trip_id '{trip}' için frequencies dönemleri zaman aralığı çakışıyor."),
+                    format!("The frequencies periods of trip_id '{trip}' overlap in time."),
                     "Adjust the trip's frequencies periods so their time ranges do not overlap.",
                 ));
                 if let Some(finding) = notices.last_mut() {

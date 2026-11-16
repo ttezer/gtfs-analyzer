@@ -241,7 +241,7 @@ pub fn parse_f64(row: &RowMap, field: &str) -> Result<Option<f64>, ParseError> {
     }
     // Shared helper: streaming and non-streaming paths must make the SAME decision (issue #82).
     parse_f64_col(raw)
-        .map_err(|_| ParseError::gated(format!("'{field}' için sonlu bir f64 bekleniyor, alınan: {raw}")))
+        .map_err(|_| ParseError::gated(format!("expected a finite f64 for '{field}', got: {raw}")))
 }
 
 pub fn parse_u32(row: &RowMap, field: &str) -> Result<Option<u32>, ParseError> {
@@ -253,7 +253,7 @@ pub fn parse_u32(row: &RowMap, field: &str) -> Result<Option<u32>, ParseError> {
     }
     raw.parse::<u32>()
         .map(Some)
-        .map_err(|_| ParseError::gated(format!("'{field}' için u32 bekleniyor, alınan: {raw}")))
+        .map_err(|_| ParseError::gated(format!("expected u32 for '{field}', got: {raw}")))
 }
 
 pub fn parse_i32(row: &RowMap, field: &str) -> Result<Option<i32>, ParseError> {
@@ -265,7 +265,7 @@ pub fn parse_i32(row: &RowMap, field: &str) -> Result<Option<i32>, ParseError> {
     }
     raw.parse::<i32>()
         .map(Some)
-        .map_err(|_| ParseError::gated(format!("'{field}' için i32 bekleniyor, alınan: {raw}")))
+        .map_err(|_| ParseError::gated(format!("expected i32 for '{field}', got: {raw}")))
 }
 
 /// GTFS Schedule date format: YYYYMMDD
@@ -280,18 +280,18 @@ pub fn parse_service_date(
         return Ok(None);
     }
     if raw.len() != 8 || !raw.chars().all(|c| c.is_ascii_digit()) {
-        return Err(ParseError::gated(format!("'{field}' için YYYYMMDD bekleniyor, alınan: {raw}")));
+        return Err(ParseError::gated(format!("expected YYYYMMDD for '{field}', got: {raw}")));
     }
 
     let year = raw[0..4]
         .parse::<u32>()
-        .map_err(|_| ParseError::plain(format!("'{field}' yıl bölümü geçersiz: {raw}")))?;
+        .map_err(|_| ParseError::plain(format!("'{field}' has an invalid year part: {raw}")))?;
     let month = raw[4..6]
         .parse::<u32>()
-        .map_err(|_| ParseError::plain(format!("'{field}' ay bölümü geçersiz: {raw}")))?;
+        .map_err(|_| ParseError::plain(format!("'{field}' has an invalid month part: {raw}")))?;
     let day = raw[6..8]
         .parse::<u32>()
-        .map_err(|_| ParseError::plain(format!("'{field}' gün bölümü geçersiz: {raw}")))?;
+        .map_err(|_| ParseError::plain(format!("'{field}' has an invalid day part: {raw}")))?;
 
     // ⚠️ CALENDAR VALIDITY (issue #82). Old code checked only FORMAT: `20261340` was parsed
     // and RETURNED as `(2026, 13, 40)`, so the service-day calculations below used a nonexistent
@@ -353,30 +353,30 @@ pub fn parse_gtfs_time(
 
     let parts: Vec<&str> = raw.split(':').collect();
     if parts.len() != 3 {
-        return Err(ParseError::gated(format!("'{field}' için HH:MM:SS bekleniyor, alınan: {raw}")));
+        return Err(ParseError::gated(format!("expected HH:MM:SS for '{field}', got: {raw}")));
     }
     // ⚠️ LEXICAL WIDTH is also part of the type (issue #82): the spec says `H:MM:SS` or
     // `HH:MM:SS`; minutes and seconds are TWO DIGITS. Old code only parsed numerically and
     // accepted `1:2:3`. Hours may be 1–2 digits (`25:00:00` service-day notation).
     if !gtfs_time_widths_ok(&parts) {
         return Err(ParseError::plain(format!(
-            "'{field}' için [H]H:MM:SS bekleniyor (dakika/saniye iki basamaklı), alınan: {raw}"
+            "expected [H]H:MM:SS for '{field}' (two-digit minutes/seconds), got: {raw}"
         )));
     }
 
     let hour = parts[0]
         .parse::<u32>()
-        .map_err(|_| ParseError::plain(format!("'{field}' saat bölümü geçersiz: {raw}")))?;
+        .map_err(|_| ParseError::plain(format!("'{field}' has an invalid hour part: {raw}")))?;
     let minute = parts[1]
         .parse::<u32>()
-        .map_err(|_| ParseError::plain(format!("'{field}' dakika bölümü geçersiz: {raw}")))?;
+        .map_err(|_| ParseError::plain(format!("'{field}' has an invalid minute part: {raw}")))?;
     let second = parts[2]
         .parse::<u32>()
-        .map_err(|_| ParseError::plain(format!("'{field}' saniye bölümü geçersiz: {raw}")))?;
+        .map_err(|_| ParseError::plain(format!("'{field}' has an invalid second part: {raw}")))?;
 
     if minute > 59 || second > 59 {
         return Err(ParseError::plain(format!(
-            "'{field}' için dakika/saniye aralığı geçersiz: {raw}"
+            "'{field}' has a minute/second out of range: {raw}"
         )));
     }
 
@@ -989,7 +989,7 @@ pub(crate) fn arc033_summary(
         )),
         None,
         format!(
-            "'{file}' RFC 4180'e uymuyor: {kind} ({} satırda; ilk örnek: '{example}').",
+            "'{file}' does not follow RFC 4180: {kind} ({} rows; first example: '{example}').",
             acc.rows
         ),
         "Quote any field value that contains a quotation mark or a comma, and double every quotation mark inside it (\"12\"\" Street\").",
@@ -1012,7 +1012,7 @@ pub(crate) fn arc033_summary(
 /// Corpus measurement (2026-08-07): 20 feeds · 75 stream files · **0** unclosed quotes —
 /// this decision affects no feed in current data.
 pub fn arc013_unclosed_stream(file: &str, counter: &mut u32) -> gtfs_core::Notice {
-    let msg = "Kapanmamış tırnak işareti (unclosed quote)";
+    let msg = "unclosed quote";
     make_k2_notice(
         counter,
         "ARC_013",
@@ -1024,7 +1024,7 @@ pub fn arc013_unclosed_stream(file: &str, counter: &mut u32) -> gtfs_core::Notic
         None,
         Some("issue=unclosed_quote".to_string()),
         None,
-        format!("'{file}' CSV tokenization hatası: {msg} — kaydın kalanı okunamadı."),
+        format!("'{file}' CSV tokenization error: {msg} — the rest of the record could not be read."),
         "Check the CSV format; ensure all quoted fields are properly closed.",
     )
 }

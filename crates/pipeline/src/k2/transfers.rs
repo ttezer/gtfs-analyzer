@@ -81,7 +81,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
                             Some("transfer_type"),
                             Some(v.to_string()),
                             Some("0–5".to_string()),
-                            super::common::K2Message::parse_failure(format!("transfer_type '{v}' geçersiz.")),
+                            super::common::K2Message::parse_failure(format!("transfer_type '{v}' is invalid.")),
                             "Set transfer_type to a valid GTFS enum value (0–5).",
                         ));
                     }
@@ -195,7 +195,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
                 &mut counter, "GGL_001", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("transfer_type"),
                 Some(ttype.to_string()), None,
-                format!("transfer_type={ttype} (in-seat aktarma) Google Transit tarafından yoksayılıyor."),
+                format!("transfer_type={ttype} (in-seat transfer) is ignored by Google Transit."),
                 "Select a transfer_type between 0 and 3 for Google Transit compatibility.",
             ));
         }

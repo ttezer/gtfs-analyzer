@@ -153,7 +153,7 @@ pub fn validate_rider_categories(
                     Some("max_age"),
                     Some(mx.to_string()),
                     Some(format!(">= {mn}")),
-                    format!("max_age ({mx}) min_age ({mn}) değerinden küçük olamaz."),
+                    format!("max_age ({mx}) cannot be less than min_age ({mn})."),
                     "Set max_age to be greater than or equal to min_age.",
                 ));
             }

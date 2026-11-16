@@ -66,17 +66,17 @@ fn parse_date_raw(raw: &str) -> Result<Option<(u32, u32, u32)>, ParseError> {
         return Ok(None);
     }
     if raw.len() != 8 {
-        return Err(ParseError::plain(format!("'{raw}' YYYYMMDD formatında değil.")));
+        return Err(ParseError::plain(format!("'{raw}' is not in YYYYMMDD format.")));
     }
     let year = raw[0..4]
         .parse::<u32>()
-        .map_err(|_| ParseError::plain(format!("'{raw}' geçersiz yıl.")))?;
+        .map_err(|_| ParseError::plain(format!("'{raw}' has an invalid year.")))?;
     let month = raw[4..6]
         .parse::<u32>()
-        .map_err(|_| ParseError::plain(format!("'{raw}' geçersiz ay.")))?;
+        .map_err(|_| ParseError::plain(format!("'{raw}' has an invalid month.")))?;
     let day = raw[6..8]
         .parse::<u32>()
-        .map_err(|_| ParseError::plain(format!("'{raw}' geçersiz gün.")))?;
+        .map_err(|_| ParseError::plain(format!("'{raw}' has an invalid day.")))?;
     // ⚠️ SHARED helper (issue #82): this used to check `month ≤ 12, day ≤ 31` and let `20260231`
     // through. The streaming and non-streaming paths must make the SAME decision.
     if !super::common::is_valid_calendar_date(year, month, day) {
@@ -153,7 +153,7 @@ pub fn validate_calendar_dates_with_limits(
             notices.push(make_k2_notice(
                 &mut counter, "ARC_034", EntityType::File, Some(file.name.clone()),
                 None, &file.name, Some(line), None, None, None,
-                format!("'{}' {line}. satırı başlık satırının tekrarı — veri olarak okunuyor.", file.name),
+                format!("'{}' line {line} repeats the header row — it is read as data.", file.name),
                 "Remove the repeated header row in the middle of the file; it usually comes from two files being concatenated.",
             ));
             return;
@@ -173,7 +173,7 @@ pub fn validate_calendar_dates_with_limits(
                 None,
                 None,
                 None,
-                format!("'{}' {line}. satırı tamamen boş.", file.name),
+                format!("'{}' line {line} is completely empty.", file.name),
                 "Remove empty rows from the file.",
             ));
             return;
@@ -303,8 +303,7 @@ pub fn validate_calendar_dates_with_limits(
                             Some(format!("{year}-{month:02}-{day:02}")),
                             Some("2000–2099".to_string()),
                             format!(
-                                "service_id '{}' için tarih {year}-{month:02}-{day:02} \
-                                 makul yıl aralığı dışında.",
+                                "Date {year}-{month:02}-{day:02} of service_id '{}' is outside the plausible year range.",
                                 service_id
                             ),
                             "GTFS dates must be between 2000 and 2099.",
@@ -371,7 +370,7 @@ pub fn validate_calendar_dates_with_limits(
                         &mut counter, "CLD_003", EntityType::Service, entity_id.clone(),
                         None, &file.name, Some(line), Some("exception_type"),
                         Some(et_raw.to_string()), Some("1 or 2".to_string()),
-                        format!("exception_type '{et_raw}' geçersiz; 1 veya 2 olmalıdır."),
+                        format!("exception_type '{et_raw}' is invalid; it must be 1 or 2."),
                         "Set exception_type to 1 (service added) or 2 (service removed).",
                     ));
                         None
@@ -432,7 +431,7 @@ pub fn validate_calendar_dates_with_limits(
                     None,
                     None,
                     None,
-                    format!("'{}' ZIP yeniden açılamadı: {e}.", file.name),
+                    format!("'{}' ZIP could not be reopened: {e}.", file.name),
                     "Check the ZIP archive.",
                 ));
             }
@@ -450,7 +449,7 @@ pub fn validate_calendar_dates_with_limits(
                             None,
                             None,
                             None,
-                            format!("'{}' ZIP girdisi bulunamadı: {e}.", file.name),
+                            format!("'{}' ZIP entry not found: {e}.", file.name),
                             "Check the ZIP archive.",
                         ));
                     }
@@ -554,7 +553,7 @@ pub fn validate_calendar_dates_with_limits(
                 Some("service_id"),
                 Some(count.to_string()),
                 Some("≤ 60".to_string()),
-                format!("'{sid}' servisinin {count} istisna günü var; bu çok fazla olabilir."),
+                format!("Service '{sid}' has {count} exception days; this may be too many."),
                 "Define a regular service period in calendar.txt instead of using many exceptions.",
             ));
         }

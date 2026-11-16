@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { matchTemplate, tMsgForLocale } from '../i18n';
-import { trMessageTemplates } from '../locales/tr';
+import { matchTemplate, tMsgForLocale, tRemediationForLocale } from '../i18n';
+import { trMessageTemplates, trRemediationTemplates } from '../locales/tr';
 import sharedCases from '../../../tests/fixtures/i18n/template_match_cases.json';
 
 type Case = { name: string; template: string; text: string; expect: Record<string, string> | null };
@@ -24,6 +24,18 @@ describe('message template matcher', () => {
         const message = engine.replace(/\{(\w+)\}/g, (_, k: string) => sample[k]);
         const want = turkish.replace(/\{(\w+)\}/g, (_, k: string) => sample[k] ?? '');
         expect(tMsgForLocale('tr', { rule_id: ruleId, message }), `${ruleId}: ${engine}`).toBe(want);
+      }
+    }
+  });
+
+  it('translates a value remediation for every Turkish remediation template', () => {
+    for (const [ruleId, templates] of Object.entries(trRemediationTemplates)) {
+      for (const [engine, turkish] of Object.entries(templates)) {
+        const holes = [...engine.matchAll(/\{(\w+)\}/g)].map((m) => m[1]);
+        const sample = Object.fromEntries(holes.map((h, i) => [h, `v${i}x`]));
+        const remediation = engine.replace(/\{(\w+)\}/g, (_, k: string) => sample[k]);
+        const want = turkish.replace(/\{(\w+)\}/g, (_, k: string) => sample[k] ?? '');
+        expect(tRemediationForLocale('tr', { rule_id: ruleId, remediation }), `${ruleId}: ${engine}`).toBe(want);
       }
     }
   });

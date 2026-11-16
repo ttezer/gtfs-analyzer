@@ -1,5 +1,5 @@
 import type { Severity, RuleClass, FatalCode, FatalError } from './types';
-import tr, { trMessageTemplates, trMessageTexts, trRemediationTexts } from './locales/tr';
+import tr, { trMessageTemplates, trMessageTexts, trRemediationTemplates, trRemediationTexts } from './locales/tr';
 import en from './locales/en';
 import ja from './locales/ja';
 import fr from './locales/fr';
@@ -181,6 +181,7 @@ export function tMsgForLocale(locale: Locale, n: NoticeLike): string {
   if (locale === 'tr') {
     return trMessageTexts[n.rule_id]?.[n.message]
       ?? translateByTemplate(trMessageTemplates[n.rule_id], n.message)
+      ?? translateByTemplate(trMessageTemplates['*'], n.message)
       ?? n.message;
   }
   // JA: fall back to the EN template when there is no Japanese message
@@ -226,7 +227,9 @@ export function tRemediationForLocale(locale: Locale, n: { rule_id: string; reme
     const variant = n.details?.message_variant;
     const own = LOCALES.tr.ruleRemediations;
     // A rule whose branches give different remediations is matched by the engine's own text.
-    const byText = trRemediationTexts[n.rule_id]?.[n.remediation ?? ''];
+    const byText = trRemediationTexts[n.rule_id]?.[n.remediation ?? '']
+      ?? translateByTemplate(trRemediationTemplates[n.rule_id], n.remediation ?? '')
+      ?? translateByTemplate(trRemediationTemplates['*'], n.remediation ?? '');
     if (byText !== undefined) return byText;
     return (variant ? own[profile ? `${n.rule_id}.${profile}.${variant}` : `${n.rule_id}.${variant}`] : undefined)
       ?? (profile ? own[`${n.rule_id}.${profile}`] : undefined)

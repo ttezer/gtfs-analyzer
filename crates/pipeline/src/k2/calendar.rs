@@ -74,7 +74,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                     .map(Some)
                     .map_err(|_| {
                         super::common::ParseError::gated(format!(
-                            "'{field}' için u32 bekleniyor, alınan: {raw}"
+                            "expected u32 for '{field}', got: {raw}"
                         ))
                     }),
                 _ => parse_u32(&row_map, field),
@@ -94,7 +94,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                                 Some(field),
                                 Some(val.to_string()),
                                 Some("0 or 1".to_string()),
-                                format!("{field} alanı 0 veya 1 olmalıdır."),
+                                format!("{field} must be 0 or 1."),
                                 "Set each day field to 0 or 1.",
                             ));
                         }
@@ -133,7 +133,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                 Some(&row_map), &file.name, Some(line),
                 // The rule is that all SEVEN day fields are 0 TOGETHER; all are named.
                 Some("monday|tuesday|wednesday|thursday|friday|saturday|sunday"), None, None,
-                format!("'{}' takviminde haftalık gün alanlarının tümü 0 — haftalık tekrar yok; servis yalnızca calendar_dates.txt istisnalarıyla aktif olabilir.", service_id),
+                format!("All weekday fields of calendar '{}' are 0 — there is no weekly repetition; the service can only be active through calendar_dates.txt exceptions.", service_id),
                 "If this is an intentional dates-only service, no action needed; otherwise set at least one weekday field to 1.",
             ));
         }
@@ -236,7 +236,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                     Some("end_date"),
                     Some(format!("{}", ed)),
                     Some(format!(">= {}", sd)),
-                    format!("end_date ({ed}), start_date ({sd}) tarihinden önce."),
+                    format!("end_date ({ed}) is before start_date ({sd})."),
                     "Set end_date to be equal to or after start_date.",
                 ));
             }

@@ -114,7 +114,7 @@ pub fn validate_timeframes(file: &RawFile) -> (Vec<TimeframeRecord>, Vec<gtfs_co
                 &mut counter, "TFR_007", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some(missing), Some(String::new()),
                 Some("non-empty".to_string()),
-                format!("{present} tanımlıyken {missing} da tanımlanmalıdır."),
+                format!("{missing} must also be set when {present} is set."),
                 "Fill in start_time and end_time together in timeframes.txt, or leave both empty.",
             ));
         }
@@ -140,7 +140,7 @@ pub fn validate_timeframes(file: &RawFile) -> (Vec<TimeframeRecord>, Vec<gtfs_co
                     Some(field),
                     get_trimmed_field(&row_map, field).map(str::to_string),
                     Some("<= 24:00:00".to_string()),
-                    format!("{field} değeri 24:00:00'dan büyük olamaz."),
+                    format!("{field} cannot be greater than 24:00:00."),
                     "Lower the start_time/end_time values in timeframes.txt to 24:00:00 or below.",
                 ));
             }
@@ -204,7 +204,7 @@ pub fn validate_timeframes(file: &RawFile) -> (Vec<TimeframeRecord>, Vec<gtfs_co
                     &file.name, Some(cur_line), Some("start_time"),
                     Some(format!("{cur_line} / {prev_line}")), None,
                     format!(
-                        "timeframe_group_id '{}' service_id '{}': {prev_st}–{prev_et}s ile {cur_st}s aralıkları örtüşüyor.",
+                        "timeframe_group_id '{}' service_id '{}': the ranges {prev_st}–{prev_et}s and {cur_st}s overlap.",
                         group_id, service_id
                     ),
                     "Ensure time intervals within the same group and service_id do not overlap.",

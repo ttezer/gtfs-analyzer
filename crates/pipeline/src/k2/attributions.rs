@@ -197,7 +197,7 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
             Some(format!("{missing_id_count} rows")),
             None,
             format!(
-                "attributions.txt dosyasındaki {missing_id_count} kayıtta attribution_id yok                  (ör. satır {first}); bu kayıtlar tekrarda ayrılamaz."
+                "attributions.txt has {missing_id_count} records without attribution_id (e.g. line {first}); these records cannot be told apart."
             ),
             "Assign a unique attribution_id to each attribution record.",
         ));
@@ -217,7 +217,7 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
             Some(format!("{no_role_count} rows")),
             Some("at least one role = 1".to_string()),
             format!(
-                "attributions.txt dosyasındaki {no_role_count} kayıtta hiçbir attribution rolü                  tanımlı değil (ör. satır {first})."
+                "No attribution role is set on {no_role_count} records in attributions.txt (e.g. line {first})."
             ),
             "Set at least one of is_producer, is_operator or is_authority to 1.",
         ));
@@ -254,7 +254,7 @@ fn parse_role_enum(
                         Some(field),
                         Some(v.to_string()),
                         Some("0 or 1".to_string()),
-                        format!("{field} alanı 0 veya 1 olmalıdır."),
+                        format!("{field} must be 0 or 1."),
                         "Set each attribution role field to 0 or 1.",
                     ));
                 }

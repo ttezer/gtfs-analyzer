@@ -337,7 +337,7 @@ pub fn validate_trips_with_limits(
             notices.push(make_k2_notice(
                 &mut counter, "ARC_034", EntityType::File, Some(file.name.clone()),
                 None, &file.name, Some(line), None, None, None,
-                format!("'{}' {line}. satırı başlık satırının tekrarı — veri olarak okunuyor.", file.name),
+                format!("'{}' line {line} repeats the header row — it is read as data.", file.name),
                 "Remove the repeated header row in the middle of the file; it usually comes from two files being concatenated.",
             ));
             return;
@@ -357,7 +357,7 @@ pub fn validate_trips_with_limits(
                 None,
                 None,
                 None,
-                format!("'{}' {line}. satırı tamamen boş.", file.name),
+                format!("'{}' line {line} is completely empty.", file.name),
                 "Remove empty rows from the file.",
             ));
             return;
@@ -544,7 +544,7 @@ pub fn validate_trips_with_limits(
                 Some(short_name_chars.to_string()),
                 Some("≤20".to_string()),
                 format!(
-                    "trip_short_name {} karakter; 20'yi aşmamalıdır.",
+                    "trip_short_name is {} characters; it should not exceed 20.",
                     short_name_chars
                 ),
                 "Shorten trip_short_name.",
@@ -601,7 +601,7 @@ pub fn validate_trips_with_limits(
                             Some("direction_id"),
                             Some(val.to_string()),
                             Some("0 or 1".to_string()),
-                            format!("direction_id {val} geçersiz; 0 veya 1 olmalıdır."),
+                            format!("direction_id {val} is invalid; it must be 0 or 1."),
                             "Set direction_id to 0 (outbound) or 1 (inbound).",
                         ));
                     }
@@ -620,7 +620,7 @@ pub fn validate_trips_with_limits(
                     Some("direction_id"),
                     Some(dir_raw.to_string()),
                     Some("0 or 1".to_string()),
-                    format!("direction_id '{dir_raw}' geçersiz; 0 veya 1 olmalıdır."),
+                    format!("direction_id '{dir_raw}' is invalid; it must be 0 or 1."),
                     "Set direction_id to 0 (outbound) or 1 (inbound).",
                 ));
                 None
@@ -652,7 +652,7 @@ pub fn validate_trips_with_limits(
                     &mut counter, "TRP_006", EntityType::Trip, entity_id.clone(),
                     None, &file.name, Some(line), Some("wheelchair_accessible"),
                     Some(wc_raw.to_string()), Some("0, 1 or 2".to_string()),
-                    super::common::K2Message::parse_failure(format!("wheelchair_accessible '{}' sayı olarak okunamıyor.", wc_raw)),
+                    super::common::K2Message::parse_failure(format!("wheelchair_accessible '{}' cannot be read as a number.", wc_raw)),
                     "Set wheelchair_accessible to 0 (no info), 1 (accessible) or 2 (not accessible).",
                 ));
                 None
@@ -684,7 +684,7 @@ pub fn validate_trips_with_limits(
                     &mut counter, "TRP_007", EntityType::Trip, entity_id.clone(),
                     None, &file.name, Some(line), Some("bikes_allowed"),
                     Some(ba_raw.to_string()), Some("0, 1 or 2".to_string()),
-                    super::common::K2Message::parse_failure(format!("bikes_allowed '{}' sayı olarak okunamıyor.", ba_raw)),
+                    super::common::K2Message::parse_failure(format!("bikes_allowed '{}' cannot be read as a number.", ba_raw)),
                     "Set bikes_allowed to 0 (no info), 1 (allowed) or 2 (not allowed).",
                 ));
                 None
@@ -727,7 +727,7 @@ pub fn validate_trips_with_limits(
                     &mut counter, "TRP_032", EntityType::Trip, entity_id.clone(),
                     None, &file.name, Some(line), Some("cars_allowed"),
                     Some(ca_raw.to_string()), Some("0, 1 or 2".to_string()),
-                    super::common::K2Message::parse_failure(format!("cars_allowed '{}' sayı olarak okunamıyor.", ca_raw)),
+                    super::common::K2Message::parse_failure(format!("cars_allowed '{}' cannot be read as a number.", ca_raw)),
                     "Set cars_allowed to 0 (no info), 1 (allowed) or 2 (not allowed).",
                 ));
                 None
@@ -751,7 +751,7 @@ pub fn validate_trips_with_limits(
                         Some(field),
                         Some(raw.to_string()),
                         Some("decimal number".to_string()),
-                        super::common::K2Message::parse_failure(format!("{field} '{raw}' ondalık sayı olarak okunamıyor.")),
+                        super::common::K2Message::parse_failure(format!("{field} '{raw}' cannot be read as a decimal number.")),
                         "Enter the safe_duration fields as decimal numbers.",
                     ));
                     None
@@ -809,7 +809,7 @@ pub fn validate_trips_with_limits(
                     None,
                     None,
                     None,
-                    format!("'{}' ZIP yeniden açılamadı: {e}.", file.name),
+                    format!("'{}' ZIP could not be reopened: {e}.", file.name),
                     "Check the ZIP archive.",
                 ));
             }
@@ -827,7 +827,7 @@ pub fn validate_trips_with_limits(
                             None,
                             None,
                             None,
-                            format!("'{}' ZIP girdisi bulunamadı: {e}.", file.name),
+                            format!("'{}' ZIP entry not found: {e}.", file.name),
                             "Check the ZIP archive.",
                         ));
                     }
@@ -988,7 +988,7 @@ pub fn validate_trips_with_limits(
                 &mut counter, "TRP_021", EntityType::Trip, None,
                 None, &file.name, None, Some("bikes_allowed"),
                 Some(format!("{trp021_missing_count}/{total}")), Some("1|2".to_string()),
-                format!("Bu feed'de hiçbir seferde bisiklet bilgisi yok: bikes_allowed boş veya 0 ({trp021_missing_count} sefer)."),
+                format!("No trip in this feed has bike information: bikes_allowed is empty or 0 ({trp021_missing_count} trips)."),
                 "Set bikes_allowed to 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty mean no information.",
             );
             trp021_details(&mut n);
@@ -998,7 +998,7 @@ pub fn validate_trips_with_limits(
                 String::new()
             } else {
                 format!(
-                    " Örnek seferler: {}{}.",
+                    " Example trips: {}{}.",
                     trp021_missing_examples.join(", "),
                     if trp021_missing_count > trp021_missing_examples.len() {
                         ", …"
@@ -1011,7 +1011,7 @@ pub fn validate_trips_with_limits(
                 &mut counter, "TRP_021", EntityType::Trip, None,
                 None, &file.name, trp021_first_line, Some("bikes_allowed"),
                 Some(format!("{trp021_missing_count}/{total}")), Some("1|2".to_string()),
-                format!("{total} seferin {trp021_missing_count} tanesinde bisiklet bilgisi yok: bikes_allowed boş veya 0 ({:.0}%).{examples}",
+                format!("{trp021_missing_count} of {total} trips have no bike information: bikes_allowed is empty or 0 ({:.0}%).{examples}",
                     trp021_missing_count as f64 / total as f64 * 100.0),
                 "Fill in bikes_allowed on every trip with 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty mean no information.",
             );
@@ -1050,7 +1050,7 @@ pub fn validate_trips_with_limits(
             Some(file.name.clone()),
             None,
             format!(
-                "Zorunlu GTFS dosyası '{}' hiç veri satırı içermiyor.",
+                "Required GTFS file '{}' contains no data rows.",
                 file.name
             ),
             "Add the real records to the file; leaving it empty is equivalent to omitting it.",

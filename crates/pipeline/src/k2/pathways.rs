@@ -408,7 +408,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                     Some(sign.len().to_string()),
                     Some("≤ 255 karakter".to_string()),
                     format!(
-                        "signposted_as alanı {} karakter uzunluğunda; önerilen maksimum 255.",
+                        "signposted_as is {} characters long; the recommended maximum is 255.",
                         sign.len()
                     ),
                     "Keep the signposted_as value under 255 characters.",
@@ -448,7 +448,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             Some("max_slope"),
             Some(pth009_count.to_string()),
             None,
-            format!("{pth009_count} yürüme yolu geçidinde (pathway_mode=1) max_slope eksik."),
+            format!("max_slope is missing on {pth009_count} walkway pathways (pathway_mode=1)."),
             "Add max_slope to the affected pathways.txt records, or fix the data source.",
         );
         let mut d = std::collections::BTreeMap::new();
@@ -474,7 +474,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             Some("stair_count"),
             Some(pth008_count.to_string()),
             None,
-            format!("{pth008_count} merdiven geçidinde (pathway_mode=2) stair_count eksik."),
+            format!("stair_count is missing on {pth008_count} stairs pathways (pathway_mode=2)."),
             "Add stair_count to the affected pathways.txt records, or fix the data source.",
         );
         let mut d = std::collections::BTreeMap::new();
@@ -489,7 +489,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
     if pth029_count > 0 {
         let mut n = make_k2_notice(&mut counter, "PTH_029", EntityType::Feed, None, None,
             &file.name, None, Some("traversal_time"), Some(pth029_count.to_string()), None,
-            format!("{pth029_count} yürüyen bant/yürüyen merdiven/asansör kaydında önerilen traversal_time eksik."),
+            format!("The recommended traversal_time is missing on {pth029_count} moving sidewalk/escalator/elevator records."),
             "Add traversal_time in seconds to records whose pathway_mode is 3, 4, or 5.");
         let mut d = std::collections::BTreeMap::new();
         d.insert("affected_pathways".to_string(), pth029_count.to_string());
@@ -512,7 +512,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             Some("length"),
             Some(pth025_count.to_string()),
             None,
-            format!("{pth025_count} walkway/fare gate/exit gate kaydında önerilen length eksik."),
+            format!("The recommended length is missing on {pth025_count} walkway/fare gate/exit gate records."),
             "Add length in metres to records whose pathway_mode is 1, 6, or 7.",
         );
         let mut d = std::collections::BTreeMap::new();
@@ -548,7 +548,7 @@ fn parse_enum_u32(
                 if !validate_enum(&v.to_string(), allowed) {
                     let allowed_str = allowed.join(", ");
                     let remediation =
-                        format!("{field} için şu değerlerden birini kullanın: {allowed_str}.");
+                        format!("Use one of these values for {field}: {allowed_str}.");
                     notices.push(make_k2_notice(
                         counter,
                         rule_id,
@@ -560,7 +560,7 @@ fn parse_enum_u32(
                         Some(field),
                         Some(v.to_string()),
                         Some(allowed_str.clone()),
-                        format!("{field} geçerli bir değer değil."),
+                        format!("{field} is not a valid value."),
                         &remediation,
                     ));
                 }
@@ -570,7 +570,7 @@ fn parse_enum_u32(
         Err(err) => {
             let allowed_str = allowed.join(", ");
             let remediation =
-                format!("{field} için şu değerlerden birini kullanın: {allowed_str}.");
+                format!("Use one of these values for {field}: {allowed_str}.");
             notices.push(make_k2_notice(
                 counter,
                 rule_id,
@@ -618,7 +618,7 @@ fn parse_nonnegative_f64(
                         Some(field),
                         Some(v.to_string()),
                         Some(">= 0".to_string()),
-                        format!("{field} alanı negatif olamaz."),
+                        format!("{field} cannot be negative."),
                         "Set the field to zero or a positive value.",
                     ));
                 }
@@ -673,7 +673,7 @@ fn parse_positive_f64(
                         Some(field),
                         Some(v.to_string()),
                         Some("> 0".to_string()),
-                        format!("{field} alanı pozitif olmalıdır."),
+                        format!("{field} must be positive."),
                         "Set the field to a positive value.",
                     ));
                 }
@@ -728,7 +728,7 @@ fn parse_positive_u32(
                         Some(field),
                         Some(v.to_string()),
                         Some("> 0".to_string()),
-                        format!("{field} alanı pozitif olmalıdır."),
+                        format!("{field} must be positive."),
                         "Set the field to a positive integer.",
                     ));
                 }

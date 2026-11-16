@@ -81,8 +81,13 @@ struct Dictionary {
     /// runtime values (issue #201, phase F3): the engine writes the English message with the
     /// values in it; the English template (`Stop '{stop}' has no name.`) recovers the values
     /// and fills this language's template. Ordered so the match is deterministic.
+    /// The key `*` holds templates shared by every rule (the value parsers' messages); a rule's
+    /// own templates are tried first.
     #[serde(default)]
     message_templates: BTreeMap<String, BTreeMap<String, String>>,
+    /// Same as `message_templates`, for remediations that carry runtime values.
+    #[serde(default)]
+    remediation_templates: BTreeMap<String, BTreeMap<String, String>>,
     #[serde(default)]
     cards: HashMap<String, RuleCard>,
 }
@@ -172,6 +177,12 @@ impl Translator {
             .message_templates
             .get(&notice.rule_id)
             .and_then(|templates| translate_by_template(templates, &notice.message))
+            .or_else(|| {
+                self.primary
+                    .message_templates
+                    .get(SHARED_TEMPLATES)
+                    .and_then(|templates| translate_by_template(templates, &notice.message))
+            })
         {
             notice.message = message;
         } else if let Some(template) = specific
@@ -193,6 +204,20 @@ impl Translator {
             .and_then(|by_text| by_text.get(&*notice.remediation))
         {
             notice.remediation = crate::intern_notice_text(remediation);
+        } else if let Some(remediation) = self
+            .primary
+            .remediation_templates
+            .get(&notice.rule_id)
+            .and_then(|templates| translate_by_template(templates, &notice.remediation))
+            .or_else(|| {
+                self.primary
+                    .remediation_templates
+                    .get(SHARED_TEMPLATES)
+                    .and_then(|templates| translate_by_template(templates, &notice.remediation))
+            })
+        {
+            // Filled with runtime values: not interned, so the shared text table stays bounded.
+            notice.remediation = remediation.into();
         } else if let Some(remediation) = specific
             .as_deref()
             .and_then(|key| self.lookup(|d| &d.remediations, key))
@@ -311,6 +336,9 @@ fn has_placeholder(text: &str) -> bool {
         })
     })
 }
+
+/// `message_templates` key for templates every rule may use (shared value-parser messages).
+const SHARED_TEMPLATES: &str = "*";
 
 /// A template split into literal text and `{name}` holes (same syntax as [`fill_with`]).
 enum Part<'a> {
@@ -647,7 +675,11 @@ mod tests {
     #[test]
     fn turkish_message_templates_are_well_formed_and_exclusive() {
         let translator = Translator::new(Lang::Tr).unwrap().unwrap();
-        for (rule, templates) in &translator.primary.message_templates {
+        for (kind, all) in [
+            ("message", &translator.primary.message_templates),
+            ("remediation", &translator.primary.remediation_templates),
+        ] {
+        for (rule, templates) in all {
             for (engine, turkish) in templates {
                 let parts = template_parts(engine);
                 let holes: Vec<&str> = parts
@@ -677,12 +709,32 @@ mod tests {
                     .collect();
                 let message = fill_with(engine, |k| sample.get(k).cloned().unwrap_or_default());
                 assert_eq!(match_template(engine, &message).as_ref(), Some(&sample), "{rule}: {engine:?}");
-                let others: Vec<_> = templates
-                    .keys()
-                    .filter(|other| *other != engine && match_template(other, &message).is_some())
-                    .collect();
-                assert!(others.is_empty(), "{rule}: {engine:?} also matches {others:?}");
+                // Every template that also matches this message must give the same translation:
+                // a rule's own templates are tried before the shared ones, so a rule message is
+                // checked against its rule; a shared message against the shared templates AND
+                // every rule's templates (a rule template must not steal it with other wording).
+                let want = fill_with(turkish, |k| sample.get(k).cloned().unwrap_or_default());
+                let candidates: Vec<(&String, &BTreeMap<String, String>)> = if rule == SHARED_TEMPLATES {
+                    all.iter().collect()
+                } else {
+                    vec![(rule, templates)]
+                };
+                for (other_rule, other_templates) in candidates {
+                    for (other, other_turkish) in other_templates {
+                        if other == engine && other_rule == rule {
+                            continue;
+                        }
+                        if let Some(caps) = match_template(other, &message) {
+                            let got = fill_with(other_turkish, |k| caps.get(k).cloned().unwrap_or_default());
+                            assert_eq!(
+                                got, want,
+                                "{kind} {rule}: {engine:?} is also matched by {other_rule} {other:?} with another translation"
+                            );
+                        }
+                    }
+                }
             }
+        }
         }
     }
 

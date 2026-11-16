@@ -175,7 +175,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 notices.push(make_k2_notice(
                     &mut counter, "AGN_016", EntityType::Agency, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("agency_phone"), Some(phone.to_string()), None,
-                    format!("agency_phone '{phone}' bilinen bir yer-tutucu/hizmet-dışı numara — gerçek iletişim numarası olmayabilir."),
+                    format!("agency_phone '{phone}' is a known placeholder/out-of-service number — it may not be a real contact number."),
                     "Update agency_phone to the operating agency's real, working number.",
                 ));
             }
@@ -211,7 +211,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 Some("agency_timezone"),
                 Some(agency_timezone.clone()),
                 None,
-                format!("agency_timezone '{agency_timezone}' geçerli bir IANA saat dilimi değil."),
+                format!("agency_timezone '{agency_timezone}' is not a valid IANA time zone."),
                 "Use a valid IANA time zone (e.g. Europe/Istanbul).",
             )),
             _ => {}
@@ -226,7 +226,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 notices.push(make_k2_notice(
                     &mut counter, "AGN_006", EntityType::Agency, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("agency_lang"), Some(lang.clone()), None,
-                    format!("agency_lang '{lang}' geçerli bir BCP-47 dil kodu değil."),
+                    format!("agency_lang '{lang}' is not a valid BCP-47 language code."),
                     "Use a valid BCP-47 language code (e.g., tr, en-US), with no leading or trailing spaces.",
                 ));
             }
@@ -241,7 +241,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 notices.push(make_k2_notice(
                     &mut counter, "AGN_007", EntityType::Agency, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("agency_phone"), Some(phone.clone()), None,
-                    format!("agency_phone '{phone}' geçerli bir telefon numarası formatında değil."),
+                    format!("agency_phone '{phone}' is not in a valid phone number format."),
                     "Use a dialable phone number with no other descriptive text.",
                 ));
             }
