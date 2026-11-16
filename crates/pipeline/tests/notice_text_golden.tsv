@@ -4514,7 +4514,7 @@ tr	AGN_013	Feed dili ve ajans dili uyuşmuyor	agency_lang 'en' feed_info.txt'dek
 tr	AGN_013	Feed dili ve ajans dili uyuşmuyor	agency_lang 'fr' feed_info.txt'deki feed_lang 'en' ile uyuşmuyor.	agency.txt'teki agency_lang değerini feed_info.feed_lang ile uyumlu hale getirin.
 tr	AGN_013	Feed dili ve ajans dili uyuşmuyor	agency_lang 'ja' feed_info.txt'deki feed_lang 'en' ile uyuşmuyor.	agency.txt'teki agency_lang değerini feed_info.feed_lang ile uyumlu hale getirin.
 tr	AGN_014	Birden fazla kuruluş var ama agency.txt agency_id eksik	Birden fazla kuruluş tanımlıyken agency_id zorunludur.	Çoklu kuruluş durumunda her agency satırına benzersiz bir agency_id girin.
-tr	AGN_015	agency_url güvensiz http (https önerilir)	agency_url uses insecure 'http://' — 'https://' is recommended.	Update agency_url to use https://.
+tr	AGN_015	agency_url güvensiz http (https önerilir)	agency_url güvenli olmayan 'http://' kullanıyor — 'https://' önerilir.	Update agency_url to use https://.
 tr	AGN_016	agency_phone şüpheli/yer-tutucu numara	agency_phone '888-281-2681' bilinen bir yer-tutucu/hizmet-dışı numara — gerçek iletişim numarası olmayabilir.	agency_phone'u işleten ajansın gerçek, çalışan numarasıyla güncelleyin.
 tr	AGN_017	Agency'ler arası agency_lang tutarsız	Feed'deki agency'ler farklı agency_lang değerleri taşıyor (en, tr) — diller arası tutarsızlık.	Aynı feed'deki agency'lerin agency_lang değerlerini tutarlı hale getirin (çok dilli ağ ise yok sayılabilir).
 tr	AGN_018	Tek kuruluşta agency_id boş	Tek kuruluşlu feed'de agency_id boş; spec tek kuruluşta da önerir.	agency.txt'e bir agency_id girin; ileride ikinci bir kuruluş eklenince routes ve ücretler ona bağlanabilir.

@@ -481,7 +481,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                             &mut counter, "STP_024", EntityType::Stop, entity_id.clone(),
                             Some(&row_map), &file.name, Some(line), Some("stop_access"),
                             Some(val.to_string()), Some("0–2".to_string()),
-                            format!("'{}' durağında stop_access '{val}' geçersiz.", stop_id),
+                            super::common::K2Message::parse_failure(format!("'{}' durağında stop_access '{val}' geçersiz.", stop_id)),
                             "Use 0 or 1 for stop_access; 2 is not defined by GTFS.",
                         ));
                         }

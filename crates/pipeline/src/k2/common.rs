@@ -180,7 +180,59 @@ pub fn has_japanese_kana(value: &str) -> bool {
     })
 }
 
-pub fn parse_f64(row: &RowMap, field: &str) -> Result<Option<f64>, String> {
+/// A value parser's error: the message and whether the whitespace gate may treat it as a pure
+/// parse failure. The gate used to read the message text (`"bekleniyor, alınan:"`, ...), which
+/// breaks as soon as messages move to English (issue #201); each error branch now says it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseError {
+    pub message: String,
+    pub whitespace_gate: bool,
+}
+
+impl ParseError {
+    /// A type/format failure the whitespace gate may attribute to surrounding whitespace.
+    pub(crate) fn gated(message: String) -> Self {
+        Self { message, whitespace_gate: true }
+    }
+
+    /// A failure the whitespace gate must not attribute to whitespace.
+    pub(crate) fn plain(message: String) -> Self {
+        Self { message, whitespace_gate: false }
+    }
+}
+
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+/// The message of a K2 notice. A plain `String` is never a parse failure; a [`ParseError`]
+/// carries its own gate, and [`K2Message::parse_failure`] marks a literal one.
+pub struct K2Message {
+    text: String,
+    parse_failure: bool,
+}
+
+impl K2Message {
+    pub(crate) fn parse_failure(text: impl Into<String>) -> Self {
+        Self { text: text.into(), parse_failure: true }
+    }
+}
+
+impl From<String> for K2Message {
+    fn from(text: String) -> Self {
+        Self { text, parse_failure: false }
+    }
+}
+
+impl From<ParseError> for K2Message {
+    fn from(err: ParseError) -> Self {
+        Self { text: err.message, parse_failure: err.whitespace_gate }
+    }
+}
+
+pub fn parse_f64(row: &RowMap, field: &str) -> Result<Option<f64>, ParseError> {
     let Some(raw) = get_lexical_field(row, field) else {
         return Ok(None);
     };
@@ -189,10 +241,10 @@ pub fn parse_f64(row: &RowMap, field: &str) -> Result<Option<f64>, String> {
     }
     // Shared helper: streaming and non-streaming paths must make the SAME decision (issue #82).
     parse_f64_col(raw)
-        .map_err(|_| format!("'{field}' için sonlu bir f64 bekleniyor, alınan: {raw}"))
+        .map_err(|_| ParseError::gated(format!("'{field}' için sonlu bir f64 bekleniyor, alınan: {raw}")))
 }
 
-pub fn parse_u32(row: &RowMap, field: &str) -> Result<Option<u32>, String> {
+pub fn parse_u32(row: &RowMap, field: &str) -> Result<Option<u32>, ParseError> {
     let Some(raw) = get_lexical_field(row, field) else {
         return Ok(None);
     };
@@ -201,10 +253,10 @@ pub fn parse_u32(row: &RowMap, field: &str) -> Result<Option<u32>, String> {
     }
     raw.parse::<u32>()
         .map(Some)
-        .map_err(|_| format!("'{field}' için u32 bekleniyor, alınan: {raw}"))
+        .map_err(|_| ParseError::gated(format!("'{field}' için u32 bekleniyor, alınan: {raw}")))
 }
 
-pub fn parse_i32(row: &RowMap, field: &str) -> Result<Option<i32>, String> {
+pub fn parse_i32(row: &RowMap, field: &str) -> Result<Option<i32>, ParseError> {
     let Some(raw) = get_lexical_field(row, field) else {
         return Ok(None);
     };
@@ -213,11 +265,14 @@ pub fn parse_i32(row: &RowMap, field: &str) -> Result<Option<i32>, String> {
     }
     raw.parse::<i32>()
         .map(Some)
-        .map_err(|_| format!("'{field}' için i32 bekleniyor, alınan: {raw}"))
+        .map_err(|_| ParseError::gated(format!("'{field}' için i32 bekleniyor, alınan: {raw}")))
 }
 
 /// GTFS Schedule date format: YYYYMMDD
-pub fn parse_service_date(row: &RowMap, field: &str) -> Result<Option<(u32, u32, u32)>, String> {
+pub fn parse_service_date(
+    row: &RowMap,
+    field: &str,
+) -> Result<Option<(u32, u32, u32)>, ParseError> {
     let Some(raw) = get_lexical_field(row, field) else {
         return Ok(None);
     };
@@ -225,25 +280,25 @@ pub fn parse_service_date(row: &RowMap, field: &str) -> Result<Option<(u32, u32,
         return Ok(None);
     }
     if raw.len() != 8 || !raw.chars().all(|c| c.is_ascii_digit()) {
-        return Err(format!("'{field}' için YYYYMMDD bekleniyor, alınan: {raw}"));
+        return Err(ParseError::gated(format!("'{field}' için YYYYMMDD bekleniyor, alınan: {raw}")));
     }
 
     let year = raw[0..4]
         .parse::<u32>()
-        .map_err(|_| format!("'{field}' yıl bölümü geçersiz: {raw}"))?;
+        .map_err(|_| ParseError::plain(format!("'{field}' yıl bölümü geçersiz: {raw}")))?;
     let month = raw[4..6]
         .parse::<u32>()
-        .map_err(|_| format!("'{field}' ay bölümü geçersiz: {raw}"))?;
+        .map_err(|_| ParseError::plain(format!("'{field}' ay bölümü geçersiz: {raw}")))?;
     let day = raw[6..8]
         .parse::<u32>()
-        .map_err(|_| format!("'{field}' gün bölümü geçersiz: {raw}"))?;
+        .map_err(|_| ParseError::plain(format!("'{field}' gün bölümü geçersiz: {raw}")))?;
 
     // ⚠️ CALENDAR VALIDITY (issue #82). Old code checked only FORMAT: `20261340` was parsed
     // and RETURNED as `(2026, 13, 40)`, so the service-day calculations below used a nonexistent
     // date. The streaming check went only as far as `month ≤ 12, day ≤ 31` — `20260231` still passed.
     // Both now call the SAME helper.
     if !is_valid_calendar_date(year, month, day) {
-        return Err(format!("'{field}' takvimde olmayan tarih: {raw}"));
+        return Err(ParseError::plain(format!("'{field}' takvimde olmayan tarih: {raw}")));
     }
 
     Ok(Some((year, month, day)))
@@ -285,7 +340,10 @@ pub fn is_valid_calendar_date(year: u32, month: u32, day: u32) -> bool {
 }
 
 /// GTFS time format: HH:MM:SS (HH may exceed 24).
-pub fn parse_gtfs_time(row: &RowMap, field: &str) -> Result<Option<(u32, u32, u32)>, String> {
+pub fn parse_gtfs_time(
+    row: &RowMap,
+    field: &str,
+) -> Result<Option<(u32, u32, u32)>, ParseError> {
     let Some(raw) = get_lexical_field(row, field) else {
         return Ok(None);
     };
@@ -295,31 +353,31 @@ pub fn parse_gtfs_time(row: &RowMap, field: &str) -> Result<Option<(u32, u32, u3
 
     let parts: Vec<&str> = raw.split(':').collect();
     if parts.len() != 3 {
-        return Err(format!("'{field}' için HH:MM:SS bekleniyor, alınan: {raw}"));
+        return Err(ParseError::gated(format!("'{field}' için HH:MM:SS bekleniyor, alınan: {raw}")));
     }
     // ⚠️ LEXICAL WIDTH is also part of the type (issue #82): the spec says `H:MM:SS` or
     // `HH:MM:SS`; minutes and seconds are TWO DIGITS. Old code only parsed numerically and
     // accepted `1:2:3`. Hours may be 1–2 digits (`25:00:00` service-day notation).
     if !gtfs_time_widths_ok(&parts) {
-        return Err(format!(
+        return Err(ParseError::plain(format!(
             "'{field}' için [H]H:MM:SS bekleniyor (dakika/saniye iki basamaklı), alınan: {raw}"
-        ));
+        )));
     }
 
     let hour = parts[0]
         .parse::<u32>()
-        .map_err(|_| format!("'{field}' saat bölümü geçersiz: {raw}"))?;
+        .map_err(|_| ParseError::plain(format!("'{field}' saat bölümü geçersiz: {raw}")))?;
     let minute = parts[1]
         .parse::<u32>()
-        .map_err(|_| format!("'{field}' dakika bölümü geçersiz: {raw}"))?;
+        .map_err(|_| ParseError::plain(format!("'{field}' dakika bölümü geçersiz: {raw}")))?;
     let second = parts[2]
         .parse::<u32>()
-        .map_err(|_| format!("'{field}' saniye bölümü geçersiz: {raw}"))?;
+        .map_err(|_| ParseError::plain(format!("'{field}' saniye bölümü geçersiz: {raw}")))?;
 
     if minute > 59 || second > 59 {
-        return Err(format!(
+        return Err(ParseError::plain(format!(
             "'{field}' için dakika/saniye aralığı geçersiz: {raw}"
-        ));
+        )));
     }
 
     Ok(Some((hour, minute, second)))
@@ -896,7 +954,7 @@ pub fn require_nonempty(
             Some(line),
             Some(field),
             Some(String::new()),
-            Some("(dolu)".to_string()),
+            Some("(non-empty)".to_string()),
             message,
             remediation,
         ));
@@ -985,9 +1043,13 @@ pub fn make_k2_notice(
     field: Option<&str>,
     observed_value: Option<String>,
     expected_value: Option<String>,
-    message: String,
+    message: impl Into<K2Message>,
     remediation: &str,
 ) -> Notice {
+    let K2Message {
+        text: message,
+        parse_failure,
+    } = message.into();
     // K2-specific: derive scope_key from the row according to the rule's scope_key_field.
     // The `entity_id` fallback is ONLY for rules that declare an identity field: without one,
     // the notice is feed-level. Previously ARC_013/ARC_035 carried the filename, and the FTR/GGL
@@ -998,9 +1060,10 @@ pub fn make_k2_notice(
             .or_else(|| entity_id.clone())
     });
 
-    let whitespace_derived = row.zip(field).is_some_and(|(r, f)| {
-        whitespace_parser_derivative(rule_id, r, f, observed_value.as_deref(), &message)
-    });
+    let whitespace_derived = parse_failure
+        && row.zip(field).is_some_and(|(r, f)| {
+            whitespace_only_parser_failure(rule_id, r, f, observed_value.as_deref())
+        });
     let mut notice = crate::notice_factory::build(
         "K2",
         Some("k2"),
@@ -1021,29 +1084,6 @@ pub fn make_k2_notice(
         notice.whitespace_derived = true;
     }
     notice
-}
-
-/// Recognizes when a K2 type/enum notice failed to parse only because of whitespace around
-/// the raw value. Content errors (such as "abc") do not pass this gate, preserving independent
-/// semantic violations on the same row. Supports compound field keys (a|b).
-fn whitespace_parser_derivative(
-    rule_id: &str,
-    row: &RowMap,
-    field: &str,
-    observed: Option<&str>,
-    message: &str,
-) -> bool {
-    let parser_error = message.contains("bekleniyor, alınan:")
-        || message.contains("sayı olarak okunamıyor")
-        || message.contains("ondalık sayı olarak okunamıyor")
-        || message.contains("geçersiz.")
-        // FIN_002 / FIN_003 messages moved to English (issue #201); they used to match
-        // "geçersiz." above. Keep them recognized so the whitespace flag does not change.
-        || message.contains("is missing or invalid.");
-    if !parser_error {
-        return false;
-    }
-    whitespace_only_parser_failure(rule_id, row, field, observed)
 }
 
 /// Once the caller has proven a parse error, test whether it arose only from surrounding whitespace
@@ -1174,6 +1214,59 @@ fn trimmed_value_is_semantically_valid(rule_id: &str, field: &str, value: &str) 
 
 #[cfg(test)]
 mod tests {
+    use super::{make_k2_notice, parse_f64, parse_gtfs_time, parse_service_date, K2Message, ParseError, RowMap};
+    use gtfs_core::EntityType;
+
+    fn padded_notice(field: &str, raw: &str, message: K2Message) -> gtfs_core::Notice {
+        let row = RowMap::from([(field.to_string(), raw.to_string())]);
+        make_k2_notice(
+            &mut 0,
+            "LVL_002",
+            EntityType::Row,
+            None,
+            Some(&row),
+            "levels.txt",
+            Some(2),
+            Some(field),
+            Some(raw.to_string()),
+            None,
+            message,
+            "remediation",
+        )
+    }
+
+    /// Issue #201: the whitespace gate follows the parser's own flag, never the message text,
+    /// so moving a message to English (or any language) cannot switch it off.
+    #[test]
+    fn whitespace_gate_follows_the_parse_flag_not_the_message_language() {
+        let field = "level_index";
+        let raw = " 1 ";
+        let row = RowMap::from([(field.to_string(), raw.to_string())]);
+        let err = parse_f64(&row, field).expect_err("padded value does not parse");
+        assert!(err.whitespace_gate);
+        assert!(padded_notice(field, raw, err.into()).whitespace_derived);
+
+        for text in ["English parse failure text", "Türkçe ayrıştırma hatası"] {
+            let gated = padded_notice(field, raw, K2Message::parse_failure(text));
+            assert!(gated.whitespace_derived, "{text}");
+            let plain = padded_notice(field, raw, ParseError::plain(text.to_string()).into());
+            assert!(!plain.whitespace_derived, "{text}");
+            let string = padded_notice(field, raw, K2Message::from(text.to_string()));
+            assert!(!string.whitespace_derived, "{text}");
+        }
+    }
+
+    /// The gate keeps the per-branch decisions it had when it read the Turkish text: a wrong
+    /// overall shape is gated, a broken part of an otherwise well-shaped value is not.
+    #[test]
+    fn date_and_time_parsers_gate_only_the_shape_failure() {
+        let row = |raw: &str| RowMap::from([("d".to_string(), raw.to_string())]);
+        assert!(parse_service_date(&row(" 20260101"), "d").unwrap_err().whitespace_gate);
+        assert!(!parse_service_date(&row("20260231"), "d").unwrap_err().whitespace_gate);
+        assert!(parse_gtfs_time(&row("08:00"), "d").unwrap_err().whitespace_gate);
+        assert!(!parse_gtfs_time(&row("8:0:00"), "d").unwrap_err().whitespace_gate);
+        assert!(!parse_gtfs_time(&row("08:61:00"), "d").unwrap_err().whitespace_gate);
+    }
 
     #[test]
     fn looks_like_url_rejects_a_doubled_scheme() {

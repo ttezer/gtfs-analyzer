@@ -64,7 +64,7 @@ fn opt_int_checked(
                 Some(field),
                 Some(raw.to_string()),
                 Some("integer".to_string()),
-                format!("{field} '{raw}' tam sayı olarak okunamıyor."),
+                super::common::K2Message::parse_failure(format!("{field} '{raw}' tam sayı olarak okunamıyor.")),
                 "Enter the prior_notice numeric fields as whole numbers.",
             ));
             None
@@ -482,7 +482,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     &mut ctr, "BKR_011", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_last_day"),
                     Some(format!("last_day={ld}, start_day={sd}")), None,
-                    format!("prior_notice_last_day ({ld}) > prior_notice_start_day ({sd}): rezervasyon penceresi geçersiz."),
+                    super::common::K2Message::parse_failure(format!("prior_notice_last_day ({ld}) > prior_notice_start_day ({sd}): rezervasyon penceresi geçersiz.")),
                     "Set prior_notice_start_day to be greater than or equal to prior_notice_last_day.",
                 ));
             }

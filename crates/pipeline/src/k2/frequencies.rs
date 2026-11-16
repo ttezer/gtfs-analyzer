@@ -236,7 +236,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                     Some(line),
                     Some("end_time"),
                     get_trimmed_field(&row_map, "end_time").map(str::to_string),
-                    Some("start_time'dan sonra".to_string()),
+                    Some("after start_time".to_string()),
                     "end_time must be after start_time.".to_string(),
                     "Set end_time to be after start_time.",
                 ));

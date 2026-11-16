@@ -72,7 +72,11 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                     .trim()
                     .parse::<u32>()
                     .map(Some)
-                    .map_err(|_| format!("'{field}' için u32 bekleniyor, alınan: {raw}")),
+                    .map_err(|_| {
+                        super::common::ParseError::gated(format!(
+                            "'{field}' için u32 bekleniyor, alınan: {raw}"
+                        ))
+                    }),
                 _ => parse_u32(&row_map, field),
             };
             match parsed_day {

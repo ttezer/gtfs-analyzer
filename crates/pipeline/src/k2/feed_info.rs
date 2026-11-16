@@ -66,7 +66,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
                 Some("feed_publisher_url"),
                 Some(publisher_url.clone()),
                 None,
-                "feed_publisher_url is missing or invalid.".to_string(),
+                super::common::K2Message::parse_failure("feed_publisher_url is missing or invalid.".to_string()),
                 "Enter a valid http/https URL for feed_publisher_url.",
             ));
         }
@@ -86,7 +86,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
                 Some("feed_lang"),
                 Some(feed_lang.clone()),
                 None,
-                "feed_lang is missing or invalid.".to_string(),
+                super::common::K2Message::parse_failure("feed_lang is missing or invalid.".to_string()),
                 "Enter a valid IETF BCP 47 language tag for feed_lang.",
             ));
         }

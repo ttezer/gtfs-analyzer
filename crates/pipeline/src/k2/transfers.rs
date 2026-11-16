@@ -81,7 +81,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
                             Some("transfer_type"),
                             Some(v.to_string()),
                             Some("0–5".to_string()),
-                            format!("transfer_type '{v}' geçersiz."),
+                            super::common::K2Message::parse_failure(format!("transfer_type '{v}' geçersiz.")),
                             "Set transfer_type to a valid GTFS enum value (0–5).",
                         ));
                     }

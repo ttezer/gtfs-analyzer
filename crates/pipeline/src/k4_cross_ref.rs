@@ -935,7 +935,7 @@ fn check_agencies(
             None,
             Some("agency_id"),
             Some(format!("{routes_without_agency} routes")),
-            Some("dolu".to_string()),
+            Some("non-empty".to_string()),
             format!(
                 "Feed'de {} işletici var; {routes_without_agency} hatta agency_id belirtilmemiş — hangi işleticinin çalıştırdığı belirlenemiyor.",
                 records.agencies.len()
@@ -968,7 +968,7 @@ fn check_agencies(
             None,
             Some("agency_id"),
             Some(fares_without_agency.to_string()),
-            Some("dolu".to_string()),
+            Some("non-empty".to_string()),
             format!(
                 "Feed'de {} işletici var; {fares_without_agency} ücret kaydında agency_id belirtilmemiş — hangi işleticinin ücreti olduğu belirlenemiyor.",
                 records.agencies.len()
@@ -2032,7 +2032,7 @@ fn check_pathways(
                         stop_rec.map(|s| s.line),
                         Some("level_id"),
                         None,
-                        Some("dolu".to_string()),
+                        Some("non-empty".to_string()),
                         format!(
                             "stop_id '{stop_id}' bir asansör pathway'ine bağlı ancak level_id tanımlı değil."
                         ),
@@ -2919,7 +2919,7 @@ fn check_fare_attributes(
                     None,
                     Some("agency_id"),
                     Some(format!("{missing} missing records")),
-                    Some("dolu".to_string()),
+                    Some("non-empty".to_string()),
                     format!("{missing} ücret tarifesinde agency_id eksik; tek kuruluşta önerilir."),
                     "Fill in agency_id in fare_attributes.txt to clarify which agency each fare belongs to.",
                 ));
@@ -5189,7 +5189,7 @@ fn check_gtfs_jp(
                 None,
                 Some("agency_id"),
                 Some(format!("{missing}")),
-                Some("dolu".to_string()),
+                Some("non-empty".to_string()),
                 format!("GTFS-JP: {missing} işleticide agency_id eksik — JP profilinde tek işletici olsa bile agency_id zorunludur."),
                 "Enter a unique agency_id on every row of agency.txt.",
             ));
@@ -5215,7 +5215,7 @@ fn check_gtfs_jp(
                 None,
                 Some("agency_id"),
                 Some(missing_routes.to_string()),
-                Some("dolu".to_string()),
+                Some("non-empty".to_string()),
                 format!(
                     "GTFS-JP: {missing_routes} hatta agency_id eksik; JP profilinde routes.agency_id zorunludur."
                 ),
@@ -5850,7 +5850,7 @@ fn check_gtfs_jp(
                 notices.push(notice(
                 ctr, "JPN_012", EntityType::Agency, None, None,
                 "agency_jp.txt", Some(aj.line), Some("agency_id"),
-                Some(String::new()), Some("dolu".to_string()),
+                Some(String::new()), Some("non-empty".to_string()),
                 "agency_jp.txt row is missing agency_id.".to_string(),
                 "Set agency_jp.txt agency_id to an agency_id defined in agency.txt.",
             ));
@@ -5868,7 +5868,7 @@ fn check_gtfs_jp(
                 ctr, "JPN_013", EntityType::Agency,
                 aj.agency_id.clone(), aj.agency_id.clone(),
                 "agency_jp.txt", Some(aj.line), Some("agency_zip_number"),
-                Some(raw.to_string()), Some("7 ASCII rakam".to_string()),
+                Some(raw.to_string()), Some("7 ASCII digits".to_string()),
                 format!("agency_zip_number '{}' geçersiz; GTFS-JP posta kodunu tire olmadan 7 rakam olarak ister.", raw),
                 "Enter agency_zip_number as 7 ASCII digits without a hyphen.",
             ));
@@ -5884,7 +5884,7 @@ fn check_gtfs_jp(
                     notices.push(notice(
                     ctr, "JPN_014", EntityType::Agency, None, None,
                     "office_jp.txt", Some(office.line), Some("office_id"),
-                    Some(String::new()), Some("dolu ve tekil".to_string()),
+                    Some(String::new()), Some("non-empty and unique".to_string()),
                     "office_jp.txt row is missing office_id — every office record must carry a unique identifier.".to_string(),
                     "Enter a unique office_id on every row of office_jp.txt.",
                 ));
@@ -6050,7 +6050,7 @@ fn check_gtfs_jp(
                     notices.push(notice(
                     ctr, "JPN_017", EntityType::Row, None, None,
                     "pattern_jp.txt", Some(pattern.line), Some("jp_pattern_id"),
-                    Some(String::new()), Some("dolu ve tekil".to_string()),
+                    Some(String::new()), Some("non-empty and unique".to_string()),
                     "pattern_jp.txt row is missing jp_pattern_id — the field is required when the file is present.".to_string(),
                     "Enter a unique jp_pattern_id on every row of pattern_jp.txt.",
                 ));
@@ -6333,7 +6333,7 @@ fn check_gtfs_jp(
                     Some(translation.line),
                     Some("translation"),
                     Some(translation.translation.clone()),
-                    Some("dolu Japonca kana".to_string()),
+                    Some("non-empty Japanese kana".to_string()),
                     "The GTFS-JP ja-Hrkt translation is empty.".to_string(),
                     "Fill in the ja-Hrkt translation with a Hiragana or Katakana reading.",
                 ));
@@ -7058,7 +7058,7 @@ fn check_xfl(
                     Some(line),
                     Some(field),
                     Some(String::new()),
-                    Some("(dolu)".to_string()),
+                    Some("(non-empty)".to_string()),
                     msg,
                     fix,
                 ));

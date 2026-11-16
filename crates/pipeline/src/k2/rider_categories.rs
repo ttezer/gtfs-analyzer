@@ -51,7 +51,7 @@ pub fn validate_rider_categories(
                 Some(line),
                 Some("rider_category_name"),
                 None,
-                Some("dolu".to_string()),
+                Some("non-empty".to_string()),
                 "rider_category_name is required.".to_string(),
                 "Provide a name for each rider category.",
             ));

@@ -3337,7 +3337,7 @@ fn check_speed_and_duration<'a>(
                 Some(line),
                 Some("arrival_time"),
                 Some(observed),
-                Some("inceleyin".to_string()),
+                Some("review".to_string()),
                 msg,
                 "No action is needed if this timing is intentional; otherwise verify the stop_times.txt values.",
             );
@@ -8672,7 +8672,7 @@ fn check_remaining_analytics<'a>(
                                         Some(shape_id.to_string()), Some(shape_id.to_string()),
                                         "shapes.txt", None, Some("shape_dist_traveled"),
                                         Some(format!("dist={da_v:.4}, ({la:.6},{loa:.6})→({lb:.6},{lob:.6})")),
-                                        Some("artan dist".to_string()),
+                                        Some("increasing dist".to_string()),
                                         format!("'{shape_id}' şeklinde art arda iki noktanın shape_dist_traveled ({da_v:.4}) aynı ama koordinatları farklı — mesafe artmadan konum değişmiş."),
                                         "Assign increasing shape_dist_traveled values to consecutive shape points.",
                                     );
@@ -8688,7 +8688,7 @@ fn check_remaining_analytics<'a>(
                                     Some(shape_id.to_string()), Some(shape_id.to_string()),
                                     "shapes.txt", None, Some("shape_dist_traveled"),
                                     Some(format!("dist={da_v:.4}, Δ≈{coord_diff_m:.2}m")),
-                                    Some("artan dist".to_string()),
+                                    Some("increasing dist".to_string()),
                                     format!("'{shape_id}' şeklinde art arda iki noktanın shape_dist_traveled ({da_v:.4}) aynı, koordinat farkı çok küçük (eşik altı)."),
                                     "Assign increasing shape_dist_traveled values, or remove the near-duplicate shape point.",
                                 );

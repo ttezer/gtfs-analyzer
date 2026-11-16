@@ -6,7 +6,7 @@ use std::borrow::Cow;
 use std::io;
 use std::io::{Cursor, Read};
 
-use super::common::{get_col, get_col_raw, make_k2_notice};
+use super::common::{get_col, get_col_raw, make_k2_notice, ParseError};
 #[cfg(feature = "parallel")]
 use crate::decompress_guard::{DecompressionLimits, GuardedReader, DEFAULT_DECOMPRESSION_LIMITS};
 use crate::k1_parse::{RawFile, RFC4180_AFTER_CLOSE, RFC4180_BARE_QUOTE};
@@ -1097,32 +1097,34 @@ fn parse_u32_ascii(s: &str) -> Option<u32> {
     Some(acc)
 }
 
-fn parse_u32_raw(raw: &str, field: &str) -> Result<Option<u32>, String> {
+fn parse_u32_raw(raw: &str, field: &str) -> Result<Option<u32>, ParseError> {
     if raw.is_empty() {
         return Ok(None);
     }
     match parse_u32_ascii(raw) {
         Some(n) => Ok(Some(n)),
-        None => Err(format!("'{field}' için u32 bekleniyor, alınan: {raw}")),
+        None => Err(ParseError::gated(format!("'{field}' için u32 bekleniyor, alınan: {raw}"))),
     }
 }
 
-fn parse_f64_raw(raw: &str, field: &str) -> Result<Option<f64>, String> {
+fn parse_f64_raw(raw: &str, field: &str) -> Result<Option<f64>, ParseError> {
     if raw.is_empty() {
         return Ok(None);
     }
     raw.parse::<f64>()
         .map(Some)
-        .map_err(|_| format!("'{field}' için f64 bekleniyor, alınan: {raw}"))
+        .map_err(|_| ParseError::gated(format!("'{field}' için f64 bekleniyor, alınan: {raw}")))
 }
 
-fn parse_gtfs_time_raw(raw: &str, field: &str) -> Result<Option<(u32, u32, u32)>, String> {
+fn parse_gtfs_time_raw(raw: &str, field: &str) -> Result<Option<(u32, u32, u32)>, ParseError> {
     if raw.is_empty() {
         return Ok(None);
     }
-    let bad = || format!("'{field}' için HH:MM:SS bekleniyor, alınan: {raw}");
+    let bad = || ParseError::gated(format!("'{field}' için HH:MM:SS bekleniyor, alınan: {raw}"));
     let width_bad = || {
-        format!("'{field}' için [H]H:MM:SS bekleniyor (dakika/saniye iki basamaklı), alınan: {raw}")
+        ParseError::plain(format!(
+            "'{field}' için [H]H:MM:SS bekleniyor (dakika/saniye iki basamaklı), alınan: {raw}"
+        ))
     };
     // ⚠️ LEXICAL WIDTH—same decision as `common::gtfs_time_widths_ok` (issue #82).
     // If the paths diverge, the same feed produces different results in streaming and full modes.
@@ -1184,7 +1186,7 @@ fn parse_gtfs_time_raw(raw: &str, field: &str) -> Result<Option<(u32, u32, u32)>
         return Err(bad());
     }
     if minute > 59 || second > 59 {
-        return Err(format!("'{field}' dakika/saniye aralığı geçersiz: {raw}"));
+        return Err(ParseError::plain(format!("'{field}' dakika/saniye aralığı geçersiz: {raw}")));
     }
     Ok(Some((hour, minute, second)))
 }
@@ -2872,7 +2874,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             Some(line),
                             Some("departure_time"),
                             None,
-                            Some("dolu".to_string()),
+                            Some("non-empty".to_string()),
                             format!(
                                 "trip_id '{}' satırında arrival_time tanımlı ama departure_time eksik.",
                                 trip_id
@@ -2891,7 +2893,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             Some(line),
                             Some("arrival_time"),
                             None,
-                            Some("dolu".to_string()),
+                            Some("non-empty".to_string()),
                             format!(
                                 "trip_id '{}' satırında departure_time tanımlı ama arrival_time eksik.",
                                 trip_id
@@ -2950,7 +2952,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         Some(line),
                         Some(field),
                         Some(String::new()),
-                        Some("dolu".to_string()),
+                        Some("non-empty".to_string()),
                         format!(
                             "trip_id '{}' satırında timepoint=1 (kesin zaman noktası) ama {} eksik.",
                             trip_id, missing_fields
@@ -5132,7 +5134,7 @@ mod tests {
             .expect("STM_047 notice");
         assert_eq!(hit.field.as_deref(), Some("departure_time"));
         assert_eq!(hit.observed_value.as_deref(), Some(""));
-        assert_eq!(hit.expected_value.as_deref(), Some("dolu"));
+        assert_eq!(hit.expected_value.as_deref(), Some("non-empty"));
         assert!(hit.message.contains("departure_time eksik"));
     }
 
@@ -5159,7 +5161,7 @@ mod tests {
             .expect("STM_047 notice");
         assert_eq!(hit.field.as_deref(), Some("arrival_time"));
         assert_eq!(hit.observed_value.as_deref(), Some(""));
-        assert_eq!(hit.expected_value.as_deref(), Some("dolu"));
+        assert_eq!(hit.expected_value.as_deref(), Some("non-empty"));
         assert!(hit.message.contains("arrival_time eksik"));
     }
 

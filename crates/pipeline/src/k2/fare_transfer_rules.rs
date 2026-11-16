@@ -184,7 +184,7 @@ pub fn validate_fare_transfer_rules(
                 Some(line),
                 Some("duration_limit"),
                 None,
-                Some("dolu".to_string()),
+                Some("non-empty".to_string()),
                 "duration_limit must also be set when duration_limit_type is defined."
                     .to_string(),
                 "Fill in duration_limit or remove duration_limit_type.",
@@ -253,7 +253,7 @@ pub fn validate_fare_transfer_rules(
             if f == t && transfer_count_raw.is_none() {
                 notices.push(make_k2_notice(
                     &mut counter, "FTR_009", EntityType::Row, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("transfer_count"), None, Some("dolu".to_string()),
+                    &file.name, Some(line), Some("transfer_count"), None, Some("non-empty".to_string()),
                     "transfer_count is required when from_leg_group_id equals to_leg_group_id.".to_string(),
                     "Enter transfer_count (-1 unlimited or a positive value).",
                 ));
@@ -280,7 +280,7 @@ pub fn validate_fare_transfer_rules(
                 Some(line),
                 Some("duration_limit_type"),
                 None,
-                Some("dolu".to_string()),
+                Some("non-empty".to_string()),
                 "duration_limit_type must also be set when duration_limit is defined."
                     .to_string(),
                 "Fill duration_limit_type (0–3) or remove duration_limit.",

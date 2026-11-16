@@ -470,7 +470,7 @@ pub fn validate_shapes_with_limits(
                         Some("shape_pt_sequence"),
                         Some(seq_raw.to_string()),
                         None,
-                        format!("shape_pt_sequence '{seq_raw}' geçersiz."),
+                        super::common::K2Message::parse_failure(format!("shape_pt_sequence '{seq_raw}' geçersiz.")),
                         "Enter shape_pt_sequence as a non-negative integer.",
                     ));
                     None
@@ -550,7 +550,7 @@ pub fn validate_shapes_with_limits(
                         Some("shape_pt_lat"),
                         Some(lat_raw.to_string()),
                         Some("[-90, 90]".to_string()),
-                        format!("shape_pt_lat '{lat_raw}' geçersiz."),
+                        super::common::K2Message::parse_failure(format!("shape_pt_lat '{lat_raw}' geçersiz.")),
                         "Fill in shape_pt_lat with a decimal latitude.",
                     ));
                     None
@@ -610,7 +610,7 @@ pub fn validate_shapes_with_limits(
                         Some("shape_pt_lon"),
                         Some(lon_raw.to_string()),
                         Some("[-180, 180]".to_string()),
-                        format!("shape_pt_lon '{lon_raw}' geçersiz."),
+                        super::common::K2Message::parse_failure(format!("shape_pt_lon '{lon_raw}' geçersiz.")),
                         "Fill in shape_pt_lon with a decimal longitude.",
                     ));
                     None
@@ -649,7 +649,7 @@ pub fn validate_shapes_with_limits(
                         Some("shape_dist_traveled"),
                         Some(sdt_raw.to_string()),
                         Some(">= 0".to_string()),
-                        format!("shape_dist_traveled '{}' sayı olarak okunamıyor.", sdt_raw),
+                        super::common::K2Message::parse_failure(format!("shape_dist_traveled '{}' sayı olarak okunamıyor.", sdt_raw)),
                         "Set shape_dist_traveled to zero or a positive value.",
                     ));
                     None

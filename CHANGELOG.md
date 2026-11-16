@@ -9,18 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Turkish words removed from finding values in every language.** About 30 `observed_value`,
+- **Turkish words removed from finding values in every language.** About 60 `observed_value`,
   `expected_value` and `details` values were written in Turkish and appeared as such in the
   English, Japanese and French output too. They are now English, for example `(boş)` → `(empty)`,
   `tam sayı` → `integer`, `0 dışında tam sayı` → `non-zero integer`, `0, 1, 2 veya 3` → `0, 1, 2 or 3`
   (`GGL_001` summary), and `OPR_019`/`OPR_020` `details.active_service_patterns` now say `days`
-  instead of `gün`. `GEO_002` `observed_value` is now `(lat,lon) — <distance>km`; the English,
+  instead of `gün`. The most common one, `dolu` (expected value of "required" findings), is now
+  `non-empty`, and `(dolu)` is `(non-empty)`. `GEO_002` `observed_value` is now `(lat,lon) — <distance>km`; the English,
   Japanese and French messages no longer contain the Turkish word "median'dan". Consumers that
   match these exact strings must update them; finding counts, rule IDs and scores are unchanged.
+- **Library API (`gtfs-pipeline`): K2 value parsers return `ParseError`.** `k2::common::parse_f64`,
+  `parse_u32`, `parse_i32`, `parse_service_date` and `parse_gtfs_time` now return
+  `Result<_, ParseError>` instead of `Result<_, String>` (`ParseError` implements `Display`), and
+  `make_k2_notice` takes `impl Into<K2Message>`. The whitespace-derivative flag no longer reads the
+  message text, so translating messages cannot change it. CLI, JSON output and SDK are unaffected.
 
 ### Fixed
 
-- **Turkish text for the `JPN_033` remediation.** It was shown in English to Turkish users.
+- **Turkish text for the `JPN_033` remediation and the `AGN_015` message.** Both were shown in
+  English to Turkish users.
+- **`FIN_002`/`FIN_003` whitespace detection.** A `feed_publisher_url` or `feed_lang` padded with
+  spaces is marked as whitespace-derived again (it briefly was not on `main`).
 
 ## [0.20.0] - 2026-11-13
 

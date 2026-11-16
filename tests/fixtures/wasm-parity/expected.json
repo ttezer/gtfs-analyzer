@@ -3910,7 +3910,7 @@
           "details": null,
           "entity_id": null,
           "entity_type": "Feed",
-          "expected_value": "dolu",
+          "expected_value": "non-empty",
           "field": "agency_id",
           "file": "fare_attributes.txt",
           "line": null,

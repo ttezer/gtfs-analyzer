@@ -40,7 +40,7 @@ pub fn validate_timeframes(file: &RawFile) -> (Vec<TimeframeRecord>, Vec<gtfs_co
                 Some(line),
                 Some("timeframe_group_id"),
                 None,
-                Some("dolu".to_string()),
+                Some("non-empty".to_string()),
                 "timeframe_group_id is required.".to_string(),
                 "Enter a timeframe_group_id for each timeframe record.",
             ));
@@ -113,7 +113,7 @@ pub fn validate_timeframes(file: &RawFile) -> (Vec<TimeframeRecord>, Vec<gtfs_co
             notices.push(make_k2_notice(
                 &mut counter, "TFR_007", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some(missing), Some(String::new()),
-                Some("dolu".to_string()),
+                Some("non-empty".to_string()),
                 format!("{present} tanımlıyken {missing} da tanımlanmalıdır."),
                 "Fill in start_time and end_time together in timeframes.txt, or leave both empty.",
             ));

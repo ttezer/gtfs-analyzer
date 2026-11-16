@@ -501,7 +501,7 @@ pub fn validate_trips_with_limits(
                 Some(line),
                 Some("service_id"),
                 Some(String::new()),
-                Some("(dolu)".to_string()),
+                Some("(non-empty)".to_string()),
                 "service_id is required; a trip left empty is attached to no calendar.".to_string(),
                 "Assign every trip a service_id defined in calendar.txt or calendar_dates.txt.",
             );
@@ -652,7 +652,7 @@ pub fn validate_trips_with_limits(
                     &mut counter, "TRP_006", EntityType::Trip, entity_id.clone(),
                     None, &file.name, Some(line), Some("wheelchair_accessible"),
                     Some(wc_raw.to_string()), Some("0, 1 or 2".to_string()),
-                    format!("wheelchair_accessible '{}' sayı olarak okunamıyor.", wc_raw),
+                    super::common::K2Message::parse_failure(format!("wheelchair_accessible '{}' sayı olarak okunamıyor.", wc_raw)),
                     "Set wheelchair_accessible to 0 (no info), 1 (accessible) or 2 (not accessible).",
                 ));
                 None
@@ -684,7 +684,7 @@ pub fn validate_trips_with_limits(
                     &mut counter, "TRP_007", EntityType::Trip, entity_id.clone(),
                     None, &file.name, Some(line), Some("bikes_allowed"),
                     Some(ba_raw.to_string()), Some("0, 1 or 2".to_string()),
-                    format!("bikes_allowed '{}' sayı olarak okunamıyor.", ba_raw),
+                    super::common::K2Message::parse_failure(format!("bikes_allowed '{}' sayı olarak okunamıyor.", ba_raw)),
                     "Set bikes_allowed to 0 (no info), 1 (allowed) or 2 (not allowed).",
                 ));
                 None
@@ -727,7 +727,7 @@ pub fn validate_trips_with_limits(
                     &mut counter, "TRP_032", EntityType::Trip, entity_id.clone(),
                     None, &file.name, Some(line), Some("cars_allowed"),
                     Some(ca_raw.to_string()), Some("0, 1 or 2".to_string()),
-                    format!("cars_allowed '{}' sayı olarak okunamıyor.", ca_raw),
+                    super::common::K2Message::parse_failure(format!("cars_allowed '{}' sayı olarak okunamıyor.", ca_raw)),
                     "Set cars_allowed to 0 (no info), 1 (allowed) or 2 (not allowed).",
                 ));
                 None
@@ -751,7 +751,7 @@ pub fn validate_trips_with_limits(
                         Some(field),
                         Some(raw.to_string()),
                         Some("decimal number".to_string()),
-                        format!("{field} '{raw}' ondalık sayı olarak okunamıyor."),
+                        super::common::K2Message::parse_failure(format!("{field} '{raw}' ondalık sayı olarak okunamıyor.")),
                         "Enter the safe_duration fields as decimal numbers.",
                     ));
                     None

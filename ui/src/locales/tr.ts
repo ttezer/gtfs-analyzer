@@ -5187,6 +5187,9 @@ export const trMessageTexts: Record<string, Record<string, string>> = {
   'AGN_014': {
     'agency_id is required when multiple agencies are defined in agency.txt.': 'Birden fazla kuruluş tanımlıyken agency_id zorunludur.',
   },
+  'AGN_015': {
+    'agency_url uses insecure \'http://\' — \'https://\' is recommended.': 'agency_url güvenli olmayan \'http://\' kullanıyor — \'https://\' önerilir.',
+  },
   'AGN_018': {
     'agency_id is empty in a single-agency feed; the spec recommends it there too.': 'Tek kuruluşlu feed\'de agency_id boş; spec tek kuruluşta da önerir.',
   },

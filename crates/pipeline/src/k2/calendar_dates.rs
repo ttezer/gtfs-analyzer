@@ -5,7 +5,7 @@ use gtfs_core::EntityType;
 use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
 
-use super::common::{get_col, get_col_raw, make_k2_notice};
+use super::common::{get_col, get_col_raw, make_k2_notice, ParseError};
 use super::stop_times::{next_csv_record, ZipCsvReader};
 use crate::k1_parse::RawFile;
 
@@ -61,26 +61,26 @@ impl Cols {
     }
 }
 
-fn parse_date_raw(raw: &str) -> Result<Option<(u32, u32, u32)>, String> {
+fn parse_date_raw(raw: &str) -> Result<Option<(u32, u32, u32)>, ParseError> {
     if raw.is_empty() {
         return Ok(None);
     }
     if raw.len() != 8 {
-        return Err(format!("'{raw}' YYYYMMDD formatında değil."));
+        return Err(ParseError::plain(format!("'{raw}' YYYYMMDD formatında değil.")));
     }
     let year = raw[0..4]
         .parse::<u32>()
-        .map_err(|_| format!("'{raw}' geçersiz yıl."))?;
+        .map_err(|_| ParseError::plain(format!("'{raw}' geçersiz yıl.")))?;
     let month = raw[4..6]
         .parse::<u32>()
-        .map_err(|_| format!("'{raw}' geçersiz ay."))?;
+        .map_err(|_| ParseError::plain(format!("'{raw}' geçersiz ay.")))?;
     let day = raw[6..8]
         .parse::<u32>()
-        .map_err(|_| format!("'{raw}' geçersiz gün."))?;
+        .map_err(|_| ParseError::plain(format!("'{raw}' geçersiz gün.")))?;
     // ⚠️ SHARED helper (issue #82): this used to check `month ≤ 12, day ≤ 31` and let `20260231`
     // through. The streaming and non-streaming paths must make the SAME decision.
     if !super::common::is_valid_calendar_date(year, month, day) {
-        return Err(format!("'{raw}' takvimde olmayan tarih."));
+        return Err(ParseError::plain(format!("'{raw}' takvimde olmayan tarih.")));
     }
     Ok(Some((year, month, day)))
 }

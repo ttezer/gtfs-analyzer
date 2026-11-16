@@ -315,7 +315,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                     Some(line),
                     Some("route_color"),
                     Some(color.clone()),
-                    Some("6 haneli hex".to_string()),
+                    Some("6-digit hex".to_string()),
                     "route_color must be a 6-character hex color code.".to_string(),
                     "Use a valid 6-digit hex colour (e.g., FF0000).",
                 ));
@@ -338,7 +338,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                     Some(line),
                     Some("route_text_color"),
                     Some(color.clone()),
-                    Some("6 haneli hex".to_string()),
+                    Some("6-digit hex".to_string()),
                     "route_text_color must be a 6-character hex color code.".to_string(),
                     "Use a valid 6-digit hex colour (e.g., FFFFFF).",
                 ));
