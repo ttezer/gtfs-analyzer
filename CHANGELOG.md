@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `tam sayı` → `integer`, `0 dışında tam sayı` → `non-zero integer`, `0, 1, 2 veya 3` → `0, 1, 2 or 3`
   (`GGL_001` summary), and `OPR_019`/`OPR_020` `details.active_service_patterns` now say `days`
   instead of `gün`. The most common one, `dolu` (expected value of "required" findings), is now
-  `non-empty`, and `(dolu)` is `(non-empty)`. `GEO_002` `observed_value` is now `(lat,lon) — <distance>km`; the English,
+  `non-empty`, and `(dolu)` is `(non-empty)`. `DQ_021` (repeated calendar dates) writes `(+N more dates)`
+  instead of `(+N tarih daha)` in `observed_value`. `GEO_002` `observed_value` is now `(lat,lon) — <distance>km`; the English,
   Japanese and French messages no longer contain the Turkish word "median'dan". Consumers that
   match these exact strings must update them; finding counts, rule IDs and scores are unchanged.
 - **Library API (`gtfs-pipeline`): K2 value parsers return `ParseError`.** `k2::common::parse_f64`,

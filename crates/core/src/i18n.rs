@@ -88,6 +88,12 @@ struct Dictionary {
     /// Same as `message_templates`, for remediations that carry runtime values.
     #[serde(default)]
     remediation_templates: BTreeMap<String, BTreeMap<String, String>>,
+    /// English sentence FRAGMENT template → this language's fragment, shared by every rule.
+    /// A hole whose name starts with `f_` holds a fragment the engine built elsewhere
+    /// (`" departing 08:15"`); its captured value is translated through this table before the
+    /// message template is filled. Other holes are values and are never touched.
+    #[serde(default)]
+    fragment_templates: BTreeMap<String, String>,
     #[serde(default)]
     cards: HashMap<String, RuleCard>,
 }
@@ -176,12 +182,16 @@ impl Translator {
             .primary
             .message_templates
             .get(&notice.rule_id)
-            .and_then(|templates| translate_by_template(templates, &notice.message))
+            .and_then(|templates| {
+                translate_by_template(templates, Some(&self.primary.fragment_templates), &notice.message)
+            })
             .or_else(|| {
                 self.primary
                     .message_templates
                     .get(SHARED_TEMPLATES)
-                    .and_then(|templates| translate_by_template(templates, &notice.message))
+                    .and_then(|templates| {
+                translate_by_template(templates, Some(&self.primary.fragment_templates), &notice.message)
+            })
             })
         {
             notice.message = message;
@@ -208,12 +218,16 @@ impl Translator {
             .primary
             .remediation_templates
             .get(&notice.rule_id)
-            .and_then(|templates| translate_by_template(templates, &notice.remediation))
+            .and_then(|templates| {
+                translate_by_template(templates, Some(&self.primary.fragment_templates), &notice.remediation)
+            })
             .or_else(|| {
                 self.primary
                     .remediation_templates
                     .get(SHARED_TEMPLATES)
-                    .and_then(|templates| translate_by_template(templates, &notice.remediation))
+                    .and_then(|templates| {
+                translate_by_template(templates, Some(&self.primary.fragment_templates), &notice.remediation)
+            })
             })
         {
             // Filled with runtime values: not interned, so the shared text table stays bounded.
@@ -340,6 +354,32 @@ fn has_placeholder(text: &str) -> bool {
 /// `message_templates` key for templates every rule may use (shared value-parser messages).
 const SHARED_TEMPLATES: &str = "*";
 
+/// Prefix of a hole that holds a translatable sentence fragment (see `fragment_templates`).
+const FRAGMENT_HOLE: &str = "f_";
+
+/// An empty fragment stays empty; a known fragment is translated; anything else is kept.
+fn translate_fragment(table: &BTreeMap<String, String>, value: &str) -> String {
+    if value.is_empty() {
+        return String::new();
+    }
+    table
+        .iter()
+        .find_map(|(engine, local)| {
+            let caps = match_template(engine, value)?;
+            // A fragment may itself hold a fragment (`from the shape of route 'R'{f_dir}`);
+            // each level is a strict substring, so this ends.
+            Some(fill_with(local, |key| {
+                let inner = caps.get(key).cloned().unwrap_or_default();
+                if key.starts_with(FRAGMENT_HOLE) && inner != value {
+                    translate_fragment(table, &inner)
+                } else {
+                    inner
+                }
+            }))
+        })
+        .unwrap_or_else(|| value.to_string())
+}
+
 /// A template split into literal text and `{name}` holes (same syntax as [`fill_with`]).
 enum Part<'a> {
     Text(&'a str),
@@ -433,10 +473,20 @@ pub fn match_template(template: &str, text: &str) -> Option<HashMap<String, Stri
 }
 
 /// The first template of the rule that matches `message` exactly once, filled in this language.
-fn translate_by_template(templates: &BTreeMap<String, String>, message: &str) -> Option<String> {
+fn translate_by_template(
+    templates: &BTreeMap<String, String>,
+    fragments: Option<&BTreeMap<String, String>>,
+    message: &str,
+) -> Option<String> {
     templates.iter().find_map(|(engine, local)| {
         let caps = match_template(engine, message)?;
-        Some(fill_with(local, |key| caps.get(key).cloned().unwrap_or_default()))
+        Some(fill_with(local, |key| {
+            let value = caps.get(key).cloned().unwrap_or_default();
+            match fragments {
+                Some(table) if key.starts_with(FRAGMENT_HOLE) => translate_fragment(table, &value),
+                _ => value,
+            }
+        }))
     })
 }
 
@@ -669,6 +719,50 @@ mod tests {
         }
     }
 
+    #[test]
+    fn fragment_holes_are_translated_and_plain_holes_are_not() {
+        let templates = BTreeMap::from([(
+            "Trip '{trip}'{f_dep} has {n} stops.".to_string(),
+            "'{trip}'{f_dep} seferinde {n} durak var.".to_string(),
+        )]);
+        let fragments = BTreeMap::from([(" departing {t}".to_string(), " {t} kalkışlı".to_string())]);
+        let tr = |m: &str| translate_by_template(&templates, Some(&fragments), m);
+        assert_eq!(
+            tr("Trip 'T1' departing 08:15 has 3 stops.").as_deref(),
+            Some("'T1' 08:15 kalkışlı seferinde 3 durak var.")
+        );
+        assert_eq!(tr("Trip 'T1' has 3 stops.").as_deref(), Some("'T1' seferinde 3 durak var."));
+        // An unknown fragment is kept; a plain hole is never run through the fragment table.
+        assert_eq!(tr("Trip 'T1' (x) has 3 stops.").as_deref(), Some("'T1' (x) seferinde 3 durak var."));
+        let plain = BTreeMap::from([("Stop '{name}'.".to_string(), "Durak '{name}'.".to_string())]);
+        assert_eq!(
+            translate_by_template(&plain, Some(&fragments), "Stop ' departing 9'.").as_deref(),
+            Some("Durak ' departing 9'.")
+        );
+    }
+
+    /// The fragment table is consistent with itself: a fragment built from one template is
+    /// translated the same way by every other template that matches it.
+    #[test]
+    fn turkish_fragment_templates_are_consistent() {
+        let translator = Translator::new(Lang::Tr).unwrap().unwrap();
+        let table = &translator.primary.fragment_templates;
+        for (engine, turkish) in table {
+            let holes: Vec<String> = template_parts(engine)
+                .iter()
+                .filter_map(|p| match p {
+                    Part::Hole(h) => Some((*h).to_string()),
+                    Part::Text(_) => None,
+                })
+                .collect();
+            let sample: HashMap<String, String> =
+                holes.iter().enumerate().map(|(i, h)| (h.clone(), format!("v{i}x"))).collect();
+            let fragment = fill_with(engine, |k| sample.get(k).cloned().unwrap_or_default());
+            let want = fill_with(turkish, |k| sample.get(k).cloned().unwrap_or_default());
+            assert_eq!(translate_fragment(table, &fragment), want, "{engine:?}");
+        }
+    }
+
     /// Every Turkish message template is usable: holes are separated by text and not repeated,
     /// the Turkish side uses only holes the English side captures, and within a rule a message
     /// built from one template matches that template only (so the order cannot matter).
@@ -694,6 +788,16 @@ mod tests {
                         !matches!(pair, [Part::Hole(_), Part::Hole(_)]),
                         "{rule}: two holes in a row in {engine:?}"
                     );
+                }
+                // Text between two holes must say something: a bare space lets a value that
+                // contains spaces split in several ways, and the message stays untranslated.
+                for triple in parts.windows(3) {
+                    if let [Part::Hole(_), Part::Text(between), Part::Hole(_)] = triple {
+                        assert!(
+                            !between.trim().is_empty(),
+                            "{rule}: only whitespace between two holes in {engine:?}"
+                        );
+                    }
                 }
                 let unique: std::collections::BTreeSet<_> = holes.iter().collect();
                 assert_eq!(unique.len(), holes.len(), "{rule}: repeated hole in {engine:?}");

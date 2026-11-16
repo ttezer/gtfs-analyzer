@@ -149,7 +149,7 @@ pub fn validate_fare_products(file: &RawFile) -> (Vec<FareProductRecord>, Vec<gt
             Some(format!("{iso_bad} rows")), Some(format!("{want_value} decimal places")),
             format!(
                 "fare_products.txt has {iso_bad} amounts without the ISO 4217 decimal places of their currency \
-                 (e.g. line {line}: {currency} {amount} — {want})."
+                 (e.g. line {line}: amount {amount} in {currency} — {want})."
             ),
             "Write amounts with the decimal places of their currency (for example 0.90 for EUR, 150 for JPY).",
         ));

@@ -4148,7 +4148,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         Some(b.sequence.to_string()),
                         None,
                         format!(
-                            "stop_sequence {} is repeated for trip_id '{}'.",
+                            "trip_id '{}': stop_sequence {} is repeated.",
                             tid, b.sequence
                         ),
                         "Each (trip_id, stop_sequence) pair must be unique in stop_times.txt.",

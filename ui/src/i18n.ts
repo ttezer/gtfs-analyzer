@@ -1,5 +1,5 @@
 import type { Severity, RuleClass, FatalCode, FatalError } from './types';
-import tr, { trMessageTemplates, trMessageTexts, trRemediationTemplates, trRemediationTexts } from './locales/tr';
+import tr, { trFragmentTemplates, trMessageTemplates, trMessageTexts, trRemediationTemplates, trRemediationTexts } from './locales/tr';
 import en from './locales/en';
 import ja from './locales/ja';
 import fr from './locales/fr';
@@ -165,12 +165,34 @@ export function matchTemplate(template: string, text: string): Record<string, st
   return found.length === 1 ? found[0] : null;
 }
 
-/** The first template of the rule (in Rust's sorted order) that matches `message`, filled. */
+/** Same as Rust `translate_fragment`: empty stays empty, a known fragment is translated. */
+function translateFragment(value: string): string {
+  if (!value) return '';
+  for (const engine of Object.keys(trFragmentTemplates).sort()) {
+    const caps = matchTemplate(engine, value);
+    if (caps) {
+      // A fragment may hold a fragment; each level is a strict substring, so this ends.
+      return trFragmentTemplates[engine].replace(/\{(\w+)\}/g, (_, k: string) => {
+        const inner = caps[k] ?? '';
+        return k.startsWith('f_') && inner !== value ? translateFragment(inner) : inner;
+      });
+    }
+  }
+  return value;
+}
+
+/**
+ * The first template of the rule (in Rust's sorted order) that matches `message`, filled.
+ * Holes named `f_…` hold sentence fragments and are translated through `trFragmentTemplates`.
+ */
 function translateByTemplate(templates: Record<string, string> | undefined, message: string): string | undefined {
   if (!templates) return undefined;
   for (const engine of Object.keys(templates).sort()) {
     const caps = matchTemplate(engine, message);
-    if (caps) return templates[engine].replace(/\{(\w+)\}/g, (_, k: string) => caps[k] ?? '');
+    if (caps) {
+      return templates[engine].replace(/\{(\w+)\}/g, (_, k: string) =>
+        k.startsWith('f_') ? translateFragment(caps[k] ?? '') : (caps[k] ?? ''));
+    }
   }
   return undefined;
 }

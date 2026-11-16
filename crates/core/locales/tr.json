@@ -1410,6 +1410,9 @@
     "ARC_022": {
       "'{name}' has {rows} rows; it exceeds the {a0}-row information threshold. The whole file was validated.": "'{name}' dosyasında {rows} satır var; {a0} satırlık bilgi eşiğini aşıyor. Dosyanın tamamı doğrulandı."
     },
+    "ARC_028": {
+      "The GTFS publication URL does not end with a .zip file name: '{source_url}'.": "GTFS yayın URL'si bir .zip dosya adıyla bitmiyor: '{source_url}'."
+    },
     "ARC_033": {
       "'{file}' does not follow RFC 4180: characters after the closing quote ({rows} rows; first example: '{example}').": "'{file}' RFC 4180'e uymuyor: kapanış tırnağından sonra karakter var ({rows} satırda; ilk örnek: '{example}').",
       "'{file}' does not follow RFC 4180: unquoted field contains a quote ({rows} rows; first example: '{example}').": "'{file}' RFC 4180'e uymuyor: tırnaksız alan tırnak işareti içeriyor ({rows} satırda; ilk örnek: '{example}')."
@@ -1455,6 +1458,48 @@
     "CAL_006": {
       "All weekday fields of calendar '{a0}' are 0 — there is no weekly repetition; the service can only be active through calendar_dates.txt exceptions.": "'{a0}' takviminde haftalık gün alanlarının tümü 0 — haftalık tekrar yok; servis yalnızca calendar_dates.txt istisnalarıyla aktif olabilir."
     },
+    "CAL_007": {
+      "A gap of {gap_days} days {f_svc_suffix} between {gap_from} and {gap_to}.": "{gap_from}-{gap_to} arası {gap_days} günlük boşluk {f_svc_suffix}."
+    },
+    "CAL_008": {
+      "Calendar '{a0}' ends on {end_yyyymmdd} — {a1} days left.": "'{a0}' takvimi {end_yyyymmdd} tarihinde bitiyor — {a1} gün kaldı."
+    },
+    "CAL_010": {
+      "Calendar '{service_id}' has only {total_days} active days.": "'{service_id}' takviminde yalnızca {total_days} aktif gün var.",
+      "Calendar '{service_id}' is active on only {total_days} days ({pct}%) of the feed's {feed_window_days}-day publication window.": "'{service_id}' takvimi feed'in {feed_window_days} günlük yayın penceresinin yalnızca {total_days} gününde (%{pct}) aktif."
+    },
+    "CAL_012": {
+      "A near-term inactive range of {gap_days} days {f_svc_suffix} between {gap_from} and {gap_to}.": "{gap_from}-{gap_to} arası {gap_days} günlük yakın dönem inaktif aralık {f_svc_suffix}."
+    },
+    "CAL_013": {
+      "Calendar '{a0}' has expired (last active date: {max_svc}) — no trips of this service can be found for today.": "'{a0}' takviminin süresi dolmuş (son aktif tarih: {max_svc}) — bu servise ait seferler bugün için bulunamaz.",
+      "{a0} services with last active date {max_svc} have expired: {a1} — no trips of these services can be found for today.": "Son aktif tarihi {max_svc} olan {a0} servisin süresi dolmuş: {a1} — bu servislere ait seferler bugün için bulunamaz."
+    },
+    "CAL_014": {
+      "The active dates of service '{service_id}' ({first}–{last}) extend outside feed_info's authoritative period ({fs_yyyymmdd}–{fe_yyyymmdd}): {days_before} days before, {days_after} days after.": "'{service_id}' servisinin aktif tarihleri ({first}–{last}) feed_info'nun yetkili dönemi ({fs_yyyymmdd}–{fe_yyyymmdd}) dışına taşıyor: {days_before} gün önce, {days_after} gün sonra."
+    },
+    "CAL_015": {
+      "The feed's earliest service date is {first}; that date has not come yet — no trips exist for today.": "Feed'in en erken servis tarihi {first}; bu tarih henüz gelmedi — seferler bugün için mevcut değil.",
+      "Upcoming service dataset — every active service date in the GTFS-JP feed starts in the future ({first}); this expected publication pattern does not affect the quality score.": "Yaklaşan servis veri kümesi — GTFS-JP feed'indeki tüm aktif servis tarihleri gelecekte başlıyor ({first}); bu beklenen yayınlama deseni kalite skorunu etkilemez."
+    },
+    "CAL_016": {
+      "The feed's latest service date is {last} — more than 2 years from today; this data may be broken.": "Feed'in en son servis tarihi {last} — bugünden 2 yıldan fazla ileride; bu veri bozuk olabilir."
+    },
+    "CAL_017": {
+      "Calendar '{service_id}' has not started yet; the earliest active date is {min_svc}. No service in the feed is active today.": "'{service_id}' takvimi henüz başlamamış; en erken aktif tarih {min_svc}. Feed'de bugün aktif olan hiçbir servis yok."
+    },
+    "CAL_020": {
+      "The feed validity window is {a0} days (~{a1} years) — an unrealistic time span.": "Feed geçerlilik penceresi {a0} gün (~{a1} yıl) — gerçekçi olmayan zaman dilimi."
+    },
+    "CAL_021": {
+      "Service '{service_id}' covers today but has no active day in the next {n} days ({trip_count} trips affected).": "'{service_id}' servisi bugünü kapsıyor ama önümüzdeki {n} günde aktif günü yok ({trip_count} sefer etkileniyor)."
+    },
+    "CAL_023": {
+      "The end_date of calendar '{a0}' is {end_yyyymmdd} — {a1} years or more from today; it may be suspicious/low-quality data (a placeholder date).": "'{a0}' takviminin end_date'i {end_yyyymmdd} — bugünden {a1} yıl veya daha fazla ileri; şüpheli/düşük-kaliteli veri (yer-tutucu tarih) olabilir."
+    },
+    "CAL_024": {
+      "Calendar '{service_id}' is not active in the next 7 days — {count} trips affected.": "'{service_id}' takvimi önümüzdeki 7 günde aktif değil — {count} sefer etkileniyor."
+    },
     "CLD_003": {
       "exception_type '{et_raw}' is invalid; it must be 1 or 2.": "exception_type '{et_raw}' geçersiz; 1 veya 2 olmalıdır."
     },
@@ -1464,12 +1509,85 @@
     "CLD_006": {
       "Service '{sid}' has {count} exception days; this may be too many.": "'{sid}' servisinin {count} istisna günü var; bu çok fazla olabilir."
     },
+    "CLD_007": {
+      "Calendar '{service_id}' defines {count} special days — many deviations from the base schedule.": "'{service_id}' takviminde {count} özel gün tanımı — temel programdan çok sapma."
+    },
+    "DQ_003": {
+      "route_desc is empty on route '{a0}' ({a1}); riders get no extra information about the route.": "'{a0}' ({a1}) hattında route_desc alanı boş; kullanıcılar hat hakkında ek bilgi alamıyor."
+    },
+    "DQ_004": {
+      "route_url is empty on route '{a0}' ({a1}); riders cannot be sent to the route web page.": "'{a0}' ({a1}) hattında route_url alanı boş; yolcular hat web sayfasına yönlendirilemiyor."
+    },
+    "DQ_005c": {
+      "Coordinates are missing on {a0}% of stops — geographic analysis is limited.": "Duraksaların %{a0}'ında koordinat eksik — coğrafi analiz kısıtlı."
+    },
+    "DQ_006": {
+      "shape_id is missing on {a0}% of trips — map display and geographic analysis are limited.": "Seferlerin %{a0}'ında shape_id eksik — harita gösterimi ve coğrafi analiz kısıtlı."
+    },
+    "DQ_010": {
+      "Agency '{a0}' is not used by any route.": "'{a0}' işleticisi hiçbir hatta kullanılmıyor."
+    },
+    "DQ_012": {
+      "The feed has {a0} agencies but no route has an agency_id.": "Feed'de {a0} işletici var ancak hiçbir rotada agency_id atanmamış."
+    },
+    "DQ_013": {
+      "The feed has only {trip_count} trips — at least 3 trips are recommended for usable transit data.": "Feed'de yalnızca {trip_count} sefer var — işlevsel transit veri için en az 3 sefer önerilir."
+    },
+    "DQ_017": {
+      "{suspicious} stops have a coordinate near (0°, 0°) — that is off the coast of Africa; probably a wrong value.": "{suspicious} durağın koordinatı (0°, 0°) civarında — bu Afrika kıyısı açıklarıdır; muhtemelen yanlış değer."
+    },
+    "DQ_018": {
+      "The description of route '{a0}' is all upper case: '{desc}'.": "'{a0}' hattının açıklaması tamamen büyük harf: '{desc}'.",
+      "The headsign of trip '{a0}' is all upper case: '{hs}'.": "'{a0}' seferinin yön adı tamamen büyük harf: '{hs}'.",
+      "The long name of route '{a0}' is all upper case: '{name}'.": "'{a0}' hattının uzun adı tamamen büyük harf: '{name}'.",
+      "The name of stop '{a0}' is all upper case: '{name}'.": "'{a0}' durağının adı tamamen büyük harf: '{name}'.",
+      "The stop_headsign value is all upper case: '{s}'.": "stop_headsign değeri tamamen büyük harf: '{s}'."
+    },
+    "DQ_019": {
+      "The description of route '{a0}' is all lower case: '{desc}'.": "'{a0}' hattının açıklaması tamamen küçük harf: '{desc}'.",
+      "The headsign of trip '{a0}' is all lower case: '{hs}'.": "'{a0}' seferinin yön adı tamamen küçük harf: '{hs}'.",
+      "The long name of route '{a0}' is all lower case: '{name}'.": "'{a0}' hattının uzun adı tamamen küçük harf: '{name}'.",
+      "The name of stop '{a0}' is all lower case: '{name}'.": "'{a0}' durağının adı tamamen küçük harf: '{name}'.",
+      "The stop_headsign value is all lower case: '{s}'.": "stop_headsign değeri tamamen küçük harf: '{s}'."
+    },
+    "DQ_020": {
+      "The recommended trip_headsign field is empty on {missing}/{total} rows of trips.txt — filling it is recommended for passenger information systems.": "trips.txt'te önerilen trip_headsign alanı {missing}/{total} satırda boş — yolcu bilgi sistemleri için doldurulması önerilir."
+    },
+    "DQ_021": {
+      "The same row repeats in location_group_stops.txt: ({dup}).": "location_group_stops.txt'de aynı satır yineleniyor: ({dup}).",
+      "The same row repeats in stop_areas.txt: ({dup}).": "stop_areas.txt'de aynı satır yineleniyor: ({dup}).",
+      "attribution_id '{dup_id}' is defined more than once in attributions.txt.": "attribution_id '{dup_id}' attributions.txt'de birden fazla kez tanımlanmış.",
+      "location_group_id '{dup_id}' is defined more than once in location_groups.txt.": "location_group_id '{dup_id}' location_groups.txt'de birden fazla kez tanımlanmış.",
+      "route_id '{dup_id}' is defined more than once in route_networks.txt — a route can belong to one network only.": "route_id '{dup_id}' route_networks.txt'de birden fazla kez tanımlanmış — bir hat yalnız bir ağa ait olabilir.",
+      "route_id '{dup_id}' is defined more than once in routes.txt.": "route_id '{dup_id}' routes.txt'de birden fazla kez tanımlanmış.",
+      "service_id '{sid}' has {a0} dates written more than once in calendar_dates.txt.{f_conflict_note}": "service_id '{sid}' için {a0} tarih calendar_dates.txt'te birden fazla kez yazılmış.{f_conflict_note}",
+      "stop_id '{dup_id}' is defined more than once in stops.txt.": "stop_id '{dup_id}' stops.txt'de birden fazla kez tanımlanmış.",
+      "trip_id '{dup_id}' is defined more than once in trips.txt.": "trip_id '{dup_id}' trips.txt'de birden fazla kez tanımlanmış."
+    },
+    "DQ_022": {
+      "{most_count}/{total_named} stops are named '{most_common_name}' — it may be placeholder or test data.": "Durakların {most_count}/{total_named} tanesinin adı '{most_common_name}' — yer tutucu veya test verisi olabilir."
+    },
     "FAR_013": {
-      "fare_attributes.txt has {n} amounts without the ISO 4217 decimal places of their currency (e.g. line {line}: {currency} {amount} — decimal places undefined).": "fare_attributes.txt dosyasında {n} tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımıyor (ör. satır {line}: {currency} {amount} — tanımsız basamak beklenir).",
-      "fare_attributes.txt has {n} amounts without the ISO 4217 decimal places of their currency (e.g. line {line}: {currency} {amount} — {want} decimal places expected).": "fare_attributes.txt dosyasında {n} tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımıyor (ör. satır {line}: {currency} {amount} — {want} basamak beklenir)."
+      "fare_attributes.txt has {n} amounts without the ISO 4217 decimal places of their currency (e.g. line {line}: amount {amount} in {currency} — decimal places undefined).": "fare_attributes.txt dosyasında {n} tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımıyor (ör. satır {line}: {currency} {amount} — tanımsız basamak beklenir).",
+      "fare_attributes.txt has {n} amounts without the ISO 4217 decimal places of their currency (e.g. line {line}: amount {amount} in {currency} — {want} decimal places expected).": "fare_attributes.txt dosyasında {n} tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımıyor (ör. satır {line}: {currency} {amount} — {want} basamak beklenir)."
+    },
+    "FIN_010": {
+      "The feed's validity ended on {y}-{m}-{d}; the current data is out of date.": "Feed'in geçerlilik süresi {y}-{m}-{d} tarihinde dolmuş; mevcut veriler güncel değil."
     },
     "FIN_015": {
       "feed_info.txt has {a0} records; it must have exactly 1 row.": "feed_info.txt'de {a0} kayıt var; yalnızca 1 satır olmalıdır."
+    },
+    "FIN_016": {
+      "feed_start_date ({sy}-{sm}-{sd}) has not come yet — the feed is not active today.": "feed_start_date ({sy}-{sm}-{sd}) henüz gelmedi — feed bugün için aktif değil."
+    },
+    "FIN_017": {
+      "feed_end_date ({ey}-{em}-{ed}) is more than 2 years from today — probably a wrong value.": "feed_end_date ({ey}-{em}-{ed}) bugünden 2 yıldan fazla ileride — muhtemelen yanlış değer."
+    },
+    "FIN_019": {
+      "The feed's validity ends on {ey}-{em}-{ed} — {days_left} days left (warning threshold: {warning_days} days).": "Feed'in geçerlilik süresi {ey}-{em}-{ed} tarihinde doluyor — {days_left} gün kaldı (uyarı eşiği: {warning_days} gün)."
+    },
+    "FIN_020": {
+      "The feed validity window is only {span_days} days ({sy}-{sm}-{sd} → {ey}-{em}-{ed}) — too short for operational use.": "Feed geçerlilik penceresi yalnızca {span_days} gün ({sy}-{sm}-{sd} → {ey}-{em}-{ed}) — operasyonel kullanım için çok kısa."
     },
     "FMD_003": {
       "fare_media_name is recommended for fare_media_type={t} (mobile app).": "fare_media_type={t} (mobil uygulama) için fare_media_name tavsiye edilir.",
@@ -1477,17 +1595,68 @@
       "fare_media_name is recommended for fare_media_type={t} (physical transit card).": "fare_media_type={t} (fiziksel transit kartı) için fare_media_name tavsiye edilir."
     },
     "FPD_007": {
-      "fare_products.txt has {n} amounts without the ISO 4217 decimal places of their currency (e.g. line {line}: {currency} {amount} — decimal places undefined).": "fare_products.txt dosyasında {n} tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımıyor (ör. satır {line}: {currency} {amount} — tanımsız basamak beklenir).",
-      "fare_products.txt has {n} amounts without the ISO 4217 decimal places of their currency (e.g. line {line}: {currency} {amount} — {want} decimal places expected).": "fare_products.txt dosyasında {n} tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımıyor (ör. satır {line}: {currency} {amount} — {want} basamak beklenir)."
+      "fare_products.txt has {n} amounts without the ISO 4217 decimal places of their currency (e.g. line {line}: amount {amount} in {currency} — decimal places undefined).": "fare_products.txt dosyasında {n} tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımıyor (ör. satır {line}: {currency} {amount} — tanımsız basamak beklenir).",
+      "fare_products.txt has {n} amounts without the ISO 4217 decimal places of their currency (e.g. line {line}: amount {amount} in {currency} — {want} decimal places expected).": "fare_products.txt dosyasında {n} tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımıyor (ör. satır {line}: {currency} {amount} — {want} basamak beklenir)."
+    },
+    "FRQ_006": {
+      "Trip '{trip_id}' has a headway of {hw}s — threshold {max_secs}s ({a0} min).": "'{trip_id}' seferinde sefer aralığı {hw}sn — eşik {max_secs}sn ({a0} dk)."
     },
     "FRQ_009": {
       "headway_secs '{val}' seconds — a frequency under 1 minute is not realistic.": "headway_secs '{val}' saniye — 1 dakikadan kısa frekans gerçekçi değil."
+    },
+    "FRQ_010": {
+      "Trip '{trip_id}' has a headway of {hw}s ≤ the bunching threshold {bunching_secs}s — bunching risk.": "'{trip_id}' seferinde sefer aralığı {hw}sn ≤ sıkışma eşiği {bunching_secs}sn — sıkışma riski."
     },
     "FRQ_011": {
       "The frequencies periods of trip_id '{trip}' overlap in time.": "trip_id '{trip}' için frequencies dönemleri zaman aralığı çakışıyor."
     },
     "FRQ_012": {
       "With exact_times=1, end_time ({a0}) is exactly one headway ({h} s) after the last departure — the last trip is ambiguous.": "exact_times=1 iken end_time ({a0}) son seferin kalkışına headway ({h} sn) kadar uzakta — son sefer belirsiz kalıyor."
+    },
+    "GEO_002": {
+      "Stop '{a0}' (code: '{a1}') is {d}km from the feed median (threshold {threshold_km}km) — it may be a coordinate error.": "'{a0}' durağı (kod: '{a1}') feed medianından {d}km uzakta (eşik {threshold_km}km) — koordinat hatası olabilir."
+    },
+    "GEO_006": {
+      "Shape '{shape_id}' jumps {dist}km in segment {i}→{a0} — threshold {max_jump_km}km.": "'{shape_id}' güzergahının {i}→{a0}. segmentinde {dist}km atlama — eşik {max_jump_km}km."
+    },
+    "GEO_007": {
+      "Shape '{shape_id}' has a critical jump of {dist}km in segment {i}→{a0} (3× threshold).": "'{shape_id}' güzergahının {i}→{a0}. segmentinde {dist}km kritik atlama (3× eşik)."
+    },
+    "GEO_009": {
+      "Stop with code '{a0}' ('{a1}') is {dist_m}m away {f_ref_label} (threshold: {a2}m){f_dep_suffix}.": "'{a0}' kodlu '{a1}' durağı {f_ref_label} {dist_m}m uzakta{f_dep_suffix} (eşik: {a2}m)."
+    },
+    "GEO_012": {
+      "Around stop '{a0}' (code: '{a1}'), {a2} stops cluster within {a3}m.": "'{a0}' durağu (kod: '{a1}') çevresinde {a2} durak {a3}m içinde kümelenmiş."
+    },
+    "GEO_013": {
+      "The feed contains {n_stops_with_coords} stops with coordinates.": "Feed {n_stops_with_coords} koordinatlı durak içeriyor."
+    },
+    "GEO_014": {
+      "The feed covers a wide area: {span_km}km diagonal (bbox: {min_lat},{min_lon} → {max_lat},{max_lon}).": "Feed coğrafi kapsamı geniş: {span_km}km köşegen (bbox: {min_lat},{min_lon} → {max_lat},{max_lon})."
+    },
+    "GEO_015": {
+      "The coordinates of stop '{a0}' ({lat},{lon}) are outside Japan (lat: 20.25–45.33, lon: 122.56–153.59).": "'{a0}' durağının koordinatları ({lat},{lon}) Japonya sınırları dışında (lat: 20.25–45.33, lon: 122.56–153.59)."
+    },
+    "GEO_016": {
+      "The coordinates of stop '{name}' ({lat},{lon}) are near Null Island — a possible coordinate error.": "'{name}' durağının koordinatları ({lat},{lon}) Null Island yakınında — olası koordinat hatası."
+    },
+    "GEO_017": {
+      "A point near Null Island was found in shape '{sid}' ({lat},{lon}) — it may be a GPS data error.": "'{sid}' şeklinde Null Island yakınında nokta bulundu ({lat},{lon}) — GPS veri hatası olabilir."
+    },
+    "GEO_018": {
+      "All {a0} stops in the feed are within an area of {a1}m — it may be test/placeholder data.": "Feed'deki tüm {a0} durak {a1}m'lik bir alan içinde — test/yer tutucu veri olabilir."
+    },
+    "GEO_019": {
+      "The coordinates of stop '{name}' ({a0},{a1}) are integers — low-precision or placeholder data.": "'{name}' durağının koordinatları ({a0},{a1}) tam sayı — düşük hassasiyetli veya yer tutucu veri."
+    },
+    "GEO_020": {
+      "All {count} points of shape '{shape_id}' are at coordinate ({lat},{lon}) — degenerate geometry.": "'{shape_id}' şeklinin tüm {count} noktası ({lat},{lon}) koordinatında — dejenere geometri."
+    },
+    "GEO_021": {
+      "{shared}/{total_stops} stops ({pct}%) share their coordinate with another stop — a systematic coordinate problem.": "{shared}/{total_stops} durak ({pct}%) koordinatını başka bir durakla paylaşıyor — sistematik koordinat sorunu."
+    },
+    "GEO_022": {
+      "The latitude of stop '{name}' ({lat}) is extremely close to a pole — a possible coordinate error.": "'{name}' durağının enlemi ({lat}) kutba aşırı yakın — olası koordinat hatası."
     },
     "GGL_001": {
       "transfer_type={ttype} (in-seat transfer) is ignored by Google Transit.": "transfer_type={ttype} (in-seat aktarma) Google Transit tarafından yoksayılıyor."
@@ -1499,11 +1668,91 @@
     "LVL_005": {
       "Level '{a0}' has a level_name of {a1} characters — it exceeds the 255 limit.": "'{a0}' katmanının level_name değeri {a1} karakter — 255 sınırını aşıyor."
     },
+    "OPR_001": {
+      "Route '{route_label_hw}' direction {dir_display}, calendar {service_id}: maximum headway {a0} min — threshold {a1} min.": "'{route_label_hw}' kodlu hattın {dir_display} yönünde {service_id} çalışma takviminde maksimum sefer aralığı {a0}dk — eşik {a1}dk."
+    },
+    "OPR_003": {
+      "Route '{route_label_hw}' direction {dir_display}, calendar {service_id}: minimum headway {a0} min ≤ bunching threshold {a1} min.": "'{route_label_hw}' kodlu hattın {dir_display} yönünde {service_id} çalışma takviminde minimum sefer aralığı {a0}dk ≤ sıkışma eşiği {a1}dk."
+    },
+    "OPR_004": {
+      "The active services of route '{label}' have no weekend day (Saturday/Sunday).": "'{label}' kodlu hattın aktif servislerinde hafta sonu (Cumartesi/Pazar) günü yok."
+    },
+    "OPR_005": {
+      "Route '{route_label}' direction {a0}, calendar {a1}: average headway {hw_min} min — the feed median for routes of the same type is {med_min} min ({f_yon_str}).": "'{route_label}' hattının {a0} yönünde {a1} takviminde ortalama sefer aralığı {hw_min}dk — aynı tür hatların feed medyanı {med_min}dk ({f_yon_str})."
+    },
+    "OPR_006": {
+      "A trip of route '{r}' has only {count} stops — a working trip needs at least 2 stops.": "'{r}' hattının seferinde yalnızca {count} durak var — işlevsel sefer için en az 2 durak gerekli."
+    },
+    "OPR_007": {
+      "On route '{a0}', the {a1}trip passes stop '{a2}' (code: '{a3}') {a4}× — a repeating operation pattern.": "'{a0}' hattının {a1}seferinde '{a2}' durağı (kod: '{a3}') {a4}× geçiyor — tekrarlayan operasyon deseni."
+    },
+    "OPR_008": {
+      "Route '{route_label}' direction {dir_sd}, calendar {svc_sd}, trip '{trip_id}'{f_dep_suffix}: highest speed over {trip_bad_seg_count} bad segments is {trip_max_speed} km/h — threshold {threshold} km/h.": "'{route_label}' kodlu hattın {dir_sd} yönünde {svc_sd} çalışma takviminde '{trip_id}'{f_dep_suffix} seferindeki {trip_bad_seg_count} bozuk segmentte en yüksek hız {trip_max_speed} km/h — eşik {threshold} km/h."
+    },
+    "OPR_009": {
+      "Route '{route}' has {count} night trips (first departures between {a0}-{a1}).": "'{route}' hattında {count} gece seferi var (ilk kalkış aralığı {a0}-{a1})."
+    },
+    "OPR_010": {
+      "On route '{label}' some trips allow bicycles (1) and some do not (2).": "'{label}' kodlu hatta bazı seferler bisiklete izin veriyor (1), bazıları vermiyor (2).",
+      "On route '{label}' some trips are marked wheelchair accessible (1) and some not accessible (2).": "'{label}' kodlu hatta bazı seferler tekerlekli sandalye erişimli (1), bazıları erişimsiz (2) olarak işaretlenmiş."
+    },
+    "OPR_011": {
+      "Calendar '{svc}' has no active day — trips using this calendar will not run.": "'{svc}' takviminde hiçbir aktif gün yok — bu takvimi kullanan seferler çalışmayacak."
+    },
+    "OPR_012": {
+      "Service '{svc_id}' has a service gap of {max_gap} days between {gap_start}-{gap_end}.": "'{svc_id}' servisinde {gap_start}-{gap_end} arasında {max_gap} günlük servis boşluğu var."
+    },
+    "OPR_013": {
+      "Route '{label}' has only {f_a0} trips — the opposite direction is not defined.": "'{label}' kodlu hatta yalnızca {f_a0} yönlü seferler var — karşı yön tanımlı değil."
+    },
+    "OPR_014": {
+      "Across the feed, the average min_transfer_time of {count} timed transfers is {avg}s ({avg_min} minutes).": "Feed genelinde {count} zamanlı aktarmanın ortalama min_transfer_time değeri {avg}s ({avg_min} dakika)."
+    },
+    "OPR_015": {
+      "All trips of route '{a0}' use a single shape ({shape_id}).": "'{a0}' kodlu hattın tüm seferleri tek bir güzergah şekli kullanıyor ({shape_id})."
+    },
+    "OPR_017": {
+      "A trip of route '{route}' covers only {dist_m}m.": "'{route}' hattının seferi yalnızca {dist_m}m mesafe kapsıyor."
+    },
+    "OPR_019": {
+      "Route '{a0}' has more than one active service on {a1} days. Example dates: {a2}.": "'{a0}' hattında {a1} günde birden fazla aktif servis var. Örnek tarihler: {a2}."
+    },
+    "OPR_020": {
+      "Route '{a0}' has more than one active service on {a1} exception days — risk of an override conflict. Example dates (conflicting calendars in brackets): {a2}.": "'{a0}' hattında {a1} exception gününde birden fazla aktif servis var — override çakışması riski. Örnek tarihler (parantezde çakışan çalışma takvimleri): {a2}."
+    },
+    "OPR_021": {
+      "Route '{a0}': on {a1} days the override service ({a2}) is active but the base service ({a3}) also stays active. First day: {a4}.": "'{a0}' hattında {a1} günde override servisi ({a2}) aktif ancak base servisi ({a3}) de aktif kalmış. İlk gün: {a4}."
+    },
+    "OPR_022": {
+      "Route '{a0}': on {a1} days the override service ({a2}) is expected but not active; the base service ({a3}) runs. First day: {a4}.": "'{a0}' hattında {a1} günde override servisi ({a2}) bekleniyor ancak aktif değil; base servis ({a3}) çalışıyor. İlk gün: {a4}."
+    },
+    "OPR_023": {
+      "Route '{a0}': on {a1} days neither the base ({a2}) nor the override ({a3}) service is active — the route has no service. First day: {a4}.": "'{a0}' hattında {a1} günde ne base ({a2}) ne override ({a3}) servisi aktif — hat servissiz kalmış. İlk gün: {a4}."
+    },
+    "OPR_024": {
+      "Route '{a0}' has {count} trips in calendar '{service_id}' — it may be a data merge problem.": "'{a0}' kodlu hat '{service_id}' çalışma takviminde {count} sefer içeriyor — veri birleştirme sorunu olabilir."
+    },
+    "OPR_025": {
+      "The average trip duration is {avg} seconds — such short durations usually point to a data error.": "Ortalama sefer süresi {avg} saniye — bu kadar kısa süreler genellikle veri hatasını gösterir."
+    },
+    "PDW_006": {
+      "trip_id '{a0}' has overlapping pickup/drop-off windows with the same boarding/alighting role in zone '{a1}'.": "trip_id '{a0}' için zone '{a1}' içinde aynı biniş/iniş rolüyle örtüşen pickup/drop-off pencereleri var."
+    },
     "PTH_008": {
       "stair_count is missing on {pth008_count} stairs pathways (pathway_mode=2).": "{pth008_count} merdiven geçidinde (pathway_mode=2) stair_count eksik."
     },
     "PTH_009": {
       "max_slope is missing on {pth009_count} walkway pathways (pathway_mode=1).": "{pth009_count} yürüme yolu geçidinde (pathway_mode=1) max_slope eksik."
+    },
+    "PTH_012": {
+      "Platform '{platform}' (station '{station_id}') cannot be reached from any entrance (location_type=2) through the pathway graph.": "Platform '{platform}' (istasyon '{station_id}') hiçbir entrance'tan (location_type=2) pathway graph üzerinden ulaşılamıyor.",
+      "Platform '{platform}' (station '{station_id}') is in the pathway network but the station has no location_type=2 entrance.": "Platform '{platform}' (istasyon '{station_id}') pathway ağında tanımlanmış ama istasyonda location_type=2 entrance yok."
+    },
+    "PTH_013": {
+      "Station '{station_id}' — no wheelchair-accessible pathway route from an entrance to a platform (all paths have max_slope > 8% or min_width < 0.9m).": "İstasyon '{station_id}' — entrance'tan platforma tekerlekli sandalye ile erişilebilir pathway rotası yok (tüm pathlarda max_slope > 8% veya min_width < 0.9m)."
+    },
+    "PTH_015": {
+      "pathway_id '{a0}': the speed derived from length={length}m and traversal_time={tt}s is {speed} m/s — the plausible limit is {MAX_PATHWAY_SPEED_MS} m/s.": "pathway_id '{a0}' length={length}m ve traversal_time={tt}s'den türetilen hız {speed} m/s — makul sınır {MAX_PATHWAY_SPEED_MS} m/s."
     },
     "PTH_018": {
       "signposted_as is {a0} characters long; the recommended maximum is 255.": "signposted_as alanı {a0} karakter uzunluğunda; önerilen maksimum 255."
@@ -1529,14 +1778,29 @@
     "RTS_011": {
       "Route '{a0}' has a route_long_name of {a1} characters; it exceeds 100 characters.": "'{a0}' hattının route_long_name değeri {a1} karakter; 100 karakteri aşıyor."
     },
+    "RTS_016": {
+      "No trip of route '{rname}' has an active calendar day.": "'{rname}' hattının hiçbir seferinde aktif takvim günü yok."
+    },
+    "RTS_017": {
+      "No trip of route '{label}' has a shape_id — map display is limited.": "'{label}' hattının hiçbir seferinde shape_id tanımlı değil — harita gösterimi kısıtlı."
+    },
     "RTS_019": {
       "The name '{display}' is used by more than one route: {group_str}.": "'{display}' adı birden fazla hatta kullanılıyor: {group_str}."
+    },
+    "RTS_020": {
+      "The route_url of route '{a0}' is the same as the agency URL: '{route_url}'.": "'{a0}' hattının route_url değeri acente URL'siyle aynı: '{route_url}'."
     },
     "RTS_021": {
       "Route '{a0}' has a route_short_name of {a1} characters; Google Transit recommends 6 characters.": "'{a0}' hattının route_short_name değeri {a1} karakter; Google Transit 6 karakteri tavsiye ediyor."
     },
+    "RTS_022": {
+      "The long name of route '{a0}', '{a1}', already contains the short name '{a2}'.": "'{a0}' hattının uzun adı '{a1}', kısa adı '{a2}' zaten içeriyor."
+    },
     "RTS_023": {
       "Route '{route_id}' has a route_desc equal to {matched_field}: '{d}'.": "'{route_id}' hattının route_desc değeri {matched_field} ile aynı: '{d}'."
+    },
+    "RTS_025": {
+      "agency_id is empty on route '{label}' — a recommended field; filling it is good practice even with one agency.": "'{label}' hattında agency_id boş — önerilen alan; tek işletici olsa bile doldurulması iyi uygulamadır."
     },
     "RTS_026": {
       "The short route name '{sn_disp}' is shared by routes with different long names: {group_str}.": "'{sn_disp}' kısa hat adı, farklı uzun adlı şu hatlar tarafından paylaşılıyor: {group_str}."
@@ -1561,8 +1825,82 @@
     "SHP_008": {
       "shape_pt_sequence {seq} is repeated for shape_id '{shape_id}'.": "shape_id '{shape_id}' için shape_pt_sequence {seq} yineleniyor."
     },
+    "SHP_009": {
+      "{f_prefix}Shape '{shape_id}' crosses itself between segment {i}→{a0} and segment {j}→{a1}.{f_repeat_suffix}": "{f_prefix}'{shape_id}' güzergah şekli segment {i}→{a0} ile segment {j}→{a1} arasında kendisiyle kesişiyor.{f_repeat_suffix}",
+      "{n09} shapes cross themselves — most are near-segment micro-crossings in junction/stop geometry.": "{n09} güzergah şekli kendisiyle kesişiyor — çoğu kavşak/durak geometrisindeki yakın-segment mikro-kesişmedir."
+    },
+    "SHP_012": {
+      "Shape '{shape_id}' is >{shp_stop_threshold_m}m away from {viol_count} stops — the shape may be drawn wrong.": "'{shape_id}' güzergah şekli {viol_count} duraktan >{shp_stop_threshold_m}m uzakta — güzergah doğru çizilmemiş olabilir."
+    },
+    "SHP_014": {
+      "{f_prefix}The end point of shape '{a0}' is {dist_m}m from the last stop '{a1}' (code: '{a2}') of the nearest trip.": "{f_prefix}'{a0}' güzergah şeklinin bitiş noktası, en yakın seferin son durağı '{a1}' (kod: '{a2}') konumundan {dist_m}m uzakta.",
+      "{f_prefix}The start point of shape '{a0}' is {dist_m}m from the first stop '{a1}' (code: '{a2}') of the nearest trip.": "{f_prefix}'{a0}' güzergah şeklinin başlangıç noktası, en yakın seferin ilk durağı '{a1}' (kod: '{a2}') konumundan {dist_m}m uzakta."
+    },
+    "SHP_015": {
+      "Shape '{shape_id}' is {total_km} km long but has only {a0} points — density {density} points/10km.": "'{shape_id}' güzergahı {total_km} km uzunluğunda ancak yalnızca {a0} nokta var — yoğunluk {density} nokta/10km."
+    },
+    "SHP_016": {
+      "Shape '{shape_id}' of route '{route}' is drawn in reverse — the first stop of every trip using this shape projects near the end of the shape, not the start (nearest {a0}m / {a1}m).": "'{route}' hattının '{shape_id}' güzergahı ters yönde çizilmiş — bu shape'i kullanan tüm seferlerin ilk durağı shape'in başından değil sonuna yakın projekte oluyor (en yakını {a0}m / {a1}m)."
+    },
+    "SHP_017": {
+      "Route '{a0}' trip{dep_infix}: stop '{a1}' (code: '{a2}') at sequence {a3} is out of order on the shape — its distance from the start is behind the previous stop ({a4}m < {a5}m).": "'{a0}' hattının{dep_infix} seferinde '{a1}' (kod: '{a2}') {a3}. sıradaki durak güzergah sırası bozuk — başlangıca uzaklığı önceki durağın gerisinde ({a4}m < {a5}m)."
+    },
+    "SHP_020": {
+      "{f_prefix}In shape '{shape_id}', points {i} and {j} are at almost the same position ({lat},{lon}) — a repeated point.{f_repeat_suffix}": "{f_prefix}'{shape_id}' güzergahında nokta {i} ile {j} neredeyse aynı konumda ({lat},{lon}) — tekrarlayan nokta.{f_repeat_suffix}",
+      "{n20} shapes have repeated (almost identical) points — dense point noise from the producer.": "{n20} güzergah şeklinde tekrarlayan (neredeyse özdeş) nokta var — üretici kaynaklı yoğun nokta gürültüsü."
+    },
     "SHP_021": {
       "shape_dist_traveled '{a0}' cannot be read as a number.": "shape_dist_traveled '{a0}' sayı olarak okunamıyor."
+    },
+    "SHP_022": {
+      "Stop '{a0}' (code: '{a1}') is near shape '{a2}' at {a3} separate parts — without shape_dist_traveled it is unclear which part it matches.": "'{a0}' (kod: '{a1}') durağı '{a2}' güzergah şeklinin {a3} ayrı bölümüne yakın — shape_dist_traveled eksikken hangi bölümle eşleşeceği belirsiz."
+    },
+    "SHP_023": {
+      "{f_prefix}Two consecutive points of shape '{shape_id}' have the same shape_dist_traveled ({da_v}) and coordinates — a repeated point.": "{f_prefix}'{shape_id}' şeklinde art arda iki noktanın shape_dist_traveled ({da_v}) ve koordinatları aynı — tekrar eden nokta."
+    },
+    "SHP_024": {
+      "Stop '{a0}' (shape_dist_traveled={sdt}) is {a1}m from its shape_dist_traveled position (threshold: {a2}m).": "'{a0}' durağı (shape_dist_traveled={sdt}) shape_dist_traveled konumundan {a1}m uzakta (eşik: {a2}m)."
+    },
+    "SHP_025": {
+      "A trip of route '{a0}' has a stop_times shape_dist_traveled ({trip_max_sdt}) beyond the shape maximum ({shape_max}).": "'{a0}' hattının seferinde stop_times shape_dist_traveled ({trip_max_sdt}) şeklin maksimum değerini ({shape_max}) aşıyor."
+    },
+    "SHP_026": {
+      "Shape '{shape_id}' has {count} points — it hurts map rendering performance.": "'{shape_id}' şeklinde {count} nokta var — harita render performansını olumsuz etkiler."
+    },
+    "SHP_028": {
+      "Two consecutive points of shape '{shape_id}' have the same shape_dist_traveled ({da_v}) but different coordinates — the position changes without the distance increasing.": "'{shape_id}' şeklinde art arda iki noktanın shape_dist_traveled ({da_v}) aynı ama koordinatları farklı — mesafe artmadan konum değişmiş."
+    },
+    "SHP_029": {
+      "Two consecutive points of shape '{shape_id}' have the same shape_dist_traveled ({da_v}) and a very small coordinate difference (below threshold).": "'{shape_id}' şeklinde art arda iki noktanın shape_dist_traveled ({da_v}) aynı, koordinat farkı çok küçük (eşik altı)."
+    },
+    "SHP_030": {
+      "{affected_trips} trips using shape '{shape_id}' use shape_dist_traveled in stop_times.txt, but shapes.txt has no shape_dist_traveled on {missing}/{point_count} shape points.": "'{shape_id}' shape'i kullanan {affected_trips} trip stop_times.txt'te shape_dist_traveled kullanıyor, ancak shape noktalarının {missing}/{point_count} tanesinde shapes.txt shape_dist_traveled değeri eksik."
+    },
+    "STM_007": {
+      "In {n} stop_times rows departure_time is before arrival_time — the same in-row time violation repeats at high volume.": "{n} stop_times satırında departure_time arrival_time değerinden önce — aynı satır-içi zaman ihlali yüksek hacimde tekrarlanıyor.",
+      "Route '{route_label}' trip '{trip_id}'{f_dep_suffix}: at {name} (sequence {seq}) departure {a0} < arrival {a1} — departure is before arrival. (direction {dir_sd})": "'{route_label}' hattı '{trip_id}'{f_dep_suffix} seferi: {name} durağında (sıra {seq}) kalkış {a0} < varış {a1} — kalkış varıştan önce. (yön {dir_sd})"
+    },
+    "STM_008": {
+      "Route '{route_label}' trip '{trip_id}'{f_dep_suffix}: departure {dep_hms} from {name_a} (sequence {seq_a}), arrival {arr_hms} at {name_b} (sequence {seq_b}) — arrival is before departure, time goes backwards. (direction {dir_info})": "'{route_label}' hattı '{trip_id}'{f_dep_suffix} seferi: {name_a} durağından (sıra {seq_a}) kalkış {dep_hms}, {name_b} durağına (sıra {seq_b}) varış {arr_hms} — varış kalkıştan önce, zaman geriye gidiyor. (yön {dir_info})"
+    },
+    "STM_012": {
+      "trip_id '{trip_id}'{f_dep_suffix} stop_sequence {a0}-{a1}: speed {hav_speed} km/h (straight-line lower bound) — physically impossible.": "trip_id '{trip_id}'{f_dep_suffix} stop_sequence {a0}-{a1} arası hız {hav_speed} km/h (kuş uçuşu alt sınır) — fiziksel olarak imkansız.",
+      "trip_id '{trip_id}'{f_dep_suffix} stop_sequence {a0}-{a1}: zero travel time but a distance of {dist_km} km — it cannot be covered within the same minute (≥ {a2} km/h would be needed, threshold {threshold} km/h).": "trip_id '{trip_id}'{f_dep_suffix} stop_sequence {a0}-{a1} arası geçiş süresi sıfır ama mesafe {dist_km} km — aynı dakika içinde kapatılamaz (≥ {a2} km/h gerekirdi, eşik {threshold} km/h).",
+      "trip_id '{trip_id}'{f_dep_suffix} stop_sequence {seq_a}-{seq_b} (stops between have no times): {observed} — physically impossible.": "trip_id '{trip_id}'{f_dep_suffix} stop_sequence {seq_a}-{seq_b} arası (aradaki duraklar saatsiz) {observed} — fiziksel olarak imkansız."
+    },
+    "STM_014": {
+      "Route '{route_label}' direction {dir}, trip '{a0}': speed between stop sequence {seq_a}-{seq_b} is {speed_max} km/h — threshold {threshold} km/h.": "'{route_label}' kodlu hattın {dir} yönünde '{a0}' seferinde durak sırası {seq_a}-{seq_b} arası hız {speed_max} km/h — eşik {threshold} km/h.",
+      "Route '{route_label}' direction {dir}: the speed threshold between stop sequence {seq_a}-{seq_b} is exceeded on {n_trips} trips — {speed_min}-{speed_max} km/h, threshold {threshold} km/h. One segment, one root cause: trips are not listed one by one.": "'{route_label}' kodlu hattın {dir} yönünde durak sırası {seq_a}-{seq_b} arası hız eşiği {n_trips} seferde aşılıyor — {speed_min}-{speed_max} km/h, eşik {threshold} km/h. Tek segment, tek kök neden: seferler ayrı ayrı listelenmez."
+    },
+    "STM_015": {
+      "arrival_time is missing at the first stop of trip_id '{trip_id}'.": "trip_id '{trip_id}' seferinin ilk durağında arrival_time eksik."
+    },
+    "STM_016": {
+      "arrival_time is missing at the last stop of trip_id '{trip_id}'{f_dep_suffix}.": "trip_id '{trip_id}'{f_dep_suffix} seferinin son durağında arrival_time eksik."
+    },
+    "STM_017": {
+      "Route '{a0}' trip{dep_infix} has no shape distance (shape_dist_traveled) — stop positions cannot be checked.": "'{a0}' hattının{dep_infix} seferinde güzergah mesafe bilgisi (shape_dist_traveled) eksik — durak konumları doğrulanamıyor.",
+      "shape_dist_traveled is not used anywhere in the feed: {n} trips of {n_shapes} shapes are affected — stop positions cannot be checked on the shape.": "Feed genelinde shape_dist_traveled hiç kullanılmamış: {n_shapes} güzergaha ait {n} sefer etkileniyor — durak konumları güzergah üzerinde doğrulanamıyor."
     },
     "STM_018": {
       "{n} stop_times rows: continuous_pickup is outside 0-3 — the same enum violation repeats at high volume.": "{n} stop_times satırında continuous_pickup alanı 0-3 dışında — aynı enum ihlali yüksek hacimde tekrarlanıyor."
@@ -1570,17 +1908,40 @@
     "STM_019": {
       "{n} stop_times rows: continuous_drop_off is outside 0-3 — the same enum violation repeats at high volume.": "{n} stop_times satırında continuous_drop_off alanı 0-3 dışında — aynı enum ihlali yüksek hacimde tekrarlanıyor."
     },
+    "STM_020": {
+      "Route '{a0}' trip{a1} has, between stops {a2} and {a3}, a distance of {a4}m but a travel time of 0.": "'{a0}' hattının{a1} seferinde {a2}. ve {a3}. duraklar arası {a4}m mesafe var ama geçiş süresi 0 girilmiş."
+    },
+    "STM_021": {
+      "trip_id '{trip_id}'{f_dep_suffix} stop_sequence {a0}-{a1}: distance 0: '{a2}' and '{a3}' are different stops at the same coordinate.": "trip_id '{trip_id}'{f_dep_suffix} stop_sequence {a0}-{a1} arası mesafe 0: '{a2}' ve '{a3}' farklı duraklar ama aynı koordinatta."
+    },
+    "STM_025": {
+      "Route '{route_label}' direction {dir}, trip '{a0}': the planned time {stop_a} → {stop_b} is {duration_max}s — a short timing signal.": "'{route_label}' kodlu hattın {dir} yönünde '{a0}' seferinde {stop_a} → {stop_b} arası planlı süre {duration_max}s — kısa zamanlama sinyali.",
+      "Route '{route_label}' direction {dir}: the planned time {stop_a} → {stop_b} is under 10 seconds on {n_trips} trips ({duration_min}-{duration_max}s) — a short timing signal. One stop pair, one root cause: trips are not listed one by one.": "'{route_label}' kodlu hattın {dir} yönünde {stop_a} → {stop_b} arası planlı süre {n_trips} seferde 10 saniyenin altında ({duration_min}-{duration_max}s) — kısa zamanlama sinyali. Tek durak çifti, tek kök neden: seferler ayrı ayrı listelenmez."
+    },
+    "STM_026": {
+      "trip_id '{trip_id}'{f_dep_suffix} stop_sequence {a0}-{a1}: distance {dist_km} km.": "trip_id '{trip_id}'{f_dep_suffix} stop_sequence {a0}-{a1} arası mesafe {dist_km} km."
+    },
+    "STM_028": {
+      "Route '{a0}' trip{a1} has a total duration of {a2} — threshold {a3}.": "'{a0}' hattının{a1} seferinin toplam süresi {a2} — eşik {a3}."
+    },
+    "STM_029": {
+      "Route '{a0}' trip{a1} has a total duration of {a2}s — threshold {a3}s.": "'{a0}' hattının{a1} seferinin toplam süresi {a2}sn — eşik {a3}sn."
+    },
     "STM_032": {
-      "stop_sequence {a0} is repeated for trip_id '{a1}'.": "trip_id '{a0}' için stop_sequence {a1} tekrar ediyor.",
+      "trip_id '{a0}': stop_sequence {a1} is repeated.": "trip_id '{a0}' için stop_sequence {a1} tekrar ediyor.",
       "{n} stop_times rows: stop_sequence repeats — the same (trip_id, stop_sequence) violation repeats at high volume.": "{n} stop_times satırında stop_sequence tekrar ediyor — aynı (trip_id, stop_sequence) ihlali yüksek hacimde tekrarlanıyor."
     },
     "STM_034": {
       "The row of trip_id '{a0}' has arrival_time but no departure_time.": "trip_id '{a0}' satırında arrival_time tanımlı ama departure_time eksik.",
       "The row of trip_id '{a0}' has departure_time but no arrival_time.": "trip_id '{a0}' satırında departure_time tanımlı ama arrival_time eksik."
     },
+    "STM_035": {
+      "trip_id '{trip_id}'{f_dep_suffix} stop_sequence {a0}-{a1}: the same stop ({a2}) is visited twice in a row.": "trip_id '{trip_id}'{f_dep_suffix} stop_sequence {a0}-{a1} arasında aynı durak ({a2}) ardışık iki kez ziyaret ediliyor."
+    },
     "STM_036": {
       "The stop_times rows of trip '{a0}' are out of order: stop '{a1}' with stop_sequence {seq} is written after stop '{a2}' with the larger stop_sequence {last}. Rows must be in ascending stop_sequence order.": "'{a0}' seferinde stop_times satır sırası bozuk: stop_sequence {seq} olan '{a1}' durağı, daha büyük stop_sequence {last} olan '{a2}' durağından sonra yazılmış. Satırlar artan stop_sequence sırasında olmalı.",
-      "The stop_times rows of trip '{a0}' do not increase: stop '{a1}' carries the SAME stop_sequence ({seq}) as the previous stop '{a2}'. Values must increase along the trip.": "'{a0}' seferinde stop_times satır sırası artmıyor: '{a1}' durağı da bir önceki '{a2}' durağıyla AYNI stop_sequence ({seq}) değerini taşıyor. Değerler sefer boyunca artmalıdır."
+      "The stop_times rows of trip '{a0}' do not increase: stop '{a1}' carries the SAME stop_sequence ({seq}) as the previous stop '{a2}'. Values must increase along the trip.": "'{a0}' seferinde stop_times satır sırası artmıyor: '{a1}' durağı da bir önceki '{a2}' durağıyla AYNI stop_sequence ({seq}) değerini taşıyor. Değerler sefer boyunca artmalıdır.",
+      "The stop_times rows of trip '{trip_id}' are scattered in the file (not grouped by trip_id); they spread over {lo}–{hi}.": "'{trip_id}' seferinin stop_times satırları dosyada dağınık (trip_id'ye göre gruplu değil); {lo}–{hi} arasına yayılmış."
     },
     "STM_037": {
       "arrival_time/departure_time are forbidden for trip_id '{a0}' while a Flex window is set.": "trip_id '{a0}' Flex penceresi tanımlı iken arrival_time/departure_time yasaktır."
@@ -1599,6 +1960,15 @@
     },
     "STM_042": {
       "stop_headsign '{a0}' contains a character Google Transit does not support: '{bad}'.": "stop_headsign '{a0}' Google Transit tarafından desteklenmeyen karakter içeriyor: '{bad}'."
+    },
+    "STM_043": {
+      "Trip '{trip_id}'{f_dep_suffix} has {count} stops — a possible data merge error.": "'{trip_id}'{f_dep_suffix} seferinde {count} durak var — olası veri birleştirme hatası."
+    },
+    "STM_044": {
+      "stop_times.txt has {total_st} rows — a serious memory/performance risk for WASM consumers.": "stop_times.txt'de {total_st} satır var — WASM tüketicileri için ciddi bellek/performans riski."
+    },
+    "STM_045": {
+      "Trip '{trip_id}' has a departure time of {h}:{m}:{s} — it exceeds the service day window ({max_dep_h} hours).": "'{trip_id}' seferinde {h}:{m}:{s} kalkış saati — servis günü penceresini ({max_dep_h} saat) aşıyor."
     },
     "STM_047": {
       "The row of trip_id '{trip}' has timepoint=1 (exact time point) but arrival_time and departure_time are missing.": "trip_id '{trip}' satırında timepoint=1 (kesin zaman noktası) ama arrival_time ve departure_time eksik.",
@@ -1622,6 +1992,9 @@
       "drop_off_type=0 is forbidden for trip_id '{trip}' while a Flex window is set.": "trip_id '{trip}' Flex penceresi tanımlı iken drop_off_type=0 yasaktır.",
       "drop_off_type=0 is forbidden for trip_id '{trip}' while a Flex window is set. The field is empty; the spec counts an empty value as 0.": "trip_id '{trip}' Flex penceresi tanımlı iken drop_off_type=0 yasaktır. Alan boş bırakılmış; spec boş değeri 0 sayar."
     },
+    "STM_053": {
+      "In route_id '{route}', {affected_trips} trips use the same time value at consecutive stops (longest run: {max_same_run}; example: '{example_trip}').": "route_id '{route}' içinde {affected_trips} seferde ardışık duraklar aynı zaman değerini kullanıyor (en uzun seri: {max_same_run}; örnek: '{example_trip}')."
+    },
     "STM_054": {
       "continuous_pickup={cp} is forbidden for trip_id '{trip_id}' while a Flex window is set.": "trip_id '{trip_id}' Flex penceresi tanımlı iken continuous_pickup={cp} yasaktır."
     },
@@ -1634,6 +2007,10 @@
       "In {n} stop_times rows, shape_dist_traveled of the next stop_sequence in the same trip is less than or equal to the previous stop. The value must increase along stop_sequence. First 3 examples: {t1} (line {l1}: {o1}, expected {e1}); {t2} (line {l2}: {o2}, expected {e2}); {t3} (line {l3}: {o3}, expected {e3}).": "{n} stop_times satırında aynı trip içinde sonraki stop_sequence'ın shape_dist_traveled değeri önceki duraktan küçük veya eşit. Bu değer stop_sequence boyunca artmalıdır. İlk örnekler: {t1} (satır {l1}: {o1}, beklenen {e1}); {t2} (satır {l2}: {o2}, beklenen {e2}); {t3} (satır {l3}: {o3}, beklenen {e3}).",
       "In {n} stop_times rows, shape_dist_traveled of the next stop_sequence in the same trip is less than or equal to the previous stop. The value must increase along stop_sequence. First example: {t1} (line {l1}: {o1}, expected {e1}).": "{n} stop_times satırında aynı trip içinde sonraki stop_sequence'ın shape_dist_traveled değeri önceki duraktan küçük veya eşit. Bu değer stop_sequence boyunca artmalıdır. İlk örnekler: {t1} (satır {l1}: {o1}, beklenen {e1}).",
       "On trip '{a0}' the shape distance does not increase at stop #{a1}: previous stop #{a2} has {a3}, this stop has {a4}. The cumulative distance from the shape start must increase.": "'{a0}' seferinde {a1}. durakta güzergâh mesafesi artmıyor: önceki {a2}. durakta {a3}, bu durakta {a4}. Güzergâh başlangıcından itibaren kümülatif mesafe artmalıdır."
+    },
+    "STM_061": {
+      "Route '{route_label}' direction {dir}, trip '{a0}': between stop_sequence {seq_a} and {seq_b} it covers the {dist_km} km measured stop by stop at {speed_max} km/h (threshold {threshold} km/h) — the stops are not consecutive; the segments between may each look plausible, but the whole is impossible.": "'{route_label}' kodlu hattın {dir} yönünde '{a0}' seferi: stop_sequence {seq_a} ile {seq_b} arası {dist_km} km durak durak ölçülen mesafeyi {speed_max} km/h ile kapatıyor (eşik {threshold} km/h) — duraklar ardışık değil, ara segmentler tek tek makul görünse de bütün imkânsız.",
+      "Route '{route_label}' direction {dir}: between stop_sequence {seq_a} and {seq_b} the {dist_km} km measured stop by stop is covered at an impossible speed on {n_trips} trips — {speed_min}-{speed_max} km/h, threshold {threshold} km/h. One stop pair, one root cause: trips are not listed one by one.": "'{route_label}' kodlu hattın {dir} yönünde stop_sequence {seq_a} ile {seq_b} arası {dist_km} km durak durak ölçülen mesafe {n_trips} seferde imkânsız hızla kapatılıyor — {speed_min}-{speed_max} km/h, eşik {threshold} km/h. Tek durak çifti, tek kök neden: seferler ayrı ayrı listelenmez."
     },
     "STP_003": {
       "A stop name (stop_name) is required for stop '{a0}'.": "'{a0}' durağı için durak adı (stop_name) zorunludur.",
@@ -1654,8 +2031,17 @@
     "STP_014": {
       "stop_timezone '{tz}' is not a valid IANA time zone.": "stop_timezone '{tz}' geçerli bir IANA saat dilimi değil."
     },
+    "STP_016": {
+      "'{a0}' (code: '{a1}') and '{a2}' (code: '{a3}') are at exactly the same coordinate ({la_i}, {lo_i}).": "'{a0}' (kod: '{a1}') ve '{a2}' (kod: '{a3}') tam olarak aynı koordinatta ({la_i}, {lo_i})."
+    },
+    "STP_017": {
+      "'{a0}' (code: '{a1}') and '{a2}' (code: '{a3}') are {dist_m}m apart — threshold {a4}m.": "'{a0}' (kod: '{a1}') ile '{a2}' (kod: '{a3}') arası {dist_m}m — eşik {a4}m."
+    },
     "STP_019": {
       "Stop '{a0}' has a stop_name of {a1} characters; it exceeds 100 characters.": "'{a0}' durağının stop_name değeri {a1} karakter; 100 karakteri aşıyor."
+    },
+    "STP_020": {
+      "Stop '{a0}' (code: '{a1}') is not used by any trip.": "'{a0}' durağı (kod: '{a1}') hiçbir seferde kullanılmıyor."
     },
     "STP_022": {
       "Stop '{a0}' has no stop_code.": "'{a0}' durağında stop_code eksik.",
@@ -1671,6 +2057,12 @@
     "STP_028": {
       "Stop '{a0}' has a stop_code of {a1} characters; it exceeds 50 characters.": "'{a0}' durağının stop_code değeri {a1} karakter; 50 karakteri aşıyor."
     },
+    "STP_029": {
+      "Stop with code '{a0}' ('{a1}') is {dist_m}m from its parent station ({a2}) (threshold: {threshold_m}m).": "'{a0}' kodlu '{a1}' durağı üst istasyonundan ({a2}) {dist_m}m uzakta (eşik: {threshold_m}m)."
+    },
+    "STP_030": {
+      "Station with code '{a0}' ('{a1}') has no platform — no stop (location_type=0) uses it as parent_station; only entrance/node records may be linked.": "'{a0}' kodlu '{a1}' istasyonunun hiç peronu yok — hiçbir durak (location_type=0) onu parent_station olarak kullanmıyor; yalnız giriş/düğüm kayıtları bağlı olabilir."
+    },
     "STP_031": {
       "Stop '{a0}' has the same stop_name and stop_desc: '{a1}'.": "'{a0}' durağının stop_name ve stop_desc değerleri aynı: '{a1}'."
     },
@@ -1678,8 +2070,26 @@
       "Stop '{a0}' has no zone_id; fare calculations may be affected.": "'{a0}' durağında zone_id eksik; ücret hesaplamaları etkilenebilir.",
       "zone_id is missing on {n33} stops — zone-based fare calculations may be affected.": "{n33} durakta zone_id eksik — ücret bölgesi tabanlı hesaplamalar etkilenebilir."
     },
+    "STP_034": {
+      "The stop_url of stop '{a0}' is the same as a {f_message_name} URL; {count} stops use the same URL: '{raw_url}'.": "'{a0}' durağının stop_url değeri bir {f_message_name} URL'siyle aynı; {count} durak aynı URL'yi kullanıyor: '{raw_url}'."
+    },
+    "STP_035": {
+      "The stop_url of stop '{a0}' is the same as a {f_message_name} URL; {count} stops use the same URL: '{raw_url}'.": "'{a0}' durağının stop_url değeri bir {f_message_name} URL'siyle aynı; {count} durak aynı URL'yi kullanıyor: '{raw_url}'."
+    },
+    "STP_037": {
+      "wheelchair_boarding information is missing on {unset} of {total} physical stops ({a0}%).": "{total} fiziksel durağın {unset} tanesinde wheelchair_boarding bilgisi eksik ({a0}%)."
+    },
+    "STP_038": {
+      "None of the {total} physical stops has wheelchair_boarding information.": "{total} fiziksel durağın hiçbirinde wheelchair_boarding bilgisi girilmemiş."
+    },
     "STP_039": {
       "stop_code '{code}' is used by both stop '{first_stop}' and stop '{stop_id}'.": "stop_code '{code}' hem '{first_stop}' hem '{stop_id}' duraklarında kullanılıyor."
+    },
+    "STP_040": {
+      "The name of stop_id '{a0}' contains an unnecessary generic word 'stop/station': '{a1}'.": "stop_id '{a0}' adı gereksiz genel 'stop/station' sözcüğü içeriyor: '{a1}'."
+    },
+    "STP_041": {
+      "The name of child stop '{a0}' does not contain the parent station name '{a1}'.": "Alt durak '{a0}' adı üst istasyon '{a1}' adını içermiyor."
     },
     "STP_044": {
       "platform_code '{pc}' contains an unnecessary platform/track word; it should be the identifier only.": "platform_code '{pc}' gereksiz platform/track sözcüğü içeriyor; yalnız tanımlayıcı olmalı."
@@ -1699,6 +2109,15 @@
     "TRF_004": {
       "transfer_type '{v}' is invalid.": "transfer_type '{v}' geçersiz."
     },
+    "TRF_011": {
+      "The transfer '{from}' → '{to}' is {dist_m}m apart — it exceeds the {a0}m walking distance threshold.{f_a1}": "'{from}' → '{to}' aktarması {dist_m}m uzaklıkta — yürüyüş mesafesi {a0}m eşiğini aşıyor.{f_a1}"
+    },
+    "TRF_022": {
+      "Trip '{trip}' continues to more than one trip but the calendars of the following trips conflict: '{ta}' → {sa}, '{tb}' → {sb}; both are active on {day}.": "'{trip}' seferi birden çok sefere bağlanıyor ama devam seferlerinin takvimleri çelişiyor: '{ta}' → {sa}, '{tb}' → {sb}; ikisi de {day} günü aktif."
+    },
+    "TRF_023": {
+      "More than one trip continues into trip '{trip}' but the calendars of the incoming trips conflict: '{ta}' → {sa}, '{tb}' → {sb}; both are active on {day}.": "'{trip}' seferine birden çok sefer bağlanıyor ama gelen seferlerin takvimleri çelişiyor: '{ta}' → {sa}, '{tb}' → {sb}; ikisi de {day} günü aktif."
+    },
     "TRP_005": {
       "direction_id '{dir_raw}' is invalid; it must be 0 or 1.": "direction_id '{dir_raw}' geçersiz; 0 veya 1 olmalıdır.",
       "direction_id {val} is invalid; it must be 0 or 1.": "direction_id {val} geçersiz; 0 veya 1 olmalıdır."
@@ -1709,19 +2128,71 @@
     "TRP_007": {
       "bikes_allowed '{a0}' cannot be read as a number.": "bikes_allowed '{a0}' sayı olarak okunamıyor."
     },
+    "TRP_011": {
+      "Route '{a0}' trip{f_dep} has no direction name (trip_headsign) or short name — no rider information.": "'{a0}' hattının{f_dep} seferinde yön adı (trip_headsign) ve kısa ad girilmemiş — yolcu bilgisi yok."
+    },
+    "TRP_012": {
+      "{count} trips of route '{label}' have no direction information (direction_id) — the route runs both ways.": "'{label}' kodlu hattın {count} seferinde yön bilgisi (direction_id) girilmemiş — hat çift yönlü."
+    },
+    "TRP_013": {
+      "Route '{rname}' has only 1 trip — a low frequency signal.": "'{rname}' hattında yalnızca 1 sefer var — düşük frekans sinyali."
+    },
     "TRP_014": {
       "trip_short_name is {a0} characters; it should not exceed 20.": "trip_short_name {a0} karakter; 20'yi aşmamalıdır."
+    },
+    "TRP_015": {
+      "Each of the {trips_with_block} trips with a block_id is alone in its block — none of the {a0} block codes groups two trips; the field is in effect a copy of trip_id.": "block_id taşıyan {trips_with_block} seferin her biri kendi bloğunda tek — {a0} blok kodunun hiçbiri iki seferi gruplamıyor, alan fiilen trip_id kopyası."
+    },
+    "TRP_020": {
+      "Route '{a0}' trip{f_dep} has direction name '{a1}' that matches an intermediate stop, not the terminal.": "'{a0}' hattının{f_dep} seferinde yön adı '{a1}' terminal durak değil, ara durak adıyla eşleşiyor."
     },
     "TRP_021": {
       "No trip in this feed has bike information: bikes_allowed is empty or 0 ({n} trips).": "Bu feed'de hiçbir seferde bisiklet bilgisi yok: bikes_allowed boş veya 0 ({n} sefer).",
       "{missing} of {total} trips have no bike information: bikes_allowed is empty or 0 ({pct}%).": "{total} seferin {missing} tanesinde bisiklet bilgisi yok: bikes_allowed boş veya 0 ({pct}%).",
       "{missing} of {total} trips have no bike information: bikes_allowed is empty or 0 ({pct}%). Example trips: {ex}.": "{total} seferin {missing} tanesinde bisiklet bilgisi yok: bikes_allowed boş veya 0 ({pct}%). Örnek seferler: {ex}."
     },
+    "TRP_022": {
+      "Within block_id '{block_id}', the times of trips '{tid_a}' and '{tid_b}' overlap.": "block_id '{block_id}' içinde '{tid_a}' ve '{tid_b}' seferlerinin saatleri çakışıyor."
+    },
+    "TRP_024": {
+      "Different route types within block_id '{bid}': '{first_trip}' type-{first_type} and '{a0}' type-{a1}.": "block_id '{bid}' içinde farklı rota tipleri: '{first_trip}' tip-{first_type} ve '{a0}' tip-{a1}.",
+      "Different route types within block_id '{bid}': '{first_trip}' type-{first_type}, plus type-{a0} on {n} trips. One block, one root cause: trips are not listed one by one.": "block_id '{bid}' içinde farklı rota tipleri: '{first_trip}' tip-{first_type}, ayrıca {n} seferde tip-{a0}. Tek blok, tek kök neden: seferler ayrı ayrı listelenmez."
+    },
+    "TRP_025": {
+      "wheelchair_accessible is missing or unknown (0) on {a0}% of trips — accessibility data is insufficient.": "Seferlerin %{a0}'ında wheelchair_accessible bilgisi eksik veya bilinmiyor (0) — erişilebilirlik verisi yetersiz."
+    },
+    "TRP_026": {
+      "service_id '{a0}' has no valid service date; trip '{a1}' will never run.": "service_id '{a0}' için geçerli hizmet tarihi yok; '{a1}' seferi hiçbir zaman çalışmayacak."
+    },
+    "TRP_029": {
+      "None of the {total} trips has wheelchair_accessible information.": "{total} seferin hiçbirinde wheelchair_accessible bilgisi girilmemiş."
+    },
     "TRP_032": {
       "cars_allowed '{a0}' cannot be read as a number.": "cars_allowed '{a0}' sayı olarak okunamıyor."
     },
     "TRP_034": {
       "{field} '{raw}' cannot be read as a decimal number.": "{field} '{raw}' ondalık sayı olarak okunamıyor."
+    },
+    "VAT_001": {
+      "Routes {a0} and {a1} share {a2}% of their stops — probably a duplicate route.": "{a0} ve {a1} hatları %{a2} oranda aynı durağı paylaşıyor — muhtemel kopya hat."
+    },
+    "VAT_002": {
+      "{a0} routes pass stop '{name}' (code: '{stop_id}') ({routes_label_str}); no transfer is defined in transfers.txt.": "'{name}' (kod: '{stop_id}') durağından {a0} hat geçiyor ({routes_label_str}); transfers.txt'te aktarma tanımlı değil."
+    },
+    "VAT_003": {
+      "Trip '{trip_id}'{f_dep_suffix} of route '{label}' takes {dur_min} min — about {ref_min} min is expected at this hour ({f_sigma_str}).{f_repeat_suffix}": "'{label}' hattının '{trip_id}'{f_dep_suffix} seferinin süresi {dur_min}dk — bu saatte beklenen ~{ref_min}dk ({f_sigma_str}).{f_repeat_suffix}"
+    },
+    "VAT_005": {
+      "The network graph has {comp_count} isolated stop clusters ({isolated_count} stops) cut off from the main network (the largest stop cluster linked by trips) — these stops are linked by trips among themselves but no trip links them to the main network. Example: '{ex_name}' ('{example}').": "Ağ grafında ana şebekeden (seferlerle bağlı en büyük durak kümesi) kopuk {comp_count} izole durak kümesi var ({isolated_count} durak) — bu duraklar kendi aralarında seferlerle bağlı ama ana şebekeye hiçbir seferle bağlanmıyor. Örnek: '{ex_name}' ('{example}')."
+    },
+    "VAT_006": {
+      "Route '{label}' makes up {count} of the {total_trips} trips in the feed ({a0}%) — unbalanced service density.": "'{label}' hattı feed'deki {total_trips} seferin {count}'ini (%{a0}) oluşturuyor — hizmet yoğunluğu dengesiz."
+    },
+    "VAT_007": {
+      "Stop '{name}' (code: '{stop_id}') is the terminal of {a0} routes; no transfer is defined in transfers.txt. Routes: {a1}.": "'{name}' (kod: '{stop_id}') {a0} hattın terminal durağı; transfers.txt'te aktarma tanımlı değil. Hatlar: {a1}."
+    },
+    "VAT_008": {
+      "Shape '{shape_id}' is used by {a0} routes ({pct}%) — a possibly wrong shape assignment.": "'{shape_id}' shape'i {a0} hatta ({pct}%) kullanılıyor — olası yanlış shape ataması."
     }
   },
   "remediation_templates": {
@@ -1731,6 +2202,33 @@
     "PTH_005": {
       "Use one of these values for {field}: {allowed}.": "{field} için şu değerlerden birini kullanın: {allowed}."
     }
+  },
+  "fragment_templates": {
+    " (inbound)": " dönüş yönü",
+    " (outbound)": " gidiş yönü",
+    " Of these, {n} have exception_type written as both 1 and 2 — that day's service is undefined.": " Bunların {n}'inde exception_type hem 1 hem 2 yazılmış — o günün servisi tanımsız.",
+    " The same crossing repeats in {n} shapes (switch/station approach).": " Aynı kesişme {n} güzergah şeklinde tekrarlanıyor (makas/istasyon yaklaşması).",
+    " The same position repeats in {n} shapes (station/switch geometry).": " Aynı konum {n} güzergah şeklinde tekrarlanıyor (istasyon/makas geometrisi).",
+    " The same timetable repeats in {n} trip records.": " Aynı tarife {n} sefer kaydında tekrarlanıyor.",
+    " This pair repeats in {n} transfer rows.": " Bu çift {n} aktarma satırında tekrarlanıyor.",
+    " departing {t}": " {t} kalkışlı",
+    ", e.g. the trip departing {t}": ", örn. {t} kalkışlı sefer",
+    "Route [{l}]: ": "[{l}] kodlu hatta ait ",
+    "Routes [{l}]: ": "[{l}] kodlu hatlara ait ",
+    "agency": "acente",
+    "from shape '{s}'": "'{s}' no'lu güzergahtan",
+    "from the shape of route '{r}'{f_dir}": "'{r}' hattının{f_dir} güzergahından",
+    "in service '{s}'": "'{s}' servisinde",
+    "in {n} services: {l}": "{n} serviste: {l}",
+    "inbound": "dönüş",
+    "outbound": "gidiş",
+    "route": "hat",
+    "unusually dense": "sıradışı sık",
+    "unusually sparse": "sıradışı seyrek",
+    "{d} min, longer than expected": "{d}dk, beklenenden uzun",
+    "{d} min, shorter than expected": "{d}dk, beklenenden kısa",
+    "{z}σ, longer than expected": "{z}σ, beklenenden uzun",
+    "{z}σ, shorter than expected": "{z}σ, beklenenden kısa"
   },
   "titles": {
     "ARC_001": "ZIP arşivi açılamadı",

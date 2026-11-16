@@ -40,6 +40,27 @@ describe('message template matcher', () => {
     }
   });
 
+  it('translates fragment holes through the fragment dictionary', () => {
+    // STM_043: "Trip '{trip_id}'{f_dep_suffix} has {count} stops — …" with the shared fragment
+    // " departing {t}" → " {t} kalkışlı"; an empty fragment stays empty.
+    const withDep = tMsgForLocale('tr', {
+      rule_id: 'STM_043',
+      message: "Trip 'T1' departing 08:15 has 60 stops — a possible data merge error.",
+    });
+    expect(withDep).toBe("'T1' 08:15 kalkışlı seferinde 60 durak var — olası veri birleştirme hatası.");
+    const withoutDep = tMsgForLocale('tr', {
+      rule_id: 'STM_043',
+      message: "Trip 'T1' has 60 stops — a possible data merge error.",
+    });
+    expect(withoutDep).toBe("'T1' seferinde 60 durak var — olası veri birleştirme hatası.");
+    // A fragment inside a fragment: GEO_009's reference "from the shape of route 'R'{f_dir}".
+    const nested = tMsgForLocale('tr', {
+      rule_id: 'GEO_009',
+      message: "Stop with code 'S1' ('Main') is 120.0m away from the shape of route 'R1' (outbound) (threshold: 100m).",
+    });
+    expect(nested).toBe("'S1' kodlu 'Main' durağı 'R1' hattının gidiş yönü güzergahından 120.0m uzakta (eşik: 100m).");
+  });
+
   it('keeps an unmatched engine message as it is', () => {
     expect(tMsgForLocale('tr', { rule_id: 'NOPE_999', message: 'whatever 42' })).toBe('whatever 42');
   });
