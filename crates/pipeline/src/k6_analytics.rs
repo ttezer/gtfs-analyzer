@@ -12857,7 +12857,7 @@ fn check_calendar_override_analytics(
                     Some(route_id.to_string()), Some(route_id.to_string()),
                     "trips.txt", None, None, None, None,
                     format!("'{label}' kodlu hattın aktif servislerinde hafta sonu (Cumartesi/Pazar) günü yok."),
-                    "Bu bilgi notudur; aksiyon gerekmez.",
+                    "Informational notice; no action required.",
                 );
                 // The en/ja/fr templates are filled with `{route_label}`.
                 let details = notice.details.get_or_insert_with(Default::default);

@@ -249,6 +249,7 @@
     "NET_004": "Her ağa benzersiz bir network_id verin.",
     "OPR_001": "Pik/saatdışı sefer sayısını artırın ya da büyük boşlukları kapatın.",
     "OPR_003": "Sefer programını düzenleyin; çok sık gelen seferler sıkışmaya yol açabilir.",
+    "OPR_004": "Bu bilgi notudur; aksiyon gerekmez.",
     "OPR_005": "Bu bilgi notu; sefer sıklığı aynı tür hatlara göre sıradışı.",
     "OPR_006": "En az 2 durak içeren bir sefer tanımlayın.",
     "OPR_007": "Bu rota deseni bilinçliyse işlem gerekmez; değilse stop_times.txt durak sırasını doğrulayın.",
@@ -708,6 +709,10 @@
     },
     "JPN_030": {
       "Add the matching language=ja translation row.": "translations.txt'e bu kaynak değeri kapsayan language=ja çevirisini ekleyin."
+    },
+    "JPN_033": {
+      "Rename the custom field so it does not use the GTFS-JP reserved prefix.": "Özel alanı GTFS-JP'ye ayrılmış öneki kullanmayacak şekilde yeniden adlandırın.",
+      "Rename the custom file so it does not use the GTFS-JP reserved suffix.": "Özel dosyayı GTFS-JP'ye ayrılmış soneki kullanmayacak şekilde yeniden adlandırın."
     },
     "LOC_001": {
       "Define a Polygon or MultiPolygon geometry for every feature.": "Her feature için Polygon veya MultiPolygon geometrisi tanımlayın.",
