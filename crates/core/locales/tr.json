@@ -1397,6 +1397,9 @@
     "AGN_007": {
       "agency_phone '{phone}' is not in a valid phone number format.": "agency_phone '{phone}' geçerli bir telefon numarası formatında değil."
     },
+    "AGN_010": {
+      "agency_id '{aid}' repeats (first seen: line {prev_line}).": "agency_id '{aid}' tekrarlanıyor (ilk görünüm: satır {prev_line})."
+    },
     "AGN_011": {
       "The feed has {a0} agencies; {fares_without_agency} fare records have no agency_id — it cannot be told whose fare they are.": "Feed'de {a0} işletici var; {fares_without_agency} ücret kaydında agency_id belirtilmemiş — hangi işleticinin ücreti olduğu belirlenemiyor.",
       "The feed has {a0} agencies; {routes_without_agency} routes have no agency_id — it cannot be told which agency runs them.": "Feed'de {a0} işletici var; {routes_without_agency} hatta agency_id belirtilmemiş — hangi işleticinin çalıştırdığı belirlenemiyor."
@@ -1518,6 +1521,9 @@
     "ARC_037": {
       "'{file_name}' has non-ASCII characters in an ID field on {a0} rows (e.g. {col}='{value}'); affected columns: {cols}.": "'{file_name}' dosyasında {a0} satırda ID alanı ASCII dışı karakter içeriyor (ör. {col}='{value}'); etkilenen sütunlar: {cols}."
     },
+    "ARS_001": {
+      "Area code '{a0}' repeats (first seen: line {prev_line}).": "'{a0}' alan kodu tekrarlanıyor (ilk görünüm: satır {prev_line})."
+    },
     "ARS_002": {
       "area_id is required in areas.txt.": "areas.txt'te area_id zorunludur."
     },
@@ -1572,6 +1578,9 @@
     },
     "BKR_025": {
       "{field} '{a0}' is not a valid GTFS time.": "{field} '{a0}' geçerli bir GTFS saati değil."
+    },
+    "CAL_001": {
+      "Calendar code '{a0}' repeats (first seen: line {prev_line}).": "'{a0}' takvim kodu tekrarlanıyor (ilk görünüm: satır {prev_line})."
     },
     "CAL_005": {
       "end_date ({ed}) is before start_date ({sd}).": "end_date ({ed}), start_date ({sd}) tarihinden önce."
@@ -1713,6 +1722,9 @@
     "DQ_022": {
       "{most_count}/{total_named} stops are named '{most_common_name}' — it may be placeholder or test data.": "Durakların {most_count}/{total_named} tanesinin adı '{most_common_name}' — yer tutucu veya test verisi olabilir."
     },
+    "FAR_001": {
+      "Fare '{a0}' repeats (first seen: line {prev_line}).": "'{a0}' ücret tarifesi tekrarlanıyor (ilk görünüm: satır {prev_line})."
+    },
     "FAR_008": {
       "Agency code '{a0}' is not defined in agency.txt.": "'{a0}' işletici kodu agency.txt'te tanımlı değil."
     },
@@ -1727,6 +1739,8 @@
     "FATAL": {
       "'{file}' could not be read: {e}": "'{file}' okunamadı: {e}",
       "'{file}' exceeded the decompression guard: {f_trip}": "'{file}' sıkıştırma koruması sınırını aştı: {f_trip}",
+      "Config parse error: {detail}": "Config ayrıştırma hatası: {detail}",
+      "Invalid 'today' value: {today} (expected YYYYMMDD, e.g. 20260716)": "Geçersiz 'today' değeri: {today} (beklenen YYYYMMDD, ör. 20260716)",
       "The ZIP archive could not be opened (no diagnosis): {e}": "ZIP arşivi açılamadı: {e}",
       "The ZIP archive could not be opened: {f_text}. Library error: {e}": "ZIP arşivi açılamadı: {f_text}. Kütüphane hatası: {e}",
       "The ZIP central directory exceeds the {n}-byte metadata limit.": "ZIP merkezi dizini {n} bayt metadata sınırını aşıyor.",
@@ -1793,6 +1807,9 @@
       "Stop '{value}' is not defined in stops.txt.": "'{value}' durağı stops.txt'te tanımlı değil.",
       "{field} is also required when {other_field} is set.": "{other_field} tanımlıyken {field} da zorunludur."
     },
+    "FMD_001": {
+      "Fare media '{a0}' repeats (first seen: line {prev_line}).": "'{a0}' ödeme aracı tekrarlanıyor (ilk görünüm: satır {prev_line})."
+    },
     "FMD_002": {
       "fare_media_type is required.": "fare_media_type zorunludur."
     },
@@ -1803,6 +1820,9 @@
     },
     "FMD_004": {
       "fare_media_id is required.": "fare_media_id zorunludur."
+    },
+    "FPD_001": {
+      "Fare product '{a0}' repeats with the same (rider_category_id, fare_media_id) combination (first seen: line {prev_line}).": "'{a0}' ücret ürünü aynı (rider_category_id, fare_media_id) kombinasyonuyla tekrarlanıyor (ilk görünüm: satır {prev_line})."
     },
     "FPD_002": {
       "amount is required.": "amount zorunludur."
@@ -2050,6 +2070,9 @@
       "The 'features' array of '{fname}' is missing or invalid.": "'{fname}' için 'features' dizisi eksik veya geçersiz.",
       "The root type of '{fname}' must be 'FeatureCollection'; found: '{f_a0}'.": "'{fname}' kök tipi 'FeatureCollection' olmalıdır; bulundu: '{f_a0}'."
     },
+    "LVL_001": {
+      "level_id '{lid}' repeats (first seen: line {prev_line}).": "level_id '{lid}' tekrarlanıyor (ilk görünüm: satır {prev_line})."
+    },
     "LVL_004": {
       "level_id '{a0}' is not referenced by any stop.": "level_id '{a0}' hiçbir durak tarafından referans edilmiyor."
     },
@@ -2058,6 +2081,9 @@
     },
     "LVL_006": {
       "stop_id '{stop_id}' is linked to an elevator pathway but has no level_id.": "stop_id '{stop_id}' bir asansör pathway'ine bağlı ancak level_id tanımlı değil."
+    },
+    "NET_001": {
+      "Network code '{a0}' repeats.": "'{a0}' ağ kodu tekrarlanıyor."
     },
     "NET_002": {
       "Network code '{a0}' is not defined in networks.txt.": "'{a0}' ağ kodu networks.txt'te tanımlı değil."
@@ -2138,6 +2164,9 @@
     "PDW_006": {
       "trip_id '{a0}' has overlapping pickup/drop-off windows with the same boarding/alighting role in zone '{a1}'.": "trip_id '{a0}' için zone '{a1}' içinde aynı biniş/iniş rolüyle örtüşen pickup/drop-off pencereleri var."
     },
+    "PTH_001": {
+      "pathway_id '{pid}' repeats (first seen: line {prev_line}).": "pathway_id '{pid}' tekrarlanıyor (ilk görünüm: satır {prev_line})."
+    },
     "PTH_002": {
       "{field} '{stop_id}' is not defined in stops.txt.": "{field} '{stop_id}' stops.txt'te tanımlı değil."
     },
@@ -2188,6 +2217,9 @@
     "PTH_031": {
       "{field} '{stop_id}' is marked stop_access=1 (reached directly from the street); such a stop cannot be a pathway endpoint.": "{field} '{stop_id}' stop_access=1 ile işaretli (sokaktan doğrudan erişilir); böyle bir durak pathway uç noktası olamaz."
     },
+    "RCT_001": {
+      "Rider category '{a0}' repeats.": "'{a0}' yolcu kategorisi tekrarlanıyor."
+    },
     "RCT_005": {
       "max_age ({mx}) cannot be less than min_age ({mn}).": "max_age ({mx}) min_age ({mn}) değerinden küçük olamaz."
     },
@@ -2199,6 +2231,9 @@
     },
     "RCT_008": {
       "rider_category_id is required.": "rider_category_id zorunludur."
+    },
+    "RTS_001": {
+      "Route '{a0}' repeats (first seen: line {prev_line}).": "'{a0}' hattı tekrarlanıyor (ilk görünüm: satır {prev_line})."
     },
     "RTS_002": {
       "Agency code '{a0}' is not defined in agency.txt.": "'{a0}' işletici kodu agency.txt'te tanımlı değil."
@@ -2281,7 +2316,11 @@
       "shape_pt_sequence '{seq_raw}' is invalid.": "shape_pt_sequence '{seq_raw}' geçersiz."
     },
     "SHP_005": {
+      "For shape_id '{shape_id}', shape_dist_traveled decreases along shape_pt_sequence: {prev} → {d}.": "shape_id '{shape_id}' için shape_dist_traveled shape_pt_sequence ile azalıyor: {prev} → {d}.",
       "In shapes.txt, shape_dist_traveled decreases in {affected_shapes} shapes.": "shapes.txt içinde {affected_shapes} shape için shape_dist_traveled azalıyor."
+    },
+    "SHP_006": {
+      "Shape '{a0}' has only 1 point; at least 2 points are needed.": "'{a0}' güzergah şekli yalnızca 1 noktadan oluşuyor; en az 2 nokta gerekir."
     },
     "SHP_008": {
       "shape_pt_sequence {seq} is repeated for shape_id '{shape_id}'.": "shape_id '{shape_id}' için shape_pt_sequence {seq} yineleniyor."
@@ -2289,6 +2328,10 @@
     "SHP_009": {
       "{f_prefix}Shape '{shape_id}' crosses itself between segment {i}→{a0} and segment {j}→{a1}.{f_repeat_suffix}": "{f_prefix}'{shape_id}' güzergah şekli segment {i}→{a0} ile segment {j}→{a1} arasında kendisiyle kesişiyor.{f_repeat_suffix}",
       "{n09} shapes cross themselves — most are near-segment micro-crossings in junction/stop geometry.": "{n09} güzergah şekli kendisiyle kesişiyor — çoğu kavşak/durak geometrisindeki yakın-segment mikro-kesişmedir."
+    },
+    "SHP_010": {
+      "shape_id '{shape_id}' has consecutive identical coordinates between rows {a0} and {a1}.": "shape_id '{shape_id}' satır {a0} ile {a1} arasında ardışık özdeş koordinat.",
+      "{n10} shapes have consecutive identical coordinates — repeated shape points.": "{n10} güzergah şeklinde ardışık özdeş koordinat var — tekrarlanan güzergah noktaları."
     },
     "SHP_012": {
       "Shape '{shape_id}' is >{shp_stop_threshold_m}m away from {viol_count} stops — the shape may be drawn wrong.": "'{shape_id}' güzergah şekli {viol_count} duraktan >{shp_stop_threshold_m}m uzakta — güzergah doğru çizilmemiş olabilir."
@@ -2305,6 +2348,9 @@
     },
     "SHP_017": {
       "Route '{a0}' trip{dep_infix}: stop '{a1}' (code: '{a2}') at sequence {a3} is out of order on the shape — its distance from the start is behind the previous stop ({a4}m < {a5}m).": "'{a0}' hattının{dep_infix} seferinde '{a1}' (kod: '{a2}') {a3}. sıradaki durak güzergah sırası bozuk — başlangıca uzaklığı önceki durağın gerisinde ({a4}m < {a5}m)."
+    },
+    "SHP_018": {
+      "Shape '{a0}' is not referenced by any trip.": "'{a0}' güzergahı hiçbir sefer tarafından referans edilmiyor."
     },
     "SHP_019": {
       "Shape '{a0}' is referenced by {a1} trips but none of these trips has stop_times records.": "'{a0}' güzergah şekli {a1} sefer tarafından referans alınmış ama bu seferlerin hiçbirinde stop_times kaydı yok."
@@ -2502,6 +2548,9 @@
     "STM_061": {
       "Route '{route_label}' direction {dir}, trip '{a0}': between stop_sequence {seq_a} and {seq_b} it covers the {dist_km} km measured stop by stop at {speed_max} km/h (threshold {threshold} km/h) — the stops are not consecutive; the segments between may each look plausible, but the whole is impossible.": "'{route_label}' kodlu hattın {dir} yönünde '{a0}' seferi: stop_sequence {seq_a} ile {seq_b} arası {dist_km} km durak durak ölçülen mesafeyi {speed_max} km/h ile kapatıyor (eşik {threshold} km/h) — duraklar ardışık değil, ara segmentler tek tek makul görünse de bütün imkânsız.",
       "Route '{route_label}' direction {dir}: between stop_sequence {seq_a} and {seq_b} the {dist_km} km measured stop by stop is covered at an impossible speed on {n_trips} trips — {speed_min}-{speed_max} km/h, threshold {threshold} km/h. One stop pair, one root cause: trips are not listed one by one.": "'{route_label}' kodlu hattın {dir} yönünde stop_sequence {seq_a} ile {seq_b} arası {dist_km} km durak durak ölçülen mesafe {n_trips} seferde imkânsız hızla kapatılıyor — {speed_min}-{speed_max} km/h, eşik {threshold} km/h. Tek durak çifti, tek kök neden: seferler ayrı ayrı listelenmez."
+    },
+    "STP_001": {
+      "Stop '{a0}' repeats (first seen: line {prev_line}).": "'{a0}' durağı tekrarlanıyor (ilk görünüm: satır {prev_line})."
     },
     "STP_003": {
       "A stop name (stop_name) is required for stop '{a0}'.": "'{a0}' durağı için durak adı (stop_name) zorunludur.",
@@ -2723,6 +2772,9 @@
     },
     "TRN_016": {
       "The 'field_value' of {total} translation records matches no row of the target file — these translations are not applied. Example: {examples}.": "{total} çeviri kaydının 'field_value' değeri hedef dosyada hiçbir satırla eşleşmiyor — bu çeviriler uygulanmaz. Örnek: {examples}."
+    },
+    "TRP_001": {
+      "Trip code '{a0}' repeats (first seen: line {prev_line}).": "'{a0}' sefer kodu tekrarlanıyor (ilk görünüm: satır {prev_line})."
     },
     "TRP_002": {
       "Route '{a0}' is not defined in routes.txt.": "'{a0}' hattı routes.txt'te tanımlı değil."

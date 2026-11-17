@@ -61,7 +61,7 @@ macro_rules! wasm_warn {
 
 #[wasm_bindgen(start)]
 pub fn wasm_init() {
-    wasm_warn!("[GTFS WASM] binary v6 yüklendi");
+    wasm_warn!("[GTFS WASM] binary v6 loaded");
 }
 
 // With the `threads` feature enabled, exposes `init_thread_pool(n)` to JS; the UI calls
@@ -206,7 +206,7 @@ fn log_zip_ratio_report(entries: &[(String, u64, u64)]) {
             max_u_name = name.clone();
         }
         lines.push(format!(
-            "  {name}: açılmış {:.1} MiB / sıkıştırılmış {:.1} MiB = {:.1}:1",
+            "  {name}: decompressed {:.1} MiB / compressed {:.1} MiB = {:.1}:1",
             mib(*u),
             mib(*c),
             ratio
@@ -218,11 +218,11 @@ fn log_zip_ratio_report(entries: &[(String, u64, u64)]) {
         total_u as f64 / total_c as f64
     };
     let report = format!(
-        "[zip-calib] #46 decompression-guard kalibrasyon (merkezi-dizin, decompress YOK)\n{}\n\
-         — en yuksek oran: {max_ratio_name} = {:.1}:1  -> onerilen max_ratio ~ {} (x3)\n\
-         — en buyuk girdi: {max_u_name} = {:.1} MiB  -> onerilen max_entry ~ {:.0} MiB (x2)\n\
-         — toplam acilmis: {:.1} MiB (feed orani {:.1}:1)  -> onerilen max_total ~ {:.0} MiB (x2, wasm64 zarfi altinda)\n\
-         — MAX_PREALLOC feed'den bagimsiz (64 MiB placeholder makul)",
+        "[zip-calib] #46 decompression-guard calibration (central directory, NO decompression)\n{}\n\
+         — highest ratio: {max_ratio_name} = {:.1}:1  -> suggested max_ratio ~ {} (x3)\n\
+         — largest entry: {max_u_name} = {:.1} MiB  -> suggested max_entry ~ {:.0} MiB (x2)\n\
+         — total decompressed: {:.1} MiB (feed ratio {:.1}:1)  -> suggested max_total ~ {:.0} MiB (x2, within the wasm64 envelope)\n\
+         — MAX_PREALLOC does not depend on the feed (a 64 MiB placeholder is reasonable)",
         lines.join("\n"),
         max_ratio,
         (max_ratio * 3.0).ceil() as u64,
@@ -315,7 +315,7 @@ pub fn validate_with_today(zip_bytes: Vec<u8>, config_delta_json: String, today:
         return fatal_js(
             FatalError::new(
                 FatalCode::InvalidInput,
-                format!("Geçersiz 'today' değeri: {today} (beklenen YYYYMMDD, ör. 20260716)"),
+                format!("Invalid 'today' value: {today} (expected YYYYMMDD, e.g. 20260716)"),
             )
             .variant("today")
             .param("today", today),
@@ -370,7 +370,7 @@ pub fn prepare_with_today(
         return Err(fatal_js(
             FatalError::new(
                 FatalCode::InvalidInput,
-                format!("Geçersiz 'today' değeri: {today} (beklenen YYYYMMDD, ör. 20260716)"),
+                format!("Invalid 'today' value: {today} (expected YYYYMMDD, e.g. 20260716)"),
             )
             .variant("today")
             .param("today", today),
@@ -411,7 +411,7 @@ pub fn rerun_k6_k7_with_today(
         return fatal_js(
             FatalError::new(
                 FatalCode::InvalidInput,
-                format!("Geçersiz 'today' değeri: {today} (beklenen YYYYMMDD, ör. 20260716)"),
+                format!("Invalid 'today' value: {today} (expected YYYYMMDD, e.g. 20260716)"),
             )
             .variant("today")
             .param("today", today),
@@ -856,7 +856,7 @@ fn parse_config(delta_json: &str) -> Result<ValidatorConfig, FatalError> {
         .variant("config_size"));
     }
     let config = merge_delta(&ValidatorConfig::default(), delta_json).map_err(|e| {
-        FatalError::new(FatalCode::InvalidInput, format!("Config parse hatası: {e}"))
+        FatalError::new(FatalCode::InvalidInput, format!("Config parse error: {e}"))
             .variant("config_parse")
             .param("detail", &e)
     })?;

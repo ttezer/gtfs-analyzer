@@ -320,7 +320,7 @@ fn build_shape_geometry(
                     Some("1".to_string()),
                     Some(">= 2".to_string()),
                     format!(
-                        "'{}' güzergah şekli yalnızca 1 noktadan oluşuyor; en az 2 nokta gerekir.",
+                        "Shape '{}' has only 1 point; at least 2 points are needed.",
                         shape_id
                     ),
                     "Add at least one more point to the shape in shapes.txt (minimum 2 total).",
@@ -385,7 +385,7 @@ fn build_shape_geometry(
                             Some(shape_id.clone()), Some(shape_id.clone()),
                             "shapes.txt", Some(pt.line_u64()), Some("shape_dist_traveled"),
                             Some(format!("{d}")), Some(format!("≥ {prev} (previous point)")),
-                            format!("shape_id '{shape_id}' için shape_dist_traveled shape_pt_sequence ile azalıyor: {prev} → {d}."),
+                            format!("For shape_id '{shape_id}', shape_dist_traveled decreases along shape_pt_sequence: {prev} → {d}."),
                             "Write shape_dist_traveled values in ascending order for each shape.",
                         );
                         // Planner context: the point, its order and both distances, and the
@@ -449,7 +449,7 @@ fn build_shape_geometry(
                         Some(format!("({lat},{lon})")),
                         None,
                         format!(
-                            "shape_id '{shape_id}' satır {} ile {} arasında ardışık özdeş koordinat.",
+                            "shape_id '{shape_id}' has consecutive identical coordinates between rows {} and {}.",
                             prev_line, pt.line
                         ),
                         "Remove the repeated shape point.",
@@ -505,7 +505,7 @@ fn build_shape_geometry(
             ctr, "SHP_010", EntityType::Feed, None, None,
             "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
             Some(n10.to_string()), None,
-            format!("{n10} güzergah şeklinde ardışık özdeş koordinat var — tekrarlanan güzergah noktaları."),
+            format!("{n10} shapes have consecutive identical coordinates — repeated shape points."),
             "Remove the repeated shape points in the affected shapes.",
         );
         let mut d = std::collections::BTreeMap::new();
@@ -538,7 +538,7 @@ fn build_shape_geometry(
                 Some(shape_id.clone()),
                 None,
                 format!(
-                    "'{}' güzergahı hiçbir sefer tarafından referans edilmiyor.",
+                    "Shape '{}' is not referenced by any trip.",
                     shape_id
                 ),
                 "Remove the unused shape or assign it to a trip via shape_id in trips.txt.",
