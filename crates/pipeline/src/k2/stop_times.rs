@@ -877,11 +877,11 @@ impl StopTimesIndex {
         let heap_intern_mb = mb(heap_bytes(self.stop_intern.iter()));
 
         crate::timing::mem_note(&format!(
-            "stop_times index canli boyut (len x size_of, high-water DEGIL): \
-             rows len {n} kullanilan {rows_used_mb:.1} MB / kapasite {rows_cap} ayrilan {rows_cap_mb:.1} MB | trip_ranges {nt} ~{tr_mb:.1} | \
+            "stop_times index live size (len x size_of, NOT high-water): \
+             rows len {n} used {rows_used_mb:.1} MB / capacity {rows_cap} allocated {rows_cap_mb:.1} MB | trip_ranges {nt} ~{tr_mb:.1} | \
              trip_id_set {nt} cap({}) ~{tid_mb:.1} | stop_id_set {ns} cap({}) ~{sid_mb:.1} | \
              stop_intern {ni} cap({}) ~{intern_vec_mb:.1} + stop_id_to_idx cap({}) ~{intern_map_mb:.1} | \
-             trip_stop_set dis ~{tss_outer_mb:.1} ic({tss_inner_entries}) ~{tss_inner_mb:.1} | \
+             trip_stop_set outer ~{tss_outer_mb:.1} inner({tss_inner_entries}) ~{tss_inner_mb:.1} | \
              trip_first_line ~{tfl_mb:.1} | stop_first_line ~{sfl_mb:.1} | \
              continuous {nc} | unsorted_seq {nu} ~{useq_mb:.1} | \
              SmolStr heap: trip ~{heap_tid_mb:.1} stop ~{heap_sid_mb:.1} intern ~{heap_intern_mb:.1} MB"

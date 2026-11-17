@@ -70,6 +70,22 @@ standalone with `npm run typecheck` (requires the wasm packages to be built firs
 - **Rules & i18n:** Adding/changing/removing a rule means updating the registry
   (`crates/rules/src/registry.rs`), its card in `docs/rules/`, and the locale files
   (`ui/src/locales/{en,tr,ja,fr}.ts`). Locale parity is enforced by a test.
+- **Engine text is English.** Write every message, remediation and fatal error in the
+  engine in English; no language has a special place in the code. Turkish, like Japanese
+  and French, comes from the locale files:
+  - English output comes from the rule's template in `en.ts` (`ruleMessages`, `ruleRemediations`).
+  - Turkish maps the engine's own English text in `tr.ts`: `trMessageTexts` /
+    `trRemediationTexts` for a fixed text, `trMessageTemplates` / `trRemediationTemplates`
+    for a text with values (`"Stop '{a0}' has no stop_code."` → `"'{a0}' durağında stop_code
+    eksik."`), and `trFragmentTemplates` for a sentence piece built elsewhere (a hole named
+    `{f_…}`). Fatal errors use `trMessageTemplates.FATAL`.
+  - In a message with positional `{}` arguments, keep their order: `{}` takes the arguments
+    in the order they appear, and the Turkish template is matched hole by hole.
+  - After editing `tr.ts`, run `npm --prefix ui run locales:export`.
+
+  Two tests guard this: `no_turkish_user_text` fails on Turkish text in engine code
+  (letters, or Turkish words written without them), and `notice_text_is_unchanged_in_every_language`
+  pins the title, message and remediation of every rule in each language.
 - **Formatting: this repository is deliberately not rustfmt-formatted.** `cargo fmt --check`
   fails, and that is the recorded decision rather than neglect — do not "fix" it, and do not
   add a formatting gate. Match the style of the code around you instead.
@@ -83,7 +99,7 @@ standalone with `npm run typecheck` (requires the wasm packages to be built firs
   notices.push(make_k2_notice(
       &mut counter, "AGN_002", EntityType::Agency, entity_id.clone(), Some(&row_map),
       &file.name, Some(line), Some("agency_name"), Some(String::new()), None,
-      "agency_name zorunludur.".to_string(), "agency_name alanını doldurun.",
+      "agency_name is required.".to_string(), "Fill in the agency_name field.",
   ));
   ```
 

@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Engine text is English; Turkish comes from the dictionary like every other language (#201).**
+  Rule titles, messages, remediations and fatal errors are written in English in the code. The
+  Turkish output (`--lang tr`, the Turkish web app) is unchanged apart from the fixes listed below
+  (JPN_033 and AGN_015 now have Turkish text; the CLI config parse error uses the web app's
+  wording, "Config ayrıştırma hatası"): it is produced from
+  `ui/src/locales/tr.ts`, which maps the engine's English text — exactly for fixed texts, by
+  template for texts with values, with fragments for sentence pieces built elsewhere. English,
+  Japanese and French output are unchanged. A test now fails on Turkish text in engine code, so a
+  new rule is written in English and its Turkish goes into `tr.ts` (see CONTRIBUTING).
 - **Turkish words removed from finding values in every language.** About 60 `observed_value`,
   `expected_value` and `details` values were written in Turkish and appeared as such in the
   English, Japanese and French output too. They are now English, for example `(boş)` → `(empty)`,
