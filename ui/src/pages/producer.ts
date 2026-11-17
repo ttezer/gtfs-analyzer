@@ -5027,7 +5027,7 @@ function representativeTripsForDirection(ni: ValidationResult['name_index'], tri
   return nearest ? [nearest] : [];
 }
 
-function routeDirectionShapeId(ni: ValidationResult['name_index'], routeId?: string, direction?: string): string | undefined {
+export function routeDirectionShapeId(ni: ValidationResult['name_index'], routeId?: string, direction?: string): string | undefined {
   if (!routeId) return undefined;
   return (ni.route_shapes?.[routeId] ?? []).find(shapeId =>
     (ni.shape_routes?.[shapeId] ?? []).some(([shapeRoute, shapeDirection]) =>

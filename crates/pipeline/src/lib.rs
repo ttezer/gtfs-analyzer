@@ -3635,9 +3635,12 @@ pub(crate) fn build_name_index_impl(
                 continue;
             }
             let rid = ti.route_id(trip);
+            // The direction is the raw direction_id, the same value as `trip_directions`: the
+            // planner map compares the two to pick a route's shape in the trip's direction.
+            // ("Gidiş"/"Dönüş" here never matched "0"/"1", so that lookup always failed.)
             let dir = match trip.direction_id {
-                Some(0) => "Gidiş",
-                Some(1) => "Dönüş",
+                Some(0) => "0",
+                Some(1) => "1",
                 _ => "",
             };
             let key = (shape_id.to_string(), rid.to_string(), dir.to_string());
@@ -3946,6 +3949,19 @@ mod name_index_tests {
             service_id: None,
             agency_distribution: None,
         }
+    }
+
+    #[test]
+    fn shape_direction_uses_the_same_values_as_trip_directions() {
+        let mut recs = records();
+        recs.trips[0].direction_id = Some(0);
+        recs.trips[1].direction_id = Some(1);
+        let idx = build_name_index_impl(&recs, &[], false);
+        assert_eq!(idx.shape_routes.get("SH1"), Some(&vec![["R1".to_string(), "0".to_string()]]));
+        assert_eq!(idx.shape_routes.get("SH2"), Some(&vec![["R1".to_string(), "1".to_string()]]));
+        // The map matches these against trip_directions: the values must be comparable.
+        assert_eq!(idx.trip_directions.get("T1").map(String::as_str), Some("0"));
+        assert_eq!(idx.trip_directions.get("T2").map(String::as_str), Some("1"));
     }
 
     #[test]

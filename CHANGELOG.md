@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Planner map: a trip without its own shape now follows its route's shape in the same direction.**
+  `name_index.shape_routes` wrote the direction as `Gidiş`/`Dönüş`, while `trip_directions` holds `0`/`1`;
+  the map compared the two, never found a match and drew straight lines between the stops. The
+  direction is now `0`/`1` (empty when unknown). JSON consumers reading `shape_routes` see the new values.
 - **`FRQ_006` message in English, French and Japanese.** The template added a unit to a value that
   already carries one (`20000s (333dk) min`); it now reads `headway 20000s (333 min) is too long (limit: ≤ 14400s)`.
 - **Turkish text for the `JPN_033` remediation and the `AGN_015` message.** Both were shown in
