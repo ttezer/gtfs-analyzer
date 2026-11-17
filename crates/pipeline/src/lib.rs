@@ -90,9 +90,9 @@ pub fn apply_k2_stream_outcome(
         }
         for rule in rules {
             let message = if rule == "ARC_002" {
-                format!("'{file}' UTF-8 kodlamasıyla okunamıyor.")
+                format!("'{file}' cannot be read as UTF-8.")
             } else {
-                format!("'{file}' UTF-8 dışı olduğu için dosya atlandı.")
+                format!("'{file}' was skipped because it is not UTF-8.")
             };
             let mut notice = k2::common::make_k2_notice(
                 &mut counter,
@@ -326,7 +326,7 @@ pub fn check_rule_scope(config: &ValidatorConfig) -> Result<(), FatalError> {
             None => {
                 return Err(FatalError::new(
                     FatalCode::InvalidInput,
-                    format!("disabled_rule_ids: '{rule_id}' bilinen bir kural kimliği değil."),
+                    format!("disabled_rule_ids: '{rule_id}' is not a known rule id."),
                 )
                 .variant("disabled_rule_unknown")
                 .param("rule_id", rule_id));
@@ -335,7 +335,7 @@ pub fn check_rule_scope(config: &ValidatorConfig) -> Result<(), FatalError> {
                 return Err(FatalError::new(
                     FatalCode::InvalidInput,
                     format!(
-                        "disabled_rule_ids: '{rule_id}' bir Spec kuralı; yayın kararı bu kurallara dayandığı için kapatılamaz."
+                        "disabled_rule_ids: '{rule_id}' is a Spec rule; it cannot be disabled because the publication verdict depends on these rules."
                     ),
                 )
                 .variant("disabled_rule_spec")
@@ -455,7 +455,7 @@ fn aggregate_stm036(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.observed_value = Some(affected_trips.to_string());
     aggregate.expected_value = Some("feed-level aggregate".to_string());
     aggregate.message = format!(
-        "stop_times.txt içinde {affected_trips} seferin satırları trip_id + stop_sequence düzeninde değil."
+        "In stop_times.txt the rows of {affected_trips} trips are not in trip_id + stop_sequence order."
     );
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
@@ -530,7 +530,7 @@ fn aggregate_dq021(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolv
         aggregate.observed_value = Some(affected_duplicates.to_string());
         aggregate.expected_value = Some("file-level aggregate".to_string());
         aggregate.message = format!(
-            "{file} içinde {affected_duplicates} birincil anahtar yinelenmesi tespit edildi."
+            "{affected_duplicates} primary key duplicates were found in {file}."
         );
         aggregate.details = Some({
             let mut details = BTreeMap::new();
@@ -625,10 +625,10 @@ fn aggregate_arc012(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         aggregate.expected_value = Some("file-level aggregate".to_string());
         aggregate.message = match severity_key {
             4 => format!(
-                "{file} içinde {affected_rows} satırda sondaki isteğe bağlı sütunlar eksik."
+                "In {file}, {affected_rows} rows omit trailing optional columns."
             ),
             _ => format!(
-                "{file} içinde {affected_rows} satırın sütun sayısı başlıkla uyuşmuyor."
+                "In {file}, the column count of {affected_rows} rows does not match the header."
             ),
         };
         aggregate.details = Some({
@@ -711,7 +711,7 @@ fn aggregate_cld003(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         aggregate.observed_value = Some(affected_rows.to_string());
         aggregate.expected_value = Some("1 or 2".to_string());
         aggregate.message = format!(
-            "{file} içinde {affected_rows} satırda exception_type eksik veya geçersiz."
+            "In {file}, exception_type is missing or invalid on {affected_rows} rows."
         );
         aggregate.details = Some({
             let mut details = BTreeMap::new();
@@ -807,7 +807,7 @@ fn aggregate_shp005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.observed_value = Some(affected_shapes.to_string());
     aggregate.expected_value = Some("feed-level aggregate".to_string());
     aggregate.message = format!(
-        "shapes.txt içinde {affected_shapes} shape için shape_dist_traveled azalıyor."
+        "In shapes.txt, shape_dist_traveled decreases in {affected_shapes} shapes."
     );
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
@@ -876,7 +876,7 @@ fn aggregate_stm008(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         aggregate.observed_value = Some(affected_segments.to_string());
         aggregate.expected_value = Some("monotonic trip chronology".to_string());
         aggregate.message = format!(
-            "{affected_segments} zaman geriye gidişi bu seferin kronolojisini bozuyor."
+            "{affected_segments} backward time steps break the chronology of this trip."
         );
         aggregate.details.get_or_insert_with(gtfs_core::NoticeDetails::new).insert(
             "affected_segments".to_string(),
@@ -940,7 +940,7 @@ fn aggregate_stm047(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         aggregate.observed_value = Some(affected_rows.to_string());
         aggregate.expected_value = Some("filled at timepoint=1".to_string());
         aggregate.message = format!(
-            "trip_id '{trip_id}' için {affected_rows} kesin zaman noktası satırında saat eksik."
+            "For trip_id '{trip_id}', times are missing on {affected_rows} exact time point rows."
         );
         // Planner examples: the rows' stops, sequences, the time that is there and the missing
         // side, in stop order, at most 50 (the row details are replaced by the trip summary).
@@ -1019,7 +1019,7 @@ fn aggregate_pth007(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         aggregate.observed_value = Some(affected_rows.to_string());
         aggregate.expected_value = Some("positive integer seconds".to_string());
         aggregate.message = format!(
-            "pathway_id '{pathway_id}' için {affected_rows} satırda traversal_time geçersiz."
+            "For pathway_id '{pathway_id}', traversal_time is invalid on {affected_rows} rows."
         );
         aggregate.details = Some({
             let mut details = BTreeMap::new();
@@ -1119,7 +1119,7 @@ fn aggregate_trp003(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.observed_value = Some(affected_trips.to_string());
     aggregate.expected_value = Some("service_id defined in calendar.txt or calendar_dates.txt".to_string());
     aggregate.message = format!(
-        "trips.txt içinde {affected_trips} seferin service_id değeri takvimde tanımlı değil."
+        "In trips.txt, the service_id of {affected_trips} trips is not defined in the calendar."
     );
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
@@ -1178,7 +1178,7 @@ fn aggregate_trn001(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.observed_value = Some(affected_rows.to_string());
     aggregate.expected_value = Some("supported GTFS table name".to_string());
     aggregate.message = format!(
-        "translations.txt içinde {affected_rows} satırda table_name geçersiz."
+        "In translations.txt, table_name is invalid on {affected_rows} rows."
     );
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
@@ -1243,7 +1243,7 @@ fn aggregate_stp004(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.observed_value = Some(affected_stops.to_string());
     aggregate.expected_value = Some("valid floating-point latitude".to_string());
     aggregate.message = format!(
-        "stops.txt içinde {affected_stops} stop için stop_lat sayısal değil."
+        "In stops.txt, stop_lat is not numeric for {affected_stops} stops."
     );
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
@@ -1298,7 +1298,7 @@ fn aggregate_stp005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.observed_value = Some(affected_stops.to_string());
     aggregate.expected_value = Some("valid longitude in [-180, 180]".to_string());
     aggregate.message = format!(
-        "stops.txt içinde {affected_stops} stop için stop_lon geçersiz veya aralık dışında."
+        "In stops.txt, stop_lon is invalid or out of range for {affected_stops} stops."
     );
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
@@ -1353,7 +1353,7 @@ fn aggregate_trf005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.observed_value = Some(affected_rows.to_string());
     aggregate.expected_value = Some("non-negative integer seconds".to_string());
     aggregate.message = format!(
-        "transfers.txt içinde {affected_rows} satırda min_transfer_time eksik veya geçersiz."
+        "In transfers.txt, min_transfer_time is missing or invalid on {affected_rows} rows."
     );
     // Keep the representative row's planner context (stops, trips, type, time); add the summary.
     let details = aggregate.details.get_or_insert_with(Default::default);
@@ -1406,7 +1406,7 @@ fn aggregate_pth012(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.observed_value = Some(affected_platforms.to_string());
     aggregate.expected_value = Some("every platform reachable from an entrance".to_string());
     aggregate.message = format!(
-        "pathways.txt grafiğinde {affected_platforms} platform entrance üzerinden erişilemiyor."
+        "In the pathways.txt graph, {affected_platforms} platforms cannot be reached through an entrance."
     );
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
@@ -1469,7 +1469,7 @@ fn aggregate_stp042(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.line = None;
     aggregate.observed_value = Some(affected_stops.to_string());
     aggregate.expected_value = Some("valid http/https URL".to_string());
-    aggregate.message = format!("stops.txt içinde {affected_stops} stop için stop_url geçersiz.");
+    aggregate.message = format!("In stops.txt, stop_url is invalid for {affected_stops} stops.");
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
         details.insert("affected_stops".to_string(), affected_stops.to_string());
@@ -1524,7 +1524,7 @@ fn aggregate_stp032(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.observed_value = Some(affected_platforms.to_string());
     aggregate.expected_value = Some("parent_station defined".to_string());
     aggregate.message = format!(
-        "pathway ağına bağlı {affected_platforms} platform için parent_station eksik."
+        "parent_station is missing for {affected_platforms} platforms linked to the pathway network."
     );
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
@@ -1584,7 +1584,7 @@ fn aggregate_far010(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.observed_value = Some(affected_rows.to_string());
     aggregate.expected_value = None;
     aggregate.message = format!(
-        "fare_rules.txt içinde {affected_rows} kural, aynı koşul kümesini başka bir tarifeyle çakışacak biçimde tanımlıyor."
+        "In fare_rules.txt, {affected_rows} rules define the same set of conditions in a way that conflicts with another fare."
     );
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
@@ -1648,7 +1648,7 @@ fn aggregate_trp005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.line = None;
     aggregate.observed_value = Some(affected_trips.to_string());
     aggregate.expected_value = Some("direction_id 0 or 1".to_string());
-    aggregate.message = format!("trips.txt içinde {affected_trips} seferde direction_id geçersiz.");
+    aggregate.message = format!("In trips.txt, direction_id is invalid on {affected_trips} trips.");
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
         details.insert("affected_trips".to_string(), affected_trips.to_string());
@@ -1687,7 +1687,7 @@ fn aggregate_stm021(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
             Some(if a <= b { (a, b) } else { (b, a) })
         },
         &["stop_a", "stop_b", "stop_a_sequence", "stop_b_sequence"],
-        |trips| format!("Aynı durak çifti {trips} seferde ardışık kullanılıyor."),
+        |trips| format!("The same stop pair is used consecutively on {trips} trips."),
     );
 }
 
@@ -1707,7 +1707,7 @@ fn aggregate_stm035(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
             "stop_a_departure",
             "stop_b_arrival",
         ],
-        |trips| format!("Aynı durak bu hattın {trips} seferinde ardışık iki kez geçiyor."),
+        |trips| format!("The same stop is passed twice in a row on {trips} trips of this route."),
     );
 }
 
@@ -1917,7 +1917,7 @@ fn aggregate_stm022(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.line = None;
     aggregate.observed_value = Some(affected_rows.to_string());
     aggregate.expected_value = Some("timepoint 0 or 1".to_string());
-    aggregate.message = format!("stop_times.txt içinde {affected_rows} satırda timepoint geçersiz.");
+    aggregate.message = format!("In stop_times.txt, timepoint is invalid on {affected_rows} rows.");
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
         details.insert("affected_rows".to_string(), affected_rows.to_string());
@@ -1968,7 +1968,7 @@ fn aggregate_frq007(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.field = Some("exact_times".to_string());
     aggregate.observed_value = Some(affected_trips.to_string());
     aggregate.expected_value = Some("exact_times 0 or 1".to_string());
-    aggregate.message = format!("frequencies.txt içinde {affected_trips} seferde exact_times geçersiz.");
+    aggregate.message = format!("In frequencies.txt, exact_times is invalid on {affected_trips} trips.");
     // Keep the representative row's planner context (period, headway); add the summary.
     let details = aggregate.details.get_or_insert_with(Default::default);
     details.insert("affected_trips".to_string(), affected_trips.to_string());
@@ -2016,7 +2016,7 @@ fn aggregate_trf019(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.field = Some("route_type".to_string());
     aggregate.observed_value = Some(affected_transfers.to_string());
     aggregate.expected_value = Some("same route_type for from_trip_id and to_trip_id".to_string());
-    aggregate.message = format!("transfers.txt içinde {affected_transfers} in-seat aktarmada route_type uyumsuz.");
+    aggregate.message = format!("In transfers.txt, route_type does not match on {affected_transfers} in-seat transfers.");
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
         details.insert("affected_transfers".to_string(), affected_transfers.to_string());
@@ -2077,7 +2077,7 @@ fn aggregate_cal008(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         aggregate.field = Some("end_date".to_string());
         aggregate.observed_value = Some(end_date.clone());
         aggregate.message = format!(
-            "calendar.txt içinde {affected_services} servisinin end_date değeri {end_date} tarihinde sona eriyor."
+            "In calendar.txt, the end_date of {affected_services} services ends on {end_date}."
         );
         aggregate.details = Some({
             let mut details = std::collections::BTreeMap::new();
@@ -2140,7 +2140,7 @@ fn aggregate_ggl001(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.field = Some("transfer_type".to_string());
     aggregate.observed_value = Some(affected_transfers.to_string());
     aggregate.expected_value = Some("0, 1, 2 or 3".to_string());
-    aggregate.message = format!("transfers.txt içinde {affected_transfers} kayıt Google Transit tarafından yoksayılıyor.");
+    aggregate.message = format!("In transfers.txt, {affected_transfers} records are ignored by Google Transit.");
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
         details.insert("affected_transfers".to_string(), affected_transfers.to_string());

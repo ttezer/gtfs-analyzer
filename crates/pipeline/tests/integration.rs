@@ -6792,7 +6792,7 @@ fn same_place_stop_pair_is_one_finding_across_trips_and_directions() {
     );
     assert_eq!(get("example_2_stop_a_sequence"), Some("2"));
     assert_eq!(get("example_3_trip"), None);
-    assert!(ferry.message.contains("3 seferde"));
+    assert!(ferry.message.contains("on 3 trips"));
     let other = found
         .iter()
         .find(|n| n.entity_id.as_deref() == Some("T4"))
@@ -7102,7 +7102,7 @@ fn repeated_stop_is_one_finding_per_route_and_stop() {
     assert_eq!(get("example_1_trip"), Some("T2"));
     assert_eq!(get("example_1_stop_b_arrival"), Some("09:15:00"));
     assert_eq!(get("example_2_trip"), None);
-    assert!(r1.message.contains("2 seferinde"));
+    assert!(r1.message.contains("on 2 trips"));
     let r2 = found
         .iter()
         .find(|n| n.entity_id.as_deref() == Some("T3"))

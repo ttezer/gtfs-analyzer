@@ -5679,10 +5679,12 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
     'The agencies in the feed carry different agency_lang values ({a0}) — inconsistent languages.': 'Feed\'deki agency\'ler farklı agency_lang değerleri taşıyor ({a0}) — diller arası tutarsızlık.',
   },
   'ARC_002': {
+    '\'{file}\' cannot be read as UTF-8.': '\'{file}\' UTF-8 kodlamasıyla okunamıyor.',
     '\'{fname}\' cannot be read as UTF-8.': '\'{fname}\' UTF-8 kodlamasıyla okunamıyor.',
     '\'{raw_name}\' cannot be read as UTF-8.': '\'{raw_name}\' UTF-8 kodlamasıyla okunamıyor.',
   },
   'ARC_003': {
+    '\'{file}\' was skipped because it is not UTF-8.': '\'{file}\' UTF-8 dışı olduğu için dosya atlandı.',
     '\'{raw_name}\' was skipped because it is not UTF-8.': '\'{raw_name}\' UTF-8 dışı olduğu için dosya atlandı.',
   },
   'ARC_004': {
@@ -5710,6 +5712,8 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
   'ARC_012': {
     '\'{file_name}\' line {line} has extra fields: {row_len} (expected {header_count}) — an unescaped comma or a format error.': '\'{file_name}\' {line}. satırda fazla alan: {row_len} (beklenen {header_count}) — kaçmamış virgül veya format hatası.',
     '\'{file_name}\' line {line} omits {missing} trailing optional fields ({row_len} columns, header: {header_count}).': '\'{file_name}\' {line}. satırda sondaki {missing} isteğe bağlı alan atlanmış ({row_len} sütun, başlık: {header_count}).',
+    'In {file}, the column count of {affected_rows} rows does not match the header.': '{file} içinde {affected_rows} satırın sütun sayısı başlıkla uyuşmuyor.',
+    'In {file}, {affected_rows} rows omit trailing optional columns.': '{file} içinde {affected_rows} satırda sondaki isteğe bağlı sütunlar eksik.',
   },
   'ARC_013': {
     '\'{file}\' CSV tokenization error: unclosed quote — the rest of the record could not be read.': '\'{file}\' CSV tokenization hatası: Kapanmamış tırnak işareti (unclosed quote) — kaydın kalanı okunamadı.',
@@ -5848,6 +5852,7 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
   },
   'CAL_008': {
     'Calendar \'{a0}\' ends on {end_yyyymmdd} — {a1} days left.': '\'{a0}\' takvimi {end_yyyymmdd} tarihinde bitiyor — {a1} gün kaldı.',
+    'In calendar.txt, the end_date of {affected_services} services ends on {end_date}.': 'calendar.txt içinde {affected_services} servisinin end_date değeri {end_date} tarihinde sona eriyor.',
   },
   'CAL_009': {
     'The end_date of every calendar.txt service in the feed is in the past ({expired_services} services).': 'Feed\'deki tüm calendar.txt servislerinin end_date\'i geçmişte kaldı ({expired_services} servis).',
@@ -5901,6 +5906,7 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
     'date is required.': 'date zorunludur.',
   },
   'CLD_003': {
+    'In {file}, exception_type is missing or invalid on {affected_rows} rows.': '{file} içinde {affected_rows} satırda exception_type eksik veya geçersiz.',
     'exception_type \'{et_raw}\' is invalid; it must be 1 or 2.': 'exception_type \'{et_raw}\' geçersiz; 1 veya 2 olmalıdır.',
     'exception_type is required.': 'exception_type zorunludur.',
   },
@@ -5970,6 +5976,7 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
     'service_id \'{sid}\' has {a0} dates written more than once in calendar_dates.txt.{f_conflict_note}': 'service_id \'{sid}\' için {a0} tarih calendar_dates.txt\'te birden fazla kez yazılmış.{f_conflict_note}',
     'stop_id \'{dup_id}\' is defined more than once in stops.txt.': 'stop_id \'{dup_id}\' stops.txt\'de birden fazla kez tanımlanmış.',
     'trip_id \'{dup_id}\' is defined more than once in trips.txt.': 'trip_id \'{dup_id}\' trips.txt\'de birden fazla kez tanımlanmış.',
+    '{affected_duplicates} primary key duplicates were found in {file}.': '{file} içinde {affected_duplicates} birincil anahtar yinelenmesi tespit edildi.',
   },
   'DQ_022': {
     '{most_count}/{total_named} stops are named \'{most_common_name}\' — it may be placeholder or test data.': 'Durakların {most_count}/{total_named} tanesinin adı \'{most_common_name}\' — yer tutucu veya test verisi olabilir.',
@@ -5978,6 +5985,7 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
     'Agency code \'{a0}\' is not defined in agency.txt.': '\'{a0}\' işletici kodu agency.txt\'te tanımlı değil.',
   },
   'FAR_010': {
+    'In fare_rules.txt, {affected_rows} rules define the same set of conditions in a way that conflicts with another fare.': 'fare_rules.txt içinde {affected_rows} kural, aynı koşul kümesini başka bir tarifeyle çakışacak biçimde tanımlıyor.',
     'The rule defined for fare \'{a0}\' conflicts with \'{a1}\' — more than one fare applies to the same set of conditions.': 'Ücret tarifesi \'{a0}\' için tanımlanan kural, \'{a1}\' ile çakışıyor — aynı koşul kümesine birden fazla tarife uygulanıyor.',
   },
   'FAR_013': {
@@ -5993,6 +6001,8 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
     'The ZIP central directory exceeds the {n}-entry safety limit.': 'ZIP merkezi dizini {n} girdilik güvenlik sınırını aşıyor.',
     'The name of ZIP entry {index} could not be decoded: {e}': 'ZIP girdisinin adı çözülemedi (index {index}): {e}',
     'ZIP entry {i} could not be read: {e}': 'ZIP dosyası okunamadı (index {i}): {e}',
+    'disabled_rule_ids: \'{rule_id}\' is a Spec rule; it cannot be disabled because the publication verdict depends on these rules.': 'disabled_rule_ids: \'{rule_id}\' bir Spec kuralı; yayın kararı bu kurallara dayandığı için kapatılamaz.',
+    'disabled_rule_ids: \'{rule_id}\' is not a known rule id.': 'disabled_rule_ids: \'{rule_id}\' bilinen bir kural kimliği değil.',
   },
   'FIN_010': {
     'The feed\'s validity ended on {y}-{m}-{d}; the current data is out of date.': 'Feed\'in geçerlilik süresi {y}-{m}-{d} tarihinde dolmuş; mevcut veriler güncel değil.',
@@ -6108,6 +6118,9 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
   'FRQ_006': {
     'Trip \'{trip_id}\' has a headway of {hw}s — threshold {max_secs}s ({a0} min).': '\'{trip_id}\' seferinde sefer aralığı {hw}sn — eşik {max_secs}sn ({a0} dk).',
   },
+  'FRQ_007': {
+    'In frequencies.txt, exact_times is invalid on {affected_trips} trips.': 'frequencies.txt içinde {affected_trips} seferde exact_times geçersiz.',
+  },
   'FRQ_009': {
     'headway_secs \'{val}\' seconds — a frequency under 1 minute is not realistic.': 'headway_secs \'{val}\' saniye — 1 dakikadan kısa frekans gerçekçi değil.',
   },
@@ -6178,6 +6191,7 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
     'The latitude of stop \'{name}\' ({lat}) is extremely close to a pole — a possible coordinate error.': '\'{name}\' durağının enlemi ({lat}) kutba aşırı yakın — olası koordinat hatası.',
   },
   'GGL_001': {
+    'In transfers.txt, {affected_transfers} records are ignored by Google Transit.': 'transfers.txt içinde {affected_transfers} kayıt Google Transit tarafından yoksayılıyor.',
     'transfer_type={ttype} (in-seat transfer) is ignored by Google Transit.': 'transfer_type={ttype} (in-seat aktarma) Google Transit tarafından yoksayılıyor.',
   },
   'GGL_002': {
@@ -6398,6 +6412,9 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
   'PTH_003': {
     '{field} \'{stop_id}\' is not defined in stops.txt.': '{field} \'{stop_id}\' stops.txt\'te tanımlı değil.',
   },
+  'PTH_007': {
+    'For pathway_id \'{pathway_id}\', traversal_time is invalid on {affected_rows} rows.': 'pathway_id \'{pathway_id}\' için {affected_rows} satırda traversal_time geçersiz.',
+  },
   'PTH_008': {
     'stair_count is missing on {pth008_count} stairs pathways (pathway_mode=2).': '{pth008_count} merdiven geçidinde (pathway_mode=2) stair_count eksik.',
   },
@@ -6405,6 +6422,7 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
     'max_slope is missing on {pth009_count} walkway pathways (pathway_mode=1).': '{pth009_count} yürüme yolu geçidinde (pathway_mode=1) max_slope eksik.',
   },
   'PTH_012': {
+    'In the pathways.txt graph, {affected_platforms} platforms cannot be reached through an entrance.': 'pathways.txt grafiğinde {affected_platforms} platform entrance üzerinden erişilemiyor.',
     'Platform \'{platform}\' (station \'{station_id}\') cannot be reached from any entrance (location_type=2) through the pathway graph.': 'Platform \'{platform}\' (istasyon \'{station_id}\') hiçbir entrance\'tan (location_type=2) pathway graph üzerinden ulaşılamıyor.',
     'Platform \'{platform}\' (station \'{station_id}\') is in the pathway network but the station has no location_type=2 entrance.': 'Platform \'{platform}\' (istasyon \'{station_id}\') pathway ağında tanımlanmış ama istasyonda location_type=2 entrance yok.',
   },
@@ -6530,6 +6548,9 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
   'SHP_004': {
     'shape_pt_sequence \'{seq_raw}\' is invalid.': 'shape_pt_sequence \'{seq_raw}\' geçersiz.',
   },
+  'SHP_005': {
+    'In shapes.txt, shape_dist_traveled decreases in {affected_shapes} shapes.': 'shapes.txt içinde {affected_shapes} shape için shape_dist_traveled azalıyor.',
+  },
   'SHP_008': {
     'shape_pt_sequence {seq} is repeated for shape_id \'{shape_id}\'.': 'shape_id \'{shape_id}\' için shape_pt_sequence {seq} yineleniyor.',
   },
@@ -6599,6 +6620,7 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
   },
   'STM_008': {
     'Route \'{route_label}\' trip \'{trip_id}\'{f_dep_suffix}: departure {dep_hms} from {name_a} (sequence {seq_a}), arrival {arr_hms} at {name_b} (sequence {seq_b}) — arrival is before departure, time goes backwards. (direction {dir_info})': '\'{route_label}\' hattı \'{trip_id}\'{f_dep_suffix} seferi: {name_a} durağından (sıra {seq_a}) kalkış {dep_hms}, {name_b} durağına (sıra {seq_b}) varış {arr_hms} — varış kalkıştan önce, zaman geriye gidiyor. (yön {dir_info})',
+    '{affected_segments} backward time steps break the chronology of this trip.': '{affected_segments} zaman geriye gidişi bu seferin kronolojisini bozuyor.',
   },
   'STM_012': {
     'trip_id \'{trip_id}\'{f_dep_suffix} stop_sequence {a0}-{a1}: speed {hav_speed} km/h (straight-line lower bound) — physically impossible.': 'trip_id \'{trip_id}\'{f_dep_suffix} stop_sequence {a0}-{a1} arası hız {hav_speed} km/h (kuş uçuşu alt sınır) — fiziksel olarak imkansız.',
@@ -6629,7 +6651,11 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
     'Route \'{a0}\' trip{a1} has, between stops {a2} and {a3}, a distance of {a4}m but a travel time of 0.': '\'{a0}\' hattının{a1} seferinde {a2}. ve {a3}. duraklar arası {a4}m mesafe var ama geçiş süresi 0 girilmiş.',
   },
   'STM_021': {
+    'The same stop pair is used consecutively on {trips} trips.': 'Aynı durak çifti {trips} seferde ardışık kullanılıyor.',
     'trip_id \'{trip_id}\'{f_dep_suffix} stop_sequence {a0}-{a1}: distance 0: \'{a2}\' and \'{a3}\' are different stops at the same coordinate.': 'trip_id \'{trip_id}\'{f_dep_suffix} stop_sequence {a0}-{a1} arası mesafe 0: \'{a2}\' ve \'{a3}\' farklı duraklar ama aynı koordinatta.',
+  },
+  'STM_022': {
+    'In stop_times.txt, timepoint is invalid on {affected_rows} rows.': 'stop_times.txt içinde {affected_rows} satırda timepoint geçersiz.',
   },
   'STM_024': {
     'For trip \'{a0}\', stop_times.txt shape_dist_traveled (max {a1}) and the total distance of shape \'{a2}\' ({a3}) have a ratio of {ratio}× — a unit mismatch (metres/feet/km mix) is possible.': '\'{a0}\' seferinin stop_times.txt\'teki shape_dist_traveled (max {a1}) ile shape \'{a2}\' toplam mesafesi ({a3}) arasındaki oran {ratio}× — birim uyumsuzluğu (metre/ayak/km karışımı) olabilir.',
@@ -6660,9 +6686,11 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
     'The row of trip_id \'{a0}\' has departure_time but no arrival_time.': 'trip_id \'{a0}\' satırında departure_time tanımlı ama arrival_time eksik.',
   },
   'STM_035': {
+    'The same stop is passed twice in a row on {trips} trips of this route.': 'Aynı durak bu hattın {trips} seferinde ardışık iki kez geçiyor.',
     'trip_id \'{trip_id}\'{f_dep_suffix} stop_sequence {a0}-{a1}: the same stop ({a2}) is visited twice in a row.': 'trip_id \'{trip_id}\'{f_dep_suffix} stop_sequence {a0}-{a1} arasında aynı durak ({a2}) ardışık iki kez ziyaret ediliyor.',
   },
   'STM_036': {
+    'In stop_times.txt the rows of {affected_trips} trips are not in trip_id + stop_sequence order.': 'stop_times.txt içinde {affected_trips} seferin satırları trip_id + stop_sequence düzeninde değil.',
     'The stop_times rows of trip \'{a0}\' are out of order: stop \'{a1}\' with stop_sequence {seq} is written after stop \'{a2}\' with the larger stop_sequence {last}. Rows must be in ascending stop_sequence order.': '\'{a0}\' seferinde stop_times satır sırası bozuk: stop_sequence {seq} olan \'{a1}\' durağı, daha büyük stop_sequence {last} olan \'{a2}\' durağından sonra yazılmış. Satırlar artan stop_sequence sırasında olmalı.',
     'The stop_times rows of trip \'{a0}\' do not increase: stop \'{a1}\' carries the SAME stop_sequence ({seq}) as the previous stop \'{a2}\'. Values must increase along the trip.': '\'{a0}\' seferinde stop_times satır sırası artmıyor: \'{a1}\' durağı da bir önceki \'{a2}\' durağıyla AYNI stop_sequence ({seq}) değerini taşıyor. Değerler sefer boyunca artmalıdır.',
     'The stop_times rows of trip \'{trip_id}\' are scattered in the file (not grouped by trip_id); they spread over {lo}–{hi}.': '\'{trip_id}\' seferinin stop_times satırları dosyada dağınık (trip_id\'ye göre gruplu değil); {lo}–{hi} arasına yayılmış.',
@@ -6695,6 +6723,7 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
     'Trip \'{trip_id}\' has a departure time of {h}:{m}:{s} — it exceeds the service day window ({max_dep_h} hours).': '\'{trip_id}\' seferinde {h}:{m}:{s} kalkış saati — servis günü penceresini ({max_dep_h} saat) aşıyor.',
   },
   'STM_047': {
+    'For trip_id \'{trip_id}\', times are missing on {affected_rows} exact time point rows.': 'trip_id \'{trip_id}\' için {affected_rows} kesin zaman noktası satırında saat eksik.',
     'The row of trip_id \'{trip}\' has timepoint=1 (exact time point) but arrival_time and departure_time are missing.': 'trip_id \'{trip}\' satırında timepoint=1 (kesin zaman noktası) ama arrival_time ve departure_time eksik.',
     'The row of trip_id \'{trip}\' has timepoint=1 (exact time point) but arrival_time is missing.': 'trip_id \'{trip}\' satırında timepoint=1 (kesin zaman noktası) ama arrival_time eksik.',
     'The row of trip_id \'{trip}\' has timepoint=1 (exact time point) but departure_time is missing.': 'trip_id \'{trip}\' satırında timepoint=1 (kesin zaman noktası) ama departure_time eksik.',
@@ -6746,7 +6775,11 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
     'A stop name (stop_name) is required for stop \'{a0}\'.': '\'{a0}\' durağı için durak adı (stop_name) zorunludur.',
     'stop_lat {lat} is outside the range [-90, 90].': 'stop_lat {lat} değeri [-90, 90] aralığı dışında.',
   },
+  'STP_004': {
+    'In stops.txt, stop_lat is not numeric for {affected_stops} stops.': 'stops.txt içinde {affected_stops} stop için stop_lat sayısal değil.',
+  },
   'STP_005': {
+    'In stops.txt, stop_lon is invalid or out of range for {affected_stops} stops.': 'stops.txt içinde {affected_stops} stop için stop_lon geçersiz veya aralık dışında.',
     'stop_lon {lon} is outside the range [-180, 180].': 'stop_lon {lon} değeri [-180, 180] aralığı dışında.',
   },
   'STP_006': {
@@ -6819,6 +6852,7 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
   },
   'STP_032': {
     'Platform \'{a0}\' is linked to the pathway network but has no parent_station.': '\'{a0}\' platformu pathway ağına bağlı ama parent_station tanımlı değil.',
+    'parent_station is missing for {affected_platforms} platforms linked to the pathway network.': 'pathway ağına bağlı {affected_platforms} platform için parent_station eksik.',
   },
   'STP_033': {
     'Stop \'{a0}\' has no zone_id; fare calculations may be affected.': '\'{a0}\' durağında zone_id eksik; ücret hesaplamaları etkilenebilir.',
@@ -6847,6 +6881,9 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
   },
   'STP_041': {
     'The name of child stop \'{a0}\' does not contain the parent station name \'{a1}\'.': 'Alt durak \'{a0}\' adı üst istasyon \'{a1}\' adını içermiyor.',
+  },
+  'STP_042': {
+    'In stops.txt, stop_url is invalid for {affected_stops} stops.': 'stops.txt içinde {affected_stops} stop için stop_url geçersiz.',
   },
   'STP_043': {
     'stop_access can only be used on platforms with a parent station ({f_why}).': 'stop_access yalnız üst istasyonu olan platformlarda kullanılabilir ({f_why}).',
@@ -6877,6 +6914,9 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
   },
   'TRF_004': {
     'transfer_type \'{v}\' is invalid.': 'transfer_type \'{v}\' geçersiz.',
+  },
+  'TRF_005': {
+    'In transfers.txt, min_transfer_time is missing or invalid on {affected_rows} rows.': 'transfers.txt içinde {affected_rows} satırda min_transfer_time eksik veya geçersiz.',
   },
   'TRF_006': {
     'from_trip_id \'{fti}\' is not defined in trips.txt.': 'from_trip_id \'{fti}\' trips.txt\'te tanımlı değil.',
@@ -6918,6 +6958,9 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
   'TRF_018': {
     'from_trip_id and to_trip_id are the same trip (\'{fti}\'); the transfer has no meaning.': 'from_trip_id ve to_trip_id aynı sefer (\'{fti}\'); aktarmanın bir anlamı yok.',
   },
+  'TRF_019': {
+    'In transfers.txt, route_type does not match on {affected_transfers} in-seat transfers.': 'transfers.txt içinde {affected_transfers} in-seat aktarmada route_type uyumsuz.',
+  },
   'TRF_020': {
     'Transfer \'{a0}\' → \'{a1}\' needs walking {a2}m in {a3}s ({speed} m/s).': '\'{a0}\' → \'{a1}\' aktarması {a2}m mesafeyi {a3}s içinde yürümeyi gerektiriyor ({speed} m/s).',
   },
@@ -6929,6 +6972,9 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
   },
   'TRF_023': {
     'More than one trip continues into trip \'{trip}\' but the calendars of the incoming trips conflict: \'{ta}\' → {sa}, \'{tb}\' → {sb}; both are active on {day}.': '\'{trip}\' seferine birden çok sefer bağlanıyor ama gelen seferlerin takvimleri çelişiyor: \'{ta}\' → {sa}, \'{tb}\' → {sb}; ikisi de {day} günü aktif.',
+  },
+  'TRN_001': {
+    'In translations.txt, table_name is invalid on {affected_rows} rows.': 'translations.txt içinde {affected_rows} satırda table_name geçersiz.',
   },
   'TRN_004': {
     'record_id \'{rid}\' was not found in table table_name=\'{a0}\'.': 'record_id \'{rid}\' table_name=\'{a0}\' tablosunda bulunamadı.',
@@ -6950,6 +6996,7 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
     'Route \'{a0}\' is not defined in routes.txt.': '\'{a0}\' hattı routes.txt\'te tanımlı değil.',
   },
   'TRP_003': {
+    'In trips.txt, the service_id of {affected_trips} trips is not defined in the calendar.': 'trips.txt içinde {affected_trips} seferin service_id değeri takvimde tanımlı değil.',
     'service_id \'{a0}\' is not defined in calendar or calendar_dates.': 'service_id \'{a0}\' calendar veya calendar_dates\'te tanımlı değil.',
   },
   'TRP_004': {
@@ -6957,6 +7004,7 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
     'Shape \'{sid}\' is not defined in shapes.txt; {trips} trips refer to it (e.g. \'{first_trip}\').': '\'{sid}\' güzergahı shapes.txt\'te tanımlı değil; {trips} sefer bu güzergaha başvuruyor (ör. \'{first_trip}\').',
   },
   'TRP_005': {
+    'In trips.txt, direction_id is invalid on {affected_trips} trips.': 'trips.txt içinde {affected_trips} seferde direction_id geçersiz.',
     'direction_id \'{dir_raw}\' is invalid; it must be 0 or 1.': 'direction_id \'{dir_raw}\' geçersiz; 0 veya 1 olmalıdır.',
     'direction_id {val} is invalid; it must be 0 or 1.': 'direction_id {val} geçersiz; 0 veya 1 olmalıdır.',
   },
