@@ -152,11 +152,11 @@ impl GuardTrip {
     pub fn describe(&self) -> String {
         match self {
             GuardTrip::EntryCap { got, cap } =>
-                format!("girdi başına açılmış-boyut sınırı aşıldı ({got} > {cap} bayt)"),
+                format!("the per-entry decompressed size limit was exceeded ({got} > {cap} bytes)"),
             GuardTrip::TotalCap { got, cap } =>
-                format!("arşiv geneli açılmış-boyut sınırı aşıldı ({got} > {cap} bayt)"),
+                format!("the archive-wide decompressed size limit was exceeded ({got} > {cap} bytes)"),
             GuardTrip::Ratio { decompressed, compressed, cap } =>
-                format!("sıkıştırma oranı {cap}:1 sınırını aştı (açılmış {decompressed}, sıkıştırılmış {compressed} bayt)"),
+                format!("the compression ratio exceeded {cap}:1 ({decompressed} bytes decompressed, {compressed} bytes compressed)"),
         }
     }
 }

@@ -226,6 +226,11 @@ export function tMsgForLocale(locale: Locale, n: NoticeLike): string {
  * yoksa İngilizcesi, o da yoksa pipeline'ın kendi (Türkçe) metni.
  */
 export function tFatal(error: FatalError, locale: Locale = _locale): string {
+  // Same as Rust `translate_fatal`: the engine's English fatal text is mapped by template first.
+  if (locale === 'tr') {
+    const byTemplate = translateByTemplate(trMessageTemplates.FATAL, error.message);
+    if (byTemplate !== undefined) return byTemplate;
+  }
   if (!error.params) return error.message;
   const variant = error.params.variant;
   const key = variant ? `${error.code}.${variant}` : error.code;

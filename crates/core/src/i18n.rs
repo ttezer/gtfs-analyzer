@@ -249,6 +249,14 @@ impl Translator {
     /// Rewrites a fatal error's message from its template. Without a template (or
     /// without `params`) the pipeline's Turkish text stays.
     pub fn translate_fatal(&self, err: &mut FatalError) {
+        // Engine fatal texts are English; a language that maps them by template (Turkish) is
+        // translated from the text itself, so one variant may have several wordings (issue #201).
+        if let Some(message) = self.primary.message_templates.get(FATAL_TEMPLATES).and_then(|t| {
+            translate_by_template(t, Some(&self.primary.fragment_templates), &err.message)
+        }) {
+            err.message = message;
+            return;
+        }
         if let Some(template) = self.lookup(|d| &d.fatal_messages, &err.template_key()) {
             err.message = fill_with(template, |key| {
                 err.params.get(key).cloned().unwrap_or_default()
@@ -353,6 +361,9 @@ fn has_placeholder(text: &str) -> bool {
 
 /// `message_templates` key for templates every rule may use (shared value-parser messages).
 const SHARED_TEMPLATES: &str = "*";
+
+/// `message_templates` key for the engine's fatal error texts.
+const FATAL_TEMPLATES: &str = "FATAL";
 
 /// Prefix of a hole that holds a translatable sentence fragment (see `fragment_templates`).
 const FRAGMENT_HOLE: &str = "f_";
@@ -738,6 +749,36 @@ mod tests {
         assert_eq!(
             translate_by_template(&plain, Some(&fragments), "Stop ' departing 9'.").as_deref(),
             Some("Durak ' departing 9'.")
+        );
+    }
+
+    /// Fatal texts are mapped by template in Turkish, nested fragments included; other
+    /// languages keep using their variant templates.
+    #[test]
+    fn turkish_translates_engine_fatal_text_by_template() {
+        let translator = Translator::new(Lang::Tr).unwrap().unwrap();
+        let mut err = FatalError::new(
+            crate::FatalCode::ZipUnreadable,
+            "The ZIP archive could not be opened: the EOCD, the central directory and all local \
+             headers are in place; the corruption may be in the entries' compressed data. \
+             Library error: invalid Zip archive",
+        );
+        translator.translate_fatal(&mut err);
+        assert_eq!(
+            err.message,
+            "ZIP arşivi açılamadı: EOCD, merkez dizin ve tüm yerel başlıklar yerinde; bozukluk \
+             girdilerin sıkıştırılmış verisinde olabilir. Kütüphane hatası: invalid Zip archive"
+        );
+        let mut limit = FatalError::new(
+            crate::FatalCode::DecompressionLimit,
+            "'stop_times.txt' exceeded the decompression guard: the compression ratio exceeded \
+             100:1 (5000 bytes decompressed, 10 bytes compressed)",
+        );
+        translator.translate_fatal(&mut limit);
+        assert_eq!(
+            limit.message,
+            "'stop_times.txt' sıkıştırma koruması sınırını aştı: sıkıştırma oranı 100:1 sınırını \
+             aştı (açılmış 5000, sıkıştırılmış 10 bayt)"
         );
     }
 

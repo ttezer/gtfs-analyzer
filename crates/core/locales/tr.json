@@ -1410,32 +1410,109 @@
     "AGN_017": {
       "The agencies in the feed carry different agency_lang values ({a0}) — inconsistent languages.": "Feed'deki agency'ler farklı agency_lang değerleri taşıyor ({a0}) — diller arası tutarsızlık."
     },
+    "ARC_002": {
+      "'{fname}' cannot be read as UTF-8.": "'{fname}' UTF-8 kodlamasıyla okunamıyor.",
+      "'{raw_name}' cannot be read as UTF-8.": "'{raw_name}' UTF-8 kodlamasıyla okunamıyor."
+    },
+    "ARC_003": {
+      "'{raw_name}' was skipped because it is not UTF-8.": "'{raw_name}' UTF-8 dışı olduğu için dosya atlandı."
+    },
+    "ARC_004": {
+      "Required GTFS file is missing: '{f}'.": "Zorunlu GTFS dosyası eksik: '{f}'."
+    },
+    "ARC_006": {
+      "Optional file present: '{raw_name}'.": "İsteğe bağlı dosya mevcut: '{raw_name}'."
+    },
+    "ARC_007": {
+      "'{raw_name}' is not defined in the GTFS specification.": "'{raw_name}' GTFS spesifikasyonunda tanımlı değil."
+    },
     "ARC_009": {
       "'{a0}' ZIP could not be reopened: {e}.": "'{a0}' ZIP yeniden açılamadı: {e}.",
       "'{a0}' ZIP entry not found: {e}.": "'{a0}' ZIP girdisi bulunamadı: {e}.",
-      "'{a0}' has a header row but no data rows.": "'{a0}' dosyasında başlık satırı var ama veri satırı yok."
+      "'{a0}' has a header row but no data rows.": "'{a0}' dosyasında başlık satırı var ama veri satırı yok.",
+      "'{raw_name}' has a header row but no data rows.": "'{raw_name}' dosyasında başlık satırı var ama veri satırı yok.",
+      "'{raw_name}' is empty or contains only a header row.": "'{raw_name}' dosyası boş veya yalnızca başlık satırı içeriyor."
+    },
+    "ARC_010": {
+      "'{raw_name}' has a UTF-8 BOM — some parsers read the BOM as part of the first field name.": "'{raw_name}' dosyasında UTF-8 BOM var — bazı parser'lar BOM'u ilk alan adının parçası olarak okur."
+    },
+    "ARC_011": {
+      "'{raw_name}' size: {file_size_bytes} bytes.": "'{raw_name}' boyutu: {file_size_bytes} bayt."
+    },
+    "ARC_012": {
+      "'{file_name}' line {line} has extra fields: {row_len} (expected {header_count}) — an unescaped comma or a format error.": "'{file_name}' {line}. satırda fazla alan: {row_len} (beklenen {header_count}) — kaçmamış virgül veya format hatası.",
+      "'{file_name}' line {line} omits {missing} trailing optional fields ({row_len} columns, header: {header_count}).": "'{file_name}' {line}. satırda sondaki {missing} isteğe bağlı alan atlanmış ({row_len} sütun, başlık: {header_count})."
     },
     "ARC_013": {
-      "'{file}' CSV tokenization error: unclosed quote — the rest of the record could not be read.": "'{file}' CSV tokenization hatası: Kapanmamış tırnak işareti (unclosed quote) — kaydın kalanı okunamadı."
+      "'{file}' CSV tokenization error: unclosed quote — the rest of the record could not be read.": "'{file}' CSV tokenization hatası: Kapanmamış tırnak işareti (unclosed quote) — kaydın kalanı okunamadı.",
+      "'{raw_name}' could not be tokenized as CSV: {f_msg}": "'{raw_name}' CSV tokenization hatası: {f_msg}"
+    },
+    "ARC_014": {
+      "The header of '{raw_name}' has extra whitespace in column '{hdr}'.": "'{raw_name}' başlığında '{hdr}' sütununda gereksiz boşluk var."
+    },
+    "ARC_015": {
+      "Column '{hdr}' repeats in '{raw_name}'.": "'{raw_name}' dosyasında '{hdr}' sütunu tekrarlanıyor."
+    },
+    "ARC_017": {
+      "'{raw_name}' has {omitted} more unknown columns; only the first {ARC_017_MAX_PER_FILE} were reported one by one.": "'{raw_name}' dosyasında {omitted} bilinmeyen sütun daha var; yalnızca ilk {ARC_017_MAX_PER_FILE} tanesi ayrı ayrı raporlandı.",
+      "In '{raw_name}', '{hdr}' is not defined in the GTFS specification.": "'{raw_name}' dosyasında '{hdr}' GTFS spesifikasyonunda tanımlı değil."
     },
     "ARC_018": {
-      "'{a0}' line {line} is completely empty.": "'{a0}' {line}. satırı tamamen boş."
+      "'{a0}' line {line} is completely empty.": "'{a0}' {line}. satırı tamamen boş.",
+      "'{raw_name}' line {line_num} is completely empty.": "'{raw_name}' {line_num}. satırı tamamen boş."
+    },
+    "ARC_019": {
+      "The header of '{raw_name}' has an empty column name.": "'{raw_name}' başlığında boş sütun adı var."
+    },
+    "ARC_021": {
+      "'{file_name}' has a value with a non-printable or problematic character (U+{cp}).": "'{file_name}' dosyasında yazdırılamaz veya sorunlu karakter içeren değer var (U+{cp})."
     },
     "ARC_022": {
-      "'{name}' has {rows} rows; it exceeds the {a0}-row information threshold. The whole file was validated.": "'{name}' dosyasında {rows} satır var; {a0} satırlık bilgi eşiğini aşıyor. Dosyanın tamamı doğrulandı."
+      "'{name}' has {rows} rows; it exceeds the {a0}-row information threshold. The whole file was validated.": "'{name}' dosyasında {rows} satır var; {a0} satırlık bilgi eşiğini aşıyor. Dosyanın tamamı doğrulandı.",
+      "'{raw_name}' has {a0} rows; it exceeds the {a1}-row information threshold. The whole file was validated.": "'{raw_name}' dosyasında {a0} satır var; {a1} satırlık bilgi eşiğini aşıyor. Dosyanın tamamı doğrulandı."
+    },
+    "ARC_023": {
+      "'{raw_name}' is another ZIP file inside the GTFS ZIP — GTFS does not support this format.": "'{raw_name}' GTFS ZIP içinde başka bir ZIP dosyası — GTFS bu formatı desteklemiyor."
+    },
+    "ARC_024": {
+      "'{entry_name}' is in a subdirectory — GTFS files must be flat at the ZIP root.": "'{entry_name}' alt dizinde bulunuyor — GTFS dosyaları ZIP kök dizininde düz olmalıdır.",
+      "'{raw_name}' is in a subdirectory — GTFS files must be flat at the ZIP root.": "'{raw_name}' alt dizinde bulunuyor — GTFS dosyaları ZIP kök dizininde düz olmalıdır."
+    },
+    "ARC_025": {
+      "The required column '{f}' is missing from the header of '{raw_name}'.": "'{raw_name}' dosyasında zorunlu '{f}' sütunu başlıkta yok."
+    },
+    "ARC_026": {
+      "'{raw_name}' contains line endings other than CRLF or LF.": "'{raw_name}' CRLF veya LF dışında satır sonu içeriyor."
+    },
+    "ARC_027": {
+      "The ZIP entry '{raw_name}' has no user read permission.": "'{raw_name}' ZIP girdisinde kullanıcı okuma izni bulunmuyor."
     },
     "ARC_028": {
       "The GTFS publication URL does not end with a .zip file name: '{source_url}'.": "GTFS yayın URL'si bir .zip dosya adıyla bitmiyor: '{source_url}'."
+    },
+    "ARC_030": {
+      "'{file_name}' has a field value containing a {f_kind} character (U+{cp}).": "'{file_name}' dosyasında bir alan değeri {f_kind} karakteri içeriyor (U+{cp})."
+    },
+    "ARC_032": {
+      "'{file_name}' has HTML markup on {a0} rows (e.g. '{example}'); affected columns: {cols}.": "'{file_name}' dosyasında {a0} satırda HTML işareti var (ör. '{example}'); etkilenen sütunlar: {cols}."
     },
     "ARC_033": {
       "'{file}' does not follow RFC 4180: characters after the closing quote ({rows} rows; first example: '{example}').": "'{file}' RFC 4180'e uymuyor: kapanış tırnağından sonra karakter var ({rows} satırda; ilk örnek: '{example}').",
       "'{file}' does not follow RFC 4180: unquoted field contains a quote ({rows} rows; first example: '{example}').": "'{file}' RFC 4180'e uymuyor: tırnaksız alan tırnak işareti içeriyor ({rows} satırda; ilk örnek: '{example}')."
     },
     "ARC_034": {
-      "'{a0}' line {line} repeats the header row — it is read as data.": "'{a0}' {line}. satırı başlık satırının tekrarı — veri olarak okunuyor."
+      "'{a0}' line {line} repeats the header row — it is read as data.": "'{a0}' {line}. satırı başlık satırının tekrarı — veri olarak okunuyor.",
+      "'{raw_name}' line {line_num} repeats the header row — it is read as data.": "'{raw_name}' {line_num}. satırı başlık satırının tekrarı — veri olarak okunuyor."
     },
     "ARC_035": {
-      "Required GTFS file '{a0}' contains no data rows.": "Zorunlu GTFS dosyası '{a0}' hiç veri satırı içermiyor."
+      "Required GTFS file '{a0}' contains no data rows.": "Zorunlu GTFS dosyası '{a0}' hiç veri satırı içermiyor.",
+      "Required GTFS file '{f}' contains no data rows.": "Zorunlu GTFS dosyası '{f}' hiç veri satırı içermiyor."
+    },
+    "ARC_036": {
+      "{inconsistent_stream_entries} entries of the ZIP archive have a stream header that contradicts the central directory; tools that read the archive as a stream cannot open the file.": "ZIP arşivinde {inconsistent_stream_entries} girdinin akış başlığı merkez diziniyle çelişiyor; arşivi akıştan okuyan araçlar dosyayı açamaz."
+    },
+    "ARC_037": {
+      "'{file_name}' has non-ASCII characters in an ID field on {a0} rows (e.g. {col}='{value}'); affected columns: {cols}.": "'{file_name}' dosyasında {a0} satırda ID alanı ASCII dışı karakter içeriyor (ör. {col}='{value}'); etkilenen sütunlar: {cols}."
     },
     "ARS_002": {
       "area_id is required in areas.txt.": "areas.txt'te area_id zorunludur."
@@ -1592,6 +1669,9 @@
     "DQ_013": {
       "The feed has only {trip_count} trips — at least 3 trips are recommended for usable transit data.": "Feed'de yalnızca {trip_count} sefer var — işlevsel transit veri için en az 3 sefer önerilir."
     },
+    "DQ_016": {
+      "'{file_name}' has leading/trailing whitespace on {a0} rows; affected columns: {cols}.": "'{file_name}' dosyasında {a0} satırda baştaki/sondaki boşluk var; etkilenen sütunlar: {cols}."
+    },
     "DQ_017": {
       "{suspicious} stops have a coordinate near (0°, 0°) — that is off the coast of Africa; probably a wrong value.": "{suspicious} durağın koordinatı (0°, 0°) civarında — bu Afrika kıyısı açıklarıdır; muhtemelen yanlış değer."
     },
@@ -1635,6 +1715,16 @@
     "FAR_013": {
       "fare_attributes.txt has {n} amounts without the ISO 4217 decimal places of their currency (e.g. line {line}: amount {amount} in {currency} — decimal places undefined).": "fare_attributes.txt dosyasında {n} tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımıyor (ör. satır {line}: {currency} {amount} — tanımsız basamak beklenir).",
       "fare_attributes.txt has {n} amounts without the ISO 4217 decimal places of their currency (e.g. line {line}: amount {amount} in {currency} — {want} decimal places expected).": "fare_attributes.txt dosyasında {n} tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımıyor (ör. satır {line}: {currency} {amount} — {want} basamak beklenir)."
+    },
+    "FATAL": {
+      "'{file}' could not be read: {e}": "'{file}' okunamadı: {e}",
+      "'{file}' exceeded the decompression guard: {f_trip}": "'{file}' sıkıştırma koruması sınırını aştı: {f_trip}",
+      "The ZIP archive could not be opened (no diagnosis): {e}": "ZIP arşivi açılamadı: {e}",
+      "The ZIP archive could not be opened: {f_text}. Library error: {e}": "ZIP arşivi açılamadı: {f_text}. Kütüphane hatası: {e}",
+      "The ZIP central directory exceeds the {n}-byte metadata limit.": "ZIP merkezi dizini {n} bayt metadata sınırını aşıyor.",
+      "The ZIP central directory exceeds the {n}-entry safety limit.": "ZIP merkezi dizini {n} girdilik güvenlik sınırını aşıyor.",
+      "The name of ZIP entry {index} could not be decoded: {e}": "ZIP girdisinin adı çözülemedi (index {index}): {e}",
+      "ZIP entry {i} could not be read: {e}": "ZIP dosyası okunamadı (index {i}): {e}"
     },
     "FIN_010": {
       "The feed's validity ended on {y}-{m}-{d}; the current data is out of date.": "Feed'in geçerlilik süresi {y}-{m}-{d} tarihinde dolmuş; mevcut veriler güncel değil."
@@ -1905,6 +1995,46 @@
     },
     "JPN_032": {
       "In GTFS-JP V3 agency_id must be in 法人番号 form: '{agency_id}' does not meet the 13-digit ASCII body.": "GTFS-JP V3'te agency_id法人番号 biçiminde olmalı: '{agency_id}' 13 haneli ASCII gövdeyi karşılamıyor."
+    },
+    "LOC_001": {
+      "'{fname}' feature {feat_num} has an invalid geometry type: '{t}'. GTFS Flex supports only Polygon and MultiPolygon.": "'{fname}' özellik {feat_num} geçersiz geometri tipi: '{t}'. GTFS Flex yalnızca Polygon ve MultiPolygon destekler.",
+      "'{fname}' feature {feat_num}: the geometry type is missing.": "'{fname}' özellik {feat_num} için geometri tipi eksik."
+    },
+    "LOC_002": {
+      "'{fname}' feature {feat_num}: geometry is null or missing — GTFS Flex requires it.": "'{fname}' özellik {feat_num} için geometry null veya eksik — GTFS Flex gerektiriyor."
+    },
+    "LOC_003": {
+      "'{fname}' feature {feat_num}: the 'id' property is missing — it is required for the stop_times cross reference.": "'{fname}' özellik {feat_num} için 'id' property eksik — stop_times çapraz referansı için zorunlu."
+    },
+    "LOC_004": {
+      "'{fname}' feature {feat_num}: the Polygon ring is not closed — the first point [{fl},{fa}] does not match the last point [{ll},{la}].": "'{fname}' özellik {feat_num} Polygon ring'i kapalı değil — ilk nokta [{fl},{fa}] son nokta [{ll},{la}] ile eşleşmiyor."
+    },
+    "LOC_005": {
+      "The FeatureCollection of '{fname}' is empty — it has no features.": "'{fname}' FeatureCollection'ı boş — hiç feature yok."
+    },
+    "LOC_006": {
+      "'{fname}' feature {feat_num}: the Polygon area is very large (~{area_km2}km²) — not realistic for a GTFS Flex zone.": "'{fname}' özellik {feat_num} Polygon alanı çok büyük (~{area_km2}km²) — GTFS Flex bölgesi için gerçekçi değil."
+    },
+    "LOC_007": {
+      "'{fname}' features {a0} and {a1} have the same 'id' value ({id_str}) — the GTFS Flex reference becomes ambiguous.": "'{fname}' özellik {a0} ve {a1} aynı 'id' değerine sahip ({id_str}) — GTFS Flex referansı belirsizleşir."
+    },
+    "LOC_008": {
+      "'{fname}' feature {feat_num}: 'type' is missing or not \"Feature\".": "'{fname}' özellik {feat_num} için 'type' eksik veya \"Feature\" değil."
+    },
+    "LOC_009": {
+      "'{fname}' feature {feat_num}: the 'properties' object is missing.": "'{fname}' özellik {feat_num} için 'properties' nesnesi eksik."
+    },
+    "LOC_010": {
+      "'{fname}' feature {feat_num}: geometry 'coordinates' is missing or not an array.": "'{fname}' özellik {feat_num} için geometry 'coordinates' eksik veya dizi değil."
+    },
+    "LOC_011": {
+      "'{fname}' feature {feat_num}: the polygon is invalid under OpenGIS Simple Features 6.1.11: {f_a0}.": "'{fname}' özellik {feat_num} poligonu OpenGIS Simple Features 6.1.11'e göre geçersiz: {f_a0}."
+    },
+    "LOC_012": {
+      "'{fname}' is not a valid GeoJSON document: {e}": "'{fname}' geçerli bir GeoJSON belgesi değil: {e}",
+      "'{raw_name}' could not be read: {e}.": "'{raw_name}' okunamadı: {e}",
+      "The 'features' array of '{fname}' is missing or invalid.": "'{fname}' için 'features' dizisi eksik veya geçersiz.",
+      "The root type of '{fname}' must be 'FeatureCollection'; found: '{f_a0}'.": "'{fname}' kök tipi 'FeatureCollection' olmalıdır; bulundu: '{f_a0}'."
     },
     "LVL_004": {
       "level_id '{a0}' is not referenced by any stop.": "level_id '{a0}' hiçbir durak tarafından referans edilmiyor."
@@ -2724,23 +2854,46 @@
     "Route [{l}]: ": "[{l}] kodlu hatta ait ",
     "Routes [{l}]: ": "[{l}] kodlu hatlara ait ",
     "agency": "acente",
+    "carriage return (CR)": "satır başı (CR)",
     "expected": "beklenen",
     "from shape '{s}'": "'{s}' no'lu güzergahtan",
     "from the shape of route '{r}'{f_dir}": "'{r}' hattının{f_dir} güzergahından",
+    "hole #{i}": "{i}. delik",
+    "hole {i} crosses itself": "{i}. delik kendini kesiyor",
+    "hole {i} crosses the outer ring": "{i}. delik dış ring'i kesiyor",
+    "hole {i} touches itself — the interior is split": "{i}. delik kendine dokunuyor — iç kısım bölünüyor",
+    "holes {i} and {j} are nested": "{i}. ve {j}. delikler iç içe",
+    "holes {i} and {j} cross each other": "{i}. ve {j}. delikler birbirini kesiyor",
     "in service '{s}'": "'{s}' servisinde",
     "in {n} services: {l}": "{n} serviste: {l}",
     "inbound": "dönüş",
+    "line feed (LF)": "satır sonu (LF)",
+    "none": "yok",
     "outbound": "gidiş",
     "parent_station is empty": "parent_station boş",
     "recommended": "önerilen",
     "required": "zorunlu",
+    "ring contacts form a cycle (the contact of {f_a} and {f_b} closes the chain) — the interior is split": "ring temasları çevrim oluşturuyor ({f_a} ile {f_b} teması zinciri kapatıyor) — iç kısım bölünüyor",
     "route": "hat",
     "stops.stop_id (with locations.geojson id)": "stops.stop_id (locations.geojson id ile)",
+    "tab (TAB)": "sekme (TAB)",
+    "the EOCD, the central directory and all local headers are in place; the corruption may be in the entries' compressed data": "EOCD, merkez dizin ve tüm yerel başlıklar yerinde; bozukluk girdilerin sıkıştırılmış verisinde olabilir",
+    "the archive-wide decompressed size limit was exceeded ({g} > {c} bytes)": "arşiv geneli açılmış-boyut sınırı aşıldı ({g} > {c} bayt)",
+    "the central directory cannot be read past byte {c} (expected entries: {n})": "merkez dizin {c}. bayttan sonra okunamıyor (beklenen girdi sayısı: {n})",
+    "the central directory points to byte {o}, but there is no central directory signature there (EOCD read at byte {e})": "merkez dizin {o}. bayta işaret ediyor ama orada merkez dizin imzası yok (EOCD {e}. baytta okunabildi)",
+    "the compression ratio exceeded {c}:1 ({d} bytes decompressed, {z} bytes compressed)": "sıkıştırma oranı {c}:1 sınırını aştı (açılmış {d}, sıkıştırılmış {z} bayt)",
+    "the local header of '{name}' at byte {o} is corrupt (no signature); the EOCD and central directory are intact, so the previous entry's compressed data may have overrun it": "'{name}' yerel başlığı {o}. bayta göre bozuk (imza yok); EOCD ve merkez dizin sağlam, bir önceki girdinin sıkıştırılmış verisi taşmış olabilir",
+    "the outer ring": "dış ring",
+    "the outer ring crosses itself": "dış ring kendini kesiyor",
+    "the outer ring touches itself — the interior is split": "dış ring kendine dokunuyor — iç kısım bölünüyor",
+    "the per-entry decompressed size limit was exceeded ({g} > {c} bytes)": "girdi başına açılmış-boyut sınırı aşıldı ({g} > {c} bayt)",
+    "unclosed quote": "Kapanmamış tırnak işareti (unclosed quote)",
     "unusually dense": "sıradışı sık",
     "unusually sparse": "sıradışı seyrek",
     "zones '{a}' and '{b}'": "'{a}' ve '{b}' bölgeleri",
     "{d} min, longer than expected": "{d}dk, beklenenden uzun",
     "{d} min, shorter than expected": "{d}dk, beklenenden kısa",
+    "{f_a} and {f_b} touch at more than one point ({c}) — the interior is split": "{f_a} ile {f_b} birden fazla noktada ({c}) dokunuyor — iç kısım bölünüyor",
     "{z}σ, longer than expected": "{z}σ, beklenenden uzun",
     "{z}σ, shorter than expected": "{z}σ, beklenenden kısa"
   },

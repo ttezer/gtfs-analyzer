@@ -322,7 +322,7 @@ fn diagnose_unreadable_zip(zip_bytes: &[u8]) -> Option<ZipDiagnosis> {
             kind: "cd_signature",
             params: vec![("cd_offset", cd_offset.to_string()), ("eocd", eocd.to_string())],
             text: format!(
-                "merkez dizin {cd_offset}. bayta işaret ediyor ama orada merkez dizin imzası yok (EOCD {eocd}. baytta okunabildi)"
+                "the central directory points to byte {cd_offset}, but there is no central directory signature there (EOCD read at byte {eocd})"
             ),
         });
     }
@@ -338,7 +338,7 @@ fn diagnose_unreadable_zip(zip_bytes: &[u8]) -> Option<ZipDiagnosis> {
                     ("entry_count", entry_count.to_string()),
                 ],
                 text: format!(
-                    "merkez dizin {cursor}. bayttan sonra okunamıyor (beklenen girdi sayısı: {entry_count})"
+                    "the central directory cannot be read past byte {cursor} (expected entries: {entry_count})"
                 ),
             });
         }
@@ -358,7 +358,7 @@ fn diagnose_unreadable_zip(zip_bytes: &[u8]) -> Option<ZipDiagnosis> {
             return Some(ZipDiagnosis {
                 kind: "local_header",
                 text: format!(
-                    "'{name}' yerel başlığı {local_offset}. bayta göre bozuk (imza yok); EOCD ve merkez dizin sağlam, bir önceki girdinin sıkıştırılmış verisi taşmış olabilir"
+                    "the local header of '{name}' at byte {local_offset} is corrupt (no signature); the EOCD and central directory are intact, so the previous entry's compressed data may have overrun it"
                 ),
                 params: vec![("name", name), ("local_offset", local_offset.to_string())],
             });
@@ -371,7 +371,7 @@ fn diagnose_unreadable_zip(zip_bytes: &[u8]) -> Option<ZipDiagnosis> {
     Some(ZipDiagnosis {
         kind: "entry_data",
         params: Vec::new(),
-        text: "EOCD, merkez dizin ve tüm yerel başlıklar yerinde; bozukluk girdilerin sıkıştırılmış verisinde olabilir"
+        text: "the EOCD, the central directory and all local headers are in place; the corruption may be in the entries' compressed data"
             .to_string(),
     })
 }
@@ -467,7 +467,7 @@ fn read_fatal<R: Read>(
                 FatalError::new(
                     FatalCode::DecompressionLimit,
                     format!(
-                        "'{raw_name}' sıkıştırma koruması sınırını aştı: {}",
+                        "'{raw_name}' exceeded the decompression guard: {}",
                         trip.describe()
                     ),
                 )
@@ -478,7 +478,7 @@ fn read_fatal<R: Read>(
         }
         None => FatalError::new(
             FatalCode::ZipUnreadable,
-            format!("'{raw_name}' okunamadı: {e}"),
+            format!("'{raw_name}' could not be read: {e}"),
         )
         .variant("entry_read")
         .param("file", raw_name)
@@ -710,7 +710,7 @@ fn tokenize_csv_budgeted(
                     }
                 }
                 if !closed {
-                    return Err("Kapanmamış tırnak işareti (unclosed quote)".to_string());
+                    return Err("unclosed quote".to_string());
                 }
                 // RFC 4180: a delimiter must follow a closing quote. If it does not, a quote
                 // inside the field was NOT ESCAPED (`"Broadway"Ave`). Until now the tokenizer
@@ -1058,7 +1058,7 @@ impl Dq016Acc {
         Some((
             format!("{} rows", self.rows),
             format!(
-                "'{file_name}' dosyasında {} satırda baştaki/sondaki boşluk var; etkilenen sütunlar: {cols}.",
+                "'{file_name}' has leading/trailing whitespace on {} rows; affected columns: {cols}.",
                 self.rows
             ),
             cols,
@@ -1178,7 +1178,7 @@ pub(crate) const DQ016_REMEDIATION: &str =
 fn entry_name_error(index: usize, e: &zip::result::ZipError) -> FatalError {
     FatalError::new(
         FatalCode::ZipUnreadable,
-        format!("ZIP girdisinin adı çözülemedi (index {index}): {e}"),
+        format!("The name of ZIP entry {index} could not be decoded: {e}"),
     )
     .variant("entry_index")
     .param("index", index)
@@ -1210,12 +1210,12 @@ pub(crate) fn arc012_check(
     let (msg, tip) = if short {
         let missing = header_count - row_len;
         (
-            format!("'{file_name}' {line}. satırda sondaki {missing} isteğe bağlı alan atlanmış ({row_len} sütun, başlık: {header_count})."),
+            format!("'{file_name}' line {line} omits {missing} trailing optional fields ({row_len} columns, header: {header_count})."),
             "Trailing empty fields may be omitted in CSV; required fields must not be left empty.",
         )
     } else {
         (
-            format!("'{file_name}' {line}. satırda fazla alan: {row_len} (beklenen {header_count}) — kaçmamış virgül veya format hatası."),
+            format!("'{file_name}' line {line} has extra fields: {row_len} (expected {header_count}) — an unescaped comma or a format error."),
             "Ensure each row contains exactly as many comma-separated values as the header.",
         )
     };
@@ -1336,11 +1336,11 @@ pub(crate) fn arc030_bad_whitespace<'a>(values: impl Iterator<Item = &'a str>) -
 
 pub(crate) fn arc030_message(file_name: &str, cp: u32) -> String {
     let kind = match cp {
-        9 => "sekme (TAB)",
-        10 => "satır sonu (LF)",
-        _ => "satır başı (CR)",
+        9 => "tab (TAB)",
+        10 => "line feed (LF)",
+        _ => "carriage return (CR)",
     };
-    format!("'{file_name}' dosyasında bir alan değeri {kind} karakteri içeriyor (U+{cp:04X}).")
+    format!("'{file_name}' has a field value containing a {kind} character (U+{cp:04X}).")
 }
 
 pub(crate) const ARC030_REMEDIATION: &str =
@@ -1556,8 +1556,7 @@ impl Arc032Acc {
         Some((
             example.to_string(),
             format!(
-                "'{file_name}' dosyasında {} satırda HTML işareti var (ör. '{example}'); \
-                 etkilenen sütunlar: {cols}.",
+                "'{file_name}' has HTML markup on {} rows (e.g. '{example}'); affected columns: {cols}.",
                 self.rows
             ),
             cols,
@@ -1704,8 +1703,7 @@ impl Arc037Acc {
         Some((
             value.clone(),
             format!(
-                "'{file_name}' dosyasında {} satırda ID alanı ASCII dışı karakter içeriyor \
-                 (ör. {col}='{value}'); etkilenen sütunlar: {cols}.",
+                "'{file_name}' has non-ASCII characters in an ID field on {} rows (e.g. {col}='{value}'); affected columns: {cols}.",
                 self.rows
             ),
             cols,
@@ -1736,7 +1734,7 @@ pub(crate) fn arc021_message(file_name: &str, cp: u32) -> String {
     // Do not say "non-ASCII": the rule deliberately exempts valid Unicode letters (ü, ö, 漢字…);
     // only control/DEL/surrogate/private-use characters are flagged. The message must not claim
     // more than the rule does (VBB German-text discussion, 2026-07-24).
-    format!("'{file_name}' dosyasında yazdırılamaz veya sorunlu karakter içeren değer var (U+{cp:04X}).")
+    format!("'{file_name}' has a value with a non-printable or problematic character (U+{cp:04X}).")
 }
 
 pub(crate) const ARC021_REMEDIATION: &str =
@@ -2174,7 +2172,7 @@ pub fn parse_with_limits(
                 FatalError::new(
                     FatalCode::ZipUnreadable,
                     format!(
-                        "ZIP arşivi açılamadı: {}. Kütüphane hatası: {e}",
+                        "The ZIP archive could not be opened: {}. Library error: {e}",
                         diagnosis.text
                     ),
                 )
@@ -2183,7 +2181,7 @@ pub fn parse_with_limits(
             ),
             None => FatalError::new(
                 FatalCode::ZipUnreadable,
-                format!("ZIP arşivi açılamadı: {e}"),
+                format!("The ZIP archive could not be opened (no diagnosis): {e}"),
             )
             .variant("archive"),
         }
@@ -2194,7 +2192,7 @@ pub fn parse_with_limits(
         return Err(FatalError::new(
             FatalCode::ResourceLimit,
             format!(
-                "ZIP merkezi dizini {} girdilik güvenlik sınırını aşıyor.",
+                "The ZIP central directory exceeds the {}-entry safety limit.",
                 MAX_ZIP_ENTRIES
             ),
         )
@@ -2217,7 +2215,7 @@ pub fn parse_with_limits(
             return Err(FatalError::new(
                 FatalCode::ResourceLimit,
                 format!(
-                    "ZIP merkezi dizini {MAX_ZIP_METADATA_BYTES} bayt metadata sınırını aşıyor."
+                    "The ZIP central directory exceeds the {MAX_ZIP_METADATA_BYTES}-byte metadata limit."
                 ),
             )
             .variant("zip_metadata")
@@ -2329,7 +2327,7 @@ pub fn parse_with_limits(
         let mut zf = archive.by_index(i).map_err(|e| {
             FatalError::new(
                 FatalCode::ZipUnreadable,
-                format!("ZIP dosyası okunamadı (index {i}): {e}"),
+                format!("ZIP entry {i} could not be read: {e}"),
             )
             .variant("entry_index")
             .param("index", i)
@@ -2363,7 +2361,7 @@ pub fn parse_with_limits(
                 EntityType::File, Some(entry_name.clone()),
                 Some(&entry_name), None, None,
                 Some(entry_name.clone()),
-                format!("'{entry_name}' alt dizinde bulunuyor — GTFS dosyaları ZIP kök dizininde düz olmalıdır."),
+                format!("'{entry_name}' is in a subdirectory — GTFS files must be flat at the ZIP root."),
                 "Move the file to the root of the ZIP archive.",
             ));
         }
@@ -2377,7 +2375,7 @@ pub fn parse_with_limits(
                 None,
                 None,
                 zf.unix_mode().map(|m| format!("{m:o}")),
-                format!("'{raw_name}' ZIP girdisinde kullanıcı okuma izni bulunmuyor."),
+                format!("The ZIP entry '{raw_name}' has no user read permission."),
                 "Add the user-read (0400) bit to the ZIP entry's Unix permissions.",
             ));
         }
@@ -2394,7 +2392,7 @@ pub fn parse_with_limits(
                 EntityType::File, Some(raw_name.clone()),
                 Some(&raw_name), None, None,
                 Some(raw_name.clone()),
-                format!("'{raw_name}' GTFS ZIP içinde başka bir ZIP dosyası — GTFS bu formatı desteklemiyor."),
+                format!("'{raw_name}' is another ZIP file inside the GTFS ZIP — GTFS does not support this format."),
                 "Remove the nested ZIP file; GTFS files must be directly inside a single flat ZIP archive.",
             ));
             continue;
@@ -2449,7 +2447,7 @@ pub fn parse_with_limits(
                         None,
                         None,
                         Some(e.to_string()),
-                        format!("'{raw_name}' okunamadı: {e}"),
+                        format!("'{raw_name}' could not be read: {e}."),
                         "Regenerate locations.geojson as valid UTF-8 JSON.",
                     ));
                     partial.mark_unavailable(raw_name.clone());
@@ -2465,7 +2463,7 @@ pub fn parse_with_limits(
                 EntityType::File, Some(raw_name.clone()),
                 Some(&raw_name), None, None,
                 Some(raw_name.clone()),
-                format!("'{raw_name}' alt dizinde bulunuyor — GTFS dosyaları ZIP kök dizininde düz olmalıdır."),
+                format!("'{raw_name}' is in a subdirectory — GTFS files must be flat at the ZIP root."),
                 "Move the file to the root of the ZIP archive.",
             ));
             continue;
@@ -2493,7 +2491,7 @@ pub fn parse_with_limits(
                     None,
                     None,
                     Some(raw_name.clone()),
-                    format!("'{raw_name}' GTFS spesifikasyonunda tanımlı değil."),
+                    format!("'{raw_name}' is not defined in the GTFS specification."),
                     "Remove non-GTFS files from the ZIP.",
                 ));
             }
@@ -2600,7 +2598,7 @@ pub fn parse_with_limits(
                         None,
                         None,
                         Some("CR not followed by LF".to_string()),
-                        format!("'{raw_name}' CRLF veya LF dışında satır sonu içeriyor."),
+                        format!("'{raw_name}' contains line endings other than CRLF or LF."),
                         "Rewrite the line endings as LF or CRLF.",
                     ));
                 }
@@ -2622,7 +2620,7 @@ pub fn parse_with_limits(
                 None,
                 None,
                 Some("CR not followed by LF".to_string()),
-                format!("'{raw_name}' CRLF veya LF dışında satır sonu içeriyor."),
+                format!("'{raw_name}' contains line endings other than CRLF or LF."),
                 "Rewrite the line endings as LF or CRLF.",
             ));
         }
@@ -2644,7 +2642,7 @@ pub fn parse_with_limits(
             None,
             None,
             Some(format!("{file_size_bytes} bytes")),
-            format!("'{raw_name}' boyutu: {file_size_bytes} bayt."),
+            format!("'{raw_name}' size: {file_size_bytes} bytes."),
             "Informational notice; no action required.",
         ));
 
@@ -2673,7 +2671,7 @@ pub fn parse_with_limits(
                 None,
                 None,
                 Some(raw_name.clone()),
-                format!("'{raw_name}' GTFS spesifikasyonunda tanımlı değil."),
+                format!("'{raw_name}' is not defined in the GTFS specification."),
                 "Remove non-GTFS files from the ZIP.",
             ));
             continue;
@@ -2690,7 +2688,7 @@ pub fn parse_with_limits(
                 None,
                 None,
                 None,
-                format!("İsteğe bağlı dosya mevcut: '{raw_name}'."),
+                format!("Optional file present: '{raw_name}'."),
                 "Informational notice; no action required.",
             ));
         }
@@ -2705,7 +2703,7 @@ pub fn parse_with_limits(
                 EntityType::File, Some(raw_name.clone()),
                 Some(&raw_name), None, None,
                 Some("UTF-8 BOM (EF BB BF)".to_string()),
-                format!("'{raw_name}' dosyasında UTF-8 BOM var — bazı parser'lar BOM'u ilk alan adının parçası olarak okur."),
+                format!("'{raw_name}' has a UTF-8 BOM — some parsers read the BOM as part of the first field name."),
                 "Re-save the file as UTF-8 without BOM.",
             ));
         }
@@ -2727,7 +2725,7 @@ pub fn parse_with_limits(
                     None,
                     None,
                     None,
-                    format!("'{raw_name}' UTF-8 kodlamasıyla okunamıyor."),
+                    format!("'{raw_name}' cannot be read as UTF-8."),
                     "Re-save the file with UTF-8 encoding.",
                 );
                 add_utf8_error_context(&mut arc002, bytes, utf8_err, bom_len);
@@ -2743,7 +2741,7 @@ pub fn parse_with_limits(
                         None,
                         None,
                         None,
-                        format!("'{raw_name}' UTF-8 dışı olduğu için dosya atlandı."),
+                        format!("'{raw_name}' was skipped because it is not UTF-8."),
                         "Save all GTFS files with UTF-8 encoding.",
                     );
                     add_utf8_error_context(&mut arc003, bytes, utf8_err, bom_len);
@@ -2801,7 +2799,7 @@ pub fn parse_with_limits(
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), None, None,
                     Some("issue=unclosed_quote".to_string()),
-                    format!("'{raw_name}' CSV tokenization hatası: {msg}"),
+                    format!("'{raw_name}' could not be tokenized as CSV: {msg}"),
                     "Check the CSV format; ensure all quoted fields are properly closed.",
                 ));
                 partial.mark_unavailable(raw_name.clone());
@@ -2842,7 +2840,7 @@ pub fn parse_with_limits(
                         None,
                         None,
                         None,
-                        format!("'{raw_name}' dosyası boş veya yalnızca başlık satırı içeriyor."),
+                        format!("'{raw_name}' is empty or contains only a header row."),
                         "Add at least one data row to the file (or remove the file if it is not needed).",
                     ));
                 }
@@ -2865,7 +2863,7 @@ pub fn parse_with_limits(
                     Some(1),
                     Some(hdr.as_str()),
                     Some(format!("{hdr:?}")),
-                    format!("'{raw_name}' başlığında '{hdr}' sütununda gereksiz boşluk var."),
+                    format!("The header of '{raw_name}' has extra whitespace in column '{hdr}'."),
                     "Remove leading and trailing whitespace from CSV header field names.",
                 ));
                 let _ = col_i;
@@ -2887,7 +2885,7 @@ pub fn parse_with_limits(
                     Some(1),
                     None,
                     Some("\"\"".to_string()),
-                    format!("'{raw_name}' başlığında boş sütun adı var."),
+                    format!("The header of '{raw_name}' has an empty column name."),
                     "Ensure all header column names are non-empty.",
                 ));
                 break; // Once per file is enough.
@@ -2907,7 +2905,7 @@ pub fn parse_with_limits(
                     Some(1),
                     Some(hdr.as_str()),
                     Some(hdr.clone()),
-                    format!("'{raw_name}' dosyasında '{hdr}' sütunu tekrarlanıyor."),
+                    format!("Column '{hdr}' repeats in '{raw_name}'."),
                     "Remove the duplicate column from the header row.",
                 ));
             }
@@ -2937,7 +2935,7 @@ pub fn parse_with_limits(
                         Some(hdr.as_str()),
                         Some(hdr.clone()),
                         format!(
-                            "'{raw_name}' dosyasında '{hdr}' GTFS spesifikasyonunda tanımlı değil."
+                            "In '{raw_name}', '{hdr}' is not defined in the GTFS specification."
                         ),
                         "Remove columns not defined in the GTFS specification.",
                     ));
@@ -2955,7 +2953,7 @@ pub fn parse_with_limits(
                     None,
                     Some(omitted.to_string()),
                     format!(
-                        "'{raw_name}' dosyasında {omitted} bilinmeyen sütun daha var; yalnızca ilk {ARC_017_MAX_PER_FILE} tanesi ayrı ayrı raporlandı."
+                        "'{raw_name}' has {omitted} more unknown columns; only the first {ARC_017_MAX_PER_FILE} were reported one by one."
                     ),
                     "Remove columns not defined in the GTFS specification.",
                 );
@@ -2992,7 +2990,7 @@ pub fn parse_with_limits(
                     Some(1),
                     Some(f),
                     Some(String::new()),
-                    format!("'{raw_name}' dosyasında zorunlu '{f}' sütunu başlıkta yok."),
+                    format!("The required column '{f}' is missing from the header of '{raw_name}'."),
                     "Add the required column to the header.",
                 ));
             }
@@ -3045,7 +3043,7 @@ pub fn parse_with_limits(
                     Some(line_num),
                     None,
                     None,
-                    format!("'{raw_name}' {line_num}. satırı tamamen boş."),
+                    format!("'{raw_name}' line {line_num} is completely empty."),
                     "Remove empty rows from the file.",
                 ));
                 continue; // Do not store the empty row.
@@ -3072,7 +3070,7 @@ pub fn parse_with_limits(
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), Some(line_num), None,
                     None,
-                    format!("'{raw_name}' {line_num}. satırı başlık satırının tekrarı — veri olarak okunuyor."),
+                    format!("'{raw_name}' line {line_num} repeats the header row — it is read as data."),
                     "Remove the repeated header row in the middle of the file; it usually comes from two files being concatenated.",
                 ));
                 continue; // Do not STORE the repeated header as data.
@@ -3229,7 +3227,7 @@ pub fn parse_with_limits(
                 None,
                 Some(format!("{}", rows.len())),
                 format!(
-                    "'{raw_name}' dosyasında {} satır var; {} satırlık bilgi eşiğini aşıyor. Dosyanın tamamı doğrulandı.",
+                    "'{raw_name}' has {} rows; it exceeds the {}-row information threshold. The whole file was validated.",
                     rows.len(),
                     max_rows
                 ),
@@ -3259,7 +3257,7 @@ pub fn parse_with_limits(
                     None,
                     None,
                     None,
-                    format!("'{raw_name}' dosyasında başlık satırı var ama veri satırı yok."),
+                    format!("'{raw_name}' has a header row but no data rows."),
                     "Add at least one data row to the file (or remove the file if it is not needed).",
                 ));
             }
@@ -3332,7 +3330,7 @@ pub fn parse_with_limits(
                 None,
                 None,
                 Some(f.to_string()),
-                format!("Zorunlu GTFS dosyası eksik: '{f}'."),
+                format!("Required GTFS file is missing: '{f}'."),
                 "Add the missing file to the feed ZIP archive.",
             ));
         }
@@ -3358,7 +3356,7 @@ pub fn parse_with_limits(
             None,
             None,
             Some(f.to_string()),
-            format!("Zorunlu GTFS dosyası '{f}' hiç veri satırı içermiyor."),
+            format!("Required GTFS file '{f}' contains no data rows."),
             "Add the real records to the file; leaving it empty is equivalent to omitting it.",
         ));
     }
@@ -3372,8 +3370,7 @@ pub fn parse_with_limits(
             None, None, None,
             Some(inconsistent_stream_entries.to_string()),
             format!(
-                "ZIP arşivinde {inconsistent_stream_entries} girdinin akış başlığı merkez diziniyle çelişiyor; \
-                 arşivi akıştan okuyan araçlar dosyayı açamaz."
+                "{inconsistent_stream_entries} entries of the ZIP archive have a stream header that contradicts the central directory; tools that read the archive as a stream cannot open the file."
             ),
             "Repack the archive with a standard ZIP tool; the data-descriptor flag and the sizes in the local header must be consistent.",
         ));
@@ -3473,7 +3470,7 @@ fn validate_locations_geojson_inner(
                 None,
                 None,
                 None,
-                format!("'{fname}' UTF-8 kodlamasıyla okunamıyor."),
+                format!("'{fname}' cannot be read as UTF-8."),
                 "Re-save the file with UTF-8 encoding.",
             );
             add_utf8_error_context(&mut arc002, bytes, utf8_err, 0);
@@ -3489,7 +3486,7 @@ fn validate_locations_geojson_inner(
                 notices.push(make_notice(
                 counter, "LOC_012", EntityType::File, Some(fname.to_string()),
                 Some(fname), None, None, Some(e.to_string()),
-                format!("'{fname}' geçerli bir GeoJSON belgesi değil: {e}"),
+                format!("'{fname}' is not a valid GeoJSON document: {e}"),
                 "Make sure locations.geojson is a valid GeoJSON FeatureCollection.",
             ));
                 return false;
@@ -3508,8 +3505,8 @@ fn validate_locations_geojson_inner(
             Some("type"),
             root_type.map(str::to_string),
             format!(
-                "'{fname}' kök tipi 'FeatureCollection' olmalıdır; bulundu: '{}'.",
-                root_type.unwrap_or("yok")
+                "The root type of '{fname}' must be 'FeatureCollection'; found: '{}'.",
+                root_type.unwrap_or("none")
             ),
             "The root type of locations.geojson must be 'FeatureCollection'.",
         ));
@@ -3526,7 +3523,7 @@ fn validate_locations_geojson_inner(
             None,
             Some("features"),
             None,
-            format!("'{fname}' için 'features' dizisi eksik veya geçersiz."),
+            format!("The 'features' array of '{fname}' is missing or invalid."),
             "Add a valid 'features' array to locations.geojson.",
         ));
         return false;
@@ -3543,7 +3540,7 @@ fn validate_locations_geojson_inner(
             None,
             Some("features"),
             None,
-            format!("'{fname}' FeatureCollection'ı boş — hiç feature yok."),
+            format!("The FeatureCollection of '{fname}' is empty — it has no features."),
             "Add at least one Polygon or MultiPolygon feature to locations.geojson.",
         ));
         return false;
@@ -3572,7 +3569,7 @@ fn validate_locations_geojson_inner(
                     notices.push(make_notice(
                         counter, "LOC_007", EntityType::File, Some(fname.to_string()),
                         Some(fname), Some((i + 1) as u64), Some("id"), Some(id_str.clone()),
-                        format!("'{fname}' özellik {} ve {} aynı 'id' değerine sahip ({id_str}) — GTFS Flex referansı belirsizleşir.", first_idx + 1, i + 1),
+                        format!("'{fname}' features {} and {} have the same 'id' value ({id_str}) — the GTFS Flex reference becomes ambiguous.", first_idx + 1, i + 1),
                         "Assign a unique \"id\" to each feature in locations.geojson.",
                     ));
                 } else {
@@ -3605,7 +3602,7 @@ fn validate_locations_geojson_inner(
                     Some("type"),
                     other.map(str::to_string),
                     format!(
-                        "'{fname}' özellik {feat_num} için 'type' eksik veya \"Feature\" değil."
+                        "'{fname}' feature {feat_num}: 'type' is missing or not \"Feature\"."
                     ),
                     "Add \"type\": \"Feature\" to every feature object.",
                 ));
@@ -3624,7 +3621,7 @@ fn validate_locations_geojson_inner(
                 Some(feat_num),
                 Some("properties"),
                 None,
-                format!("'{fname}' özellik {feat_num} için 'properties' nesnesi eksik."),
+                format!("'{fname}' feature {feat_num}: the 'properties' object is missing."),
                 "Add a 'properties' object to every feature; an empty object is valid.",
             ));
         }
@@ -3634,7 +3631,7 @@ fn validate_locations_geojson_inner(
             notices.push(make_notice(
                 counter, "LOC_003", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("id"), None,
-                format!("'{fname}' özellik {feat_num} için 'id' property eksik — stop_times çapraz referansı için zorunlu."),
+                format!("'{fname}' feature {feat_num}: the 'id' property is missing — it is required for the stop_times cross reference."),
                 "Add a unique \"id\" property to each feature that matches the location_id referenced in stop_times.txt.",
             ));
         }
@@ -3657,7 +3654,7 @@ fn validate_locations_geojson_inner(
             notices.push(make_notice(
                 counter, "LOC_002", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("geometry"), None,
-                format!("'{fname}' özellik {feat_num} için geometry null veya eksik — GTFS Flex gerektiriyor."),
+                format!("'{fname}' feature {feat_num}: geometry is null or missing — GTFS Flex requires it."),
                 "Add a valid Polygon or MultiPolygon geometry to each feature in locations.geojson.",
             ));
             continue;
@@ -3714,7 +3711,7 @@ fn validate_locations_geojson_inner(
                 notices.push(make_notice(
                     counter, "LOC_001", EntityType::File, Some(fname.to_string()),
                     Some(fname), Some(feat_num), Some("geometry.type"), Some(t.to_string()),
-                    format!("'{fname}' özellik {feat_num} geçersiz geometri tipi: '{t}'. GTFS Flex yalnızca Polygon ve MultiPolygon destekler."),
+                    format!("'{fname}' feature {feat_num} has an invalid geometry type: '{t}'. GTFS Flex supports only Polygon and MultiPolygon."),
                     "Use only Polygon and MultiPolygon geometries in locations.geojson.",
                 ));
                 false
@@ -3729,7 +3726,7 @@ fn validate_locations_geojson_inner(
                     Some(feat_num),
                     Some("geometry.type"),
                     None,
-                    format!("'{fname}' özellik {feat_num} için geometri tipi eksik."),
+                    format!("'{fname}' feature {feat_num}: the geometry type is missing."),
                     "Define a Polygon or MultiPolygon geometry for every feature.",
                 ));
                 false
@@ -3763,7 +3760,7 @@ fn missing_coordinates(counter: &mut u32, fname: &str, feat_num: u64, notices: &
         Some(feat_num),
         Some("coordinates"),
         None,
-        format!("'{fname}' özellik {feat_num} için geometry 'coordinates' eksik veya dizi değil."),
+        format!("'{fname}' feature {feat_num}: geometry 'coordinates' is missing or not an array."),
         "Add a valid 'coordinates' array to the geometry.",
     ));
 }
@@ -3813,7 +3810,7 @@ fn check_polygon_rings(
                     notices.push(make_notice(
                         counter, "LOC_004", EntityType::File, Some(fname.to_string()),
                         Some(fname), Some(feat_num), Some("coordinates"), None,
-                        format!("'{fname}' özellik {feat_num} Polygon ring'i kapalı değil — ilk nokta [{fl},{fa}] son nokta [{ll},{la}] ile eşleşmiyor."),
+                        format!("'{fname}' feature {feat_num}: the Polygon ring is not closed — the first point [{fl},{fa}] does not match the last point [{ll},{la}]."),
                         "Close the Polygon ring by making the last coordinate equal to the first coordinate.",
                     ));
                     already_reported_closure = true;
@@ -3867,7 +3864,7 @@ fn check_polygon_rings(
         if !ring_is_simple(outer) {
             bad = Some(Loc011Failure::new(
                 "issue=outer_ring_self_intersection",
-                "dış ring kendini kesiyor",
+                "the outer ring crosses itself",
             ));
         } else if has_spike(outer) {
             bad = Some(Loc011Failure::new(
@@ -3877,7 +3874,7 @@ fn check_polygon_rings(
         } else if ring_touches_itself(outer) {
             bad = Some(Loc011Failure::new(
                 "issue=outer_ring_self_touch",
-                "dış ring kendine dokunuyor — iç kısım bölünüyor",
+                "the outer ring touches itself — the interior is split",
             ));
         }
         for (i, hole) in all_rings.iter().enumerate().skip(1) {
@@ -3887,7 +3884,7 @@ fn check_polygon_rings(
             if !ring_is_simple(hole) {
                 bad = Some(Loc011Failure::new(
                     format!("issue=hole_self_intersection; ring={i}"),
-                    format!("{i}. delik kendini kesiyor"),
+                    format!("hole {i} crosses itself"),
                 ));
             } else if has_spike(hole) {
                 bad = Some(Loc011Failure::new(
@@ -3897,13 +3894,13 @@ fn check_polygon_rings(
             } else if ring_touches_itself(hole) {
                 bad = Some(Loc011Failure::new(
                     format!("issue=hole_self_touch; ring={i}"),
-                    format!("{i}. delik kendine dokunuyor — iç kısım bölünüyor"),
+                    format!("hole {i} touches itself — the interior is split"),
                 ));
             } else if rings_cross(outer, hole) {
                 // 6.1.11 (3): rings must not cross. This was not measured before.
                 bad = Some(Loc011Failure::new(
                     format!("issue=hole_crosses_outer_ring; ring={i}"),
-                    format!("{i}. delik dış ring'i kesiyor"),
+                    format!("hole {i} crosses the outer ring"),
                 ));
             } else if hole.iter().any(|&p| !point_in_ring(p, outer)) {
                 // Previously only the FIRST point was sampled → a hole partly outside the ring
@@ -3924,7 +3921,7 @@ fn check_polygon_rings(
                 if rings_cross(&all_rings[i], &all_rings[j]) {
                     bad = Some(Loc011Failure::new(
                         format!("issue=holes_cross; rings={i},{j}"),
-                        format!("{i}. ve {j}. delikler birbirini kesiyor"),
+                        format!("holes {i} and {j} cross each other"),
                     ));
                     break 'outer;
                 }
@@ -3937,7 +3934,7 @@ fn check_polygon_rings(
                 {
                     bad = Some(Loc011Failure::new(
                         format!("issue=nested_holes; rings={i},{j}"),
-                        format!("{i}. ve {j}. delikler iç içe"),
+                        format!("holes {i} and {j} are nested"),
                     ));
                     break 'outer;
                 }
@@ -3954,7 +3951,7 @@ fn check_polygon_rings(
             notices.push(make_notice(
                 counter, "LOC_011", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("coordinates"), Some(failure.observed),
-                format!("'{fname}' özellik {feat_num} poligonu OpenGIS Simple Features 6.1.11'e göre geçersiz: {}.", failure.explanation),
+                format!("'{fname}' feature {feat_num}: the polygon is invalid under OpenGIS Simple Features 6.1.11: {}.", failure.explanation),
                 "Fix the polygon rings so they do not self-intersect, and keep holes inside the outer ring.",
             ));
         }
@@ -3976,7 +3973,7 @@ fn check_polygon_rings(
             notices.push(make_notice(
                 counter, "LOC_006", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("coordinates"), Some(format!("{area_km2:.0}km²")),
-                format!("'{fname}' özellik {feat_num} Polygon alanı çok büyük (~{area_km2:.0}km²) — GTFS Flex bölgesi için gerçekçi değil."),
+                format!("'{fname}' feature {feat_num}: the Polygon area is very large (~{area_km2:.0}km²) — not realistic for a GTFS Flex zone."),
                 "Reduce the polygon extent to a realistic service zone; large polygons are likely coordinate errors.",
             ));
         }
@@ -4213,9 +4210,9 @@ impl Loc011Failure {
 fn interior_disconnection(rings: &[Vec<(f64, f64)>]) -> Option<Loc011Failure> {
     let label = |i: usize| {
         if i == 0 {
-            "dış ring".to_string()
+            "the outer ring".to_string()
         } else {
-            format!("{i}. delik")
+            format!("hole #{i}")
         }
     };
     let mut parent: Vec<usize> = (0..rings.len()).collect();
@@ -4242,7 +4239,7 @@ fn interior_disconnection(rings: &[Vec<(f64, f64)>]) -> Option<Loc011Failure> {
                 return Some(Loc011Failure::new(
                     format!("issue=multiple_ring_contacts; rings={i},{j}; contacts={contacts}"),
                     format!(
-                        "{} ile {} birden fazla noktada ({contacts}) dokunuyor — iç kısım bölünüyor",
+                        "{} and {} touch at more than one point ({contacts}) — the interior is split",
                         label(i),
                         label(j)
                     ),
@@ -4253,7 +4250,7 @@ fn interior_disconnection(rings: &[Vec<(f64, f64)>]) -> Option<Loc011Failure> {
                 return Some(Loc011Failure::new(
                     format!("issue=ring_contact_cycle; rings={i},{j}"),
                     format!(
-                        "ring temasları çevrim oluşturuyor ({} ile {} teması zinciri kapatıyor) — iç kısım bölünüyor",
+                        "ring contacts form a cycle (the contact of {} and {} closes the chain) — the interior is split",
                         label(i), label(j)
                     ),
                 ));
@@ -4486,7 +4483,7 @@ mod tests {
             .expect("sağlam arşivde de teşhis dönmeli")
             .text;
         assert!(
-            clean.contains("tüm yerel başlıklar yerinde"),
+            clean.contains("all local headers are in place"),
             "sağlam arşiv yanlış katmanı suçluyor: {clean}"
         );
 
@@ -4506,7 +4503,7 @@ mod tests {
         assert_eq!(diagnosis.kind, "local_header");
         let detail = diagnosis.text;
         assert!(
-            detail.contains("yerel başlığı") && detail.contains("merkez dizin sağlam"),
+            detail.contains("the local header of") && detail.contains("central directory are intact"),
             "yerel başlık bozukluğu doğru anlatılmalı: {detail}"
         );
     }
@@ -5875,7 +5872,7 @@ mod tests {
         );
         assert_eq!(hits[0].field.as_deref(), Some("stop_name"));
         assert!(
-            hits[0].message.contains("2 satırda"),
+            hits[0].message.contains("on 2 rows"),
             "satır sayısı: {}",
             hits[0].message
         );
