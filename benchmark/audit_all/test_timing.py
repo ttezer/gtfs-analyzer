@@ -150,6 +150,70 @@ class AnalyzerProfiles(unittest.TestCase):
         self.assertEqual(len(result["missing"]), 3)
 
 
+class PartialRuns(unittest.TestCase):
+    """The run's PartialReport is recorded per feed and summarised (2026-11-18): before this a
+    capped feed (cell budget, skipped checks) looked exactly like a clean one in the corpus."""
+
+    REPORT = {
+        "status": "PARTIAL",
+        "partial": {
+            "root_structural_errors": ["stop_times.txt exceeds the CSV cell budget"],
+            "unavailable_files": [],
+            "skipped_stages": [],
+            "skipped_checks": ["K1::LOC_011"],
+        },
+        "reports": {"r5": {"score": 90.0}},
+        "notices": [{"rule_id": "STM_001", "rule_class": "SPEC", "severity": "CRITICAL"}],
+    }
+
+    def parse(self, report):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "report.json"
+            path.write_text(json.dumps(report))
+            return shard.parse_analyzer(path)
+
+    def test_partial_report_is_recorded(self):
+        out = self.parse(self.REPORT)
+        self.assertEqual(out["status"], "PARTIAL")
+        self.assertEqual(out["partial"]["skipped_checks"], ["K1::LOC_011"])
+        self.assertEqual(out["partial"]["root_structural_errors"], ["stop_times.txt exceeds the CSV cell budget"])
+
+    def test_complete_run_records_no_partial(self):
+        out = self.parse({**self.REPORT, "status": "COMPLETE", "partial": None})
+        self.assertIsNone(out["partial"])
+
+    def test_partial_is_read_from_top_level_events_and_stops_at_notices(self):
+        events = [
+            ("", "start_map", None), ("", "map_key", "status"), ("status", "string", "PARTIAL"),
+            ("", "map_key", "partial"), ("partial", "start_map", None),
+            ("partial", "map_key", "skipped_checks"), ("partial.skipped_checks", "start_array", None),
+            ("partial.skipped_checks.item", "string", "K1::LOC_011"),
+            ("partial.skipped_checks", "end_array", None), ("partial", "end_map", None),
+            ("", "map_key", "notices"),
+        ]
+        self.assertEqual(shard.partial_from_events(iter(events)), {"skipped_checks": ["K1::LOC_011"]})
+
+        def complete():
+            yield ("", "start_map", None)
+            yield ("", "map_key", "status")
+            yield ("status", "string", "COMPLETE")
+            yield ("", "map_key", "notices")
+            raise AssertionError("read past the notices key")
+        self.assertIsNone(shard.partial_from_events(complete()))
+
+    def test_summary_counts_partial_entries_per_feed(self):
+        partial = shard.small_partial(self.REPORT["partial"])
+        rows = [
+            {"feed": {"feed_id": "f1"}, "analyzer_profiles": {"auto": {"state": "partial", "partial": partial}}},
+            {"feed": {"feed_id": "f2"}, "analyzer_profiles": {"auto": {"state": "partial", "partial": partial}}},
+            {"feed": {"feed_id": "f3"}, "analyzer_profiles": {"auto": {"state": "completed"}}},
+        ]
+        auto = agg.summarize_analyzer_profiles(rows)["profiles"]["auto"]
+        self.assertEqual(auto["partial_reports"], 2)
+        checks = auto["partial_entries"]["skipped_checks"]
+        self.assertEqual(checks, [{"entry": "K1::LOC_011", "feed_count": 2, "feeds": ["f1", "f2"]}])
+
+
 class SourceDrift(unittest.TestCase):
     def test_baseline_comparison_reports_changed_payload(self):
         with tempfile.TemporaryDirectory() as d:

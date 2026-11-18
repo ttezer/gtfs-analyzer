@@ -129,12 +129,57 @@ def small_notice(n):
           "file","line","field","observed_value","expected_value","details","message","remediation")
     return {k:n.get(k) for k in keep if n.get(k) not in (None,{},[])}
 
+def partial_from_events(events):
+    """The top-level `partial` object from an ijson event stream, or None. Stops at the first
+    top-level key after it, or at `notices`, so a complete run is not read to the end."""
+    builder=None
+    for prefix,event,value in events:
+        if prefix=="" and event=="map_key":
+            if builder is not None or value=="notices":
+                break
+            if value=="partial":
+                builder=_object_builder()
+            continue
+        if builder is not None:
+            builder.event(event,value)
+    return builder.value if builder is not None else None
+
+def _object_builder():
+    if ijson is not None:
+        return ijson.ObjectBuilder()
+    return _MiniBuilder()
+
+class _MiniBuilder:
+    """Minimal stand-in for ijson.ObjectBuilder (tests run without ijson)."""
+    def __init__(self):
+        self.value=None; self.stack=[]; self.key=None
+    def _put(self,v):
+        if not self.stack: self.value=v; return
+        top=self.stack[-1]
+        if isinstance(top,list): top.append(v)
+        else: top[self.key]=v
+    def event(self,event,value):
+        if event=="map_key": self.key=value
+        elif event in ("start_map","start_array"):
+            v={} if event=="start_map" else []
+            self._put(v); self.stack.append(v)
+        elif event in ("end_map","end_array"): self.stack.pop()
+        else: self._put(value)
+
+def small_partial(partial):
+    """The run's PartialReport, trimmed for the shard file (None when the run was complete)."""
+    if not isinstance(partial,dict):
+        return None
+    keys=("root_structural_errors","unavailable_files","skipped_stages","skipped_checks")
+    out={k:[str(x)[:300] for x in (partial.get(k) or [])[:50]] for k in keys}
+    return out if any(out.values()) else None
+
 def parse_analyzer(report):
     report=Path(report)
     out={"report_bytes":report.stat().st_size}
     by_rule=collections.Counter(); by_class=collections.Counter(); by_sev=collections.Counter()
     samples={}
-    status=None; scores=None
+    status=None; scores=None; partial=None
     if ijson is not None:
         try:
             with report.open("rb") as f:
@@ -148,6 +193,11 @@ def parse_analyzer(report):
             # ijson returns numbers as `Decimal`, and `Decimal` cannot be written to JSONL—
             # without conversion, writing the shard output raises TypeError.
             if r5: scores={k:float(v) for k,v in r5.items()}
+            # `partial` (PartialReport): which limit or structural error stopped part of the run.
+            # The engine omits the key on a complete run, so `ijson.items(f, "partial")` would scan
+            # the whole report for nothing; read top-level events only, up to "notices".
+            with report.open("rb") as f:
+                partial=partial_from_events(ijson.parse(f))
             with report.open("rb") as f:
                 for n in ijson.items(f,"notices.item"):
                     rid=n.get("rule_id") or "(none)"
@@ -163,6 +213,7 @@ def parse_analyzer(report):
             d=json.loads(report.read_text())
             status=d.get("status")
             scores=(d.get("reports") or {}).get("r5")
+            partial=d.get("partial")
             for n in d.get("notices",[]):
                 rid=n.get("rule_id") or "(none)"
                 by_rule[rid]+=1
@@ -180,6 +231,7 @@ def parse_analyzer(report):
       "by_severity":dict(by_sev),
       "samples":samples,
       "scores":scores,
+      "partial":small_partial(partial),
     })
     return out
 

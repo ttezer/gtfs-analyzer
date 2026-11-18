@@ -129,7 +129,11 @@ def summarize_analyzer_profiles(rows):
         "attempted":0, "completed":0, "partial":0, "failed":0,
         "notice_total":0, "rules":defaultdict(lambda: {
             "feed_count":0, "notice_total":0, "affected_feeds":[]
-        })
+        }),
+        # The run's own PartialReport (`report["partial"]`, 2026-11-18): which limit or structural
+        # error stopped part of the validation, counted per distinct entry with the feeds it hit.
+        "partial_reports":0,
+        "partial_entries":defaultdict(lambda: defaultdict(lambda: {"feed_count":0, "feeds":[]})),
     })
     for row in rows:
         for profile, report in (row.get("analyzer_profiles") or {}).items():
@@ -141,6 +145,14 @@ def summarize_analyzer_profiles(rows):
             else: stats["failed"]+=1
             stats["notice_total"]+=int(report.get("notice_count") or 0)
             feed_id=(row.get("feed") or {}).get("feed_id","")
+            partial=report.get("partial") or {}
+            if partial:
+                stats["partial_reports"]+=1
+                for kind,entries in partial.items():
+                    for entry in sorted(set(entries or [])):
+                        slot=stats["partial_entries"][kind][entry]
+                        slot["feed_count"]+=1
+                        if feed_id and len(slot["feeds"])<50: slot["feeds"].append(feed_id)
             for rule_id,count in (report.get("by_rule") or {}).items():
                 entry=stats["rules"][rule_id]
                 entry["feed_count"]+=1
@@ -162,7 +174,11 @@ def summarize_analyzer_profiles(rows):
                 "rule_id":rule_id,
                 **rules[rule_id],
             })
-        serial_profiles[profile]={k:v for k,v in stats.items() if k!="rules"}
+        serial_profiles[profile]={k:v for k,v in stats.items() if k not in ("rules","partial_entries")}
+        serial_profiles[profile]["partial_entries"]={
+            kind:sorted(({"entry":e,**v} for e,v in entries.items()),key=lambda x:(-x["feed_count"],x["entry"]))
+            for kind,entries in sorted(stats["partial_entries"].items())
+        }
         serial_profiles[profile]["rules_seen"]=len(rules)
     serial_rules.sort(key=lambda x:(x["profile"],-x["feed_count"],-x["notice_total"],x["rule_id"]))
     return {"profiles":serial_profiles,"rules":serial_rules}
@@ -518,6 +534,13 @@ def main():
         if d.get("analyzer_mapped_count") is not None: counts+=f" / A {d.get('analyzer_mapped_count')}"
         elif d.get("analyzer_count") is not None: counts+=f" / A {d.get('analyzer_count')}"
         lines.append(f"| {d['priority']} | {d.get('feed_id','')} | {d['type']} | {d.get('md_code','')} | {', '.join(rules)} | {counts} |")
+    # Partial runs (the run's own PartialReport): which limits and structural errors stopped part of
+    # a validation, so a capped feed is no longer mistaken for a clean one.
+    lines+=["","## Partial analyzer runs","","| Profile | Kind | Entry | Feeds |","|---|---|---|---:|"]
+    for profile,stats in sorted(profile_measurements["profiles"].items()):
+        for kind,entries in stats.get("partial_entries",{}).items():
+            for e in entries[:10]:
+                lines.append(f"| {profile} | {kind} | {e['entry'][:120]} | {e['feed_count']} |")
     (out/"AUDIT_SUMMARY.md").write_text("\n".join(lines)+"\n")
     print(json.dumps(summary,indent=2))
 
