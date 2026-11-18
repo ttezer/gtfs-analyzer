@@ -9311,3 +9311,46 @@ A3,Both Co,1,R1,1,\n";
         Some("Both Co")
     );
 }
+
+/// Planner cards (FTR): fare transfer rule findings carry the rule's fields as written — in
+/// `details` only.
+#[test]
+fn ftr_findings_carry_the_transfer_rule() {
+    static LEGS: &[u8] = b"leg_group_id,network_id,fare_product_id\nLG_A,,P1\n";
+    static PRODUCTS: &[u8] = b"fare_product_id,amount,currency\nP1,2.00,EUR\n";
+    static TRANSFERS: &[u8] =
+        b"from_leg_group_id,to_leg_group_id,fare_transfer_type,duration_limit,fare_product_id\n\
+LG_A,LG_X,7,600,P1\n";
+    let mut files = base_files();
+    files.extend([
+        ("fare_leg_rules.txt", LEGS),
+        ("fare_products.txt", PRODUCTS),
+        ("fare_transfer_rules.txt", TRANSFERS),
+    ]);
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("fatal")
+    };
+    for rule in ["FTR_001", "FTR_003"] {
+        let d = vr
+            .notices
+            .iter()
+            .find(|n| n.rule_id == rule)
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} with details"));
+        assert_eq!(
+            d.get("from_leg_group_id").map(String::as_str),
+            Some("LG_A"),
+            "{rule}"
+        );
+        assert_eq!(
+            d.get("to_leg_group_id").map(String::as_str),
+            Some("LG_X"),
+            "{rule}"
+        );
+        assert_eq!(
+            d.get("duration_limit").map(String::as_str),
+            Some("600"),
+            "{rule}"
+        );
+    }
+}

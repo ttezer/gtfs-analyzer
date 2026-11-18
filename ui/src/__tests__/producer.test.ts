@@ -3921,3 +3921,21 @@ describe('Hizmet bölgesi ve atıf kartları (LOC, ATR)', () => {
       .toContain('4 kayıtta böyle; örneğin „Belediye“.');
   });
 });
+
+describe('Ücret aktarma kartları (FTR)', () => {
+  const render = (n: Notice) => {
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [[n.rule_id, 1, 1]], true, emptyNameIndex));
+    return root.innerHTML;
+  };
+
+  it('FTR_001 aktarmayı gruplar, ürün ve süreyle anlatır, girilen değeri gösterir', () => {
+    expect(render(notice('a', 'FTR_001', 'CRITICAL', { entity_type: 'Row', observed_value: '7', details: { from_leg_group_id: 'LG_A', to_leg_group_id: 'LG_X', fare_product_id: 'P1', duration_limit: '5400' } })))
+      .toContain('Aktarma kuralı: „LG_A“ → „LG_X“, ücret ürünü „P1“, 1 sa 30 dk içinde. Girilen değer: „7“.');
+  });
+
+  it('FTR_009 sınırsız aktarmayı ve boş grubu adlandırır', () => {
+    expect(render(notice('a', 'FTR_009', 'CRITICAL', { entity_type: 'Row', details: { from_leg_group_id: 'LG_A', transfer_count: '-1' } })))
+      .toContain('Aktarma kuralı: „LG_A“ → „herhangi bir yolculuk“, sınırsız aktarma.');
+  });
+});

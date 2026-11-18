@@ -19,6 +19,30 @@ pub struct FareTransferRuleRecord {
     pub line: u64,
 }
 
+/// Planner context for fare transfer rule findings (K2 and K4): the rule's fields as written,
+/// so the card can say which transfer is meant. Only `details` keys are added; a key the
+/// finding already carries is kept.
+pub fn add_transfer_rule_context(row: &RowMap, findings: &mut [gtfs_core::Notice]) {
+    for finding in findings {
+        let details = finding.details.get_or_insert_with(Default::default);
+        for key in [
+            "from_leg_group_id",
+            "to_leg_group_id",
+            "fare_product_id",
+            "fare_transfer_type",
+            "transfer_count",
+            "duration_limit",
+            "duration_limit_type",
+        ] {
+            if let Some(value) = get_trimmed_field(row, key).filter(|v| !v.is_empty()) {
+                if !details.contains_key(key) {
+                    details.insert(key.to_string(), value.to_string());
+                }
+            }
+        }
+    }
+}
+
 pub fn validate_fare_transfer_rules(
     file: &RawFile,
 ) -> (Vec<FareTransferRuleRecord>, Vec<gtfs_core::Notice>) {
@@ -29,6 +53,7 @@ pub fn validate_fare_transfer_rules(
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
+        let first_notice = notices.len();
         let from_leg = get_raw_field(&row_map, "from_leg_group_id")
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
@@ -287,6 +312,7 @@ pub fn validate_fare_transfer_rules(
             ));
         }
 
+        add_transfer_rule_context(&row_map, &mut notices[first_notice..]);
         records.push(FareTransferRuleRecord {
             from_leg_group_id: from_leg,
             to_leg_group_id: to_leg,

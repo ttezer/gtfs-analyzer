@@ -3756,6 +3756,7 @@ fn check_fares_v2(
 
     // FTR_002-004: fare_transfer_rules cross-ref
     for rec in &records.fare_transfer_rules {
+        let first_notice = notices.len();
         if let Some(ref lgid) = rec.from_leg_group_id {
             if !map.leg_group_ids.contains(lgid.as_str()) {
                 notices.push(notice(
@@ -3816,6 +3817,10 @@ fn check_fares_v2(
                 ));
             }
         }
+        crate::k2::fare_transfer_rules::add_transfer_rule_context(
+            &rec.row,
+            &mut notices[first_notice..],
+        );
     }
 
     // SAR_001-002: stop_areas cross-ref

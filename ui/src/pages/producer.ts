@@ -543,6 +543,27 @@ function atrText(n: Notice, result: ValidationResult): string | null {
   return [base, who, value ? t('producer.card.FIN.value', { value }) : ''].filter(Boolean).join(' ');
 }
 
+/** Fare transfer cards (FTR): the transfer by its two leg groups, product, time and transfer
+ *  limits as written, then the value written. */
+function ftrText(n: Notice): string | null {
+  const d = n.details ?? {};
+  if (!d.from_leg_group_id && !d.to_leg_group_id) return null;
+  const seconds = Number(d.duration_limit);
+  const count = d.transfer_count;
+  const extra = [
+    d.fare_product_id ? t('producer.card.FTR.product', { product: d.fare_product_id }) : '',
+    d.duration_limit && Number.isFinite(seconds) && seconds > 0 ? t('producer.card.FTR.limit', { value: durationText(seconds) }) : '',
+    count === '-1' ? t('producer.card.FTR.unlimited') : count && /^\d+$/.test(count) ? t('producer.card.FTR.count', { count: localizedNumber(count) }) : '',
+  ].filter(Boolean);
+  const rule = t('producer.card.FTR.rule', {
+    from: d.from_leg_group_id || t('producer.card.FTR.any'),
+    to: d.to_leg_group_id || t('producer.card.FTR.any'),
+    extra: extra.length ? `, ${extra.join(', ')}` : '',
+  });
+  const value = ['FTR_001', 'FTR_005', 'FTR_006', 'FTR_008'].includes(n.rule_id) ? visibleValue(n.observed_value ?? null) : '';
+  return [t(`producer.card.${n.rule_id}.what`), rule, value ? t('producer.card.FIN.value', { value }) : ''].filter(Boolean).join(' ');
+}
+
 /** Station pathway cards: the pathway by its kind, two ends and station (shared engine step). */
 function pthMode(mode?: string): string {
   return mode && /^[1-7]$/.test(mode) ? t(`producer.pathway_mode.${mode}`) : t('producer.pathway_mode.unknown');
@@ -2532,6 +2553,11 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
     case 'ATR_001': case 'ATR_002': case 'ATR_003': case 'ATR_004': case 'ATR_005': case 'ATR_006': case 'ATR_007':
     case 'ATR_008': case 'ATR_009': case 'ATR_010': case 'ATR_011': case 'ATR_012': {
       const what = atrText(n, result);
+      return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
+    }
+    case 'FTR_001': case 'FTR_002': case 'FTR_003': case 'FTR_004': case 'FTR_005': case 'FTR_006': case 'FTR_007':
+    case 'FTR_008': case 'FTR_009': case 'FTR_010': case 'FTR_011': {
+      const what = ftrText(n);
       return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
     }
     case 'PTH_001': case 'PTH_002': case 'PTH_003': case 'PTH_004': case 'PTH_005': case 'PTH_006':
