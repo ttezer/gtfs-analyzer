@@ -4093,3 +4093,12 @@ describe('Durak çifti başına hız bulgusu (STM_012)', () => {
     expect(root.innerHTML).toContain('Aynı iki durak arasında bu sorun 1.200 seferde var');
   });
 });
+
+describe('Tamamen küçük harf özeti (DQ_019)', () => {
+  it('alanın sayısını ve örnekleri söyler', () => {
+    const n = notice('a', 'DQ_019', 'MEDIUM', { entity_type: 'File', entity_id: 'stops.txt:stop_name', file: 'stops.txt', field: 'stop_name', observed_value: '60', details: { message_variant: 'summary', affected_records: '60', distinct_values: '2', example_values: 'merkez | otogar' } });
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [['DQ_019', 1, 1]], true, emptyNameIndex));
+    expect(root.innerHTML).toContain('60 değer tamamen küçük harfle yazılmış (2 farklı değer)');
+  });
+});

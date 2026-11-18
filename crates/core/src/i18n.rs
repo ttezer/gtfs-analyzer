@@ -1068,6 +1068,19 @@ mod tests {
     }
 
     #[test]
+    fn dq_019_field_summary_translates_to_turkish() {
+        let translator = Translator::new(Lang::Tr).unwrap().unwrap();
+        let mut n = notice();
+        n.rule_id = "DQ_019".to_string();
+        n.message = "60 values of stop_name in stops.txt are all lower case (2 distinct), e.g. 'merkez', 'otogar'.".to_string();
+        translator.translate(&mut n);
+        assert_eq!(
+            n.message,
+            "stops.txt içinde stop_name alanının 60 değeri tamamen küçük harf (2 farklı değer), örneğin 'merkez', 'otogar'."
+        );
+    }
+
+    #[test]
     fn stm_017_partial_summary_translates_to_turkish() {
         let translator = Translator::new(Lang::Tr).unwrap().unwrap();
         let mut n = notice();

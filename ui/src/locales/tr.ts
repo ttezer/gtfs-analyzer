@@ -236,6 +236,7 @@ const tr = {
     'producer.card.ATR_012.what': "Bir atıf kaydı, listede olmayan bir sefere bağlanmış.",
     'producer.card.ATR_012.action': "Atfı mevcut bir sefere bağlayın.",
     'producer.card.BKR.rule': "Kural „{rule}“: {setting}.",
+    'producer.card.DQ_019.summary': "{field} alanında {count} değer tamamen küçük harfle yazılmış ({distinct} farklı değer). Örnekler: {examples}.",
     'producer.card.STM_012.group': "Aynı iki durak arasında bu sorun {trips} seferde var; örnek olarak ilk sefer gösteriliyor.",
     'producer.card.STM_017.what_partial': "Başka seferlerde girilmişken {shapes} güzergâha ait {trips} seferde durakların güzergâh başından itibaren kümülatif mesafesi eksik.",
     'producer.card.DQ_018.summary': "{field} alanında {count} değer tamamen BÜYÜK HARFLE yazılmış ({distinct} farklı değer). Örnekler: {examples}.",
@@ -4924,6 +4925,7 @@ export const trRemediationTexts: Record<string, Record<string, string>> = {
     'Write the stop name in proper case (e.g. \'Central Station\').': 'Durak adını düzgün harf kuralıyla yazın (ör. \'Merkez İstasyon\').',
   },
   'DQ_019': {
+    'Write the text in title case; the whole field uses lower case, so fix it at the source.': 'Metni baş harfleri büyük yazın; alanın tamamı küçük harf, düzeltmeyi kaynakta yapın.',
     'Write the headsign in title case.': 'Yön adını başlık harfiyle yazın.',
     'Write the route description in title case.': 'Hat açıklamasını başlık harfiyle yazın.',
     'Write the route name in title case.': 'Hat adını başlık harfiyle yazın.',
@@ -6058,6 +6060,7 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
     'The stop_headsign value is all upper case: \'{s}\'.': 'stop_headsign değeri tamamen büyük harf: \'{s}\'.',
   },
   'DQ_019': {
+    '{a0} values of {field} in {file} are all lower case ({distinct_count} distinct), e.g. {examples}.': '{file} içinde {field} alanının {a0} değeri tamamen küçük harf ({distinct_count} farklı değer), örneğin {examples}.',
     'The description of route \'{a0}\' is all lower case: \'{desc}\'.': '\'{a0}\' hattının açıklaması tamamen küçük harf: \'{desc}\'.',
     'The headsign of trip \'{a0}\' is all lower case: \'{hs}\'.': '\'{a0}\' seferinin yön adı tamamen küçük harf: \'{hs}\'.',
     'The long name of route \'{a0}\' is all lower case: \'{name}\'.': '\'{a0}\' hattının uzun adı tamamen küçük harf: \'{name}\'.',
