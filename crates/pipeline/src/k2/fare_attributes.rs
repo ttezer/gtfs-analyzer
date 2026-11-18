@@ -350,6 +350,12 @@ fn validate_fare_attributes_inner(
             ),
             "Write amounts with the decimal places of their currency (for example 0.90 for EUR, 150 for JPY).",
         ));
+        // Planner context: the first amount and currency as written.
+        if let Some(last) = notices.last_mut() {
+            let d = last.details.get_or_insert_with(Default::default);
+            d.insert("example_amount".to_string(), amount.to_string());
+            d.insert("example_currency".to_string(), currency.to_string());
+        }
     }
 
     (records, notices, whitespace_suppressions)

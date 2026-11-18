@@ -4001,3 +4001,47 @@ describe('Kat, ücret kuralı ve ücret ürünü kartları (LVL, FLG, FPD)', () 
       .toContain('3 tutarda böyle; örneğin 1.5 JPY.');
   });
 });
+
+describe('Kalan küçük grup kartları (AGN, TRN, GGL, FAR, PDW, BKR, SAR, NET, FMD, FLJ, ARS)', () => {
+  const ni = { ...emptyNameIndex, stops: { S1: 'Otogar', S2: 'Merkez' }, routes: { R1: '101' } };
+  const render = (n: Notice) => {
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [[n.rule_id, 1, 1]], true, ni));
+    return root.innerHTML;
+  };
+
+  it('AGN_005 saat dilimlerini listeler', () => {
+    expect(render(notice('a', 'AGN_005', 'MEDIUM', { observed_value: 'Europe/Istanbul, Europe/Berlin' })))
+      .toContain('Girilen değerler: Europe/Istanbul, Europe/Berlin.');
+  });
+
+  it('TRN_016 sayıyı ve örnekleri söyler', () => {
+    expect(render(notice('a', 'TRN_016', 'LOW', { observed_value: '4', details: { unmatched_values: '4', examples: 'stops.stop_name=Gar' } })))
+      .toContain('4 kayıtta böyle. Örnekler: stops.stop_name=Gar.');
+  });
+
+  it('BKR_017 tanımsız kuralı kullanan seferi söyler', () => {
+    expect(render(notice('a', 'BKR_017', 'CRITICAL', { entity_type: 'Row', entity_id: 'BR9', details: { trip_id: 'T1', stop_sequence: '2' } })))
+      .toContain('Kural „BR9“: T1 kodlu sefer, 2. durak sırası.');
+  });
+
+  it('SAR_001 bölgeyi ve durağı adıyla gösterir', () => {
+    expect(render(notice('a', 'SAR_001', 'CRITICAL', { entity_type: 'Row', details: { area_id: 'A9', stop_id: 'S1' } })))
+      .toContain('Bölge „A9“, durak: Otogar.');
+  });
+
+  it('NET_002 ağı ve hattı söyler', () => {
+    expect(render(notice('a', 'NET_002', 'CRITICAL', { entity_type: 'Row', details: { network_id: 'N9', route_id: 'R1' } })))
+      .toContain('Ağ „N9“, hat 101.');
+  });
+
+  it('FMD_002 ödeme aracını ve girilen türü gösterir', () => {
+    expect(render(notice('a', 'FMD_002', 'CRITICAL', { entity_type: 'Row', observed_value: '9', details: { fare_media_id: 'M1', fare_media_name: 'Kart', fare_media_type: '9' } })))
+      .toContain('Ödeme aracı „Kart“ („M1“), tür 9. Girilen değer: „9“.');
+  });
+
+  it('FLJ_003 ağları ve durakları adıyla söyler', () => {
+    expect(render(notice('a', 'FLJ_003', 'CRITICAL', { entity_type: 'Row', details: { from_network_id: 'N1', to_network_id: 'N1', from_stop_id: 'S9', to_stop_id: 'S2' } })))
+      .toContain('Birleştirme kuralı: ağ „N1“ → „N1“, durak S9 → Merkez.');
+  });
+});

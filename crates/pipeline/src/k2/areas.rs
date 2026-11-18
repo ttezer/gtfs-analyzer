@@ -9,6 +9,9 @@ pub struct AreaRecord {
     pub line: u64,
 }
 
+/// Planner context for area findings (K3/K4): the row as written.
+pub const AREA_FIELDS: &[&str] = &["area_id", "area_name"];
+
 pub fn parse_areas(file: &RawFile) -> Vec<AreaRecord> {
     file.rows
         .iter()

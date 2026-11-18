@@ -9,6 +9,9 @@ pub struct NetworkRecord {
     pub line: u64,
 }
 
+/// Planner context for network findings (K3/K4): the row as written.
+pub const NETWORK_FIELDS: &[&str] = &["network_id", "network_name"];
+
 pub fn parse_networks(file: &RawFile) -> Vec<NetworkRecord> {
     file.rows
         .iter()

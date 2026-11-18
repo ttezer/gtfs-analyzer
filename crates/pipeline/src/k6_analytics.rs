@@ -7016,6 +7016,12 @@ fn check_route_trip_quality(
                     format!("trip_id '{}' has overlapping pickup/drop-off windows with the same boarding/alighting role in zone '{}'.", trip_id, zone),
                     "Ensure rows open for pickup (or for drop-off) in the same trip+zone do not have overlapping time windows.",
                 ));
+                // Planner context: the zone whose windows overlap.
+                if let Some(last) = notices.last_mut() {
+                    last.details
+                        .get_or_insert_with(Default::default)
+                        .insert("zone".to_string(), zone.to_string());
+                }
             }
         }
     }

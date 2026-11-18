@@ -9,6 +9,9 @@ pub struct StopAreaRecord {
     pub line: u64,
 }
 
+/// Planner context for stop area findings (K3/K4): the row as written.
+pub const STOP_AREA_FIELDS: &[&str] = &["area_id", "stop_id"];
+
 pub fn parse_stop_areas(file: &RawFile) -> Vec<StopAreaRecord> {
     file.rows
         .iter()

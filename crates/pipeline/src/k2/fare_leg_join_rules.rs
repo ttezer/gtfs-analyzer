@@ -17,6 +17,14 @@ pub struct FareLegJoinRuleRecord {
     pub line: u64,
 }
 
+/// Planner context for fare leg join rule findings (K3/K4): the row as written.
+pub const FARE_LEG_JOIN_FIELDS: &[&str] = &[
+    "from_network_id",
+    "to_network_id",
+    "from_stop_id",
+    "to_stop_id",
+];
+
 pub fn parse_fare_leg_join_rules(file: &RawFile) -> Vec<FareLegJoinRuleRecord> {
     file.rows
         .iter()

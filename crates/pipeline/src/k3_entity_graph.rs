@@ -542,6 +542,12 @@ fn build_fares_v2(
                 ),
                 "Assign a unique area_id to each area record.",
             ));
+            let at = notices.len() - 1;
+            crate::k2::common::add_row_fields(
+                &rec.row,
+                crate::k2::areas::AREA_FIELDS,
+                &mut notices[at..],
+            );
         } else {
             map.areas.insert(rec.area_id.clone(), idx);
         }
@@ -566,6 +572,12 @@ fn build_fares_v2(
                 format!("Network code '{}' repeats.", rec.network_id),
                 "Assign a unique network_id to each network record.",
             ));
+            let at = notices.len() - 1;
+            crate::k2::common::add_row_fields(
+                &rec.row,
+                crate::k2::networks::NETWORK_FIELDS,
+                &mut notices[at..],
+            );
         } else {
             map.network_ids.insert(rec.network_id.clone());
         }
@@ -645,6 +657,12 @@ fn build_fares_v2(
                 ),
                 "Assign a unique fare_media_id to each fare media record.",
             ));
+            let at = notices.len() - 1;
+            crate::k2::common::add_row_fields(
+                &rec.row,
+                crate::k2::fare_media::FARE_MEDIA_FIELDS,
+                &mut notices[at..],
+            );
         } else {
             map.fare_media_ids.insert(rec.fare_media_id.clone(), idx);
         }

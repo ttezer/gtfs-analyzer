@@ -196,20 +196,7 @@ pub fn check_with_files_and_whitespace_roots(
                 skipped_checks.push("K4::stop_times::geojson_location_cross_reference".to_string());
             }
         }
-        if !xfl_rows.is_empty() {
-            xfl_rows.sort_unstable();
-            for (trip, &(start, end)) in &idx.trip_ranges {
-                let from = xfl_rows.partition_point(|&(row, _)| row < start);
-                for &(row, at) in xfl_rows[from..].iter().take_while(|&&(row, _)| row < end) {
-                    let d = notices[at].details.get_or_insert_with(Default::default);
-                    d.insert("trip_id".to_string(), trip.to_string());
-                    d.insert(
-                        "stop_sequence".to_string(),
-                        idx.rows[row as usize].sequence.to_string(),
-                    );
-                }
-            }
-        }
+        attach_trip_context(idx, xfl_rows, &mut notices);
 
         // Temporary &str-view collections from the index (without changing function signatures).
         let used_stop_ids: HashSet<&str> = idx.stop_id_set.iter().map(|s| s.as_str()).collect();
@@ -593,6 +580,27 @@ pub fn check_with_files_and_whitespace_roots(
         notices,
         skipped_checks,
         whitespace_suppressions,
+    }
+}
+
+/// Planner context for findings anchored on a stop time row (XFL_024/025, BKR_017/018): the trip
+/// and stop sequence of each `(row index, notice index)` pair, resolved in one pass over the trip
+/// ranges. Only `details` keys are added.
+fn attach_trip_context(idx: &StopTimesIndex, mut rows: Vec<(u32, usize)>, notices: &mut [Notice]) {
+    if rows.is_empty() {
+        return;
+    }
+    rows.sort_unstable();
+    for (trip, &(start, end)) in &idx.trip_ranges {
+        let from = rows.partition_point(|&(row, _)| row < start);
+        for &(row, at) in rows[from..].iter().take_while(|&&(row, _)| row < end) {
+            let d = notices[at].details.get_or_insert_with(Default::default);
+            d.insert("trip_id".to_string(), trip.to_string());
+            d.insert(
+                "stop_sequence".to_string(),
+                idx.rows[row as usize].sequence.to_string(),
+            );
+        }
     }
 }
 
@@ -1549,7 +1557,8 @@ fn check_booking_rules(
             .collect();
         let mut seen_pickup: HashSet<&str> = HashSet::new();
         let mut seen_drop_off: HashSet<&str> = HashSet::new();
-        for st in &idx.rows {
+        let mut bkr_rows: Vec<(u32, usize)> = Vec::new();
+        for (row_i, st) in idx.rows.iter().enumerate() {
             let Some(flex) = idx.flex_of(st) else {
                 continue;
             };
@@ -1587,8 +1596,10 @@ fn check_booking_rules(
                     format!("Booking rule '{br}' is not defined in booking_rules.txt."),
                     "Reference an existing booking_rule_id or add the rule to booking_rules.txt.",
                 ));
+                bkr_rows.push((row_i as u32, notices.len() - 1));
             }
         }
+        attach_trip_context(idx, bkr_rows, notices);
     }
 
     for rec in &records.booking_rules {
@@ -1620,6 +1631,12 @@ fn check_booking_rules(
             format!("service_id '{svc}' is not defined in calendar or calendar_dates."),
             "Reference an existing service_id or leave prior_notice_service_id empty.",
         ));
+        let at = notices.len() - 1;
+        crate::k2::common::add_row_fields(
+            &rec.row,
+            crate::k2::booking_rules::BOOKING_RULE_FIELDS,
+            &mut notices[at..],
+        );
     }
 }
 
@@ -3837,6 +3854,7 @@ fn check_fares_v2(
 
     // SAR_001-002: stop_areas cross-ref
     for rec in &records.stop_areas {
+        let first_notice = notices.len();
         if !rec.area_id.is_empty() && !map.areas.contains_key(rec.area_id.as_str()) {
             notices.push(notice(
                 ctr,
@@ -3869,6 +3887,11 @@ fn check_fares_v2(
                 "Use a valid stop_id.",
             ));
         }
+        crate::k2::common::add_row_fields(
+            &rec.row,
+            crate::k2::stop_areas::STOP_AREA_FIELDS,
+            &mut notices[first_notice..],
+        );
     }
 
     // XFL_022-023: location_group_stops cross-ref (GTFS-Flex)
@@ -6536,6 +6559,7 @@ fn check_fare_leg_join_rules(
     }
 
     for rec in &records.fare_leg_join_rules {
+        let first_notice = notices.len();
         // ── Network fields: unconditionally Required + FK ────────────────────
         for (value, field, rule) in [
             (&rec.from_network_id, "from_network_id", "FLJ_001"),
@@ -6652,6 +6676,11 @@ fn check_fare_leg_join_rules(
                 Some(_) => {}
             }
         }
+        crate::k2::common::add_row_fields(
+            &rec.row,
+            crate::k2::fare_leg_join_rules::FARE_LEG_JOIN_FIELDS,
+            &mut notices[first_notice..],
+        );
     }
 }
 
@@ -6678,6 +6707,7 @@ fn check_route_networks(
         .collect();
 
     for rec in &records.route_networks {
+        let first_notice = notices.len();
         let eid = Some(rec.route_id.clone()).filter(|s| !s.is_empty());
 
         // NET_002: network_id — Required + must be defined in networks.txt.
@@ -6748,6 +6778,11 @@ fn check_route_networks(
                 "Use a route_id defined in routes.txt.",
             ));
         }
+        crate::k2::common::add_row_fields(
+            &rec.row,
+            crate::k2::route_networks::ROUTE_NETWORK_FIELDS,
+            &mut notices[first_notice..],
+        );
     }
 }
 
@@ -7039,6 +7074,7 @@ fn check_xfl(
     {
         use crate::k2::common::require_nonempty;
         for r in &records.areas {
+            let first_notice = notices.len();
             require_nonempty(
                 &r.row,
                 "area_id",
@@ -7051,6 +7087,11 @@ fn check_xfl(
                 "Give every area a unique area_id.",
                 notices,
                 ctr,
+            );
+            crate::k2::common::add_row_fields(
+                &r.row,
+                crate::k2::areas::AREA_FIELDS,
+                &mut notices[first_notice..],
             );
         }
         for r in &records.calendars {
@@ -7070,6 +7111,7 @@ fn check_xfl(
             }
         }
         for r in &records.fare_media {
+            let first_notice = notices.len();
             require_nonempty(
                 &r.row,
                 "fare_media_id",
@@ -7083,8 +7125,14 @@ fn check_xfl(
                 notices,
                 ctr,
             );
+            crate::k2::common::add_row_fields(
+                &r.row,
+                crate::k2::fare_media::FARE_MEDIA_FIELDS,
+                &mut notices[first_notice..],
+            );
         }
         for r in &records.networks {
+            let first_notice = notices.len();
             require_nonempty(
                 &r.row,
                 "network_id",
@@ -7097,6 +7145,11 @@ fn check_xfl(
                 "Give every network a unique network_id.",
                 notices,
                 ctr,
+            );
+            crate::k2::common::add_row_fields(
+                &r.row,
+                crate::k2::networks::NETWORK_FIELDS,
+                &mut notices[first_notice..],
             );
         }
         for r in &records.rider_categories {
@@ -7219,6 +7272,7 @@ fn check_xfl(
             }
         }
         for r in &records.stop_areas {
+            let first_notice = notices.len();
             require_nonempty(
                 &r.row,
                 "area_id",
@@ -7244,6 +7298,11 @@ fn check_xfl(
                 "Attach the row to a stop_id.",
                 notices,
                 ctr,
+            );
+            crate::k2::common::add_row_fields(
+                &r.row,
+                crate::k2::stop_areas::STOP_AREA_FIELDS,
+                &mut notices[first_notice..],
             );
         }
         for r in &records.timeframes {

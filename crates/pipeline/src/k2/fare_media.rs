@@ -1,8 +1,8 @@
 use gtfs_core::EntityType;
 
 use super::common::{
-    build_row_map, get_raw_field, get_trimmed_field, make_k2_notice, parse_u32, validate_enum,
-    RowMap,
+    add_row_fields, build_row_map, get_raw_field, get_trimmed_field, make_k2_notice, parse_u32,
+    validate_enum, RowMap,
 };
 use crate::k1_parse::RawFile;
 
@@ -15,6 +15,9 @@ pub struct FareMediaRecord {
     pub line: u64,
 }
 
+/// Planner context for fare media findings: the row as written.
+pub const FARE_MEDIA_FIELDS: &[&str] = &["fare_media_id", "fare_media_name", "fare_media_type"];
+
 pub fn validate_fare_media(file: &RawFile) -> (Vec<FareMediaRecord>, Vec<gtfs_core::Notice>) {
     let mut notices = Vec::new();
     let mut records = Vec::new();
@@ -23,6 +26,7 @@ pub fn validate_fare_media(file: &RawFile) -> (Vec<FareMediaRecord>, Vec<gtfs_co
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
+        let first_notice = notices.len();
         let id = get_raw_field(&row_map, "fare_media_id")
             .unwrap_or("")
             .to_string();
@@ -107,6 +111,7 @@ pub fn validate_fare_media(file: &RawFile) -> (Vec<FareMediaRecord>, Vec<gtfs_co
             ));
         }
 
+        add_row_fields(&row_map, FARE_MEDIA_FIELDS, &mut notices[first_notice..]);
         records.push(FareMediaRecord {
             fare_media_id: id,
             fare_media_name,

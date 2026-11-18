@@ -9433,3 +9433,55 @@ P1,Single,2.00,XXQ\nP2,Day,1.5,JPY\n";
         Some("JPY")
     );
 }
+
+/// Planner cards (SAR, NET, FMD, FLJ, BKR, FAR): the remaining Fares v2 and Flex findings carry
+/// the row as written, the trip of a stop time row and the first amount of a summary — in
+/// `details` only.
+#[test]
+fn fares_v2_and_flex_findings_carry_the_row() {
+    static ST: &[u8] =
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,pickup_booking_rule_id\n\
+          T1,08:00:00,08:00:00,S1,1,\n\
+          T1,08:10:00,08:10:00,S2,2,BR9\n";
+    static AREAS: &[u8] = b"area_id,area_name\nA1,Center\n";
+    static STOP_AREAS: &[u8] = b"area_id,stop_id\nA9,S1\n";
+    static NETWORKS: &[u8] = b"network_id,network_name\nN1,City\n";
+    static ROUTE_NETWORKS: &[u8] = b"network_id,route_id\nN9,R1\n";
+    static MEDIA: &[u8] = b"fare_media_id,fare_media_name,fare_media_type\nM1,Card,9\n";
+    static JOINS: &[u8] = b"from_network_id,to_network_id,from_stop_id,to_stop_id\nN1,N1,S9,S2\n";
+    static FARES: &[u8] = b"fare_id,price,currency_type,payment_method,transfers\nF1,1.5,JPY,0,0\n";
+    let mut files = base_files();
+    files.retain(|(n, _)| *n != "stop_times.txt");
+    files.extend([
+        ("stop_times.txt", ST),
+        ("areas.txt", AREAS),
+        ("stop_areas.txt", STOP_AREAS),
+        ("networks.txt", NETWORKS),
+        ("route_networks.txt", ROUTE_NETWORKS),
+        ("fare_media.txt", MEDIA),
+        ("fare_leg_join_rules.txt", JOINS),
+        ("fare_attributes.txt", FARES),
+    ]);
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("fatal")
+    };
+    let detail = |rule: &str, key: &str| -> Option<String> {
+        vr.notices
+            .iter()
+            .filter(|n| n.rule_id == rule)
+            .find_map(|n| n.details.as_ref().and_then(|d| d.get(key).cloned()))
+    };
+    assert_eq!(detail("SAR_001", "stop_id").as_deref(), Some("S1"));
+    assert_eq!(detail("NET_002", "route_id").as_deref(), Some("R1"));
+    assert_eq!(
+        detail("FMD_002", "fare_media_name").as_deref(),
+        Some("Card")
+    );
+    assert_eq!(detail("FLJ_003", "to_stop_id").as_deref(), Some("S2"));
+    assert_eq!(detail("BKR_017", "trip_id").as_deref(), Some("T1"));
+    assert_eq!(detail("BKR_017", "stop_sequence").as_deref(), Some("2"));
+    assert_eq!(
+        detail("FAR_013", "example_currency").as_deref(),
+        Some("JPY")
+    );
+}

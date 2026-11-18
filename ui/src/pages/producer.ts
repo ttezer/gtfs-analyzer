@@ -653,6 +653,70 @@ function fpdText(n: Notice): string | null {
   return [base, t('producer.card.FPD.product', { product: namedCode(d.fare_product_name, id), price }), value ? t('producer.card.FIN.value', { value }) : ''].filter(Boolean).join(' ');
 }
 
+/** The leading count of an engine value such as "7 routes" or "12". */
+function leadingCount(value?: string | null): string | null {
+  return (value ?? '').match(/^(\d+)/)?.[1] ?? null;
+}
+
+/** Remaining Fares v2, Flex, agency, translation and Google cards: the record behind the finding
+ *  (as written) or, for a feed summary, its count and examples. */
+function miscText(n: Notice, result: ValidationResult): string | null {
+  const d = n.details ?? {};
+  const ni = result.name_index;
+  const base = t(`producer.card.${n.rule_id}.what`);
+  const stop = (id?: string) => id ? ni.stops?.[id] || id : '—';
+  const route = (id?: string) => id ? ni.routes?.[id] || id : '—';
+  const value = visibleValue(n.observed_value ?? null);
+  const withValue = (text: string) => [base, text, value ? t('producer.card.FIN.value', { value }) : ''].filter(Boolean).join(' ');
+  const count = leadingCount(n.observed_value);
+  switch (n.rule_id) {
+    case 'AGN_005': case 'AGN_017':
+      return n.observed_value ? `${base} ${t('producer.card.MISC.list', { values: n.observed_value })}` : null;
+    case 'AGN_011':
+      return count ? `${base} ${t('producer.card.MISC.routes', { count: localizedNumber(count) })}` : null;
+    case 'FIN_013':
+      return count ? `${base} ${t('producer.card.MISC.fares', { count: localizedNumber(count) })}` : null;
+    case 'TRN_001': case 'TRN_016': case 'CLD_003': {
+      const rows = d.affected_rows ?? d.unmatched_values ?? count;
+      const examples = d.example_table_names ?? d.examples;
+      if (!rows) return null;
+      return [base, t('producer.card.MISC.rows', { count: localizedNumber(rows) }), examples ? t('producer.card.MISC.examples', { examples }) : ''].filter(Boolean).join(' ');
+    }
+    case 'GGL_001':
+      return d.affected_transfers ? `${base} ${t('producer.card.GGL_001.types', { count: localizedNumber(d.affected_transfers), types: d.transfer_types || '—' })}` : null;
+    case 'GGL_002':
+      return value ? `${base} ${t('producer.card.FIN.value', { value })}` : null;
+    case 'FAR_012': {
+      const price = [d.price ? localizedNumber(d.price) : '', d.currency_type ?? ''].filter(Boolean).join(' ');
+      return price ? `${base} ${t('producer.card.FAR.price', { price })}` : null;
+    }
+    case 'FAR_013':
+      return count && d.example_amount ? `${base} ${t('producer.card.FPD.summary', { count: localizedNumber(count), amount: d.example_amount, currency: d.example_currency ?? '' })}` : null;
+    case 'PDW_006':
+      return n.entity_id && d.zone ? `${base} ${t('producer.card.PDW_006.trip', { trip: tripPhrase(n.entity_id, result), zone: d.zone })}` : null;
+    case 'BKR_017': case 'BKR_018':
+      return n.entity_id && d.trip_id ? `${base} ${t('producer.card.BKR.stop_time', { rule: n.entity_id, trip: tripPhrase(d.trip_id, result), seq: d.stop_sequence ?? '—' })}` : null;
+    case 'SAR_001': case 'SAR_002': case 'SAR_003': case 'SAR_004':
+      return d.area_id || d.stop_id ? `${base} ${t('producer.card.SAR.row', { area: d.area_id || '—', stop: stop(d.stop_id) })}` : null;
+    case 'NET_001': case 'NET_004':
+      return d.network_id || d.network_name ? `${base} ${t('producer.card.NET.network', { network: namedCode(d.network_name, d.network_id) })}` : null;
+    case 'NET_002': case 'NET_003':
+      return d.network_id || d.route_id ? `${base} ${t('producer.card.NET.route', { network: d.network_id || '—', route: route(d.route_id) })}` : null;
+    case 'FMD_001': case 'FMD_002': case 'FMD_003': case 'FMD_004': {
+      if (!d.fare_media_id && !d.fare_media_name) return null;
+      const media = t('producer.card.FMD.media', { media: namedCode(d.fare_media_name, d.fare_media_id), kind: d.fare_media_type ? t('producer.card.FMD.kind', { kind: d.fare_media_type }) : '' });
+      return n.rule_id === 'FMD_002' ? withValue(media) : `${base} ${media}`;
+    }
+    case 'FLJ_001': case 'FLJ_002': case 'FLJ_003': case 'FLJ_004':
+      return d.from_network_id || d.to_network_id || d.from_stop_id || d.to_stop_id
+        ? `${base} ${t('producer.card.FLJ.join', { from_net: d.from_network_id || '—', to_net: d.to_network_id || '—', from_stop: stop(d.from_stop_id), to_stop: stop(d.to_stop_id) })}` : null;
+    case 'ARS_001': case 'ARS_002':
+      return d.area_id || d.area_name ? `${base} ${t('producer.card.ARS.area', { area: namedCode(d.area_name, d.area_id) })}` : null;
+    default:
+      return null;
+  }
+}
+
 /** Station pathway cards: the pathway by its kind, two ends and station (shared engine step). */
 function pthMode(mode?: string): string {
   return mode && /^[1-7]$/.test(mode) ? t(`producer.pathway_mode.${mode}`) : t('producer.pathway_mode.unknown');
@@ -2673,6 +2737,14 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       const what = fpdText(n);
       return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
     }
+    case 'AGN_005': case 'AGN_011': case 'AGN_017': case 'FIN_013': case 'TRN_001': case 'TRN_016': case 'CLD_003':
+    case 'GGL_001': case 'GGL_002': case 'FAR_012': case 'FAR_013': case 'PDW_006': case 'BKR_017': case 'BKR_018':
+    case 'SAR_001': case 'SAR_002': case 'SAR_003': case 'SAR_004': case 'NET_001': case 'NET_002': case 'NET_003':
+    case 'NET_004': case 'FMD_001': case 'FMD_002': case 'FMD_003': case 'FMD_004': case 'FLJ_001': case 'FLJ_002':
+    case 'FLJ_003': case 'FLJ_004': case 'ARS_001': case 'ARS_002': {
+      const what = miscText(n, result);
+      return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
+    }
     case 'PTH_001': case 'PTH_002': case 'PTH_003': case 'PTH_004': case 'PTH_005': case 'PTH_006':
     case 'PTH_007': case 'PTH_010': case 'PTH_011': case 'PTH_014': case 'PTH_015': case 'PTH_016':
     case 'PTH_017': case 'PTH_018': case 'PTH_026': case 'PTH_027': case 'PTH_028': case 'PTH_030':
@@ -3660,6 +3732,7 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         action: t('producer.card.DQ_005c.action'),
       };
     }
+    case 'BKR_015':
     case 'BKR_001': case 'BKR_003': case 'BKR_004': case 'BKR_005': case 'BKR_006': case 'BKR_007': case 'BKR_008':
     case 'BKR_009': case 'BKR_010': case 'BKR_011': case 'BKR_012': case 'BKR_013': case 'BKR_014': case 'BKR_016':
     case 'BKR_019': case 'BKR_020': case 'BKR_021': case 'BKR_022': case 'BKR_023': case 'BKR_024': case 'BKR_025': {

@@ -72,6 +72,17 @@ fn opt_int_checked(
     }
 }
 
+/// Planner context for booking rule findings (K3/K4): the row as written.
+pub const BOOKING_RULE_FIELDS: &[&str] = &[
+    "booking_type",
+    "prior_notice_duration_min",
+    "prior_notice_duration_max",
+    "prior_notice_last_day",
+    "prior_notice_last_time",
+    "prior_notice_start_day",
+    "prior_notice_start_time",
+];
+
 pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gtfs_core::Notice>) {
     let mut notices = Vec::new();
     let mut records = Vec::new();
