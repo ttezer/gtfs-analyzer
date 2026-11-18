@@ -509,6 +509,40 @@ function xflRowText(n: Notice, result: ValidationResult): string | null {
   }
 }
 
+/** Service area cards (LOC): the area by its name and code and its place in the list. */
+function locText(n: Notice): string | null {
+  const d = n.details ?? {};
+  if (n.line == null) return null;
+  const args = { name: d.area_name ?? '', code: d.feature_id ?? '', n: localizedNumber(String(n.line)) };
+  const key = d.area_name && d.feature_id ? 'area_named' : d.area_name ? 'area_name' : d.feature_id ? 'area_code' : 'area_pos';
+  return `${t(`producer.card.${n.rule_id}.what`)} ${t(`producer.card.LOC.${key}`, args)}`;
+}
+
+/** Attribution cards (ATR): the organization and what its row is attached to; the summaries
+ *  count the records with an example organization. */
+function atrText(n: Notice, result: ValidationResult): string | null {
+  const d = n.details ?? {};
+  const base = t(`producer.card.${n.rule_id}.what`);
+  if (n.rule_id === 'ATR_001' || n.rule_id === 'ATR_003' || n.rule_id === 'ATR_009') {
+    const count = (n.observed_value ?? '').match(/^(\d+)/)?.[1];
+    if (!count) return null;
+    const summary = d.example_organization
+      ? t('producer.card.ATR.summary', { count: localizedNumber(count), org: d.example_organization })
+      : t('producer.card.ATR.summary_count', { count: localizedNumber(count) });
+    return `${base} ${summary}`;
+  }
+  const targets = [
+    d.agency_id ? t('producer.card.ATR.agency', { id: d.agency_id }) : '',
+    d.route_id ? t('producer.card.ATR.route', { route: result.name_index.routes?.[d.route_id] || d.route_id }) : '',
+    d.trip_id ? tripPhrase(d.trip_id, result) : '',
+  ].filter(Boolean);
+  const org = d.organization_name;
+  const who = org ? (targets.length ? t('producer.card.ATR.org_target', { org, target: targets.join(', ') }) : t('producer.card.ATR.org', { org })) : '';
+  const value = ['ATR_004', 'ATR_005', 'ATR_006', 'ATR_007', 'ATR_008'].includes(n.rule_id) ? visibleValue(n.observed_value ?? null) : '';
+  if (!who && !value) return null;
+  return [base, who, value ? t('producer.card.FIN.value', { value }) : ''].filter(Boolean).join(' ');
+}
+
 /** Station pathway cards: the pathway by its kind, two ends and station (shared engine step). */
 function pthMode(mode?: string): string {
   return mode && /^[1-7]$/.test(mode) ? t(`producer.pathway_mode.${mode}`) : t('producer.pathway_mode.unknown');
@@ -2488,6 +2522,16 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
     case 'XFL_014': case 'XFL_015': case 'XFL_019': case 'XFL_022': case 'XFL_023': case 'XFL_024': case 'XFL_025':
     case 'XFL_027': case 'XFL_031': case 'XFL_033': case 'XFL_034': {
       const what = xflText(g, n, result);
+      return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
+    }
+    case 'LOC_001': case 'LOC_002': case 'LOC_003': case 'LOC_004': case 'LOC_006': case 'LOC_007': case 'LOC_008':
+    case 'LOC_009': case 'LOC_010': case 'LOC_011': {
+      const what = locText(n);
+      return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
+    }
+    case 'ATR_001': case 'ATR_002': case 'ATR_003': case 'ATR_004': case 'ATR_005': case 'ATR_006': case 'ATR_007':
+    case 'ATR_008': case 'ATR_009': case 'ATR_010': case 'ATR_011': case 'ATR_012': {
+      const what = atrText(n, result);
       return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
     }
     case 'PTH_001': case 'PTH_002': case 'PTH_003': case 'PTH_004': case 'PTH_005': case 'PTH_006':

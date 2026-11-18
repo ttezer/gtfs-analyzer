@@ -3887,3 +3887,37 @@ describe('Çapraz dosya ve Flex kartları (XFL)', () => {
       .toContain('12 hatta ağ kodu girilmiş: 101 (+11).');
   });
 });
+
+describe('Hizmet bölgesi ve atıf kartları (LOC, ATR)', () => {
+  const ni = { ...emptyNameIndex, routes: { R1: '101' } };
+  const render = (n: Notice) => {
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [[n.rule_id, 1, 1]], true, ni));
+    return root.innerHTML;
+  };
+
+  it('LOC_001 bölgeyi adı, kodu ve sırasıyla gösterir', () => {
+    expect(render(notice('a', 'LOC_001', 'CRITICAL', { entity_type: 'File', line: 3, details: { feature_id: 'Z1', area_name: 'Merkez' } })))
+      .toContain('Bölge: Merkez („Z1“), listede 3. sırada.');
+  });
+
+  it('LOC_002 kodsuz bölgeyi sırasıyla gösterir', () => {
+    expect(render(notice('a', 'LOC_002', 'CRITICAL', { entity_type: 'File', line: 2 })))
+      .toContain('Listede 2. sıradaki bölge.');
+  });
+
+  it('ATR_011 kurumu ve bağlı hattı söyler', () => {
+    expect(render(notice('a', 'ATR_011', 'CRITICAL', { entity_type: 'Attribution', details: { organization_name: 'Belediye', route_id: 'R1' } })))
+      .toContain('Kurum: „Belediye“, bağlı olduğu: hat 101.');
+  });
+
+  it('ATR_007 girilen adresi gösterir', () => {
+    expect(render(notice('a', 'ATR_007', 'LOW', { entity_type: 'Attribution', observed_value: 'notaurl', details: { organization_name: 'Belediye' } })))
+      .toContain('Kurum: „Belediye“. Girilen değer: „notaurl“.');
+  });
+
+  it('ATR_003 kayıt sayısını ve örnek kurumu söyler', () => {
+    expect(render(notice('a', 'ATR_003', 'LOW', { entity_type: 'File', observed_value: '4 rows', details: { example_organization: 'Belediye' } })))
+      .toContain('4 kayıtta böyle; örneğin „Belediye“.');
+  });
+});

@@ -36,10 +36,14 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
     let mut missing_id_first: Option<u64> = None;
     let mut no_role_count: u64 = 0;
     let mut no_role_first: Option<u64> = None;
+    // Planner context for the summaries: the organization of the first affected row.
+    let mut missing_id_org: Option<String> = None;
+    let mut no_role_org: Option<String> = None;
 
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
+        let first_notice = notices.len();
         let attribution_id = get_raw_field(&row_map, "attribution_id")
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
@@ -49,6 +53,9 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
             missing_id_count += 1;
             if missing_id_first.is_none() {
                 missing_id_first = Some(line);
+                missing_id_org = get_trimmed_field(&row_map, "organization_name")
+                    .filter(|v| !v.is_empty())
+                    .map(str::to_string);
             }
         }
 
@@ -111,6 +118,7 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
             no_role_count += 1;
             if no_role_first.is_none() {
                 no_role_first = Some(line);
+                no_role_org = Some(organization_name.clone()).filter(|v| !v.is_empty());
             }
         }
 
@@ -168,6 +176,23 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
 
+        // Planner context: whose attribution the row is and what it is attached to, as written.
+        // Only `details` keys are added.
+        for finding in &mut notices[first_notice..] {
+            let details = finding.details.get_or_insert_with(Default::default);
+            for (key, value) in [
+                ("organization_name", Some(organization_name.as_str())),
+                ("agency_id", agency_id.as_deref()),
+                ("route_id", route_id.as_deref()),
+                ("trip_id", trip_id.as_deref()),
+            ] {
+                if let Some(value) = value.filter(|v| !v.is_empty()) {
+                    if !details.contains_key(key) {
+                        details.insert(key.to_string(), value.to_string());
+                    }
+                }
+            }
+        }
         records.push(AttributionRecord {
             attribution_id,
             organization_name,
@@ -201,6 +226,11 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
             ),
             "Assign a unique attribution_id to each attribution record.",
         ));
+        if let (Some(org), Some(last)) = (missing_id_org, notices.last_mut()) {
+            last.details
+                .get_or_insert_with(Default::default)
+                .insert("example_organization".to_string(), org);
+        }
     }
 
     if let Some(first) = no_role_first {
@@ -221,6 +251,11 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
             ),
             "Set at least one of is_producer, is_operator or is_authority to 1.",
         ));
+        if let (Some(org), Some(last)) = (no_role_org, notices.last_mut()) {
+            last.details
+                .get_or_insert_with(Default::default)
+                .insert("example_organization".to_string(), org);
+        }
     }
 
     (records, notices)

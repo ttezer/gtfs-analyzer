@@ -6735,9 +6735,11 @@ fn check_attributions(
     // notices across 5 feeds and none said how many rows were affected.
     let mut both_refs_count: u64 = 0;
     let mut both_refs_first: Option<u64> = None;
+    let mut both_refs_org: Option<String> = None;
 
     for rec in &records.attributions {
         let eid = rec.attribution_id.clone();
+        let first_notice = notices.len();
 
         // ATR_010: agency_id cross-reference — attribution's agency_id was not found in agency.txt.
         if let Some(ref aid) = rec.agency_id {
@@ -6808,6 +6810,16 @@ fn check_attributions(
             both_refs_count += 1;
             if both_refs_first.is_none() {
                 both_refs_first = Some(rec.line);
+                both_refs_org = Some(rec.organization_name.clone()).filter(|v| !v.is_empty());
+            }
+        }
+        // Planner context (ATR_010-012): whose attribution points at the missing record.
+        if !rec.organization_name.is_empty() {
+            for finding in &mut notices[first_notice..] {
+                finding.details.get_or_insert_with(Default::default).insert(
+                    "organization_name".to_string(),
+                    rec.organization_name.clone(),
+                );
             }
         }
     }
@@ -6830,6 +6842,11 @@ fn check_attributions(
             ),
             "Fill in only one of these attribution reference fields.",
         ));
+        if let (Some(org), Some(last)) = (both_refs_org, notices.last_mut()) {
+            last.details
+                .get_or_insert_with(Default::default)
+                .insert("example_organization".to_string(), org);
+        }
     }
 }
 

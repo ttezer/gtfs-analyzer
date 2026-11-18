@@ -9265,3 +9265,49 @@ start_pickup_drop_off_window,end_pickup_drop_off_window\n\
     assert_eq!(detail("XFL_019", "route_count").as_deref(), Some("1"));
     assert_eq!(detail("XFL_019", "example_routes").as_deref(), Some("R1"));
 }
+
+/// Planner cards (LOC, ATR): service-area findings carry the area's code and name; attribution
+/// findings carry the organization and what the row is attached to — in `details` only.
+#[test]
+fn loc_and_atr_findings_carry_planner_context() {
+    static GEOJSON: &[u8] = br#"{"type":"FeatureCollection","features":[{"type":"Feature","id":"Z1","properties":{"stop_name":"Center"},"geometry":{"type":"Point","coordinates":[29.0,41.0]}}]}"#;
+    static ATTR: &[u8] =
+        b"attribution_id,organization_name,agency_id,route_id,is_producer,attribution_url\n\
+A1,City Transit,9,,1,notaurl\n\
+,Other Org,,,0,\n\
+A3,Both Co,1,R1,1,\n";
+    let mut files = base_files();
+    files.extend([("locations.geojson", GEOJSON), ("attributions.txt", ATTR)]);
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("fatal")
+    };
+    let detail = |rule: &str, key: &str| -> Option<String> {
+        vr.notices
+            .iter()
+            .filter(|n| n.rule_id == rule)
+            .find_map(|n| n.details.as_ref().and_then(|d| d.get(key).cloned()))
+    };
+    assert_eq!(detail("LOC_001", "feature_id").as_deref(), Some("Z1"));
+    assert_eq!(detail("LOC_001", "area_name").as_deref(), Some("Center"));
+    assert_eq!(
+        detail("ATR_007", "organization_name").as_deref(),
+        Some("City Transit")
+    );
+    assert_eq!(detail("ATR_007", "agency_id").as_deref(), Some("9"));
+    assert_eq!(
+        detail("ATR_010", "organization_name").as_deref(),
+        Some("City Transit")
+    );
+    assert_eq!(
+        detail("ATR_001", "example_organization").as_deref(),
+        Some("Other Org")
+    );
+    assert_eq!(
+        detail("ATR_003", "example_organization").as_deref(),
+        Some("Other Org")
+    );
+    assert_eq!(
+        detail("ATR_009", "example_organization").as_deref(),
+        Some("Both Co")
+    );
+}

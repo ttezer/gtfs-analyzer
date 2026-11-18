@@ -3546,6 +3546,7 @@ fn validate_locations_geojson_inner(
         return false;
     }
 
+    let first_feature_notice = notices.len();
     // LOC_007: duplicate feature 'id' values. The counter also ensures that the Flex exemption
     // relies only on genuinely unique string IDs.
     let mut id_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
@@ -3741,6 +3742,42 @@ fn validate_locations_geojson_inner(
             if valid_type && valid_properties && valid_geometry && valid_id == Some(id.as_str()) {
                 valid_geojson_ids.insert(id);
             }
+        }
+    }
+
+    // Planner context: the area's code and name, so the planner can find the feature in their
+    // tool; `line` is the feature's position. Only `details` keys are added.
+    for finding in &mut notices[first_feature_notice..] {
+        let Some(feature) = finding
+            .line
+            .and_then(|n| usize::try_from(n).ok())
+            .and_then(|n| n.checked_sub(1))
+            .and_then(|i| features.get(i))
+        else {
+            continue;
+        };
+        if !finding.rule_id.starts_with("LOC_") {
+            continue;
+        }
+        let id = feature.get("id").and_then(|v| match v {
+            serde_json::Value::String(s) => Some(s.clone()),
+            serde_json::Value::Number(n) => Some(n.to_string()),
+            _ => None,
+        });
+        let name = feature
+            .get("properties")
+            .and_then(|p| p.get("stop_name"))
+            .and_then(|v| v.as_str())
+            .filter(|v| !v.is_empty());
+        if id.is_none() && name.is_none() {
+            continue;
+        }
+        let details = finding.details.get_or_insert_with(Default::default);
+        if let Some(id) = id.filter(|id| !id.is_empty()) {
+            details.insert("feature_id".to_string(), id);
+        }
+        if let Some(name) = name {
+            details.insert("area_name".to_string(), name.to_string());
         }
     }
 
