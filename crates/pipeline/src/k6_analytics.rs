@@ -10510,44 +10510,24 @@ fn check_remaining_analytics<'a>(
                 continue;
             }
 
-            // When stop_times has shape_dist_traveled, geometric projection is unnecessary.
-            // Use it as the authoritative source when present for every stop; when mixed, skip
-            // the geometric check to avoid unit mismatch.
-            let all_have_sdt = sorted.iter().all(|st| st.shape_dist_traveled().is_some());
-            let any_have_sdt = sorted.iter().any(|st| st.shape_dist_traveled().is_some());
-            if any_have_sdt && !all_have_sdt {
+            // A trip that carries shape_dist_traveled is left to STM_056, which owns the order of
+            // that field: on a fully filled trip a drop of more than 500 m below the running maximum
+            // needs at least one consecutive decrease, so STM_056 already reports the trip, and a
+            // monotonic field cannot produce SHP_017 at all (2026-11-18). A mixed trip was already
+            // skipped to avoid a unit mismatch. SHP_017 is the geometric projection check only.
+            if sorted.iter().any(|st| st.shape_dist_traveled().is_some()) {
                 continue;
             }
-
-            // Is shape_dist_traveled in meters or kilometers? Compare with total shape length.
-            let sdt_to_km: f64 = if all_have_sdt {
-                let sdt_max = sorted
-                    .iter()
-                    .filter_map(|st| st.shape_dist_traveled())
-                    .fold(0.0_f64, f64::max);
-                let shape_total_km = cum.last().copied().unwrap_or(1.0);
-                if sdt_max > shape_total_km * 100.0 {
-                    0.001
-                } else {
-                    1.0
-                }
-            } else {
-                1.0
-            };
 
             let mut prev_arc = -1.0_f64;
             let mut prob_idx: Option<usize> = None;
             for (i, st) in sorted.iter().enumerate() {
-                let arc = if all_have_sdt {
-                    st.shape_dist_traveled().unwrap() * sdt_to_km
-                } else {
-                    let Some(&(slat, slon)) = stop_coords.get(idx.stop_id_of(st)) else {
-                        continue;
-                    };
-                    *arc_cache
-                        .entry((shape_id, idx.stop_id_of(st)))
-                        .or_insert_with(|| project_arc_km(pts, cum, slat, slon))
+                let Some(&(slat, slon)) = stop_coords.get(idx.stop_id_of(st)) else {
+                    continue;
                 };
+                let arc = *arc_cache
+                    .entry((shape_id, idx.stop_id_of(st)))
+                    .or_insert_with(|| project_arc_km(pts, cum, slat, slon));
                 // 500 m tolerance: filters projection noise and S-curve false positives.
                 if arc < prev_arc - 0.500 {
                     prob_idx = Some(i);
@@ -10561,16 +10541,12 @@ fn check_remaining_analytics<'a>(
                 // Backtrack filter: if later stops after prob_idx exceed arc prev_arc,
                 // the shape turns back and continues — false positive, skip.
                 let recovers = sorted[pi + 1..].iter().take(3).any(|nxt| {
-                    let narc = if all_have_sdt {
-                        nxt.shape_dist_traveled().unwrap_or(0.0) * sdt_to_km
-                    } else {
-                        // Because the break occurs at prob_idx, later stops are not in the cache yet;
-                        // project the arc directly. (Relying on the cache returns 0.0 → recovery never fires
-                        // on the geometric path = false positive.)
-                        match stop_coords.get(idx.stop_id_of(nxt)) {
-                            Some(&(slat, slon)) => project_arc_km(pts, cum, slat, slon),
-                            None => 0.0,
-                        }
+                    // Because the break occurs at prob_idx, later stops are not in the cache yet;
+                    // project the arc directly. (Relying on the cache returns 0.0 → recovery never fires
+                    // = false positive.)
+                    let narc = match stop_coords.get(idx.stop_id_of(nxt)) {
+                        Some(&(slat, slon)) => project_arc_km(pts, cum, slat, slon),
+                        None => 0.0,
                     };
                     narc > prev_arc
                 });
@@ -10597,14 +10573,10 @@ fn check_remaining_analytics<'a>(
                     .get(idx.stop_id_of(st))
                     .copied()
                     .unwrap_or(idx.stop_id_of(st));
-                let arc = if all_have_sdt {
-                    st.shape_dist_traveled().unwrap() * sdt_to_km
-                } else {
-                    arc_cache
-                        .get(&(shape_id, idx.stop_id_of(st)))
-                        .copied()
-                        .unwrap_or(0.0)
-                };
+                let arc = arc_cache
+                    .get(&(shape_id, idx.stop_id_of(st)))
+                    .copied()
+                    .unwrap_or(0.0);
                 let mut notice = k6_notice(
                     ctr,
                     "SHP_017",

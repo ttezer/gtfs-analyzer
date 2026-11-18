@@ -1762,12 +1762,14 @@ fn fixtures() -> Vec<Fixture> {
             ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.5,1\nSH1,40.0,40.25,2\nSH1,40.0,40.0,3\n"),
         ]),
-        // SHP_017: stop order conflicts with shape projection (decreasing sdt) (k6).
+        // SHP_017: stop order conflicts with the shape projection (k6). Geometric path only: a trip
+        // with shape_dist_traveled is STM_056's (2026-11-18). S3 projects ~13 km behind S2 and the
+        // trip does not recover.
         fx("SHP_017", vec![
-            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.0,40.1\n"),
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.0,40.2\nS3,Stop3,40.0,40.05\n"),
             ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
-            ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.0,40.1,2\nSH1,40.0,40.2,3\n"),
-            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\nT1,08:00:00,08:00:00,S1,1,1000\nT1,08:10:00,08:10:00,S2,2,500\n"),
+            ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.0,40.1,2\nSH1,40.0,40.2,3\nSH1,40.0,40.3,4\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT1,08:20:00,08:20:00,S3,3\n"),
         ]),
         // SHP_018: shape referenced by no trip (k5).
         fx("SHP_018", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.001,40.001,2\nSH1,40.002,40.002,3\n")]),

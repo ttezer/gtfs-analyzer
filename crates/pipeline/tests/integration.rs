@@ -9485,3 +9485,34 @@ fn fares_v2_and_flex_findings_carry_the_row() {
         Some("JPY")
     );
 }
+
+/// SHP_017 is the geometric check only: a trip that carries shape_dist_traveled on every stop
+/// is left to STM_056, which reports the same drop (2026-11-18).
+#[test]
+fn shp_017_leaves_a_fully_measured_trip_to_stm_056() {
+    static SHAPES: &[u8] = b"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n\
+SH1,41.00,29.0,1\nSH1,41.01,29.0,2\nSH1,41.02,29.0,3\nSH1,41.03,29.0,4\n";
+    static STOPS4: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
+S1,Stop1,41.00,29.0\nS2,Stop2,41.03,29.0\nS3,Stop3,41.01,29.0\nS4,Stop4,41.015,29.0\n";
+    static TRIPS_SH: &[u8] = b"route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n";
+    // The field drops from 3,300 m to 1,100 m at the third stop and never recovers.
+    static ST_SDT: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\n\
+T1,08:00:00,08:00:00,S1,1,0\nT1,08:10:00,08:10:00,S2,2,3300\nT1,08:20:00,08:20:00,S3,3,1100\nT1,08:30:00,08:30:00,S4,4,1650\n";
+    let mut files = base_files();
+    files.retain(|(n, _)| !matches!(*n, "stops.txt" | "trips.txt" | "stop_times.txt"));
+    files.extend([
+        ("shapes.txt", SHAPES),
+        ("stops.txt", STOPS4),
+        ("trips.txt", TRIPS_SH),
+        ("stop_times.txt", ST_SDT),
+    ]);
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("fatal")
+    };
+    let ids: Vec<&str> = vr.notices.iter().map(|n| n.rule_id.as_str()).collect();
+    assert!(ids.contains(&"STM_056"), "STM_056 owns the drop: {ids:?}");
+    assert!(
+        !ids.contains(&"SHP_017"),
+        "SHP_017 must not repeat it: {ids:?}"
+    );
+}

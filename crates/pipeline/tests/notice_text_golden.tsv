@@ -289,6 +289,7 @@ en	ARC_011	File size (info)	'shapes.txt' size: 109 bytes.	Informational notice; 
 en	ARC_011	File size (info)	'shapes.txt' size: 110 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'shapes.txt' size: 111 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'shapes.txt' size: 112 bytes.	Informational notice; no action required.
+en	ARC_011	File size (info)	'shapes.txt' size: 117 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'shapes.txt' size: 128 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'shapes.txt' size: 133 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'shapes.txt' size: 137 bytes.	Informational notice; no action required.
@@ -318,7 +319,6 @@ en	ARC_011	File size (info)	'stop_times.txt' size: 133 bytes.	Informational noti
 en	ARC_011	File size (info)	'stop_times.txt' size: 134 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'stop_times.txt' size: 136 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'stop_times.txt' size: 137 bytes.	Informational notice; no action required.
-en	ARC_011	File size (info)	'stop_times.txt' size: 139 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'stop_times.txt' size: 140 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'stop_times.txt' size: 142 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'stop_times.txt' size: 156 bytes.	Informational notice; no action required.
@@ -1192,8 +1192,8 @@ en	SHP_012	Shape too far from trip stops	Shape 'SH1' is >100m away from 1 stops 
 en	SHP_012	Shape too far from trip stops	Shape 'SH1' is >100m away from 2 stops — the shape may be drawn wrong.	Move shapes.txt points closer to stop locations.
 en	SHP_014	First or last stop far from shape endpoint	Route [101]: The end point of shape 'SH1' is 134739m from the last stop 'Stop1' (code: 'S1') of the nearest trip.	No action is needed if this endpoint extension is intentional; otherwise verify the shape endpoint and terminal stop.
 en	SHP_014	First or last stop far from shape endpoint	Route [101]: The end point of shape 'SH1' is 14003m from the last stop 'Stop2' (code: 'S2') of the nearest trip.	No action is needed if this endpoint extension is intentional; otherwise verify the shape endpoint and terminal stop.
+en	SHP_014	First or last stop far from shape endpoint	Route [101]: The end point of shape 'SH1' is 21295m from the last stop 'Stop3' (code: 'S3') of the nearest trip.	No action is needed if this endpoint extension is intentional; otherwise verify the shape endpoint and terminal stop.
 en	SHP_014	First or last stop far from shape endpoint	Route [101]: The end point of shape 'SH1' is 7003m from the last stop 'Stop2' (code: 'S2') of the nearest trip.	No action is needed if this endpoint extension is intentional; otherwise verify the shape endpoint and terminal stop.
-en	SHP_014	First or last stop far from shape endpoint	Route [101]: The end point of shape 'SH1' is 8518m from the last stop 'Stop2' (code: 'S2') of the nearest trip.	No action is needed if this endpoint extension is intentional; otherwise verify the shape endpoint and terminal stop.
 en	SHP_014	First or last stop far from shape endpoint	Route [101]: The start point of shape 'SH1' is 139689m from the first stop 'Stop1' (code: 'S1') of the nearest trip.	No action is needed if this endpoint extension is intentional; otherwise verify the shape endpoint and terminal stop.
 en	SHP_014	First or last stop far from shape endpoint	Route [101]: The start point of shape 'SH1' is 139m from the first stop 'Stop1' (code: 'S1') of the nearest trip.	No action is needed if this endpoint extension is intentional; otherwise verify the shape endpoint and terminal stop.
 en	SHP_014	First or last stop far from shape endpoint	Route [101]: The start point of shape 'SH1' is 42590m from the first stop 'Stop1' (code: 'S1') of the nearest trip.	No action is needed if this endpoint extension is intentional; otherwise verify the shape endpoint and terminal stop.
@@ -1201,6 +1201,7 @@ en	SHP_014	First or last stop far from shape endpoint	Route [101]: The start poi
 en	SHP_015	Shape has statistically too few points	Shape 'SH1' is 13.9 km long but has only 2 points — density 1.4 points/10km.	Add more points to the route shape.
 en	SHP_015	Shape has statistically too few points	Shape 'SH1' is 17.0 km long but has only 3 points — density 1.8 points/10km.	Add more points to the route shape.
 en	SHP_015	Shape has statistically too few points	Shape 'SH1' is 22.2 km long but has only 2 points — density 0.9 points/10km.	Add more points to the route shape.
+en	SHP_015	Shape has statistically too few points	Shape 'SH1' is 25.6 km long but has only 4 points — density 1.6 points/10km.	Add more points to the route shape.
 en	SHP_015	Shape has statistically too few points	Shape 'SH1' is 28.0 km long but has only 3 points — density 1.1 points/10km.	Add more points to the route shape.
 en	SHP_015	Shape has statistically too few points	Shape 'SH1' is 31.4 km long but has only 3 points — density 1.0 points/10km.	Add more points to the route shape.
 en	SHP_015	Shape has statistically too few points	Shape 'SH1' is 35.2 km long but has only 5 points — density 1.4 points/10km.	Add more points to the route shape.
@@ -1209,8 +1210,8 @@ en	SHP_015	Shape has statistically too few points	Shape 'SH1' is 51.1 km long bu
 en	SHP_015	Shape has statistically too few points	Shape 'SH1' is 55.6 km long but has only 2 points — density 0.4 points/10km.	Add more points to the route shape.
 en	SHP_015	Shape has statistically too few points	Shape 'SH1' is 78.5 km long but has only 5 points — density 0.6 points/10km.	Add more points to the route shape.
 en	SHP_016	Shape direction inconsistent with trip direction	Shape 'SH1' of route 'R1' is drawn in reverse — the first stop of every trip using this shape projects near the end of the shape, not the start (nearest 42590m / 42590m).	Reverse the shape_pt_sequence order or define a separate shape_id for this direction.
-en	SHP_017	Stop sequence conflicts with shape	Route 'R1' trip 08:00: stop 'Stop2' (code: 'S2') at sequence 2 is out of order on the shape — its distance from the start is behind the previous stop (500000m < 1000000m). (id: T1)	Projection can be ambiguous on loops or reused corridors. Verify it on the map; no action is needed if the pattern is intentional.
 en	SHP_017	Stop sequence conflicts with shape	Route 'R1' trip 08:00: stop 'Stop2' (code: 'S2') at sequence 2 is out of order on the shape — its distance from the start is behind the previous stop (8518m < 17036m). (id: T1)	Projection can be ambiguous on loops or reused corridors. Verify it on the map; no action is needed if the pattern is intentional.
+en	SHP_017	Stop sequence conflicts with shape	Route 'R1' trip 08:00: stop 'Stop3' (code: 'S3') at sequence 3 is out of order on the shape — its distance from the start is behind the previous stop (4259m < 17036m). (id: T1)	Projection can be ambiguous on loops or reused corridors. Verify it on the map; no action is needed if the pattern is intentional.
 en	SHP_018	Shape not referenced by any trip	Shape 'SH1' is not referenced by any trip.	Remove the unused shape or assign it to a trip via shape_id in trips.txt.
 en	SHP_019	Shape's trips have no stop times	Shape 'SH1' is referenced by 1 trips but none of these trips has stop_times records.	Add stop_times records to the referenced trips or remove the shape and trip records.
 en	SHP_020	Repeated point in shape	In shape 'SH1', points 0 and 2 are at almost the same position (40.000000,40.000000) — a repeated point.	Remove duplicate points from the route shape.
@@ -1227,7 +1228,6 @@ en	SHP_026	Shape has extreme point count (>5,000)	Shape 'SH1' has 12 points — 
 en	SHP_028	Same shape_dist_traveled with different coordinates	Two consecutive points of shape 'SH1' have the same shape_dist_traveled (5.0000) but different coordinates — the position changes without the distance increasing.	Assign increasing shape_dist_traveled values to consecutive shape points.
 en	SHP_029	Same shape_dist_traveled, tiny coordinate difference	Two consecutive points of shape 'SH1' have the same shape_dist_traveled (5.0000) and a very small coordinate difference (below threshold).	Assign increasing shape_dist_traveled values, or remove the near-duplicate shape point.
 en	SHP_030	stop_times uses shape_dist_traveled but shape distances are missing	1 trips using shape 'SH1' use shape_dist_traveled in stop_times.txt, but shapes.txt has no shape_dist_traveled on 1/2 shape points.	Add shape_dist_traveled to every point of the referenced shape using the same units as stop_times.txt, or remove the field consistently from the affected trips.
-en	SHP_030	stop_times uses shape_dist_traveled but shape distances are missing	1 trips using shape 'SH1' use shape_dist_traveled in stop_times.txt, but shapes.txt has no shape_dist_traveled on 3/3 shape points.	Add shape_dist_traveled to every point of the referenced shape using the same units as stop_times.txt, or remove the field consistently from the affected trips.
 en	STM_001	trip_id not found	Trip code 'T1' is not defined in trips.txt.	Use a valid trip_id.
 en	STM_001	trip_id not found	Trip code 'T2' is not defined in trips.txt.	Use a valid trip_id.
 en	STM_001	trip_id not found	Trip code 'TGHOST' is not defined in trips.txt.	Use a valid trip_id.
@@ -1540,7 +1540,6 @@ en	STM_053	Many consecutive stops have the same time	In route_id 'R1', 1 trips u
 en	STM_054	continuous_pickup forbidden with Flex window	continuous_pickup=0 is forbidden for trip_id 'T1' while a Flex window is set.	Set continuous_pickup to 1 or leave it empty on stop_times that have a Flex window.
 en	STM_055	continuous_drop_off forbidden with Flex window	continuous_drop_off=2 is forbidden for trip_id 'T1' while a Flex window is set.	Set continuous_drop_off to 1 or leave it empty on stop_times that have a Flex window.
 en	STM_056	shape_dist_traveled does not increase	On trip 'T1' the shape distance does not increase at stop #2: previous stop #1 has 100, this stop has 100. The cumulative distance from the shape start must increase.	Correct shape_dist_traveled in stop_times.txt so the values increase along stop_sequence.
-en	STM_056	shape_dist_traveled does not increase	On trip 'T1' the shape distance does not increase at stop #2: previous stop #1 has 1000, this stop has 500. The cumulative distance from the shape start must increase.	Correct shape_dist_traveled in stop_times.txt so the values increase along stop_sequence.
 en	STM_058	Flex pickup/drop-off window time is invalid	expected [H]H:MM:SS for 'end_pickup_drop_off_window' (two-digit minutes/seconds), got: 10pm (id: T2)	Write the Flex window fields as HH:MM:SS.
 en	STM_058	Flex pickup/drop-off window time is invalid	expected [H]H:MM:SS for 'start_pickup_drop_off_window' (two-digit minutes/seconds), got: 9am (id: T1)	Write the Flex window fields as HH:MM:SS.
 en	STM_059	booking_rule_id recommended when pickup_type/drop_off_type=2	trip_id 'T1' has pickup_type=2 (phone booking) but pickup_booking_rule_id is missing.	Point this field at the matching rule in booking_rules.txt for on-demand pickup or drop-off.
@@ -2148,6 +2147,7 @@ fr	ARC_011	Taille du fichier (info)	Fichier « shapes.txt » : 109 bytes.	
 fr	ARC_011	Taille du fichier (info)	Fichier « shapes.txt » : 110 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « shapes.txt » : 111 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « shapes.txt » : 112 bytes.	Signalement informatif ; aucune action requise.
+fr	ARC_011	Taille du fichier (info)	Fichier « shapes.txt » : 117 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « shapes.txt » : 128 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « shapes.txt » : 133 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « shapes.txt » : 137 bytes.	Signalement informatif ; aucune action requise.
@@ -2177,7 +2177,6 @@ fr	ARC_011	Taille du fichier (info)	Fichier « stop_times.txt » : 133 byt
 fr	ARC_011	Taille du fichier (info)	Fichier « stop_times.txt » : 134 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « stop_times.txt » : 136 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « stop_times.txt » : 137 bytes.	Signalement informatif ; aucune action requise.
-fr	ARC_011	Taille du fichier (info)	Fichier « stop_times.txt » : 139 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « stop_times.txt » : 140 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « stop_times.txt » : 142 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « stop_times.txt » : 156 bytes.	Signalement informatif ; aucune action requise.
@@ -3660,6 +3659,7 @@ ja	ARC_011	ファイルサイズ（情報）	ファイル'shapes.txt'：109 byte
 ja	ARC_011	ファイルサイズ（情報）	ファイル'shapes.txt'：110 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'shapes.txt'：111 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'shapes.txt'：112 bytes。	情報通知のため対応不要です。
+ja	ARC_011	ファイルサイズ（情報）	ファイル'shapes.txt'：117 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'shapes.txt'：128 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'shapes.txt'：133 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'shapes.txt'：137 bytes。	情報通知のため対応不要です。
@@ -3689,7 +3689,6 @@ ja	ARC_011	ファイルサイズ（情報）	ファイル'stop_times.txt'：133 
 ja	ARC_011	ファイルサイズ（情報）	ファイル'stop_times.txt'：134 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'stop_times.txt'：136 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'stop_times.txt'：137 bytes。	情報通知のため対応不要です。
-ja	ARC_011	ファイルサイズ（情報）	ファイル'stop_times.txt'：139 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'stop_times.txt'：140 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'stop_times.txt'：142 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'stop_times.txt'：156 bytes。	情報通知のため対応不要です。
@@ -5173,6 +5172,7 @@ tr	ARC_011	Dosya boyutu (bilgi)	'shapes.txt' boyutu: 109 bayt.	Bilgi amaçlı; d
 tr	ARC_011	Dosya boyutu (bilgi)	'shapes.txt' boyutu: 110 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'shapes.txt' boyutu: 111 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'shapes.txt' boyutu: 112 bayt.	Bilgi amaçlı; düzeltme gerekmez.
+tr	ARC_011	Dosya boyutu (bilgi)	'shapes.txt' boyutu: 117 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'shapes.txt' boyutu: 128 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'shapes.txt' boyutu: 133 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'shapes.txt' boyutu: 137 bayt.	Bilgi amaçlı; düzeltme gerekmez.
@@ -5202,7 +5202,6 @@ tr	ARC_011	Dosya boyutu (bilgi)	'stop_times.txt' boyutu: 133 bayt.	Bilgi amaçl�
 tr	ARC_011	Dosya boyutu (bilgi)	'stop_times.txt' boyutu: 134 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'stop_times.txt' boyutu: 136 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'stop_times.txt' boyutu: 137 bayt.	Bilgi amaçlı; düzeltme gerekmez.
-tr	ARC_011	Dosya boyutu (bilgi)	'stop_times.txt' boyutu: 139 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'stop_times.txt' boyutu: 140 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'stop_times.txt' boyutu: 142 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'stop_times.txt' boyutu: 156 bayt.	Bilgi amaçlı; düzeltme gerekmez.
@@ -6057,10 +6056,11 @@ tr	SHP_014	İlk veya son durak güzergah ucundan uzakta	[101] kodlu hatta ait 'S
 tr	SHP_014	İlk veya son durak güzergah ucundan uzakta	[101] kodlu hatta ait 'SH1' güzergah şeklinin bitiş noktası, en yakın seferin son durağı 'Stop1' (kod: 'S1') konumundan 134739m uzakta.	Bu uzantı bilinçliyse işlem gerekmez; değilse shape bitişini ve son durağı doğrulayın.
 tr	SHP_014	İlk veya son durak güzergah ucundan uzakta	[101] kodlu hatta ait 'SH1' güzergah şeklinin bitiş noktası, en yakın seferin son durağı 'Stop2' (kod: 'S2') konumundan 14003m uzakta.	Bu uzantı bilinçliyse işlem gerekmez; değilse shape bitişini ve son durağı doğrulayın.
 tr	SHP_014	İlk veya son durak güzergah ucundan uzakta	[101] kodlu hatta ait 'SH1' güzergah şeklinin bitiş noktası, en yakın seferin son durağı 'Stop2' (kod: 'S2') konumundan 7003m uzakta.	Bu uzantı bilinçliyse işlem gerekmez; değilse shape bitişini ve son durağı doğrulayın.
-tr	SHP_014	İlk veya son durak güzergah ucundan uzakta	[101] kodlu hatta ait 'SH1' güzergah şeklinin bitiş noktası, en yakın seferin son durağı 'Stop2' (kod: 'S2') konumundan 8518m uzakta.	Bu uzantı bilinçliyse işlem gerekmez; değilse shape bitişini ve son durağı doğrulayın.
+tr	SHP_014	İlk veya son durak güzergah ucundan uzakta	[101] kodlu hatta ait 'SH1' güzergah şeklinin bitiş noktası, en yakın seferin son durağı 'Stop3' (kod: 'S3') konumundan 21295m uzakta.	Bu uzantı bilinçliyse işlem gerekmez; değilse shape bitişini ve son durağı doğrulayın.
 tr	SHP_015	Güzergah şekli istatistiksel olarak çok az nokta	'SH1' güzergahı 13.9 km uzunluğunda ancak yalnızca 2 nokta var — yoğunluk 1.4 nokta/10km.	Güzergah şekline ara noktalar ekleyin; düşük nokta yoğunluğu harita gösterimini bozar.
 tr	SHP_015	Güzergah şekli istatistiksel olarak çok az nokta	'SH1' güzergahı 17.0 km uzunluğunda ancak yalnızca 3 nokta var — yoğunluk 1.8 nokta/10km.	Güzergah şekline ara noktalar ekleyin; düşük nokta yoğunluğu harita gösterimini bozar.
 tr	SHP_015	Güzergah şekli istatistiksel olarak çok az nokta	'SH1' güzergahı 22.2 km uzunluğunda ancak yalnızca 2 nokta var — yoğunluk 0.9 nokta/10km.	Güzergah şekline ara noktalar ekleyin; düşük nokta yoğunluğu harita gösterimini bozar.
+tr	SHP_015	Güzergah şekli istatistiksel olarak çok az nokta	'SH1' güzergahı 25.6 km uzunluğunda ancak yalnızca 4 nokta var — yoğunluk 1.6 nokta/10km.	Güzergah şekline ara noktalar ekleyin; düşük nokta yoğunluğu harita gösterimini bozar.
 tr	SHP_015	Güzergah şekli istatistiksel olarak çok az nokta	'SH1' güzergahı 28.0 km uzunluğunda ancak yalnızca 3 nokta var — yoğunluk 1.1 nokta/10km.	Güzergah şekline ara noktalar ekleyin; düşük nokta yoğunluğu harita gösterimini bozar.
 tr	SHP_015	Güzergah şekli istatistiksel olarak çok az nokta	'SH1' güzergahı 31.4 km uzunluğunda ancak yalnızca 3 nokta var — yoğunluk 1.0 nokta/10km.	Güzergah şekline ara noktalar ekleyin; düşük nokta yoğunluğu harita gösterimini bozar.
 tr	SHP_015	Güzergah şekli istatistiksel olarak çok az nokta	'SH1' güzergahı 35.2 km uzunluğunda ancak yalnızca 5 nokta var — yoğunluk 1.4 nokta/10km.	Güzergah şekline ara noktalar ekleyin; düşük nokta yoğunluğu harita gösterimini bozar.
@@ -6069,8 +6069,8 @@ tr	SHP_015	Güzergah şekli istatistiksel olarak çok az nokta	'SH1' güzergahı
 tr	SHP_015	Güzergah şekli istatistiksel olarak çok az nokta	'SH1' güzergahı 55.6 km uzunluğunda ancak yalnızca 2 nokta var — yoğunluk 0.4 nokta/10km.	Güzergah şekline ara noktalar ekleyin; düşük nokta yoğunluğu harita gösterimini bozar.
 tr	SHP_015	Güzergah şekli istatistiksel olarak çok az nokta	'SH1' güzergahı 78.5 km uzunluğunda ancak yalnızca 5 nokta var — yoğunluk 0.6 nokta/10km.	Güzergah şekline ara noktalar ekleyin; düşük nokta yoğunluğu harita gösterimini bozar.
 tr	SHP_016	Güzergah şekli yön bilgisiyle uyumsuz	'R1' hattının 'SH1' güzergahı ters yönde çizilmiş — bu shape'i kullanan tüm seferlerin ilk durağı shape'in başından değil sonuna yakın projekte oluyor (en yakını 42590m / 42590m).	shape_pt_sequence sırasını tersine çevirin veya bu yön için ayrı bir shape_id tanımlayın.
-tr	SHP_017	Durak sırası güzergah şekliyle çelişiyor	'R1' hattının 08:00 seferinde 'Stop2' (kod: 'S2') 2. sıradaki durak güzergah sırası bozuk — başlangıca uzaklığı önceki durağın gerisinde (500000m < 1000000m).	Projeksiyon döngü veya aynı yolun tekrar kullanımında belirsiz olabilir. Haritada doğrulayın; desen bilinçliyse işlem gerekmez.
 tr	SHP_017	Durak sırası güzergah şekliyle çelişiyor	'R1' hattının 08:00 seferinde 'Stop2' (kod: 'S2') 2. sıradaki durak güzergah sırası bozuk — başlangıca uzaklığı önceki durağın gerisinde (8518m < 17036m).	Projeksiyon döngü veya aynı yolun tekrar kullanımında belirsiz olabilir. Haritada doğrulayın; desen bilinçliyse işlem gerekmez.
+tr	SHP_017	Durak sırası güzergah şekliyle çelişiyor	'R1' hattının 08:00 seferinde 'Stop3' (kod: 'S3') 3. sıradaki durak güzergah sırası bozuk — başlangıca uzaklığı önceki durağın gerisinde (4259m < 17036m).	Projeksiyon döngü veya aynı yolun tekrar kullanımında belirsiz olabilir. Haritada doğrulayın; desen bilinçliyse işlem gerekmez.
 tr	SHP_018	Güzergah şekli sefer tarafından referanslanmıyor	'SH1' güzergahı hiçbir sefer tarafından referans edilmiyor.	Kullanılmayan güzergah şeklini kaldırın ya da bir sefere atayın.
 tr	SHP_019	Güzergah şeklinin seferleri durak zamanı içermiyor	'SH1' güzergah şekli 1 sefer tarafından referans alınmış ama bu seferlerin hiçbirinde stop_times kaydı yok.	Seferlere stop_times ekleyin veya ilgili sefer ve güzergah şekli kayıtlarını kaldırın.
 tr	SHP_020	Güzergah şeklinde tekrarlayan nokta	'SH1' güzergahında nokta 0 ile 2 neredeyse aynı konumda (40.000000,40.000000) — tekrarlayan nokta.	Güzergah şeklindeki tekrarlayan noktaları temizleyin.
@@ -6087,7 +6087,6 @@ tr	SHP_026	Shape aşırı fazla noktaya sahip (>5000)	'SH1' şeklinde 12 nokta v
 tr	SHP_028	Aynı shape_dist_traveled, farklı koordinat	'SH1' şeklinde art arda iki noktanın shape_dist_traveled (5.0000) aynı ama koordinatları farklı — mesafe artmadan konum değişmiş.	Ardışık shape noktalarına artan shape_dist_traveled değerleri atayın.
 tr	SHP_029	Aynı shape_dist_traveled, çok küçük koordinat farkı (eşik altı)	'SH1' şeklinde art arda iki noktanın shape_dist_traveled (5.0000) aynı, koordinat farkı çok küçük (eşik altı).	Ardışık shape noktalarına artan shape_dist_traveled değerleri atayın ya da yinelenen noktayı kaldırın.
 tr	SHP_030	stop_times shape_dist_traveled kullanıyor ancak shapes.txt'te shape mesafeleri eksik	'SH1' shape'i kullanan 1 trip stop_times.txt'te shape_dist_traveled kullanıyor, ancak shape noktalarının 1/2 tanesinde shapes.txt shape_dist_traveled değeri eksik.	İlgili shape noktalarına stop_times.txt ile aynı birimde shape_dist_traveled ekleyin veya bu alanı ilgili trip'lerin stop_times kayıtlarından tutarlı biçimde kaldırın.
-tr	SHP_030	stop_times shape_dist_traveled kullanıyor ancak shapes.txt'te shape mesafeleri eksik	'SH1' shape'i kullanan 1 trip stop_times.txt'te shape_dist_traveled kullanıyor, ancak shape noktalarının 3/3 tanesinde shapes.txt shape_dist_traveled değeri eksik.	İlgili shape noktalarına stop_times.txt ile aynı birimde shape_dist_traveled ekleyin veya bu alanı ilgili trip'lerin stop_times kayıtlarından tutarlı biçimde kaldırın.
 tr	STM_001	trip_id bulunamadı	'T1' sefer kodu trips.txt'te tanımlı değil.	Geçerli bir trip_id kullanın.
 tr	STM_001	trip_id bulunamadı	'T2' sefer kodu trips.txt'te tanımlı değil.	Geçerli bir trip_id kullanın.
 tr	STM_001	trip_id bulunamadı	'TGHOST' sefer kodu trips.txt'te tanımlı değil.	Geçerli bir trip_id kullanın.
@@ -6396,7 +6395,6 @@ tr	STM_053	Çok sayıda ardışık durakta aynı zaman	route_id 'R1' içinde 1 s
 tr	STM_054	Flex penceresinde continuous_pickup yasak	trip_id 'T1' Flex penceresi tanımlı iken continuous_pickup=0 yasaktır.	Flex penceresi olan stop_times satırlarında continuous_pickup'ı 1 yapın veya alanı boş bırakın.
 tr	STM_055	Flex penceresinde continuous_drop_off yasak	trip_id 'T1' Flex penceresi tanımlı iken continuous_drop_off=2 yasaktır.	Flex penceresi olan stop_times satırlarında continuous_drop_off'u 1 yapın veya alanı boş bırakın.
 tr	STM_056	Güzergâh mesafesi artmıyor	'T1' seferinde 2. durakta güzergâh mesafesi artmıyor: önceki 1. durakta 100, bu durakta 100. Güzergâh başlangıcından itibaren kümülatif mesafe artmalıdır.	stop_times.txt'te shape_dist_traveled değerlerini stop_sequence sırasına göre artan biçimde düzeltin.
-tr	STM_056	Güzergâh mesafesi artmıyor	'T1' seferinde 2. durakta güzergâh mesafesi artmıyor: önceki 1. durakta 1000, bu durakta 500. Güzergâh başlangıcından itibaren kümülatif mesafe artmalıdır.	stop_times.txt'te shape_dist_traveled değerlerini stop_sequence sırasına göre artan biçimde düzeltin.
 tr	STM_058	Flex pickup/drop-off penceresi saati geçersiz	'end_pickup_drop_off_window' için [H]H:MM:SS bekleniyor (dakika/saniye iki basamaklı), alınan: 10pm	Flex pencere alanlarını HH:MM:SS formatında girin.
 tr	STM_058	Flex pickup/drop-off penceresi saati geçersiz	'start_pickup_drop_off_window' için [H]H:MM:SS bekleniyor (dakika/saniye iki basamaklı), alınan: 9am	Flex pencere alanlarını HH:MM:SS formatında girin.
 tr	STM_059	pickup_type/drop_off_type=2 iken booking_rule_id önerilir	trip_id 'T1' pickup_type=2 (telefonla rezervasyon) ama pickup_booking_rule_id eksik.	Talep-üzerine biniş/iniş için booking_rules.txt'teki ilgili kuralı bu alana bağlayın.
