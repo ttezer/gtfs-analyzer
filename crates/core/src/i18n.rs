@@ -374,13 +374,7 @@ fn has_placeholder(text: &str) -> bool {
 /// `message_templates` key for templates every rule may use (shared value-parser messages).
 const SHARED_TEMPLATES: &str = "*";
 
-/// Does `text` contain `token` as a whole word (not inside a longer id or number)?
-pub fn contains_token(text: &str, token: &str) -> bool {
-    let word = |c: Option<char>| c.is_some_and(|c| c.is_alphanumeric() || c == '_');
-    text.match_indices(token).any(|(at, _)| {
-        !word(text[..at].chars().next_back()) && !word(text[at + token.len()..].chars().next())
-    })
-}
+pub use crate::notice::contains_token;
 
 /// `message_templates` key for the engine's fatal error texts.
 const FATAL_TEMPLATES: &str = "FATAL";

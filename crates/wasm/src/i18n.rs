@@ -5,10 +5,10 @@
 //! public notice fields at the WASM boundary, without shipping a separate
 //! locale file in the npm package.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
-use gtfs_core::{intern_notice_text, FatalError, Notice};
+use gtfs_core::{contains_token, intern_notice_text, FatalError, Notice};
 use serde::Deserialize;
 
 const EN_JSON: &str = include_str!(concat!(env!("OUT_DIR"), "/en_locale.json"));
@@ -21,6 +21,9 @@ struct Dictionary {
     /// `{FatalCode}.{variant}` → template; the same dictionary as the CLI (`crates/core/locales/en.json`).
     #[serde(default)]
     fatal_messages: HashMap<String, String>,
+    /// Rules whose English message is the engine text itself (#201 F5); same list as the CLI.
+    #[serde(default)]
+    engine_messages: HashSet<String>,
 }
 
 fn dictionary() -> &'static Dictionary {
@@ -54,7 +57,15 @@ pub fn translate_notices(notices: &mut [Notice]) {
                     |key| format!("{key}.{kind}"),
                 )
             });
-        if let Some(template) = specific
+        if dictionary.engine_messages.contains(notice.rule_id.as_str()) {
+            // Same as `gtfs_core::i18n::Translator::translate`: keep the engine text, and name
+            // the entity id when the text does not.
+            if let Some(id) = notice.entity_id.as_deref().filter(|id| !id.is_empty()) {
+                if !contains_token(&notice.message, id) {
+                    notice.message = format!("{} (id: {id})", notice.message);
+                }
+            }
+        } else if let Some(template) = specific
             .as_ref()
             .and_then(|k| dictionary.messages.get(k))
             .or_else(|| profile.as_ref().and_then(|k| dictionary.messages.get(k)))
@@ -250,7 +261,8 @@ mod tests {
     fn english_dictionary_fills_notice_placeholders() {
         let mut notice = Notice {
             id: "k2/STM_004#1".to_string(),
-            rule_id: "STM_004".to_string(),
+            // A rule that still uses its English template (#201 F5: most show the engine text).
+            rule_id: template_rule(),
             severity: Severity::Kritik,
             rule_class: RuleClass::Spec,
             entity_type: EntityType::Trip,
@@ -284,13 +296,16 @@ mod tests {
         );
         assert!(notice.message.contains("T1"));
 
+        // Listed rules keep the engine message, with the id when it is missing; the remediation
+        // still comes from the profile variant.
+        notice.message = "Engine message.".to_string();
         notice.rule_id = "JPN_006".to_string();
         notice.details = Some(std::collections::BTreeMap::from([
             ("jp_profile".into(), "V4".into()),
             ("message_variant".into(), "missing_review".into()),
         ]).into());
         translate_notices(std::slice::from_mut(&mut notice));
-        assert!(notice.message.contains("no score penalty"));
+        assert_eq!(notice.message, "Engine message. (id: T1)");
         assert!(notice.remediation.contains("Manually verify"));
 
         notice.rule_id = "JPN_029".to_string();
@@ -306,9 +321,22 @@ mod tests {
                 "trip_id=T1,stop_sequence=2".into(),
             ),
         ]).into());
+        notice.message = "Engine message for T1.".to_string();
         translate_notices(std::slice::from_mut(&mut notice));
-        assert!(notice.message.contains("stop_times.stop_headsign = 渋谷"));
-        assert!(notice.message.contains("18426 rows"));
-        assert!(notice.message.contains("trip_id=T1,stop_sequence=2"));
+        assert_eq!(notice.message, "Engine message for T1.");
+    }
+
+    fn template_rule() -> String {
+        let d = dictionary();
+        let mut rules: Vec<&String> = d
+            .messages
+            .iter()
+            .filter(|(k, v)| {
+                !k.contains('.') && v.contains("{entity_id}") && !d.engine_messages.contains(*k)
+            })
+            .map(|(k, _)| k)
+            .collect();
+        rules.sort();
+        rules.first().expect("a rule that still uses its English template").to_string()
     }
 }

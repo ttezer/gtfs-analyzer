@@ -29,7 +29,9 @@ assert.ok(result.notices.length > 0);
 assert.equal(typeof result.reports.r5.score, 'number');
 for (const notice of result.notices) {
   assert.match(notice.title, /^[\x00-\x7F]*$/, `notice title is not English: ${notice.rule_id}`);
-  assert.match(notice.message, /^[\x00-\x7F]*$/, `notice message is not English: ${notice.rule_id}`);
+  // Engine messages use English punctuation such as '—' and '≤' (#201 F5), so the message check
+  // rejects Turkish letters (as the no_turkish_user_text gate does) rather than every non-ASCII one.
+  assert.doesNotMatch(notice.message, /[çğıİşŞöüÇĞÖÜ]/, `notice message is not English: ${notice.rule_id}`);
   assert.match(notice.remediation, /^[\x00-\x7F]*$/, `notice remediation is not English: ${notice.rule_id}`);
 }
 

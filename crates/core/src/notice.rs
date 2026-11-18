@@ -18,6 +18,14 @@ static DETAIL_KEYS: OnceLock<Mutex<DetailKeyInterner>> = OnceLock::new();
 
 static NOTICE_TEXTS: OnceLock<Mutex<HashMap<String, Arc<str>>>> = OnceLock::new();
 
+/// Does `text` contain `token` as a whole word (not inside a longer id or number)?
+pub fn contains_token(text: &str, token: &str) -> bool {
+    let word = |c: Option<char>| c.is_some_and(|c| c.is_alphanumeric() || c == '_');
+    text.match_indices(token).any(|(at, _)| {
+        !word(text[..at].chars().next_back()) && !word(text[at + token.len()..].chars().next())
+    })
+}
+
 pub fn intern_notice_text(value: &str) -> Arc<str> {
     let texts = NOTICE_TEXTS.get_or_init(|| Mutex::new(HashMap::new()));
     let mut texts = texts.lock().expect("notice text interner poisoned");
