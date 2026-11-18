@@ -236,6 +236,7 @@ const tr = {
     'producer.card.ATR_012.what': "Bir atıf kaydı, listede olmayan bir sefere bağlanmış.",
     'producer.card.ATR_012.action': "Atfı mevcut bir sefere bağlayın.",
     'producer.card.BKR.rule': "Kural „{rule}“: {setting}.",
+    'producer.card.STM_012.group': "Aynı iki durak arasında bu sorun {trips} seferde var; örnek olarak ilk sefer gösteriliyor.",
     'producer.card.STM_017.what_partial': "Başka seferlerde girilmişken {shapes} güzergâha ait {trips} seferde durakların güzergâh başından itibaren kümülatif mesafesi eksik.",
     'producer.card.DQ_018.summary': "{field} alanında {count} değer tamamen BÜYÜK HARFLE yazılmış ({distinct} farklı değer). Örnekler: {examples}.",
     'producer.card.STP_047.title': "Aynı yer için iki istasyon kaydı",

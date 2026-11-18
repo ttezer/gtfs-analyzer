@@ -3286,6 +3286,108 @@ fn check_speed_and_duration<'a>(
         }
     }
 
+    // ── STM_012: one finding per (route, direction, stop pair) ──────────────
+    // The same impossible segment repeats on every trip of a route that passes the two stops (one
+    // wrong coordinate or time pattern): corpus run 43302993350 had 422,303 STM_012 notices in one
+    // feed. The trip findings are grouped by stop pair as STM_025 is (2026-11-18): the first trip's
+    // finding is kept with all its context and identity, and it carries the group's trip count,
+    // segment count, every trip and `instance_count` (the score counts the segments, so it does not
+    // change). Its message is the first trip's, so every language still translates it.
+    {
+        let _t = Timer::start("K6::sd::stm012_group");
+        let mut group_of: FxHashMap<(String, String, String, String), usize> = FxHashMap::default();
+        let mut groups: Vec<Vec<usize>> = Vec::new(); // members, in emission order
+        for (i, n) in notices.iter().enumerate() {
+            if n.rule_id != "STM_012" {
+                continue;
+            }
+            let trip = n.entity_id.as_deref().unwrap_or("");
+            let detail = |k: &str| {
+                n.details
+                    .as_ref()
+                    .and_then(|d| d.get(k))
+                    .cloned()
+                    .unwrap_or_default()
+            };
+            let route = trip_to_route.get(trip).copied().unwrap_or(trip).to_string();
+            let dir = trip_direction.get(trip).copied().unwrap_or("-").to_string();
+            let key = (route, dir, detail("stop_a"), detail("stop_b"));
+            match group_of.get(&key) {
+                Some(&g) => groups[g].push(i),
+                None => {
+                    group_of.insert(key, groups.len());
+                    groups.push(vec![i]);
+                }
+            }
+        }
+        if !groups.is_empty() {
+            let mut drop = vec![false; notices.len()];
+            let mut keyed: Vec<((String, String, String, String), usize)> =
+                group_of.into_iter().collect();
+            keyed.sort_unstable_by_key(|(_, g)| *g);
+            for ((route, dir, _, _), g) in keyed {
+                let members = &groups[g];
+                // Trips are visited in hash order, so "first emitted" is not deterministic: the
+                // representative is the finding earliest in stop_times.txt (smallest line).
+                let rep = members
+                    .iter()
+                    .copied()
+                    .min_by_key(|&m| (notices[m].line.unwrap_or(u64::MAX), notices[m].id.clone()))
+                    .expect("a group has members");
+                let mut trips: Vec<String> = members
+                    .iter()
+                    .filter_map(|&m| notices[m].entity_id.clone())
+                    .collect();
+                trips.sort_unstable();
+                trips.dedup();
+                let segments = members.len();
+                for &m in members.iter().filter(|&&m| m != rep) {
+                    drop[m] = true;
+                }
+                // The representative keeps its identity (trip entity, trip_id scope): STM_004/005/006
+                // block STM_012 by trip_id, and the pages read the trip from entity_id.
+                let n = &mut notices[rep];
+                let d = n.details.get_or_insert_with(Default::default);
+                d.insert("route_id".to_string(), route);
+                d.insert("direction_id".to_string(), dir);
+                d.insert("trip_count".to_string(), trips.len().to_string());
+                d.insert("segment_count".to_string(), segments.to_string());
+                d.insert("instance_count".to_string(), segments.to_string());
+                // Every trip, split on trip boundaries under MAX_NOTICE_VALUE_CHARS (as STM_025).
+                let mut parts: Vec<String> = vec![String::new()];
+                for trip in &trips {
+                    let last = parts.last_mut().expect("parts is never empty");
+                    let extra = usize::from(!last.is_empty()) + trip.chars().count();
+                    if !last.is_empty()
+                        && last.chars().count() + extra > gtfs_core::notice::MAX_NOTICE_VALUE_CHARS
+                    {
+                        parts.push(trip.clone());
+                    } else {
+                        if !last.is_empty() {
+                            last.push(',');
+                        }
+                        last.push_str(trip);
+                    }
+                }
+                d.insert("trips_parts".to_string(), parts.len().to_string());
+                for (k, part) in parts.into_iter().enumerate() {
+                    let key = if k == 0 {
+                        "trips".to_string()
+                    } else {
+                        format!("trips_{}", k + 1)
+                    };
+                    d.insert(key, part);
+                }
+            }
+            let mut i = 0;
+            notices.retain(|_| {
+                let keep = !drop[i];
+                i += 1;
+                keep
+            });
+        }
+    }
+
     // ── STM_025: emit accumulated short segments individually ───────────────
     // FxHashMap iteration is unordered → sort by key (golden determinism).
     {
@@ -15497,6 +15599,61 @@ mod tests {
     // If both times are exact minutes, the real travel time is unknown (0–59 sec). To call it
     // "impossible", the distance must exceed the maximum speed even if a full minute elapsed → max_speed/60.
     // Corpus evidence (mdb-2155): a fixed 1.0 km threshold made 41 of 42 findings false positives.
+
+    #[test]
+    fn stm_012_groups_trips_of_one_route_direction_and_stop_pair() {
+        // A → B is ~29 km in one minute on three trips of R1 (one group); C → D on T4 is another pair.
+        let records = records_with(
+            vec![
+                stop("A", 41.0, 29.0),
+                stop("B", 41.26, 29.0),
+                stop("C", 40.0, 28.0),
+                stop("D", 40.26, 28.0),
+            ],
+            vec![route("R1", 3)],
+            vec![
+                trip("T1", "R1"),
+                trip("T2", "R1"),
+                trip("T3", "R1"),
+                trip("T4", "R1"),
+            ],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 1, 0), (8, 1, 0), 3),
+                stoptime("T2", 1, "A", (9, 0, 0), (9, 0, 0), 4),
+                stoptime("T2", 2, "B", (9, 1, 0), (9, 1, 0), 5),
+                stoptime("T3", 1, "A", (10, 0, 0), (10, 0, 0), 6),
+                stoptime("T3", 2, "B", (10, 1, 0), (10, 1, 0), 7),
+                stoptime("T4", 1, "C", (11, 0, 0), (11, 0, 0), 8),
+                stoptime("T4", 2, "D", (11, 1, 0), (11, 1, 0), 9),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let mut hits: Vec<&Notice> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "STM_012")
+            .collect();
+        hits.sort_by_key(|n| n.entity_id.clone());
+        assert_eq!(hits.len(), 2, "one finding per stop pair: {hits:?}");
+        let d = hits[0].details.as_ref().unwrap();
+        assert_eq!(hits[0].entity_type, EntityType::Trip, "identity is kept");
+        assert_eq!(hits[0].entity_id.as_deref(), Some("T1"));
+        assert_eq!(d.get("trip_count").map(String::as_str), Some("3"));
+        assert_eq!(d.get("segment_count").map(String::as_str), Some("3"));
+        assert_eq!(d.get("instance_count").map(String::as_str), Some("3"));
+        assert_eq!(d.get("trips").map(String::as_str), Some("T1,T2,T3"));
+        assert_eq!(hits[1].entity_id.as_deref(), Some("T4"));
+        assert_eq!(
+            hits[1]
+                .details
+                .as_ref()
+                .unwrap()
+                .get("trip_count")
+                .map(String::as_str),
+            Some("1")
+        );
+    }
 
     #[test]
     fn whole_minute_zero_gap_below_one_minute_reach_is_not_stm_012() {

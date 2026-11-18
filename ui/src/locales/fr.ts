@@ -238,6 +238,7 @@ const fr: LocaleShape = {
     'producer.card.ATR_012.what': "Une attribution est liée à une course absente de la liste.",
     'producer.card.ATR_012.action': "Liez l’attribution à une course existante.",
     'producer.card.BKR.rule': "Règle « {rule} » : {setting}.",
+    'producer.card.STM_012.group': "Les deux mêmes arrêts présentent ce problème sur {trips} courses ; la première est montrée en exemple.",
     'producer.card.STM_017.what_partial': "La distance cumulée depuis le début du tracé manque aux arrêts de {trips} courses sur {shapes} tracés, alors que d’autres courses l’ont.",
     'producer.card.DQ_018.summary': "{count} valeurs du champ {field} sont écrites en MAJUSCULES ({distinct} valeurs différentes). Exemples : {examples}.",
     'producer.card.STP_047.title': "Deux enregistrements de station pour le même lieu",

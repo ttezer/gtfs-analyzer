@@ -4083,3 +4083,13 @@ describe('Kısmi güzergâh mesafesi özeti (STM_017)', () => {
     expect(root.innerHTML).toContain('Başka seferlerde girilmişken 940 güzergâha ait 172163 seferde');
   });
 });
+
+describe('Durak çifti başına hız bulgusu (STM_012)', () => {
+  it('aynı durak çiftindeki sefer sayısını söyler', () => {
+    const ni = { ...emptyNameIndex, stops: { A: 'Otogar', B: 'Merkez' } };
+    const n = notice('a', 'STM_012', 'HIGH', { entity_type: 'Trip', entity_id: 'T1', details: { stop_a: 'A', stop_b: 'B', distance_km: '29.0', speed_lower_bound_kmh: '1740.0', trip_count: '1200', segment_count: '1200' } });
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [['STM_012', 1, 1]], true, ni));
+    expect(root.innerHTML).toContain('Aynı iki durak arasında bu sorun 1.200 seferde var');
+  });
+});

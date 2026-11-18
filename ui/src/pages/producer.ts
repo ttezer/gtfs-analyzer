@@ -2916,9 +2916,10 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       return {
         title: t('producer.card.STM_012.title'),
         context: tripContextText(context),
-        what: t('producer.card.STM_012.what', {
-          stops: speedStopPair(n, result),
-        }),
+        what: [
+          t('producer.card.STM_012.what', { stops: speedStopPair(n, result) }),
+          Number(n.details?.trip_count) > 1 ? t('producer.card.STM_012.group', { trips: localizedNumber(n.details?.trip_count ?? '') }) : '',
+        ].filter(Boolean).join(' '),
         action: t('producer.card.STM_012.action'),
         observed: stm012Observed(n),
       };
