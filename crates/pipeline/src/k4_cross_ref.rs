@@ -3448,6 +3448,7 @@ fn check_fares_v2(
 ) {
     // FPD_004/005: fare_products foreign keys
     for rec in &records.fare_products {
+        let first_notice = notices.len();
         if let Some(ref fmid) = rec.fare_media_id {
             if !map.fare_media_ids.contains_key(fmid.as_str()) {
                 notices.push(notice(
@@ -3487,6 +3488,11 @@ fn check_fares_v2(
                 ));
             }
         }
+        crate::k2::common::add_row_fields(
+            &rec.row,
+            crate::k2::fare_products::FARE_PRODUCT_FIELDS,
+            &mut notices[first_notice..],
+        );
     }
 
     // RCT_006: if a fare_product has multiple eligible rider_category values, exactly one
@@ -3626,6 +3632,7 @@ fn check_fares_v2(
 
     // FLG_001-006: fare_leg_rules cross-ref
     for rec in &records.fare_leg_rules {
+        let first_notice = notices.len();
         // FLG_008: `fare_product_id` is EMPTY. The FK check below guards with `!is_empty()`
         // — correctly, because an empty value is not "not found". But that guard left the
         // empty case unowned: all seven FLG rules are FK or enum checks, and none measures
@@ -3752,6 +3759,11 @@ fn check_fares_v2(
                 ));
             }
         }
+        crate::k2::common::add_row_fields(
+            &rec.row,
+            crate::k2::fare_leg_rules::FARE_LEG_RULE_FIELDS,
+            &mut notices[first_notice..],
+        );
     }
 
     // FTR_002-004: fare_transfer_rules cross-ref
@@ -3952,6 +3964,7 @@ fn check_levels(
         .collect();
 
     for rec in &records.levels {
+        let first_notice = notices.len();
         if rec.level_id.is_empty() {
             continue;
         }
@@ -3974,6 +3987,11 @@ fn check_levels(
                 "Remove the unused level or assign it to a stop.",
             ));
         }
+        crate::k2::common::add_row_fields(
+            &rec.row,
+            crate::k2::levels::LEVEL_FIELDS,
+            &mut notices[first_notice..],
+        );
     }
 }
 

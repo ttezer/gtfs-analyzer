@@ -1,7 +1,8 @@
 use gtfs_core::EntityType;
 
 use super::common::{
-    build_row_map, get_raw_field, get_trimmed_field, make_k2_notice, parse_u32, RowMap,
+    add_row_fields, build_row_map, get_raw_field, get_trimmed_field, make_k2_notice, parse_u32,
+    RowMap,
 };
 use crate::k1_parse::RawFile;
 
@@ -19,6 +20,18 @@ pub struct FareLegRuleRecord {
     pub line: u64,
 }
 
+/// Planner context for fare leg rule findings: the row as written.
+pub const FARE_LEG_RULE_FIELDS: &[&str] = &[
+    "leg_group_id",
+    "network_id",
+    "from_area_id",
+    "to_area_id",
+    "from_timeframe_group_id",
+    "to_timeframe_group_id",
+    "fare_product_id",
+    "rule_priority",
+];
+
 pub fn validate_fare_leg_rules(file: &RawFile) -> (Vec<FareLegRuleRecord>, Vec<gtfs_core::Notice>) {
     let mut notices = Vec::new();
     let mut records = Vec::new();
@@ -27,6 +40,7 @@ pub fn validate_fare_leg_rules(file: &RawFile) -> (Vec<FareLegRuleRecord>, Vec<g
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
+        let first_notice = notices.len();
         let leg_group_id = get_raw_field(&row_map, "leg_group_id")
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
@@ -53,6 +67,7 @@ pub fn validate_fare_leg_rules(file: &RawFile) -> (Vec<FareLegRuleRecord>, Vec<g
             }
         };
 
+        add_row_fields(&row_map, FARE_LEG_RULE_FIELDS, &mut notices[first_notice..]);
         records.push(FareLegRuleRecord {
             leg_group_id,
             network_id: get_raw_field(&row_map, "network_id")

@@ -9397,3 +9397,39 @@ ADULT,Adult,1,30,18\nADULT,Adult again,0,,\n";
         Some("Adult again")
     );
 }
+
+/// Planner cards (LVL, FLG, FPD): level, fare leg rule and fare product findings carry the row
+/// as written; the decimal-places summary carries its first amount — in `details` only.
+#[test]
+fn lvl_flg_fpd_findings_carry_the_row() {
+    static LEVELS: &[u8] = b"level_id,level_index,level_name\nL1,x,Ground\n";
+    static LEGS: &[u8] = b"leg_group_id,network_id,fare_product_id\nLG_A,,NOPE\n";
+    static PRODUCTS: &[u8] = b"fare_product_id,fare_product_name,amount,currency\n\
+P1,Single,2.00,XXQ\nP2,Day,1.5,JPY\n";
+    let mut files = base_files();
+    files.extend([
+        ("levels.txt", LEVELS),
+        ("fare_leg_rules.txt", LEGS),
+        ("fare_products.txt", PRODUCTS),
+    ]);
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("fatal")
+    };
+    let detail = |rule: &str, key: &str| -> Option<String> {
+        vr.notices
+            .iter()
+            .filter(|n| n.rule_id == rule)
+            .find_map(|n| n.details.as_ref().and_then(|d| d.get(key).cloned()))
+    };
+    assert_eq!(detail("LVL_002", "level_name").as_deref(), Some("Ground"));
+    assert_eq!(detail("LVL_004", "level_name").as_deref(), Some("Ground"));
+    assert_eq!(detail("FLG_001", "leg_group_id").as_deref(), Some("LG_A"));
+    assert_eq!(
+        detail("FPD_003", "fare_product_name").as_deref(),
+        Some("Single")
+    );
+    assert_eq!(
+        detail("FPD_007", "example_currency").as_deref(),
+        Some("JPY")
+    );
+}

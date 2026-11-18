@@ -3967,3 +3967,37 @@ describe('Zaman dilimi ve yolcu kategorisi kartları (TFR, RCT)', () => {
       .toContain('3 ücret ürünü etkileniyor, örneğin P1, P2. Şu kategorilerden birini varsayılan yapmak hepsini çözer: senior.');
   });
 });
+
+describe('Kat, ücret kuralı ve ücret ürünü kartları (LVL, FLG, FPD)', () => {
+  const ni = { ...emptyNameIndex, stops: { S1: 'Otogar' } };
+  const render = (n: Notice) => {
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [[n.rule_id, 1, 1]], true, ni));
+    return root.innerHTML;
+  };
+
+  it('LVL_002 katı adı ve koduyla, girilen değerle gösterir', () => {
+    expect(render(notice('a', 'LVL_002', 'CRITICAL', { entity_type: 'Level', entity_id: 'L1', observed_value: 'x', details: { level_id: 'L1', level_name: 'Zemin' } })))
+      .toContain('Kat „Zemin“ („L1“). Girilen değer: „x“.');
+  });
+
+  it('LVL_006 durağı adıyla söyler', () => {
+    expect(render(notice('a', 'LVL_006', 'MEDIUM', { entity_type: 'Stop', entity_id: 'S1' })))
+      .toContain('Durak: Otogar.');
+  });
+
+  it('FLG_003 kuralı grup, bölge ve ürünle anlatır', () => {
+    expect(render(notice('a', 'FLG_003', 'CRITICAL', { entity_type: 'Row', details: { leg_group_id: 'LG_A', from_area_id: 'A9', fare_product_id: 'P1' } })))
+      .toContain('Ücret kuralı „LG_A“: bölge „A9“ → „tümü“, ücret ürünü „P1“.');
+  });
+
+  it('FPD_003 ürünü fiyatıyla ve girilen değerle gösterir', () => {
+    expect(render(notice('a', 'FPD_003', 'CRITICAL', { entity_type: 'Row', observed_value: 'XXQ', details: { fare_product_id: 'P1', fare_product_name: 'Tek biniş', amount: '2.00', currency: 'XXQ' } })))
+      .toContain('Ücret ürünü „Tek biniş“ („P1“) (2.00 XXQ). Girilen değer: „XXQ“.');
+  });
+
+  it('FPD_007 tutar sayısını ve örneği söyler', () => {
+    expect(render(notice('a', 'FPD_007', 'LOW', { entity_type: 'File', observed_value: '3 rows', details: { example_amount: '1.5', example_currency: 'JPY' } })))
+      .toContain('3 tutarda böyle; örneğin 1.5 JPY.');
+  });
+});

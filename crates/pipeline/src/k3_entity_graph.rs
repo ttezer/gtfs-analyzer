@@ -462,6 +462,12 @@ fn build_levels(
                 format!("level_id '{lid}' repeats (first seen: line {prev_line})."),
                 "Assign a unique level_id to each level.",
             ));
+            let at = notices.len() - 1;
+            crate::k2::common::add_row_fields(
+                &rec.row,
+                crate::k2::levels::LEVEL_FIELDS,
+                &mut notices[at..],
+            );
         } else {
             map.levels.insert(lid.clone(), idx);
         }
@@ -672,6 +678,12 @@ fn build_fares_v2(
                 format!("Fare product '{}' repeats with the same (rider_category_id, fare_media_id) combination (first seen: line {prev_line}).", rec.fare_product_id),
                 "Each (fare_product_id, rider_category_id, fare_media_id) combination must be unique; the same fare_product_id may repeat with a different rider category or media.",
             ));
+            let at = notices.len() - 1;
+            crate::k2::common::add_row_fields(
+                &rec.row,
+                crate::k2::fare_products::FARE_PRODUCT_FIELDS,
+                &mut notices[at..],
+            );
         } else {
             seen_pk.insert(pk, rec.line);
         }

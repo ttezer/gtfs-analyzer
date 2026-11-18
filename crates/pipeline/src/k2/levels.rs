@@ -1,7 +1,8 @@
 use gtfs_core::EntityType;
 
 use super::common::{
-    build_row_map, get_raw_field, get_trimmed_field, make_k2_notice, parse_f64, RowMap,
+    add_row_fields, build_row_map, get_raw_field, get_trimmed_field, make_k2_notice, parse_f64,
+    RowMap,
 };
 use crate::k1_parse::RawFile;
 
@@ -14,6 +15,9 @@ pub struct LevelRecord {
     pub line: u64,
 }
 
+/// Planner context for level findings: the row as written.
+pub const LEVEL_FIELDS: &[&str] = &["level_id", "level_index", "level_name"];
+
 pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Notice>) {
     let mut notices = Vec::new();
     let mut records = Vec::new();
@@ -22,6 +26,7 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
+        let first_notice = notices.len();
         let level_id = get_raw_field(&row_map, "level_id")
             .unwrap_or("")
             .to_string();
@@ -128,6 +133,7 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
             }
         }
 
+        add_row_fields(&row_map, LEVEL_FIELDS, &mut notices[first_notice..]);
         records.push(LevelRecord {
             level_id,
             level_index,

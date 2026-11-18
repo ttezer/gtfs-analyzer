@@ -1,7 +1,7 @@
 use gtfs_core::EntityType;
 
 use super::common::{
-    amount_has_iso4217_decimals, build_row_map, get_raw_field, get_trimmed_field,
+    add_row_fields, amount_has_iso4217_decimals, build_row_map, get_raw_field, get_trimmed_field,
     iso4217_minor_unit, make_k2_notice, parse_f64, RowMap,
 };
 use crate::k1_parse::RawFile;
@@ -18,6 +18,16 @@ pub struct FareProductRecord {
     pub line: u64,
 }
 
+/// Planner context for fare product findings: the row as written.
+pub const FARE_PRODUCT_FIELDS: &[&str] = &[
+    "fare_product_id",
+    "fare_product_name",
+    "rider_category_id",
+    "fare_media_id",
+    "amount",
+    "currency",
+];
+
 pub fn validate_fare_products(file: &RawFile) -> (Vec<FareProductRecord>, Vec<gtfs_core::Notice>) {
     let mut notices = Vec::new();
     let mut records = Vec::new();
@@ -29,6 +39,7 @@ pub fn validate_fare_products(file: &RawFile) -> (Vec<FareProductRecord>, Vec<gt
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
+        let first_notice = notices.len();
         let id = get_raw_field(&row_map, "fare_product_id")
             .unwrap_or("")
             .to_string();
@@ -113,6 +124,7 @@ pub fn validate_fare_products(file: &RawFile) -> (Vec<FareProductRecord>, Vec<gt
             ));
         }
 
+        add_row_fields(&row_map, FARE_PRODUCT_FIELDS, &mut notices[first_notice..]);
         records.push(FareProductRecord {
             fare_product_id: id,
             fare_product_name: get_trimmed_field(&row_map, "fare_product_name")
@@ -153,6 +165,12 @@ pub fn validate_fare_products(file: &RawFile) -> (Vec<FareProductRecord>, Vec<gt
             ),
             "Write amounts with the decimal places of their currency (for example 0.90 for EUR, 150 for JPY).",
         ));
+        // Planner context: the first amount and currency as written.
+        if let Some(last) = notices.last_mut() {
+            let d = last.details.get_or_insert_with(Default::default);
+            d.insert("example_amount".to_string(), amount.to_string());
+            d.insert("example_currency".to_string(), currency.to_string());
+        }
     }
 
     (records, notices)

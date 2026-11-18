@@ -596,10 +596,61 @@ function rctText(n: Notice): string | null {
   const id = d.rider_category_id || n.entity_id;
   const name = d.rider_category_name;
   if (!id && !name) return null;
-  const category = name && id ? t('producer.card.RCT.named', { name, id }) : t('producer.card.RCT.code', { id: name || id || '' });
+  const category = namedCode(name, id);
   const ages = d.min_age || d.max_age ? t('producer.card.RCT.ages', { min: d.min_age ?? '—', max: d.max_age ?? '—' }) : '';
   const value = ['RCT_003', 'RCT_004', 'RCT_007'].includes(n.rule_id) ? visibleValue(n.observed_value ?? null) : '';
   return [base, t('producer.card.RCT.row', { category, ages }), value ? t('producer.card.FIN.value', { value }) : ''].filter(Boolean).join(' ');
+}
+
+/** A record named by its name and code, either alone, in the planner's quotes (RCT.named / RCT.code). */
+function namedCode(name?: string, id?: string | null): string {
+  return name && id ? t('producer.card.RCT.named', { name, id }) : t('producer.card.RCT.code', { id: name || id || '' });
+}
+
+/** Level cards (LVL): the level by its name, code and index; LVL_006 names the stop. */
+function lvlText(n: Notice, result: ValidationResult): string | null {
+  const d = n.details ?? {};
+  const base = t(`producer.card.${n.rule_id}.what`);
+  if (n.rule_id === 'LVL_006') {
+    return n.entity_id ? `${base} ${t('producer.card.LVL.stop', { stop: result.name_index.stops?.[n.entity_id] || n.entity_id })}` : null;
+  }
+  const id = d.level_id || n.entity_id;
+  if (!id && !d.level_name) return null;
+  const index = d.level_index ? t('producer.card.LVL.index', { index: d.level_index }) : '';
+  const value = n.rule_id === 'LVL_002' || n.rule_id === 'LVL_005' ? visibleValue(n.observed_value ?? null) : '';
+  return [base, t('producer.card.LVL.level', { level: namedCode(d.level_name, id), index }), value ? t('producer.card.FIN.value', { value }) : ''].filter(Boolean).join(' ');
+}
+
+/** Fare leg rule cards (FLG): the rule by its leg group, network, areas, time periods and product. */
+function flgText(n: Notice): string | null {
+  const d = n.details ?? {};
+  const any = t('producer.card.FLG.any');
+  const parts = [
+    d.network_id ? t('producer.card.FLG.network', { id: d.network_id }) : '',
+    d.from_area_id || d.to_area_id ? t('producer.card.FLG.areas', { from: d.from_area_id || any, to: d.to_area_id || any }) : '',
+    d.from_timeframe_group_id || d.to_timeframe_group_id ? t('producer.card.FLG.timeframes', { from: d.from_timeframe_group_id || any, to: d.to_timeframe_group_id || any }) : '',
+    d.fare_product_id ? t('producer.card.FLG.product', { id: d.fare_product_id }) : '',
+  ].filter(Boolean);
+  if (!d.leg_group_id && !parts.length) return null;
+  const leg = d.leg_group_id ? t('producer.card.RCT.code', { id: d.leg_group_id }) : '';
+  const value = n.rule_id === 'FLG_007' ? visibleValue(n.observed_value ?? null) : '';
+  const rule = t('producer.card.FLG.rule', { leg, parts: parts.length ? `${leg ? ': ' : ''}${parts.join(', ')}` : '' });
+  return [t(`producer.card.${n.rule_id}.what`), rule.replace(/ +/g, ' '), value ? t('producer.card.FIN.value', { value }) : ''].filter(Boolean).join(' ');
+}
+
+/** Fare product cards (FPD): the product by its name, code and price; FPD_007 counts the amounts. */
+function fpdText(n: Notice): string | null {
+  const d = n.details ?? {};
+  const base = t(`producer.card.${n.rule_id}.what`);
+  if (n.rule_id === 'FPD_007') {
+    const count = (n.observed_value ?? '').match(/^(\d+)/)?.[1];
+    return count && d.example_amount ? `${base} ${t('producer.card.FPD.summary', { count: localizedNumber(count), amount: d.example_amount, currency: d.example_currency ?? '' })}` : null;
+  }
+  const id = d.fare_product_id || n.entity_id;
+  if (!id && !d.fare_product_name) return null;
+  const price = d.amount || d.currency ? ` (${[d.amount ?? '', d.currency ?? ''].filter(Boolean).join(' ')})` : '';
+  const value = n.rule_id === 'FPD_002' || n.rule_id === 'FPD_003' ? visibleValue(n.observed_value ?? null) : '';
+  return [base, t('producer.card.FPD.product', { product: namedCode(d.fare_product_name, id), price }), value ? t('producer.card.FIN.value', { value }) : ''].filter(Boolean).join(' ');
 }
 
 /** Station pathway cards: the pathway by its kind, two ends and station (shared engine step). */
@@ -2606,6 +2657,20 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
     case 'RCT_001': case 'RCT_002': case 'RCT_003': case 'RCT_004': case 'RCT_005': case 'RCT_006': case 'RCT_007':
     case 'RCT_008': {
       const what = rctText(n);
+      return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
+    }
+    case 'LVL_001': case 'LVL_002': case 'LVL_003': case 'LVL_004': case 'LVL_005': case 'LVL_006': case 'LVL_007':
+    case 'LVL_008': {
+      const what = lvlText(n, result);
+      return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
+    }
+    case 'FLG_001': case 'FLG_002': case 'FLG_003': case 'FLG_004': case 'FLG_005': case 'FLG_006': case 'FLG_007':
+    case 'FLG_008': {
+      const what = flgText(n);
+      return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
+    }
+    case 'FPD_001': case 'FPD_002': case 'FPD_003': case 'FPD_004': case 'FPD_005': case 'FPD_007': {
+      const what = fpdText(n);
       return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
     }
     case 'PTH_001': case 'PTH_002': case 'PTH_003': case 'PTH_004': case 'PTH_005': case 'PTH_006':
