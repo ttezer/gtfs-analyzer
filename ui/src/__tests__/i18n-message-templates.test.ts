@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { matchTemplate, tMsgForLocale, tRemediationForLocale } from '../i18n';
 import { trMessageTemplates, trRemediationTemplates } from '../locales/tr';
+import { enEngineMessageRules } from '../locales/en';
 import sharedCases from '../../../tests/fixtures/i18n/template_match_cases.json';
 
 type Case = { name: string; template: string; text: string; expect: Record<string, string> | null };
@@ -59,6 +60,14 @@ describe('message template matcher', () => {
       message: "Stop with code 'S1' ('Main') is 120.0m away from the shape of route 'R1' (outbound) (threshold: 100m).",
     });
     expect(nested).toBe("'S1' kodlu 'Main' durağı 'R1' hattının gidiş yönü güzergahından 120.0m uzakta (eşik: 100m).");
+  });
+
+  it('shows the engine message in English for the listed rules (F5)', () => {
+    expect(enEngineMessageRules.length).toBeGreaterThan(300);
+    const rule = enEngineMessageRules[0];
+    const message = "Engine text with every value: 'S1' at 08:15.";
+    expect(tMsgForLocale('en', { rule_id: rule, message })).toBe(message);
+    expect(tMsgForLocale('ja', { rule_id: rule, message })).not.toBe(message);
   });
 
   it('keeps an unmatched engine message as it is', () => {

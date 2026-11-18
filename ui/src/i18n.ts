@@ -1,6 +1,6 @@
 import type { Severity, RuleClass, FatalCode, FatalError } from './types';
 import tr, { trFragmentTemplates, trMessageTemplates, trMessageTexts, trRemediationTemplates, trRemediationTexts } from './locales/tr';
-import en from './locales/en';
+import en, { enEngineMessageRules } from './locales/en';
 import ja from './locales/ja';
 import fr from './locales/fr';
 
@@ -197,6 +197,8 @@ function translateByTemplate(templates: Record<string, string> | undefined, mess
   return undefined;
 }
 
+const enEngineMessageSet = new Set(enEngineMessageRules);
+
 /** Translate a notice without mutating the application's active locale. */
 export function tMsgForLocale(locale: Locale, n: NoticeLike): string {
   // Fixed messages moved to the Turkish dictionary are matched by the engine's own text (issue #201).
@@ -206,6 +208,7 @@ export function tMsgForLocale(locale: Locale, n: NoticeLike): string {
       ?? translateByTemplate(trMessageTemplates['*'], n.message)
       ?? n.message;
   }
+  if (locale === 'en' && enEngineMessageSet.has(n.rule_id)) return n.message;
   // JA: fall back to the EN template when there is no Japanese message
   const profile = n.details?.jp_profile?.toLowerCase();
   const variant = profile ? `${n.rule_id}.${profile}` : n.rule_id;

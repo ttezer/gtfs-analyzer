@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **More detailed English messages for 350 rules (#201 F5, step 1).** These rules now show the
+  engine's own English message instead of the shorter `en.ts` template; the engine text names
+  every value the template had and more (stop names and codes, departures, thresholds, row
+  counts). For example `AGN_011` reads "The feed has 6 agencies; 1 routes have no agency_id — it
+  cannot be told which agency runs them." instead of "Multiple agencies present with no
+  agency_id." Only English changes; Turkish, Japanese and French are unchanged. Consumers that
+  match English message strings must update them. The list is `enEngineMessageRules` in `en.ts`.
 - **Engine text is English; Turkish comes from the dictionary like every other language (#201).**
   Rule titles, messages, remediations and fatal errors are written in English in the code. The
   Turkish output (`--lang tr`, the Turkish web app) is unchanged apart from the fixes listed below

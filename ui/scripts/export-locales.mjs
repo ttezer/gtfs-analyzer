@@ -31,7 +31,7 @@ export function cardsOf(locale) {
 }
 
 /** Shape embedded by the CLI. Keep in sync with `crates/core/src/i18n.rs`. */
-function payloadOf(locale, cardsOnly, lang, remediationTexts, messageTexts, messageTemplates, remediationTemplates, fragmentTemplates) {
+function payloadOf(locale, cardsOnly, lang, remediationTexts, messageTexts, messageTemplates, remediationTemplates, fragmentTemplates, engineMessages) {
   if (lang === 'tr') {
     return {
       remediations: locale.ruleRemediations ?? {},
@@ -47,6 +47,7 @@ function payloadOf(locale, cardsOnly, lang, remediationTexts, messageTexts, mess
   if (cardsOnly) return { cards: cardsOf(locale) };
   return {
     messages: locale.ruleMessages ?? {},
+    ...(engineMessages ? { engine_messages: engineMessages } : {}),
     remediations: locale.ruleRemediations ?? {},
     titles: locale.ruleTitles ?? {},
     fatal_messages: locale.fatalMessages ?? {},
@@ -60,7 +61,7 @@ export function serialize(payload) {
 
 export async function loadPayload(lang) {
   const mod = await import(`../src/locales/${lang}.ts`);
-  return payloadOf(mod.default, CARD_ONLY_LANGS.includes(lang), lang, mod.trRemediationTexts, mod.trMessageTexts, mod.trMessageTemplates, mod.trRemediationTemplates, mod.trFragmentTemplates);
+  return payloadOf(mod.default, CARD_ONLY_LANGS.includes(lang), lang, mod.trRemediationTexts, mod.trMessageTexts, mod.trMessageTemplates, mod.trRemediationTemplates, mod.trFragmentTemplates, mod.enEngineMessageRules);
 }
 
 const check = process.argv.includes('--check');

@@ -5647,3 +5647,47 @@ const en: LocaleShape = {
 };
 
 export default en;
+
+/**
+ * Rules whose English message is the engine's own text instead of the `ruleMessages` template
+ * (issue #201 F5). The engine text names every value the template had, and more (stop names,
+ * departures, thresholds). Rules with variant templates (`RULE.variant` keys) are not listed: their
+ * English is designed per profile or branch. `ruleMessages` stays for Japanese and French fallback.
+ */
+export const enEngineMessageRules: string[] = [
+  'AGN_010', 'AGN_011', 'AGN_013', 'AGN_017', 'ARC_002', 'ARC_004', 'ARC_006', 'ARC_007', 'ARC_009', 'ARC_010',
+  'ARC_011', 'ARC_013', 'ARC_015', 'ARC_018', 'ARC_019', 'ARC_021', 'ARC_023', 'ARC_024', 'ARC_025', 'ARC_026',
+  'ARC_027', 'ARC_028', 'ARC_030', 'ARC_031', 'ARC_032', 'ARC_033', 'ARC_034', 'ARC_036', 'ARC_037', 'ARS_001',
+  'ATR_001', 'ATR_003', 'ATR_009', 'BKR_017', 'BKR_018', 'BKR_019', 'CAL_001', 'CAL_006', 'CAL_008', 'CAL_009',
+  'CAL_011', 'CAL_013', 'CAL_014', 'CAL_016', 'CAL_018', 'CAL_020', 'CAL_021', 'CAL_022', 'CAL_024', 'CAL_025',
+  'CLD_001', 'CLD_002', 'CLD_004', 'CLD_005', 'CLD_006', 'CLD_007', 'DQ_003', 'DQ_004', 'DQ_005', 'DQ_005b',
+  'DQ_005c', 'DQ_006', 'DQ_009', 'DQ_011', 'DQ_012', 'DQ_013', 'DQ_016', 'DQ_017', 'DQ_020', 'FAR_001',
+  'FAR_010', 'FAR_011', 'FAR_012', 'FAR_013', 'FIN_001', 'FIN_002', 'FIN_003', 'FIN_005', 'FIN_006', 'FIN_007',
+  'FIN_010', 'FIN_012', 'FIN_013', 'FIN_014', 'FIN_015', 'FIN_016', 'FIN_017', 'FIN_018', 'FIN_019', 'FIN_020',
+  'FLG_007', 'FLJ_001', 'FLJ_002', 'FLJ_003', 'FLJ_004', 'FMD_001', 'FPD_001', 'FPD_007', 'FRL_001', 'FRL_003',
+  'FRL_004', 'FRL_005', 'FRL_006', 'FRL_007', 'FRL_008', 'FRL_009', 'FRQ_001', 'FRQ_007', 'FRQ_010', 'FRQ_011',
+  'FTR_002', 'FTR_003', 'FTR_004', 'FTR_007', 'FTR_009', 'FTR_011', 'GEO_009', 'GEO_012', 'GEO_013', 'GEO_017',
+  'GEO_018', 'GEO_020', 'GEO_021', 'GGL_001', 'GGL_002', 'JPN_001', 'JPN_002', 'JPN_003', 'JPN_005', 'JPN_011',
+  'JPN_014', 'JPN_015', 'JPN_016', 'JPN_017', 'JPN_018', 'JPN_021', 'JPN_022', 'JPN_031', 'JPN_032', 'JPN_033',
+  'LOC_001', 'LOC_002', 'LOC_003', 'LOC_004', 'LOC_005', 'LOC_006', 'LOC_008', 'LOC_009', 'LOC_010', 'LOC_011',
+  'LOC_012', 'LVL_001', 'LVL_004', 'LVL_005', 'LVL_006', 'LVL_007', 'LVL_008', 'NET_001', 'NET_003', 'OPR_004',
+  'OPR_008', 'OPR_009', 'OPR_010', 'OPR_011', 'OPR_013', 'OPR_014', 'OPR_015', 'OPR_016', 'OPR_019', 'OPR_020',
+  'OPR_021', 'OPR_022', 'OPR_023', 'OPR_024', 'OPR_025', 'PDW_006', 'PTH_001', 'PTH_007', 'PTH_008', 'PTH_009',
+  'PTH_012', 'PTH_013', 'PTH_014', 'PTH_015', 'PTH_019', 'PTH_020', 'PTH_021', 'PTH_022', 'PTH_023', 'PTH_024',
+  'PTH_025', 'PTH_029', 'PTH_030', 'RCT_001', 'RCT_006', 'RTS_001', 'RTS_010', 'RTS_011', 'RTS_021', 'RTS_022',
+  'RTS_023', 'RTS_028', 'SAR_001', 'SAR_002', 'SHP_001', 'SHP_005', 'SHP_006', 'SHP_008', 'SHP_009', 'SHP_012',
+  'SHP_014', 'SHP_015', 'SHP_016', 'SHP_019', 'SHP_022', 'SHP_023', 'SHP_026', 'SHP_028', 'SHP_029', 'SHP_030',
+  'STM_001', 'STM_002', 'STM_006', 'STM_007', 'STM_015', 'STM_016', 'STM_017', 'STM_021', 'STM_022', 'STM_032',
+  'STM_033', 'STM_034', 'STM_035', 'STM_036', 'STM_037', 'STM_038', 'STM_039', 'STM_040', 'STM_041', 'STM_043',
+  'STM_044', 'STM_045', 'STM_046', 'STM_048', 'STM_049', 'STM_050', 'STM_052', 'STM_053', 'STM_054', 'STM_055',
+  'STM_056', 'STM_059', 'STM_060', 'STP_001', 'STP_002', 'STP_004', 'STP_005', 'STP_006', 'STP_007', 'STP_012',
+  'STP_015', 'STP_017', 'STP_019', 'STP_020', 'STP_021', 'STP_023', 'STP_024', 'STP_028', 'STP_029', 'STP_030',
+  'STP_031', 'STP_032', 'STP_034', 'STP_035', 'STP_036', 'STP_037', 'STP_038', 'STP_039', 'STP_040', 'STP_042',
+  'STP_044', 'STP_045', 'TFR_001', 'TFR_005', 'TRF_001', 'TRF_002', 'TRF_003', 'TRF_004', 'TRF_005', 'TRF_006',
+  'TRF_007', 'TRF_008', 'TRF_009', 'TRF_010', 'TRF_011', 'TRF_012', 'TRF_013', 'TRF_014', 'TRF_015', 'TRF_016',
+  'TRF_017', 'TRF_018', 'TRF_019', 'TRF_020', 'TRF_021', 'TRF_022', 'TRF_023', 'TRN_001', 'TRN_002', 'TRN_004',
+  'TRN_007', 'TRN_008', 'TRN_009', 'TRN_013', 'TRN_014', 'TRN_016', 'TRP_001', 'TRP_003', 'TRP_005', 'TRP_012',
+  'TRP_015', 'TRP_017', 'TRP_019', 'TRP_021', 'TRP_022', 'TRP_023', 'TRP_025', 'TRP_028', 'TRP_029', 'TRP_031',
+  'VAT_001', 'VAT_002', 'VAT_003', 'VAT_005', 'VAT_007', 'VAT_008', 'XFL_006', 'XFL_012', 'XFL_013', 'XFL_014',
+  'XFL_016', 'XFL_019', 'XFL_020', 'XFL_021', 'XFL_022', 'XFL_023', 'XFL_024', 'XFL_025', 'XFL_027', 'XFL_031',
+];

@@ -88,6 +88,10 @@ struct Dictionary {
     /// Same as `message_templates`, for remediations that carry runtime values.
     #[serde(default)]
     remediation_templates: BTreeMap<String, BTreeMap<String, String>>,
+    /// Rules whose message is shown as the engine wrote it (English only, issue #201 F5): the
+    /// engine text names every value, so it replaces the shorter template.
+    #[serde(default)]
+    engine_messages: std::collections::HashSet<String>,
     /// English sentence FRAGMENT template → this language's fragment, shared by every rule.
     /// A hole whose name starts with `f_` holds a fragment the engine built elsewhere
     /// (`" departing 08:15"`); its captured value is translated through this table before the
@@ -195,6 +199,8 @@ impl Translator {
             })
         {
             notice.message = message;
+        } else if self.primary.engine_messages.contains(notice.rule_id.as_str()) {
+            // Keep the engine's own (English) message.
         } else if let Some(template) = specific
             .as_deref()
             .and_then(|key| self.lookup(|d| &d.messages, key))
@@ -750,6 +756,26 @@ mod tests {
             translate_by_template(&plain, Some(&fragments), "Stop ' departing 9'.").as_deref(),
             Some("Durak ' departing 9'.")
         );
+    }
+
+    /// English shows the engine's own message for the listed rules; Japanese keeps its template
+    /// and its English fallback stays the template (issue #201 F5).
+    #[test]
+    fn english_shows_the_engine_message_for_listed_rules() {
+        let en = Translator::new(Lang::En).unwrap().unwrap();
+        let rule = en.primary.engine_messages.iter().min().expect("listed rules").clone();
+        let mut n = notice();
+        n.rule_id = rule.clone();
+        n.message = "Engine text with every value: 'S1' at 08:15.".to_string();
+        en.translate(&mut n);
+        assert_eq!(n.message, "Engine text with every value: 'S1' at 08:15.", "{rule}");
+
+        let ja = Translator::new(Lang::Ja).unwrap().unwrap();
+        let mut j = notice();
+        j.rule_id = rule.clone();
+        j.message = "Engine text with every value: 'S1' at 08:15.".to_string();
+        ja.translate(&mut j);
+        assert_ne!(j.message, "Engine text with every value: 'S1' at 08:15.", "{rule}: Japanese keeps a template");
     }
 
     /// Fatal texts are mapped by template in Turkish, nested fragments included; other
