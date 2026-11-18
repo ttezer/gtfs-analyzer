@@ -1068,6 +1068,44 @@ mod tests {
     }
 
     #[test]
+    fn dq_018_field_summary_translates_in_every_language() {
+        let summary = || {
+            let mut n = notice();
+            n.rule_id = "DQ_018".to_string();
+            n.file = Some("trips.txt".to_string());
+            n.field = Some("trip_headsign".to_string());
+            n.observed_value = Some("1200".to_string());
+            n.message = "1200 values of trip_headsign in trips.txt are all upper case (14 distinct), e.g. 'MERKEZ', 'OTOGAR'.".to_string();
+            n.details = Some(
+                std::collections::BTreeMap::from([
+                    ("message_variant".to_string(), "summary".to_string()),
+                    ("affected_records".to_string(), "1200".to_string()),
+                    ("distinct_values".to_string(), "14".to_string()),
+                    ("example_values".to_string(), "MERKEZ | OTOGAR".to_string()),
+                ])
+                .into(),
+            );
+            n
+        };
+        for (lang, expect) in [
+            (
+                Lang::Tr,
+                "trip_headsign alanının 1200 değeri tamamen büyük harf (14 farklı değer)",
+            ),
+            (
+                Lang::Fr,
+                "1200 valeurs de « trip_headsign » sont tout en majuscules (14 distinctes)",
+            ),
+            (Lang::Ja, "'trip_headsign'の値1200件がすべて大文字です"),
+        ] {
+            let translator = Translator::new(lang).unwrap().unwrap();
+            let mut n = summary();
+            translator.translate(&mut n);
+            assert!(n.message.contains(expect), "{lang:?}: {}", n.message);
+        }
+    }
+
+    #[test]
     fn jp_profile_selects_the_profile_specific_message() {
         // English keeps the engine text (#201 F5); the profile variants serve the translations.
         let translator = Translator::new(Lang::Fr).unwrap().unwrap();

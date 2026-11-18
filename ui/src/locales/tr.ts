@@ -236,6 +236,7 @@ const tr = {
     'producer.card.ATR_012.what': "Bir atıf kaydı, listede olmayan bir sefere bağlanmış.",
     'producer.card.ATR_012.action': "Atfı mevcut bir sefere bağlayın.",
     'producer.card.BKR.rule': "Kural „{rule}“: {setting}.",
+    'producer.card.DQ_018.summary': "{field} alanında {count} değer tamamen BÜYÜK HARFLE yazılmış ({distinct} farklı değer). Örnekler: {examples}.",
     'producer.card.STP_047.title': "Aynı yer için iki istasyon kaydı",
     'producer.card.STP_047.what': "İki istasyon birkaç metre arayla duruyor ve birinin durağı tam ötekinin üzerinde; büyük ihtimalle aynı yer iki kez kaydedilmiş.",
     'producer.card.STP_047.action': "Aynı yerse iki istasyon kaydını birleştirin; değilse ayırın ve konumlarını kontrol edin.",
@@ -4914,6 +4915,7 @@ export const trRemediationTexts: Record<string, Record<string, string>> = {
     'Set exception_type to 1 (service added) or 2 (service removed).': 'exception_type değerini 1 (hizmet eklendi) veya 2 (hizmet kaldırıldı) olarak ayarlayın.',
   },
   'DQ_018': {
+    'Write the text in proper case; the whole field uses upper case, so fix it at the source.': 'Metni düzgün büyük/küçük harfle yazın; alanın tamamı büyük harf, düzeltmeyi kaynakta yapın.',
     'Write the headsign in proper case.': 'Yön adını düzgün harf kuralıyla yazın.',
     'Write the route description in proper case.': 'Hat açıklamasını düzgün harf kuralıyla yazın.',
     'Write the route name in proper case.': 'Hat adını düzgün harf kuralıyla yazın.',
@@ -6046,6 +6048,7 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
     '{suspicious} stops have a coordinate near (0°, 0°) — that is off the coast of Africa; probably a wrong value.': '{suspicious} durağın koordinatı (0°, 0°) civarında — bu Afrika kıyısı açıklarıdır; muhtemelen yanlış değer.',
   },
   'DQ_018': {
+    '{a0} values of {field} in {file} are all upper case ({distinct_count} distinct), e.g. {examples}.': '{file} içinde {field} alanının {a0} değeri tamamen büyük harf ({distinct_count} farklı değer), örneğin {examples}.',
     'The description of route \'{a0}\' is all upper case: \'{desc}\'.': '\'{a0}\' hattının açıklaması tamamen büyük harf: \'{desc}\'.',
     'The headsign of trip \'{a0}\' is all upper case: \'{hs}\'.': '\'{a0}\' seferinin yön adı tamamen büyük harf: \'{hs}\'.',
     'The long name of route \'{a0}\' is all upper case: \'{name}\'.': '\'{a0}\' hattının uzun adı tamamen büyük harf: \'{name}\'.',

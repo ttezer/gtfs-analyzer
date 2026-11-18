@@ -10990,6 +10990,8 @@ fn check_remaining_analytics<'a>(
     // ── DQ_018: recommended text fields are all uppercase (mixed_case_recommended_field) ─
     {
         let _t18 = Timer::start("K6::rem::dq_018");
+        // Collected first, then summarised per field above DQ018_SUMMARY_AT (see below).
+        let mut dq18: Vec<Notice> = Vec::new();
 
         // stop_name
         for stop in &records.stops {
@@ -10997,7 +10999,7 @@ fn check_remaining_analytics<'a>(
                 continue;
             }
             if let Some(name) = stop.stop_name.as_deref().filter(|s| is_all_caps(s)) {
-                notices.push(k6_notice(
+                dq18.push(k6_notice(
                     ctr,
                     "DQ_018",
                     EntityType::Stop,
@@ -11028,7 +11030,7 @@ fn check_remaining_analytics<'a>(
                     .as_deref()
                     .filter(|s| !s.is_empty())
                     .unwrap_or(route.route_id.as_str());
-                notices.push(k6_notice(
+                dq18.push(k6_notice(
                     ctr,
                     "DQ_018",
                     EntityType::Route,
@@ -11059,7 +11061,7 @@ fn check_remaining_analytics<'a>(
                     .as_deref()
                     .filter(|s| !s.is_empty())
                     .unwrap_or(route.route_id.as_str());
-                notices.push(k6_notice(
+                dq18.push(k6_notice(
                     ctr,
                     "DQ_018",
                     EntityType::Route,
@@ -11085,7 +11087,7 @@ fn check_remaining_analytics<'a>(
                 continue;
             }
             if let Some(hs) = ti_rem.headsign(trip).filter(|s| is_all_caps(s)) {
-                notices.push(k6_notice(
+                dq18.push(k6_notice(
                     ctr,
                     "DQ_018",
                     EntityType::Trip,
@@ -11123,9 +11125,93 @@ fn check_remaining_analytics<'a>(
                 "Write the headsign in proper case.",
             );
             headsign_row_details(&mut n, sample);
-            notices.push(n);
+            dq18.push(n);
         }
 
+        // A field with more than DQ018_SUMMARY_AT all-caps values is a writing convention of the
+        // whole feed, not a set of separate errors: it becomes one summary for that field (count,
+        // distinct values and examples), so a large feed no longer writes hundreds of thousands
+        // of notices (corpus: up to 334,892 in one feed, over 10,000 in 100 feeds). Fields at or
+        // under the threshold keep their own notices. Same threshold as STM_056 (#151).
+        const DQ018_SUMMARY_AT: usize = 50;
+        let mut groups: Vec<((String, String), Vec<Notice>)> = Vec::new();
+        for n in dq18 {
+            let key = (
+                n.file.clone().unwrap_or_default(),
+                n.field.clone().unwrap_or_default(),
+            );
+            match groups.iter_mut().find(|(k, _)| *k == key) {
+                Some((_, v)) => v.push(n),
+                None => groups.push((key, vec![n])),
+            }
+        }
+        for ((file, field), group) in groups {
+            if group.len() <= DQ018_SUMMARY_AT {
+                notices.extend(group);
+                continue;
+            }
+            let total = group.len();
+            let mut distinct: Vec<&str> = Vec::new();
+            for n in &group {
+                let v = n.observed_value.as_deref().unwrap_or("");
+                if !distinct.contains(&v) {
+                    distinct.push(v);
+                    if distinct.len() == 5 {
+                        break;
+                    }
+                }
+            }
+            let distinct_count = group
+                .iter()
+                .filter_map(|n| n.observed_value.as_deref())
+                .collect::<HashSet<&str>>()
+                .len();
+            let example_ids: Vec<&str> = group
+                .iter()
+                .filter_map(|n| {
+                    n.entity_id.as_deref().or_else(|| {
+                        n.details
+                            .as_ref()
+                            .and_then(|d| d.get("trip_id").map(String::as_str))
+                    })
+                })
+                .take(10)
+                .collect();
+            let examples = distinct
+                .iter()
+                .map(|v| format!("'{v}'"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let mut summary = k6_notice(
+                ctr,
+                "DQ_018",
+                EntityType::File,
+                Some(format!("{file}:{field}")),
+                None,
+                &file,
+                None,
+                Some(&field),
+                Some(total.to_string()),
+                None,
+                format!(
+                    "{total} values of {field} in {file} are all upper case ({distinct_count} distinct), e.g. {examples}."
+                ),
+                "Write the text in proper case; the whole field uses upper case, so fix it at the source.",
+            );
+            let mut d = std::collections::BTreeMap::new();
+            d.insert("message_variant".to_string(), "summary".to_string());
+            d.insert("affected_records".to_string(), total.to_string());
+            d.insert("distinct_values".to_string(), distinct_count.to_string());
+            d.insert(
+                "example_values".to_string(),
+                distinct.join(" | "),
+            );
+            if !example_ids.is_empty() {
+                d.insert("example_ids".to_string(), example_ids.join(", "));
+            }
+            summary.details = Some(d.into());
+            notices.push(summary);
+        }
     }
 
     // ── DQ_019: recommended fields are all lowercase (mixed_case_recommended_field) ─
@@ -21760,6 +21846,51 @@ mod tests {
     }
 
     // ── DQ_018: all-caps text field ─────────────────────────────────────────
+
+    fn dq018_for(count: usize) -> Vec<Notice> {
+        let stops = (0..count)
+            .map(|i| {
+                let mut s = stop(&format!("S{i}"), 41.0 + i as f64 * 0.001, 29.0);
+                s.stop_name = Some(if i % 2 == 0 {
+                    "MERKEZ DURAK".into()
+                } else {
+                    "OTOGAR PERONU".into()
+                });
+                s
+            })
+            .collect();
+        let records = records_with(stops, vec![route("R1", 3)], vec![trip("T1", "R1")], vec![]);
+        analyze(&records, &empty_derived(), &default_config(), 20260514)
+            .notices
+            .into_iter()
+            .filter(|n| n.rule_id == "DQ_018")
+            .collect()
+    }
+
+    #[test]
+    fn dq_018_summarises_a_field_above_50_values_and_keeps_smaller_ones() {
+        let at = dq018_for(50);
+        assert_eq!(at.len(), 50, "50 values stay separate");
+        assert!(at.iter().all(|n| n.entity_type == EntityType::Stop));
+
+        let over = dq018_for(51);
+        assert_eq!(over.len(), 1, "51 values become one summary: {over:?}");
+        let n = &over[0];
+        let d = n.details.as_ref().unwrap();
+        assert_eq!(n.entity_type, EntityType::File);
+        assert_eq!(n.entity_id.as_deref(), Some("stops.txt:stop_name"));
+        assert_eq!(n.observed_value.as_deref(), Some("51"));
+        assert_eq!(d.get("affected_records").map(String::as_str), Some("51"));
+        assert_eq!(d.get("distinct_values").map(String::as_str), Some("2"));
+        assert_eq!(
+            d.get("example_values").map(String::as_str),
+            Some("MERKEZ DURAK | OTOGAR PERONU")
+        );
+        assert_eq!(
+            d.get("example_ids").map(String::as_str),
+            Some("S0, S1, S2, S3, S4, S5, S6, S7, S8, S9")
+        );
+    }
 
     #[test]
     fn all_caps_stop_name_produces_dq_018() {

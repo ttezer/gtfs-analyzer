@@ -3886,6 +3886,20 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
     case 'DQ_019': {
       // Which name it is (stop, route, route description, trip or stop headsign), whose, and the value.
       const field = n.field ?? '';
+      if (g.ruleId === 'DQ_018' && n.details?.message_variant === 'summary') {
+        // A whole field written in capitals: the count, the distinct values and examples.
+        const d = n.details;
+        return {
+          title: t('producer.card.DQ_018.title'),
+          what: t('producer.card.DQ_018.summary', {
+            field: plannerFieldName(field),
+            count: localizedNumber(d.affected_records ?? n.observed_value ?? '0'),
+            distinct: localizedNumber(d.distinct_values ?? '0'),
+            examples: (d.example_values ?? '').split(' | ').filter(Boolean).map(v => `"${v}"`).join(', ') || '—',
+          }),
+          action: t('producer.card.DQ_018.action'),
+        };
+      }
       if (!['stop_name', 'route_long_name', 'route_desc', 'trip_headsign', 'stop_headsign'].includes(field) || n.observed_value == null) return null;
       const ni = result.name_index;
       const d = n.details ?? {};

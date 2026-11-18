@@ -4065,3 +4065,12 @@ describe('Aynı yer için iki istasyon kaydı kartı (STP_047)', () => {
     expect(root.innerHTML).toContain('Pepiniere ile Pépinière istasyonları arası 30 m; Pepiniere istasyonunun Pepiniere 1 durağı Pépinière üzerinde duruyor.');
   });
 });
+
+describe('Tamamen büyük harf özeti (DQ_018)', () => {
+  it('alanın sayısını, farklı değerleri ve örnekleri söyler', () => {
+    const n = notice('a', 'DQ_018', 'MEDIUM', { entity_type: 'File', entity_id: 'trips.txt:trip_headsign', file: 'trips.txt', field: 'trip_headsign', observed_value: '1200', details: { message_variant: 'summary', affected_records: '1200', distinct_values: '14', example_values: 'MERKEZ | OTOGAR' } });
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [['DQ_018', 1, 1]], true, emptyNameIndex));
+    expect(root.innerHTML).toContain('1.200 değer tamamen BÜYÜK HARFLE yazılmış (14 farklı değer)');
+  });
+});
