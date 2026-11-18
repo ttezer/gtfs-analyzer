@@ -107,6 +107,7 @@
     "STP_031": "Stop '{entity_id}': stop_name and stop_desc are identical.",
     "STP_032": "{observed_value} pathway-connected platforms have no parent_station in this feed.",
     "STP_033": "zone_id is missing for {affected_stops} stop(s), e.g. {example_stops} (required for fare calculation).",
+    "STP_033.stop": "Stop '{entity_id}' has no zone_id; fare calculations may be affected.",
     "STP_034": "Stop '{entity_id}': stop_url matches the agency URL.",
     "STP_042": "{observed_value} stops have an invalid stop_url in this feed.",
     "STP_043": "Stop '{entity_id}': stop_access is only allowed on platforms with a parent station ({observed_value}).",

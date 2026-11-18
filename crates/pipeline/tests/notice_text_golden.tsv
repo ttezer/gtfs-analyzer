@@ -3192,8 +3192,8 @@ fr	STP_030	La station parente n’a aucun arrêt enfant	La station « ST » 
 fr	STP_031	Le nom et la description de l’arrêt sont identiques	Arrêt « S1 » : stop_name et stop_desc sont identiques.	stop_desc doit contenir une valeur différente de stop_name et plus descriptive.
 fr	STP_032	parent_station manquant pour un quai relié par cheminement	1 quais reliés au réseau de cheminements n’ont pas de parent_station dans ce jeu de données.	Affectez une station (location_type=1) comme parent_station à ce quai relié par cheminement.
 fr	STP_032	parent_station manquant pour un quai relié par cheminement	2 quais reliés au réseau de cheminements n’ont pas de parent_station dans ce jeu de données.	Affectez une station (location_type=1) comme parent_station à ce quai relié par cheminement.
-fr	STP_033	zone_id de l’arrêt manquant (nécessaire au calcul tarifaire)	zone_id est absent pour 1 arrêt(s), p. ex. S1 (nécessaire au calcul tarifaire).	Renseignez zone_id pour le calcul tarifaire.
-fr	STP_033	zone_id de l’arrêt manquant (nécessaire au calcul tarifaire)	zone_id est absent pour 1 arrêt(s), p. ex. S2 (nécessaire au calcul tarifaire).	Renseignez zone_id pour le calcul tarifaire.
+fr	STP_033	zone_id de l’arrêt manquant (nécessaire au calcul tarifaire)	Arrêt « S1 » : zone_id absent ; le calcul tarifaire peut être affecté.	Renseignez zone_id pour le calcul tarifaire.
+fr	STP_033	zone_id de l’arrêt manquant (nécessaire au calcul tarifaire)	Arrêt « S2 » : zone_id absent ; le calcul tarifaire peut être affecté.	Renseignez zone_id pour le calcul tarifaire.
 fr	STP_034	stop_url identique à l’URL de l’agence	Arrêt « S1 » : stop_url est identique à l’URL de l’agence.	Faites pointer stop_url vers une page propre à l’arrêt, ou laissez le champ vide.
 fr	STP_035	stop_url identique à l’URL de la ligne	Arrêt « S1 » : stop_url est identique à l’URL d’une ligne.	Faites pointer stop_url vers une page propre à l’arrêt, ou laissez le champ vide.
 fr	STP_036	La station possède un parent_station (invalide)	La station « ST1 » (location_type=1) a un parent_station défini ; une station ne doit pas avoir de parent.	Retirez parent_station de l’enregistrement de station ; seuls les entrées, les nœuds génériques et les zones d’embarquement peuvent avoir une parent_station.
@@ -4704,8 +4704,8 @@ ja	STP_030	子停留所のない駅	駅'ST2'に子停留所がありません。
 ja	STP_031	stop_nameとstop_descが同一	停留所'S1'：stop_nameとstop_descが同じです。	stop_descはstop_nameとは異なる、より説明的な内容にしてください。
 ja	STP_032	経路接続停留所にparent_stationなし	このフィードで経路ネットワークに接続されparent_stationがないプラットフォームが1件あります。	この経路接続プラットフォームに駅（location_type=1）をparent_stationとして割り当ててください。
 ja	STP_032	経路接続停留所にparent_stationなし	このフィードで経路ネットワークに接続されparent_stationがないプラットフォームが2件あります。	この経路接続プラットフォームに駅（location_type=1）をparent_stationとして割り当ててください。
-ja	STP_033	zone_idが不足（運賃計算に必要）	1件の停留所でzone_idがありません（例: S1）。運賃計算に必要です。	運賃計算のためにzone_idを入力してください。
-ja	STP_033	zone_idが不足（運賃計算に必要）	1件の停留所でzone_idがありません（例: S2）。運賃計算に必要です。	運賃計算のためにzone_idを入力してください。
+ja	STP_033	zone_idが不足（運賃計算に必要）	停留所'S1'にzone_idがありません。運賃計算に影響する可能性があります。	運賃計算のためにzone_idを入力してください。
+ja	STP_033	zone_idが不足（運賃計算に必要）	停留所'S2'にzone_idがありません。運賃計算に影響する可能性があります。	運賃計算のためにzone_idを入力してください。
 ja	STP_034	stop_urlが事業者URLと同一	停留所'S1'：stop_urlが事業者URLと同じです。	stop_urlを停留所固有のページに指定するか、空のままにしてください。
 ja	STP_035	stop_urlが路線URLと同一	停留所'S1'：stop_urlが路線URLと同じです。	stop_urlを停留所固有のページに指定するか、空のままにしてください。
 ja	STP_036	駅（location_type=1）にparent_stationが設定されている	駅'ST1'（location_type=1）にparent_stationが設定されています。駅は親を持てません。	駅レコードからparent_stationを削除してください。入口、汎用ノード、乗車エリアのみparent_stationを持つことができます。

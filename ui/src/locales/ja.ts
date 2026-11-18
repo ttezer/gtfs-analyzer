@@ -3777,6 +3777,7 @@ const ja: LocaleShape = {
     'STP_031': "停留所'{entity_id}'：stop_nameとstop_descが同じです。",
     'STP_032': 'このフィードで経路ネットワークに接続されparent_stationがないプラットフォームが{observed_value}件あります。',
     'STP_033': "{affected_stops}件の停留所でzone_idがありません（例: {example_stops}）。運賃計算に必要です。",
+    'STP_033.stop': "停留所'{entity_id}'にzone_idがありません。運賃計算に影響する可能性があります。",
     'STP_034': "停留所'{entity_id}'：stop_urlが事業者URLと同じです。",
     'STP_042': 'このフィードでstop_urlが無効な停留所が{observed_value}件あります。',
     'STP_043': "停留所'{entity_id}'：stop_accessは親駅を持つプラットフォームでのみ使用できます（{observed_value}）。",

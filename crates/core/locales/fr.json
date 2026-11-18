@@ -107,6 +107,7 @@
     "STP_031": "Arrêt « {entity_id} » : stop_name et stop_desc sont identiques.",
     "STP_032": "{observed_value} quais reliés au réseau de cheminements n’ont pas de parent_station dans ce jeu de données.",
     "STP_033": "zone_id est absent pour {affected_stops} arrêt(s), p. ex. {example_stops} (nécessaire au calcul tarifaire).",
+    "STP_033.stop": "Arrêt « {entity_id} » : zone_id absent ; le calcul tarifaire peut être affecté.",
     "STP_034": "Arrêt « {entity_id} » : stop_url est identique à l’URL de l’agence.",
     "STP_042": "{observed_value} arrêts ont un stop_url invalide dans ce jeu de données.",
     "STP_043": "Arrêt « {entity_id} » : stop_access n’est autorisé que sur les quais rattachés à une station parente ({observed_value}).",

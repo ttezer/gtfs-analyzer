@@ -624,6 +624,8 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             let details = notice.details.get_or_insert_with(Default::default);
             details.insert("affected_stops".to_string(), "1".to_string());
             details.insert("example_stops".to_string(), stop_id.to_string());
+            // A single stop reads as a sentence about that stop, not as a summary of "1 stop(s)".
+            details.insert("message_variant".to_string(), "stop".to_string());
             stp033_pending.push(notice);
         }
 
