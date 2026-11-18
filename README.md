@@ -14,7 +14,7 @@
 [![Claude eklentisi](https://img.shields.io/badge/Claude%20eklentisi-GTFS%20Validator-d97757?style=flat&logo=claude&logoColor=white)](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)
 [![Lisans MIT](https://img.shields.io/badge/lisans-MIT-yellow?style=flat)](LICENSE)
 
-**GTFS Validator & Analyzer**, GTFS dosyalarını doğrudan tarayıcıda doğrulayan açık kaynak bir **GTFS validator** ve feed kalite analiz aracıdır. Web uygulamasına yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama tamamen **WebAssembly** ile kullanıcının cihazında çalışır. Tarayıcı, **CLI** (`cargo install gtfs-analyzer`), **Rust kütüphanesi**, **CI/CD**, **`gtfs-sdk` npm paketi**, **`gtfs-analyzer` Python paketi** ve ChatGPT'deki **GTFS Validator** olmak üzere yedi yoldan kullanılabilir.
+**GTFS Validator & Analyzer**, GTFS dosyalarını doğrudan tarayıcıda doğrulayan açık kaynak bir **GTFS validator** ve feed kalite analiz aracıdır. Web uygulamasına yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama tamamen **WebAssembly** ile kullanıcının cihazında çalışır. Tarayıcı, **CLI** (`cargo install gtfs-analyzer`), **Rust kütüphanesi**, **CI/CD**, **`gtfs-sdk` npm paketi**, **`gtfs-analyzer` Python paketi** ChatGPT'deki ve Claude'daki **GTFS Validator** olmak üzere sekiz yoldan kullanılabilir.
 
 **620 doğrulama kuralı** ile GTFS spesifikasyonunun ölçülebilir hükümlerinin **%97,2'sini** karşılar ve alan tablosunun **300 atomunun 300'ünde** en az bir Spec çapası taşır. Bu kuralların **415'i** son 4.435 feed'lik tam katalog koşumunda en az bir bulgu üretti. Kuralların tamamı [`RULES.md`](RULES.md) altında listelidir.
 
@@ -241,6 +241,20 @@ Validator MCP hizmetinde geçici olarak işler. Feed içeriği ve doğrulama rap
 işlem sonrasında bilinçli olarak saklanmaz. Kurum dışına çıkmaması gereken veriler
 için tarayıcı, CLI veya yerel paketlerden birini kullanın.
 
+### Claude GTFS Validator
+
+Claude'da bir feed'i incelemek için [GTFS Validator eklentisini](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)
+ekleyin. `/gtfs` yazıp bir GTFS ZIP ekleyebilir, yerel bir dosya yolu ya da herkese
+açık bir feed URL'si verebilir veya `/gtfs TRP_002` gibi bir kuralı sorabilirsiniz.
+Doğrulama ve skorları GTFS Analyzer motoru hesaplar; eklenti skorları yeniden
+hesaplamaz, yayınlanabilirlik kararını değiştirmez.
+
+Analiz Claude'un çalıştığı yerde yapılır: claude.ai'de Claude'un kod ortamında,
+Claude Code'da kendi bilgisayarınızda. Eklenti PyPI'daki `gtfs-analyzer` paketini
+(sabit sürüm) kurar; feed eklentiye ait bir sunucuya gönderilmez ve saklanmaz.
+Kod çalıştırmanın açık olması gerekir; sohbet ortamı URL'den feed indiremediği
+için orada ZIP'i ekleyin.
+
 ### Yönetici PDF Raporu
 
 **Yönetici PDF Raporu**, ayrıntılı doğrulama sonuçlarını karar vericiler ve feed üreticileri için okunabilir, renkli ve A4 uyumlu bir belgeye dönüştürür. Rapor yalnızca **GTFS Analyzer** sonuçlarından oluşturulur; başka bir validator sonucu veya harici karşılaştırma içermez.
@@ -261,9 +275,9 @@ Arayüzde performans için sınırlandırılmış bulgu örnekleri bulunsa bile 
 
 ---
 
-## Yedi Kullanım Yolu
+## Sekiz Kullanım Yolu
 
-Aynı 620 kurallı doğrulama motoruna yedi farklı yoldan erişilebilir; arayüzler sonucu kendi kullanım biçimlerine göre sunar:
+Aynı 620 kurallı doğrulama motoruna sekiz farklı yoldan erişilebilir; arayüzler sonucu kendi kullanım biçimlerine göre sunar:
 
 | yol | ne için | veri nereye gider |
 |---|---|---|
@@ -274,10 +288,11 @@ Aynı 620 kurallı doğrulama motoruna yedi farklı yoldan erişilebilir; arayü
 | **[`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk) npm paketi** | kendi web veya Node uygulamanıza gömmek | hiçbir yere — yerel WASM |
 | **`gtfs-analyzer` Python paketi** (`pip install gtfs-analyzer`) | Python uygulamasına doğrulama gömmek | hiçbir yere — yerel Rust native modülü |
 | **ChatGPT — [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)** | ZIP veya URL'yi sohbet içinde doğrulatmak ve bulguları açıklatmak | GTFS Validator MCP hizmeti — yalnız istek süresince geçici işleme |
+| **Claude — [GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)** | `/gtfs` ile ZIP, yol veya URL doğrulatmak ve bulguları açıklatmak | Claude'un çalıştığı yer — Claude Code'da kendi bilgisayarınız, claude.ai'de Claude'un kod ortamı |
 
 İlk altı yol yerel veya sizin yönettiğiniz altyapıda çalışır. ChatGPT yolu bunun
 istisnasıdır: feed, analiz isteği sırasında MCP hizmetine aktarılır. Kurum dışına
-çıkamayan veriler için tarayıcı uygulamasını, CLI'yi veya yerel paketleri seçin.
+çıkamayan veriler için tarayıcı uygulamasını, CLI'yi veya yerel paketleri seçin. Claude eklentisi feed'i eklentiye ait bir sunucuya göndermez; Claude Code'da analiz tamamen kendi bilgisayarınızda yapılır.
 
 ### CI/CD entegrasyonu
 

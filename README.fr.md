@@ -13,7 +13,7 @@
 [![Plugin Claude](https://img.shields.io/badge/Plugin%20Claude-GTFS%20Validator-d97757?style=flat&logo=claude&logoColor=white)](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-yellow?style=flat)](LICENSE)
 
-GTFS Validator & Analyzer est un validateur GTFS et un analyseur de qualité de jeux de données open source. Un fichier `.zip` téléversé dans l’application navigateur n’est jamais envoyé à un serveur ; toute la validation s’exécute sur l’appareil de l’utilisateur via WebAssembly. L’outil est disponible sous sept formes : application navigateur, CLI (`cargo install gtfs-analyzer`), bibliothèque Rust, barrière CI/CD, paquet npm `gtfs-sdk`, paquet Python `gtfs-analyzer` et **GTFS Validator** dans ChatGPT.
+GTFS Validator & Analyzer est un validateur GTFS et un analyseur de qualité de jeux de données open source. Un fichier `.zip` téléversé dans l’application navigateur n’est jamais envoyé à un serveur ; toute la validation s’exécute sur l’appareil de l’utilisateur via WebAssembly. L’outil est disponible sous huit formes : application navigateur, CLI (`cargo install gtfs-analyzer`), bibliothèque Rust, barrière CI/CD, paquet npm `gtfs-sdk`, paquet Python `gtfs-analyzer` et **GTFS Validator** dans ChatGPT et Claude.
 
 Le projet couvre **97,2 % des exigences mesurables de la spécification GTFS** et rattache les 300 atomes de l’inventaire des champs à au moins une règle Spec. Sur ses **620 règles**, **415** ont produit au moins un signalement lors de la dernière exécution complète sur le catalogue de 4 435 jeux de données. Toutes les règles sont listées dans [`RULES.fr.md`](RULES.fr.md).
 
@@ -241,6 +241,22 @@ intentionnellement conservés après le traitement. Pour des données qui ne
 doivent pas quitter votre organisation, utilisez le navigateur, la CLI ou un
 paquet local.
 
+### GTFS Validator dans Claude
+
+Pour analyser un jeu de données dans Claude, ajoutez le
+[plugin GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory). Tapez `/gtfs` et joignez un ZIP GTFS, indiquez un
+chemin local ou l’URL publique d’un jeu de données, ou demandez l’explication d’une
+règle telle que `/gtfs TRP_002`. Le moteur GTFS Analyzer effectue la validation et
+le calcul des scores ; le plugin ne recalcule pas les scores et ne modifie pas le
+verdict de publication.
+
+L’analyse s’exécute là où Claude s’exécute : dans l’environnement d’exécution de
+code de Claude sur claude.ai, ou sur votre propre ordinateur dans Claude Code. Le
+plugin installe le paquet `gtfs-analyzer` depuis PyPI (version épinglée) ; le jeu de
+données n’est envoyé à aucun serveur exploité par le plugin et rien n’est conservé.
+L’exécution de code doit être activée ; en conversation, l’environnement ne peut
+pas télécharger depuis une URL, joignez donc le ZIP.
+
 ### Rapport de direction PDF
 
 Le **Rapport de direction PDF** transforme les résultats détaillés de validation en un document lisible, à code couleur, prêt pour l’impression A4, destiné aux décideurs et aux producteurs de données. Il est généré exclusivement à partir des résultats de **GTFS Analyzer** et n’intègre ni la sortie d’un autre validateur ni une comparaison externe.
@@ -261,9 +277,9 @@ Même lorsque l’interface ne conserve qu’un nombre limité d’exemples de s
 
 ---
 
-## Sept façons de l’utiliser
+## Huit façons de l’utiliser
 
-Le même moteur de validation à 620 règles est accessible par sept parcours ; chaque interface présente le résultat selon son usage :
+Le même moteur de validation à 620 règles est accessible par huit parcours ; chaque interface présente le résultat selon son usage :
 
 | Voie | Idéal pour | Où vont les données |
 |---|---|---|
@@ -274,12 +290,13 @@ Le même moteur de validation à 620 règles est accessible par sept parcours ; 
 | **Paquet npm [`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk)** | Intégrer la validation dans votre application web ou Node | Nulle part — WASM local |
 | **Paquet Python [`gtfs-analyzer`](https://pypi.org/project/gtfs-analyzer/)** (`pip install gtfs-analyzer`) | Intégrer la validation dans votre application Python | Nulle part — module natif Rust local |
 | **ChatGPT — [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)** | Valider un ZIP ou une URL dans une conversation et expliquer les signalements | Service MCP de GTFS Validator — traitement temporaire pendant la requête |
+| **Claude — [GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)** | Valider un ZIP, un chemin ou une URL avec `/gtfs` et expliquer les signalements | Là où Claude s’exécute — votre ordinateur dans Claude Code, l’environnement de code de Claude sur claude.ai |
 
 Les six premiers parcours s’exécutent localement ou sur une infrastructure que
 vous contrôlez. ChatGPT est l’exception : le jeu de données est transféré au
 service MCP pendant le traitement de la demande. Pour des données qui ne peuvent
 pas quitter votre organisation, utilisez l’application navigateur, la CLI ou
-les paquets locaux.
+les paquets locaux. Le plugin Claude n’envoie pas le jeu de données à un serveur qui lui est propre ; dans Claude Code, l’analyse s’exécute entièrement sur votre ordinateur.
 
 ### Intégration CI/CD
 

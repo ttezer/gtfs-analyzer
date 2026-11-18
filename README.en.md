@@ -13,7 +13,7 @@
 [![Claude plugin](https://img.shields.io/badge/Claude%20plugin-GTFS%20Validator-d97757?style=flat&logo=claude&logoColor=white)](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)
 [![License MIT](https://img.shields.io/badge/license-MIT-yellow?style=flat)](LICENSE)
 
-GTFS Validator & Analyzer is an open-source GTFS validator and feed quality analyzer. A `.zip` uploaded to the browser application is never sent to a server; validation runs on the user's device via WebAssembly. It is available in seven forms: the browser application, a CLI (`cargo install gtfs-analyzer`), a Rust library, a CI/CD gate, the `gtfs-sdk` npm package, the `gtfs-analyzer` Python package, and **GTFS Validator** in ChatGPT.
+GTFS Validator & Analyzer is an open-source GTFS validator and feed quality analyzer. A `.zip` uploaded to the browser application is never sent to a server; validation runs on the user's device via WebAssembly. It is available in eight forms: the browser application, a CLI (`cargo install gtfs-analyzer`), a Rust library, a CI/CD gate, the `gtfs-sdk` npm package, the `gtfs-analyzer` Python package, and **GTFS Validator** in ChatGPT and Claude.
 
 The project covers **97.2% of the measurable GTFS Specification requirements** and anchors all 300 atoms in the field inventory to at least one Spec rule. Of its **620 rules**, **415** produced at least one finding in the most recent full 4,435-feed catalog run. Every rule is listed in [`RULES.en.md`](RULES.en.md).
 
@@ -239,6 +239,20 @@ contents and validation reports are not intentionally retained after processing.
 Use the browser, CLI, or a local package for data that must not leave your
 organization.
 
+### Claude GTFS Validator
+
+To analyze a feed in Claude, add the [GTFS Validator plugin](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory).
+Type `/gtfs` and attach a GTFS ZIP, give a local path or a public feed URL, or ask
+about a rule such as `/gtfs TRP_002`. The GTFS Analyzer engine performs validation
+and scoring; the plugin does not recalculate the scores or change the publishability
+verdict.
+
+The analysis runs where Claude runs: in Claude's code sandbox on claude.ai, or on
+your own computer in Claude Code. The plugin installs the `gtfs-analyzer` package
+from PyPI (pinned version); the feed is not sent to any server operated by the
+plugin, and nothing is stored. Code execution must be turned on; in chat the
+sandbox cannot download feeds from URLs, so attach the ZIP instead.
+
 ### Executive PDF Report
 
 The **Executive PDF Report** turns detailed validation results into a readable, color-coded, A4-ready document for decision-makers and feed producers. It is generated exclusively from **GTFS Analyzer** results and does not include output from another validator or an external comparison.
@@ -259,9 +273,9 @@ Even when the UI retains a limited number of finding examples for performance, t
 
 ---
 
-## Seven Ways to Use It
+## Eight Ways to Use It
 
-The same 620-rule validation engine is available through seven paths; each interface presents the result for its own use case:
+The same 620-rule validation engine is available through eight paths; each interface presents the result for its own use case:
 
 | Path | Best for | Where the data goes |
 |---|---|---|
@@ -272,11 +286,12 @@ The same 620-rule validation engine is available through seven paths; each inter
 | **[`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk) npm package** | Embedding validation in your web or Node application | Nowhere — local WASM |
 | **[`gtfs-analyzer`](https://pypi.org/project/gtfs-analyzer/) Python package** (`pip install gtfs-analyzer`) | Embedding validation in your Python application | Nowhere — local Rust native module |
 | **ChatGPT — [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)** | Validating a ZIP or URL in a conversation and explaining the findings | GTFS Validator MCP service — temporary processing for the request |
+| **Claude — [GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)** | Validating a ZIP, path or URL with `/gtfs` and explaining the findings | Where Claude runs — your own computer in Claude Code, Claude's code sandbox on claude.ai |
 
 The first six paths run locally or on infrastructure you control. ChatGPT is the
 exception: it transfers the feed to the MCP service while processing the
 analysis request. Use the browser application, CLI, or local packages for data
-that cannot leave your organization.
+that cannot leave your organization. The Claude plugin does not send the feed to a server of its own; in Claude Code the analysis runs entirely on your computer.
 
 ### CI/CD integration
 

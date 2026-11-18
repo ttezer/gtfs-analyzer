@@ -13,7 +13,7 @@
 [![Claude プラグイン](https://img.shields.io/badge/Claude%20%E3%83%97%E3%83%A9%E3%82%B0%E3%82%A4%E3%83%B3-GTFS%20Validator-d97757?style=flat&logo=claude&logoColor=white)](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)
 [![License MIT](https://img.shields.io/badge/%E3%83%A9%E3%82%A4%E3%82%BB%E3%83%B3%E3%82%B9-MIT-yellow?style=flat)](LICENSE)
 
-GTFS Validator & Analyzer は、ブラウザ上で動作するオープンソースの GTFS バリデーター兼フィード品質分析ツールです。ブラウザ版にアップロードした `.zip` はサーバーへ送信されず、WebAssembly によってユーザーのデバイス上で検証されます。ブラウザ、CLI（`cargo install gtfs-analyzer`）、Rust ライブラリ、CI/CD ゲート、`gtfs-sdk` npm パッケージ、`gtfs-analyzer` Python パッケージ、ChatGPT の **GTFS Validator** の 7 つの方法で利用できます。
+GTFS Validator & Analyzer は、ブラウザ上で動作するオープンソースの GTFS バリデーター兼フィード品質分析ツールです。ブラウザ版にアップロードした `.zip` はサーバーへ送信されず、WebAssembly によってユーザーのデバイス上で検証されます。ブラウザ、CLI（`cargo install gtfs-analyzer`）、Rust ライブラリ、CI/CD ゲート、`gtfs-sdk` npm パッケージ、`gtfs-analyzer` Python パッケージ、ChatGPT と Claude の **GTFS Validator** の 8 つの方法で利用できます。
 
 測定可能な GTFS 仕様要件の **97.2%** をカバーし、フィールドインベントリの 300 個のアトムすべてを少なくとも 1 つの Spec ルールにアンカーしています。**620 個の検証ルール**のうち **415 個**が直近の 4,435 フィード完全カタログ実行で少なくとも 1 件の指摘を出しました。すべてのルールは [`RULES.ja.md`](RULES.ja.md) に一覧化されています。
 
@@ -238,6 +238,19 @@ MCP サービスでフィードを一時的に処理します。フィード内�
 処理後に意図的に保持されません。組織外へ出せないデータには、ブラウザ版、
 CLI、またはローカルパッケージを使用してください。
 
+### Claude の GTFS Validator
+
+Claude でフィードを解析するには、[GTFS Validator プラグイン](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)
+を追加してください。`/gtfs` と入力して GTFS ZIP を添付するか、ローカルパスや公開フィード URL を
+指定するか、`/gtfs TRP_002` のようにルールを質問できます。検証とスコア計算は GTFS Analyzer
+エンジンが行い、プラグインはスコアの再計算や公開可否の判定変更を行いません。
+
+解析は Claude が動作する場所で実行されます。claude.ai では Claude のコード実行環境、
+Claude Code では自分のコンピューターです。プラグインは PyPI の `gtfs-analyzer` パッケージ
+(固定バージョン)をインストールし、フィードをプラグイン独自のサーバーへ送信・保存しません。
+コード実行を有効にする必要があります。チャットでは URL からフィードを取得できないため、
+ZIP を添付してください。
+
 ### エグゼクティブPDFレポート
 
 **エグゼクティブPDFレポート**は、詳細な検証結果を意思決定者やフィード作成者向けの、読みやすく色分けされたA4対応文書に変換します。レポートは **GTFS Analyzer** の結果だけから生成され、他のバリデーターの結果や外部比較は含みません。
@@ -258,9 +271,9 @@ CLI、またはローカルパッケージを使用してください。
 
 ---
 
-## 7 つの利用方法
+## 8 つの利用方法
 
-同じ 620 ルールの検証エンジンを 7 つの方法で利用でき、各インターフェースが用途に合わせて結果を表示します。
+同じ 620 ルールの検証エンジンを 8 つの方法で利用でき、各インターフェースが用途に合わせて結果を表示します。
 
 | 方法 | 用途 | データの送信先 |
 |---|---|---|
@@ -271,10 +284,12 @@ CLI、またはローカルパッケージを使用してください。
 | **[`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk) npm パッケージ** | Web または Node アプリへの組み込み | どこにも送信しない — ローカル WASM |
 | **[`gtfs-analyzer`](https://pypi.org/project/gtfs-analyzer/) Python パッケージ**（`pip install gtfs-analyzer`） | Python アプリへの組み込み | どこにも送信しない — ローカル Rust ネイティブモジュール |
 | **ChatGPT — [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)** | 会話内で ZIP または URL を検証し、指摘内容を説明 | GTFS Validator MCP サービス — リクエスト中のみ一時処理 |
+| **Claude — [GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)** | `/gtfs` で ZIP・パス・URL を検証し、指摘内容を説明 | Claude の実行場所 — Claude Code では自分のコンピューター、claude.ai では Claude のコード実行環境 |
 
 最初の 6 つはローカル環境または自分で管理するインフラ上で実行されます。
 ChatGPT は例外で、解析リクエストの処理中にフィードを MCP サービスへ転送します。
 組織外へ出せないデータには、ブラウザ版、CLI、またはローカルパッケージを使用してください。
+Claude プラグインはフィードを独自のサーバーへ送信せず、Claude Code では解析がすべて自分のコンピューター上で行われます。
 
 ### CI/CD 統合
 
