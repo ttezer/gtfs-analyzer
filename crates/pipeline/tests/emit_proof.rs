@@ -619,6 +619,8 @@ fn fixtures() -> Vec<Fixture> {
         fx("ARC_032", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Ana<br>Durak,41.0,29.0\n")]),
         fx("AGN_018", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n,Test,http://test.example,UTC\n"), ("routes.txt", "route_id,route_short_name,route_type\nR1,101,3\n")]),
         fx("STP_045", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,platform_code\nS1,Stop1,41.0,29.0,1\nS2,Stop2,41.1,29.1,\n")]),
+        // STP_046: S2 has no parent_station and lies ~1 m from station ST.
+        fx("STP_046", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nS1,Stop1,41.1,29.1,,\nST,Gar,41.0,29.0,1,\nS2,Gar Peron,41.000009,29.0,,\n")]),
         fx("ARC_037", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nSüd,Stop3,41.2,29.2\n")]),
         fx("ARS_002", vec![("areas.txt","area_id,area_name\n,Bolge\n")]),
         // ⚠️ SEVEN SEPARATE SERVICES ARE REQUIRED. Clearing all seven days in one row is

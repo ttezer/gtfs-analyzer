@@ -1589,6 +1589,12 @@ function stpRuleText(n: Notice, result: ValidationResult): string | null {
       const clean = value.replace(/\b(platform|plattform|track|gleis|bahnsteig|voie|quai|spor|anden|andén|plataforma)\b/gi, '').replace(/\s{2,}/g, ' ').trim();
       return join(t('producer.card.STP_044.what_detail', { stop: stop(n.entity_id), value }), clean && clean !== value ? t('producer.card.stp_suggest', { value: clean }) : '', use);
     }
+    case 'STP_046': {
+      if (!n.entity_id || !d.station_id) return null;
+      return join(t('producer.card.STP_046.what_detail', { stop: stop(n.entity_id), station: stop(d.station_id), distance: localizedNumber(d.distance_m ?? '0') }),
+        d.station_has_platforms === 'false' ? t('producer.card.STP_046.no_platforms') : '',
+        d.stop_used === 'false' ? t('producer.card.STP_046.unused') : '');
+    }
     case 'STP_045': {
       const count = d.affected_stops || n.observed_value;
       if (!count) return null;
@@ -2937,7 +2943,7 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
     case 'STP_021': case 'STP_022': case 'STP_023': case 'STP_024': case 'STP_026': case 'STP_028': case 'STP_029':
     case 'STP_030': case 'STP_031': case 'STP_032': case 'STP_033': case 'STP_034': case 'STP_035': case 'STP_036':
     case 'STP_037': case 'STP_038': case 'STP_039': case 'STP_040': case 'STP_041': case 'STP_042': case 'STP_043':
-    case 'STP_044': case 'STP_045': {
+    case 'STP_044': case 'STP_045': case 'STP_046': {
       // STP_001/009 keep their context line (the stop code; the stop and the missing station's code);
       // without planner details the cards keep their general text.
       const stopName = n.entity_id ? result.name_index.stops?.[n.entity_id] || n.entity_id : '';

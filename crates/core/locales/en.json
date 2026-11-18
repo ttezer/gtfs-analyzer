@@ -639,6 +639,7 @@
     "STP_041": "The name of child stop '{entity_id}' does not include its parent station name.",
     "STP_044": "platform_code '{observed_value}' contains a redundant platform/track word; it should hold the identifier only.",
     "STP_045": "{observed_value} stops carry a platform_code but no parent_station; the platform is not linked to a station.",
+    "STP_046": "Stop '{entity_id}' has no parent_station but lies {distance_m} m from station '{station_id}'.",
     "TFR_008": "service_id is required in timeframes.txt.",
     "TRF_020": "The transfer requires walking at {observed_value}, which is faster than a plausible walking speed.",
     "TRN_016": "The 'field_value' of {observed_value} translation records matches no row in the target file, so those translations are never applied. For example: {examples}.",
@@ -1140,6 +1141,7 @@
     "STP_043",
     "STP_044",
     "STP_045",
+    "STP_046",
     "TFR_001",
     "TFR_002",
     "TFR_003",
@@ -1858,6 +1860,7 @@
     "STP_041": "Use the parent station name inside the child stop name, or turn the profile off if local naming differs.",
     "STP_044": "Leave only the platform identifier in platform_code (for example '5' instead of 'Gleis 5').",
     "STP_045": "Link platforms to their station (location_type=1) through parent_station; if the stop is not a platform, remove platform_code.",
+    "STP_046": "If this stop belongs to this station, fill in parent_station; otherwise check the coordinates and whether the record is needed.",
     "TFR_008": "Attach every timeframe to a service_id defined in the calendar.",
     "TRF_020": "Raise min_transfer_time, or check the transfer stops.",
     "TRN_016": "Match field_value exactly to the real content of the target field, including leading/trailing spaces and letter case.",
@@ -2000,6 +2003,7 @@
     "STP_040": "Stop name contains a redundant stop/station word",
     "STP_044": "platform_code contains a redundant platform/track word",
     "STP_045": "platform_code without parent_station",
+    "STP_046": "Stop without parent_station right next to a station",
     "STP_041": "Child stop name does not include the parent station name",
     "STP_042": "stop_url is invalid",
     "STP_043": "stop_access used in a forbidden context",
@@ -5093,6 +5097,11 @@
       "title": "Platform number without a station",
       "what": "A stop has a platform number but does not say which station it is a platform of.",
       "action": "Link the platform to its station."
+    },
+    "STP_046": {
+      "title": "Stop right next to a station but not linked to it",
+      "what": "A stop lies within 2 metres of a station but does not say which station it belongs to; it is most likely that station’s platform.",
+      "action": "If the stop belongs to this station, link it to the station; otherwise check its location and whether the record is needed."
     },
     "TFR_001": {
       "title": "Time period group is empty",

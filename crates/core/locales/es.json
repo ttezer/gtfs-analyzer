@@ -2580,6 +2580,11 @@
       "what": "Una parada tiene número de andén, pero no indica de qué estación es andén.",
       "action": "Vincule el andén a su estación."
     },
+    "STP_046": {
+      "title": "Parada junto a una estación pero sin vincular",
+      "what": "Una parada está a menos de 2 metros de una estación pero no indica a qué estación pertenece; lo más probable es que sea un andén de esa estación.",
+      "action": "Si la parada pertenece a esta estación, vincúlela; si no, compruebe su ubicación y si el registro es necesario."
+    },
     "TFR_001": {
       "title": "El grupo de franja horaria está vacío",
       "what": "Un registro de franja horaria tarifaria (p. ej., horas punta) tiene el código de grupo vacío.",

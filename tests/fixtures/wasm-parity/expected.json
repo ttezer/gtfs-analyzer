@@ -5529,6 +5529,29 @@
         },
         {
           "details": {
+            "distance_m": "0.0",
+            "station_has_platforms": "true",
+            "station_id": "ST1",
+            "stop_used": "true"
+          },
+          "entity_id": "S1",
+          "entity_type": "Stop",
+          "expected_value": null,
+          "field": "parent_station",
+          "file": "stops.txt",
+          "line": 2,
+          "message": "Stop 'Stop1' (code: 'S1') has no parent_station but is 0.0m from station 'Station' (code: 'ST1').",
+          "observed_value": "0.0m → 'ST1'",
+          "remediation": "If this stop belongs to this station, fill in parent_station; otherwise check the coordinates and whether the record is needed.",
+          "rule_class": "QUALITY",
+          "rule_id": "STP_046",
+          "scope_key": "S1",
+          "service_id": null,
+          "severity": "LOW",
+          "title": "Stop without parent_station right next to a station"
+        },
+        {
+          "details": {
             "ew_km": "8.4",
             "ns_km": "11.1"
           },
@@ -5616,7 +5639,8 @@
               24,
               25,
               26,
-              29
+              29,
+              30
             ],
             "trip_count": 1
           }
@@ -5874,6 +5898,23 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 1,
+            "unattributed": {},
+            "unsupported": 0
+          },
+          "STP_046": {
+            "affected_entity_count": 1,
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
+            "displayed_sample_count": 1,
+            "finding_count": 1,
+            "not_applicable": 0,
             "unattributed": {},
             "unsupported": 0
           },

@@ -354,6 +354,7 @@ en	ARC_011	File size (info)	'stops.txt' size: 116 bytes.	Informational notice; n
 en	ARC_011	File size (info)	'stops.txt' size: 123 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'stops.txt' size: 126 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'stops.txt' size: 131 bytes.	Informational notice; no action required.
+en	ARC_011	File size (info)	'stops.txt' size: 136 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'stops.txt' size: 137 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'stops.txt' size: 140 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'stops.txt' size: 151 bytes.	Informational notice; no action required.
@@ -889,6 +890,7 @@ en	GEO_019	Stop has integer (zero-precision) coordinates	The coordinates of stop
 en	GEO_019	Stop has integer (zero-precision) coordinates	The coordinates of stop 'En' (41,29) are integers — low-precision or placeholder data. (id: E1)	Update stop_lat and stop_lon with at least 5 decimal places of precision.
 en	GEO_019	Stop has integer (zero-precision) coordinates	The coordinates of stop 'Entrance' (41,29) are integers — low-precision or placeholder data. (id: ENT)	Update stop_lat and stop_lon with at least 5 decimal places of precision.
 en	GEO_019	Stop has integer (zero-precision) coordinates	The coordinates of stop 'Entrance' (41,29) are integers — low-precision or placeholder data. (id: S1)	Update stop_lat and stop_lon with at least 5 decimal places of precision.
+en	GEO_019	Stop has integer (zero-precision) coordinates	The coordinates of stop 'Gar' (41,29) are integers — low-precision or placeholder data. (id: ST)	Update stop_lat and stop_lon with at least 5 decimal places of precision.
 en	GEO_019	Stop has integer (zero-precision) coordinates	The coordinates of stop 'Iso1' (10,10) are integers — low-precision or placeholder data. (id: S5)	Update stop_lat and stop_lon with at least 5 decimal places of precision.
 en	GEO_019	Stop has integer (zero-precision) coordinates	The coordinates of stop 'Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore' (41,29) are integers — low-precision or placeholder data. (id: S1)	Update stop_lat and stop_lon with at least 5 decimal places of precision.
 en	GEO_019	Stop has integer (zero-precision) coordinates	The coordinates of stop 'MERKEZ' (41,29) are integers — low-precision or placeholder data. (id: S1)	Update stop_lat and stop_lon with at least 5 decimal places of precision.
@@ -1622,6 +1624,7 @@ en	STP_022	stop_code missing	stop_code is missing for 3 stop(s), e.g. S1, S2, LG
 en	STP_022	stop_code missing	stop_code is missing for 3 stop(s), e.g. S1, S2, S3.	Provide a short stop_code that passengers can recognise.
 en	STP_022	stop_code missing	stop_code is missing for 3 stop(s), e.g. S1, S2, ST1.	Provide a short stop_code that passengers can recognise.
 en	STP_022	stop_code missing	stop_code is missing for 3 stop(s), e.g. S1, S2, Süd.	Provide a short stop_code that passengers can recognise.
+en	STP_022	stop_code missing	stop_code is missing for 3 stop(s), e.g. S1, ST, S2.	Provide a short stop_code that passengers can recognise.
 en	STP_022	stop_code missing	stop_code is missing for 3 stop(s), e.g. ST, S1, S2.	Provide a short stop_code that passengers can recognise.
 en	STP_022	stop_code missing	stop_code is missing for 3 stop(s), e.g. ST1, S1, S2.	Provide a short stop_code that passengers can recognise.
 en	STP_022	stop_code missing	stop_code is missing for 4 stop(s), e.g. S1, S2, S9, S8.	Provide a short stop_code that passengers can recognise.
@@ -1643,6 +1646,7 @@ en	STP_029	Stop inside station but coordinate too far	Stop with code 'S2' ('Plat
 en	STP_029	Stop inside station but coordinate too far	Stop with code 'S2' ('Stop2') is 13927m from its parent station (S1) (threshold: 150m).	Fix the stop coordinates or the parent_station reference.
 en	STP_030	Parent station has no child stops	Station with code 'S1' ('Station') has no platform — no stop (location_type=0) uses it as parent_station; only entrance/node records may be linked.	Populate parent_station for physical stops belonging to this station, or remove the station.
 en	STP_030	Parent station has no child stops	Station with code 'S1' ('Stop1') has no platform — no stop (location_type=0) uses it as parent_station; only entrance/node records may be linked.	Populate parent_station for physical stops belonging to this station, or remove the station.
+en	STP_030	Parent station has no child stops	Station with code 'ST' ('Gar') has no platform — no stop (location_type=0) uses it as parent_station; only entrance/node records may be linked.	Populate parent_station for physical stops belonging to this station, or remove the station.
 en	STP_030	Parent station has no child stops	Station with code 'ST1' ('Station') has no platform — no stop (location_type=0) uses it as parent_station; only entrance/node records may be linked.	Populate parent_station for physical stops belonging to this station, or remove the station.
 en	STP_030	Parent station has no child stops	Station with code 'ST1' ('Station1') has no platform — no stop (location_type=0) uses it as parent_station; only entrance/node records may be linked.	Populate parent_station for physical stops belonging to this station, or remove the station.
 en	STP_030	Parent station has no child stops	Station with code 'ST2' ('Station2') has no platform — no stop (location_type=0) uses it as parent_station; only entrance/node records may be linked.	Populate parent_station for physical stops belonging to this station, or remove the station.
@@ -1670,6 +1674,11 @@ en	STP_043	stop_access used in a forbidden context	stop_access can only be used 
 en	STP_043	stop_access used in a forbidden context	stop_access can only be used on platforms with a parent station (parent_station is empty). (id: S2)	Fill in stop_access only on platforms that have a parent_station.
 en	STP_044	platform_code contains a redundant platform/track word	platform_code 'Gleis 5' contains an unnecessary platform/track word; it should be the identifier only. (id: S1)	Leave only the platform identifier in platform_code (for example '5' instead of 'Gleis 5').
 en	STP_045	platform_code without parent_station	1 stops carry platform_code but have no parent_station — the platform is not linked to a station.	Link platforms to their station (location_type=1) through parent_station; if the stop is not a platform, remove platform_code.
+en	STP_046	Stop without parent_station right next to a station	Stop 'Gar Peron' (code: 'S2') has no parent_station but is 1.0m from station 'Gar' (code: 'ST').	If this stop belongs to this station, fill in parent_station; otherwise check the coordinates and whether the record is needed.
+en	STP_046	Stop without parent_station right next to a station	Stop 'Stop1' (code: 'S1') has no parent_station but is 0.0m from station 'Central Hub' (code: 'ST1').	If this stop belongs to this station, fill in parent_station; otherwise check the coordinates and whether the record is needed.
+en	STP_046	Stop without parent_station right next to a station	Stop 'Stop1' (code: 'S1') has no parent_station but is 0.0m from station 'Station' (code: 'ST1').	If this stop belongs to this station, fill in parent_station; otherwise check the coordinates and whether the record is needed.
+en	STP_046	Stop without parent_station right next to a station	Stop 'Stop1' (code: 'S1') has no parent_station but is 0.0m from station 'Station1' (code: 'ST1').	If this stop belongs to this station, fill in parent_station; otherwise check the coordinates and whether the record is needed.
+en	STP_046	Stop without parent_station right next to a station	Stop 'Stop1' (code: 'S1') has no parent_station but is 0.0m from station 'StationA' (code: 'ST_A').	If this stop belongs to this station, fill in parent_station; otherwise check the coordinates and whether the record is needed.
 en	TFR_001	timeframe_group_id missing	timeframe_group_id is required.	Enter a timeframe_group_id for each timeframe record.
 en	TFR_002	service_id not found	Service calendar 'SVCX' is not defined. (id: TG1)	Use a valid service_id.
 en	TFR_003	start_time or end_time format error	expected HH:MM:SS for 'start_time', got: notatime (id: TG1)	Enter a valid time in HH:MM:SS format.
@@ -2197,6 +2206,7 @@ fr	ARC_011	Taille du fichier (info)	Fichier « stops.txt » : 116 bytes.	S
 fr	ARC_011	Taille du fichier (info)	Fichier « stops.txt » : 123 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « stops.txt » : 126 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « stops.txt » : 131 bytes.	Signalement informatif ; aucune action requise.
+fr	ARC_011	Taille du fichier (info)	Fichier « stops.txt » : 136 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « stops.txt » : 137 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « stops.txt » : 140 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « stops.txt » : 151 bytes.	Signalement informatif ; aucune action requise.
@@ -3145,6 +3155,7 @@ fr	STP_022	stop_code manquant	stop_code est absent pour 3 arrêt(s), p. ex. S1, 
 fr	STP_022	stop_code manquant	stop_code est absent pour 3 arrêt(s), p. ex. S1, S2, S3.	Fournissez un stop_code court, reconnaissable par les voyageurs.
 fr	STP_022	stop_code manquant	stop_code est absent pour 3 arrêt(s), p. ex. S1, S2, ST1.	Fournissez un stop_code court, reconnaissable par les voyageurs.
 fr	STP_022	stop_code manquant	stop_code est absent pour 3 arrêt(s), p. ex. S1, S2, Süd.	Fournissez un stop_code court, reconnaissable par les voyageurs.
+fr	STP_022	stop_code manquant	stop_code est absent pour 3 arrêt(s), p. ex. S1, ST, S2.	Fournissez un stop_code court, reconnaissable par les voyageurs.
 fr	STP_022	stop_code manquant	stop_code est absent pour 3 arrêt(s), p. ex. ST, S1, S2.	Fournissez un stop_code court, reconnaissable par les voyageurs.
 fr	STP_022	stop_code manquant	stop_code est absent pour 3 arrêt(s), p. ex. ST1, S1, S2.	Fournissez un stop_code court, reconnaissable par les voyageurs.
 fr	STP_022	stop_code manquant	stop_code est absent pour 4 arrêt(s), p. ex. S1, S2, S9, S8.	Fournissez un stop_code court, reconnaissable par les voyageurs.
@@ -3166,6 +3177,7 @@ fr	STP_029	Arrêt situé dans une station mais coordonnée trop éloignée	L’a
 fr	STP_030	La station parente n’a aucun arrêt enfant	La station « S1 » n’a aucun arrêt enfant.	Renseignez parent_station sur les arrêts physiques appartenant à cette station, ou supprimez la station.
 fr	STP_030	La station parente n’a aucun arrêt enfant	La station « ST1 » n’a aucun arrêt enfant.	Renseignez parent_station sur les arrêts physiques appartenant à cette station, ou supprimez la station.
 fr	STP_030	La station parente n’a aucun arrêt enfant	La station « ST2 » n’a aucun arrêt enfant.	Renseignez parent_station sur les arrêts physiques appartenant à cette station, ou supprimez la station.
+fr	STP_030	La station parente n’a aucun arrêt enfant	La station « ST » n’a aucun arrêt enfant.	Renseignez parent_station sur les arrêts physiques appartenant à cette station, ou supprimez la station.
 fr	STP_031	Le nom et la description de l’arrêt sont identiques	Arrêt « S1 » : stop_name et stop_desc sont identiques.	stop_desc doit contenir une valeur différente de stop_name et plus descriptive.
 fr	STP_032	parent_station manquant pour un quai relié par cheminement	1 quais reliés au réseau de cheminements n’ont pas de parent_station dans ce jeu de données.	Affectez une station (location_type=1) comme parent_station à ce quai relié par cheminement.
 fr	STP_032	parent_station manquant pour un quai relié par cheminement	2 quais reliés au réseau de cheminements n’ont pas de parent_station dans ce jeu de données.	Affectez une station (location_type=1) comme parent_station à ce quai relié par cheminement.
@@ -3192,6 +3204,9 @@ fr	STP_043	stop_access utilisé dans un contexte interdit	Arrêt « S1 » 
 fr	STP_043	stop_access utilisé dans un contexte interdit	Arrêt « S2 » : stop_access n’est autorisé que sur les quais rattachés à une station parente (9).	Ne renseignez stop_access que sur les quais rattachés à une parent_station.
 fr	STP_044	platform_code contient un mot redondant (quai ou voie)	Le platform_code « Gleis 5 » contient un mot redondant (quai ou voie) ; il ne doit contenir que l’identifiant.	Ne laissez que l’identifiant du quai dans platform_code (par exemple « 5 » plutôt que « Quai 5 »).
 fr	STP_045	platform_code sans parent_station	1 arrêts ont un platform_code mais pas de parent_station ; le quai n’est rattaché à aucune station.	Rattachez les quais à leur station (location_type=1) via parent_station ; si l’arrêt n’est pas un quai, retirez platform_code.
+fr	STP_046	Arrêt sans parent_station juste à côté d’une station	Arrêt « S1 » sans parent_station, à 0.0 m de la station « ST1 ».	Si cet arrêt appartient à cette station, renseignez parent_station ; sinon, vérifiez les coordonnées et l’utilité de l’enregistrement.
+fr	STP_046	Arrêt sans parent_station juste à côté d’une station	Arrêt « S1 » sans parent_station, à 0.0 m de la station « ST_A ».	Si cet arrêt appartient à cette station, renseignez parent_station ; sinon, vérifiez les coordonnées et l’utilité de l’enregistrement.
+fr	STP_046	Arrêt sans parent_station juste à côté d’une station	Arrêt « S2 » sans parent_station, à 1.0 m de la station « ST ».	Si cet arrêt appartient à cette station, renseignez parent_station ; sinon, vérifiez les coordonnées et l’utilité de l’enregistrement.
 fr	TFR_001	timeframe_group_id manquant	Plage horaire : timeframe_group_id est absent.	Saisissez un timeframe_group_id pour chaque enregistrement de plage horaire.
 fr	TFR_002	service_id introuvable	Plage horaire « TG1 » : service_id est introuvable.	Utilisez un service_id valide.
 fr	TFR_003	Erreur de format sur start_time ou end_time	Plage horaire « TG1 » : le format de start_time ou end_time est invalide.	Saisissez une heure valide au format HH:MM:SS.
@@ -3697,6 +3712,7 @@ ja	ARC_011	ファイルサイズ（情報）	ファイル'stops.txt'：116 bytes
 ja	ARC_011	ファイルサイズ（情報）	ファイル'stops.txt'：123 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'stops.txt'：126 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'stops.txt'：131 bytes。	情報通知のため対応不要です。
+ja	ARC_011	ファイルサイズ（情報）	ファイル'stops.txt'：136 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'stops.txt'：137 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'stops.txt'：140 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'stops.txt'：151 bytes。	情報通知のため対応不要です。
@@ -4645,6 +4661,7 @@ ja	STP_022	stop_codeが不足	3件の停留所にstop_code（停留所番号）�
 ja	STP_022	stop_codeが不足	3件の停留所にstop_code（停留所番号）がありません（例: S1, S2, S3）。	任意項目です。標柱などに停留所番号が表示されている場合はstop_codeに入力してください。
 ja	STP_022	stop_codeが不足	3件の停留所にstop_code（停留所番号）がありません（例: S1, S2, ST1）。	任意項目です。標柱などに停留所番号が表示されている場合はstop_codeに入力してください。
 ja	STP_022	stop_codeが不足	3件の停留所にstop_code（停留所番号）がありません（例: S1, S2, Süd）。	任意項目です。標柱などに停留所番号が表示されている場合はstop_codeに入力してください。
+ja	STP_022	stop_codeが不足	3件の停留所にstop_code（停留所番号）がありません（例: S1, ST, S2）。	任意項目です。標柱などに停留所番号が表示されている場合はstop_codeに入力してください。
 ja	STP_022	stop_codeが不足	3件の停留所にstop_code（停留所番号）がありません（例: ST, S1, S2）。	任意項目です。標柱などに停留所番号が表示されている場合はstop_codeに入力してください。
 ja	STP_022	stop_codeが不足	3件の停留所にstop_code（停留所番号）がありません（例: ST1, S1, S2）。	任意項目です。標柱などに停留所番号が表示されている場合はstop_codeに入力してください。
 ja	STP_022	stop_codeが不足	4件の停留所にstop_code（停留所番号）がありません（例: S1, S2, S9, S8）。	任意項目です。標柱などに停留所番号が表示されている場合はstop_codeに入力してください。
@@ -4664,6 +4681,7 @@ ja	STP_028	stop_codeが長すぎる	停留所'S1'：stop_codeが長すぎます�
 ja	STP_029	停留所が親駅から遠い	停留所'S1'は駅内にありますが、親駅から座標が離れすぎています。	停留所座標またはparent_stationの参照を修正してください。
 ja	STP_029	停留所が親駅から遠い	停留所'S2'は駅内にありますが、親駅から座標が離れすぎています。	停留所座標またはparent_stationの参照を修正してください。
 ja	STP_030	子停留所のない駅	駅'S1'に子停留所がありません。	この駅に属する物理的な停留所にparent_stationを入力するか、駅を削除してください。
+ja	STP_030	子停留所のない駅	駅'ST'に子停留所がありません。	この駅に属する物理的な停留所にparent_stationを入力するか、駅を削除してください。
 ja	STP_030	子停留所のない駅	駅'ST1'に子停留所がありません。	この駅に属する物理的な停留所にparent_stationを入力するか、駅を削除してください。
 ja	STP_030	子停留所のない駅	駅'ST2'に子停留所がありません。	この駅に属する物理的な停留所にparent_stationを入力するか、駅を削除してください。
 ja	STP_031	stop_nameとstop_descが同一	停留所'S1'：stop_nameとstop_descが同じです。	stop_descはstop_nameとは異なる、より説明的な内容にしてください。
@@ -4692,6 +4710,9 @@ ja	STP_043	stop_accessが禁止された文脈で使用	停留所'S1'：stop_acc
 ja	STP_043	stop_accessが禁止された文脈で使用	停留所'S2'：stop_accessは親駅を持つプラットフォームでのみ使用できます（9）。	stop_accessは親駅を持つプラットフォームでのみ入力してください。
 ja	STP_044	platform_codeに冗長なplatform/track語が含まれる	platform_code 'Gleis 5' contains a redundant platform/track word; it should hold the identifier only.	Leave only the platform identifier in platform_code (for example '5' instead of 'Gleis 5').
 ja	STP_045	platform_codeがあるがparent_stationが空	1件の停留所にplatform_codeがありますがparent_stationが空です。乗り場が駅に紐付いていません。	乗り場はparent_stationで駅（location_type=1）に紐付けてください。乗り場でない場合はplatform_codeを削除してください。
+ja	STP_046	parent_stationのない停留所が駅のすぐ隣にある	停留所'S1'にparent_stationがありませんが、駅'ST1'から0.0 mの位置にあります。	この停留所がこの駅に属する場合はparent_stationを入力してください。そうでない場合は座標とレコードの要否を確認してください。
+ja	STP_046	parent_stationのない停留所が駅のすぐ隣にある	停留所'S1'にparent_stationがありませんが、駅'ST_A'から0.0 mの位置にあります。	この停留所がこの駅に属する場合はparent_stationを入力してください。そうでない場合は座標とレコードの要否を確認してください。
+ja	STP_046	parent_stationのない停留所が駅のすぐ隣にある	停留所'S2'にparent_stationがありませんが、駅'ST'から1.0 mの位置にあります。	この停留所がこの駅に属する場合はparent_stationを入力してください。そうでない場合は座標とレコードの要否を確認してください。
 ja	TFR_001	timeframe_group_idが不足	時間帯：timeframe_group_idがありません。	各タイムフレームレコードにtimeframe_group_idを入力してください。
 ja	TFR_002	service_idが存在しない	時間帯'TG1'：service_idが見つかりません。	有効なservice_idを使用してください。
 ja	TFR_003	start_timeまたはend_timeの形式が無効	時間帯'TG1'：start_timeまたはend_timeの形式が無効です。	HH:MM:SS形式で有効な時刻を入力してください。
@@ -5198,6 +5219,7 @@ tr	ARC_011	Dosya boyutu (bilgi)	'stops.txt' boyutu: 116 bayt.	Bilgi amaçlı; d�
 tr	ARC_011	Dosya boyutu (bilgi)	'stops.txt' boyutu: 123 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'stops.txt' boyutu: 126 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'stops.txt' boyutu: 131 bayt.	Bilgi amaçlı; düzeltme gerekmez.
+tr	ARC_011	Dosya boyutu (bilgi)	'stops.txt' boyutu: 136 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'stops.txt' boyutu: 137 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'stops.txt' boyutu: 140 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'stops.txt' boyutu: 151 bayt.	Bilgi amaçlı; düzeltme gerekmez.
@@ -5721,6 +5743,7 @@ tr	GEO_019	Durak tam sayı koordinatlara sahip (hassasiyet sıfır)	'BoardArea' 
 tr	GEO_019	Durak tam sayı koordinatlara sahip (hassasiyet sıfır)	'Central Hub' durağının koordinatları (41,29) tam sayı — düşük hassasiyetli veya yer tutucu veri.	stop_lat ve stop_lon değerlerini en az 5 ondalık basamakla güncelleyin.
 tr	GEO_019	Durak tam sayı koordinatlara sahip (hassasiyet sıfır)	'En' durağının koordinatları (41,29) tam sayı — düşük hassasiyetli veya yer tutucu veri.	stop_lat ve stop_lon değerlerini en az 5 ondalık basamakla güncelleyin.
 tr	GEO_019	Durak tam sayı koordinatlara sahip (hassasiyet sıfır)	'Entrance' durağının koordinatları (41,29) tam sayı — düşük hassasiyetli veya yer tutucu veri.	stop_lat ve stop_lon değerlerini en az 5 ondalık basamakla güncelleyin.
+tr	GEO_019	Durak tam sayı koordinatlara sahip (hassasiyet sıfır)	'Gar' durağının koordinatları (41,29) tam sayı — düşük hassasiyetli veya yer tutucu veri.	stop_lat ve stop_lon değerlerini en az 5 ondalık basamakla güncelleyin.
 tr	GEO_019	Durak tam sayı koordinatlara sahip (hassasiyet sıfır)	'Iso1' durağının koordinatları (10,10) tam sayı — düşük hassasiyetli veya yer tutucu veri.	stop_lat ve stop_lon değerlerini en az 5 ondalık basamakla güncelleyin.
 tr	GEO_019	Durak tam sayı koordinatlara sahip (hassasiyet sıfır)	'Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore' durağının koordinatları (41,29) tam sayı — düşük hassasiyetli veya yer tutucu veri.	stop_lat ve stop_lon değerlerini en az 5 ondalık basamakla güncelleyin.
 tr	GEO_019	Durak tam sayı koordinatlara sahip (hassasiyet sıfır)	'MERKEZ' durağının koordinatları (41,29) tam sayı — düşük hassasiyetli veya yer tutucu veri.	stop_lat ve stop_lon değerlerini en az 5 ondalık basamakla güncelleyin.
@@ -6443,6 +6466,7 @@ tr	STP_029	Durak istasyon içinde ama koordinat çok uzakta	'S2' kodlu 'Platform
 tr	STP_029	Durak istasyon içinde ama koordinat çok uzakta	'S2' kodlu 'Stop2' durağı üst istasyonundan (S1) 13927m uzakta (eşik: 150m).	Durak koordinatlarını veya parent_station referansını düzeltin.
 tr	STP_030	Üst istasyonun alt durağı yok	'S1' kodlu 'Station' istasyonunun hiç peronu yok — hiçbir durak (location_type=0) onu parent_station olarak kullanmıyor; yalnız giriş/düğüm kayıtları bağlı olabilir.	İstasyona bağlı peronlarda (location_type=0) parent_station alanını doldurun veya istasyonu kaldırın.
 tr	STP_030	Üst istasyonun alt durağı yok	'S1' kodlu 'Stop1' istasyonunun hiç peronu yok — hiçbir durak (location_type=0) onu parent_station olarak kullanmıyor; yalnız giriş/düğüm kayıtları bağlı olabilir.	İstasyona bağlı peronlarda (location_type=0) parent_station alanını doldurun veya istasyonu kaldırın.
+tr	STP_030	Üst istasyonun alt durağı yok	'ST' kodlu 'Gar' istasyonunun hiç peronu yok — hiçbir durak (location_type=0) onu parent_station olarak kullanmıyor; yalnız giriş/düğüm kayıtları bağlı olabilir.	İstasyona bağlı peronlarda (location_type=0) parent_station alanını doldurun veya istasyonu kaldırın.
 tr	STP_030	Üst istasyonun alt durağı yok	'ST1' kodlu 'Station' istasyonunun hiç peronu yok — hiçbir durak (location_type=0) onu parent_station olarak kullanmıyor; yalnız giriş/düğüm kayıtları bağlı olabilir.	İstasyona bağlı peronlarda (location_type=0) parent_station alanını doldurun veya istasyonu kaldırın.
 tr	STP_030	Üst istasyonun alt durağı yok	'ST1' kodlu 'Station1' istasyonunun hiç peronu yok — hiçbir durak (location_type=0) onu parent_station olarak kullanmıyor; yalnız giriş/düğüm kayıtları bağlı olabilir.	İstasyona bağlı peronlarda (location_type=0) parent_station alanını doldurun veya istasyonu kaldırın.
 tr	STP_030	Üst istasyonun alt durağı yok	'ST2' kodlu 'Station2' istasyonunun hiç peronu yok — hiçbir durak (location_type=0) onu parent_station olarak kullanmıyor; yalnız giriş/düğüm kayıtları bağlı olabilir.	İstasyona bağlı peronlarda (location_type=0) parent_station alanını doldurun veya istasyonu kaldırın.
@@ -6469,6 +6493,11 @@ tr	STP_042	stop_url geçersiz	stops.txt içinde 1 stop için stop_url geçersiz.
 tr	STP_043	stop_access yasak bağlamda kullanılmış	stop_access yalnız üst istasyonu olan platformlarda kullanılabilir (parent_station boş).	stop_access alanını yalnız parent_station'ı olan platformlarda (location_type 0/boş) doldurun.
 tr	STP_044	platform_code gereksiz 'platform/track' sözcüğü içeriyor	platform_code 'Gleis 5' gereksiz platform/track sözcüğü içeriyor; yalnız tanımlayıcı olmalı.	platform_code'da yalnız platform tanımlayıcısını bırakın (ör. 'Gleis 5' yerine '5').
 tr	STP_045	platform_code var ama parent_station boş	1 durak platform_code taşıyor ama parent_station boş — peron bir istasyona bağlanmamış.	Peronları location_type=1 olan istasyona parent_station ile bağlayın; peron değilse platform_code'u kaldırın.
+tr	STP_046	parent_station boş durak bir istasyonun hemen yanında	'Gar Peron' durağının (kod: 'S2') parent_station alanı boş ama 'Gar' istasyonuna (kod: 'ST') 1.0m uzaklıkta.	Bu durak bu istasyona aitse parent_station alanını doldurun; değilse koordinatı ve kaydın gerekli olup olmadığını doğrulayın.
+tr	STP_046	parent_station boş durak bir istasyonun hemen yanında	'Stop1' durağının (kod: 'S1') parent_station alanı boş ama 'Central Hub' istasyonuna (kod: 'ST1') 0.0m uzaklıkta.	Bu durak bu istasyona aitse parent_station alanını doldurun; değilse koordinatı ve kaydın gerekli olup olmadığını doğrulayın.
+tr	STP_046	parent_station boş durak bir istasyonun hemen yanında	'Stop1' durağının (kod: 'S1') parent_station alanı boş ama 'Station' istasyonuna (kod: 'ST1') 0.0m uzaklıkta.	Bu durak bu istasyona aitse parent_station alanını doldurun; değilse koordinatı ve kaydın gerekli olup olmadığını doğrulayın.
+tr	STP_046	parent_station boş durak bir istasyonun hemen yanında	'Stop1' durağının (kod: 'S1') parent_station alanı boş ama 'Station1' istasyonuna (kod: 'ST1') 0.0m uzaklıkta.	Bu durak bu istasyona aitse parent_station alanını doldurun; değilse koordinatı ve kaydın gerekli olup olmadığını doğrulayın.
+tr	STP_046	parent_station boş durak bir istasyonun hemen yanında	'Stop1' durağının (kod: 'S1') parent_station alanı boş ama 'StationA' istasyonuna (kod: 'ST_A') 0.0m uzaklıkta.	Bu durak bu istasyona aitse parent_station alanını doldurun; değilse koordinatı ve kaydın gerekli olup olmadığını doğrulayın.
 tr	TFR_001	timeframe_group_id eksik	timeframe_group_id zorunludur.	Her zaman dilimi kaydı için bir timeframe_group_id girin.
 tr	TFR_002	service_id bulunamadı	'SVCX' servis takvimi tanimli degil.	Gecerli bir service_id kullanin.
 tr	TFR_003	start_time veya end_time format hatası	'start_time' için HH:MM:SS bekleniyor, alınan: notatime	start_time için HH:MM:SS formatında geçerli bir değer girin.

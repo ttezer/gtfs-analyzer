@@ -236,6 +236,12 @@ const tr = {
     'producer.card.ATR_012.what': "Bir atıf kaydı, listede olmayan bir sefere bağlanmış.",
     'producer.card.ATR_012.action': "Atfı mevcut bir sefere bağlayın.",
     'producer.card.BKR.rule': "Kural „{rule}“: {setting}.",
+    'producer.card.STP_046.title': "İstasyonun hemen yanında, istasyona bağlı olmayan durak",
+    'producer.card.STP_046.what': "Bir durak bir istasyonun 2 metreden yakınında, ama hangi istasyona ait olduğu belirtilmemiş; büyük ihtimalle o istasyonun peronu.",
+    'producer.card.STP_046.action': "Durak bu istasyona aitse istasyona bağlayın; değilse konumunu ve kaydın gerekli olup olmadığını kontrol edin.",
+    'producer.card.STP_046.what_detail': "{stop}, {station} istasyonundan {distance} m uzakta.",
+    'producer.card.STP_046.no_platforms': "Bu istasyona bağlı başka peron da yok.",
+    'producer.card.STP_046.unused': "Durak hiçbir seferde kullanılmıyor.",
     'producer.card.FAR.price': "Fiyat: {price}.",
     'producer.card.MISC.list': "Girilen değerler: {values}.",
     'producer.card.MISC.routes': "{count} hatta böyle.",
@@ -4322,6 +4328,7 @@ const tr = {
     'STP_040': 'Durak adı gereksiz genel stop/station sözcüğü içeriyor',
     'STP_044': "platform_code gereksiz 'platform/track' sözcüğü içeriyor",
     'STP_045': 'platform_code var ama parent_station boş',
+    'STP_046': 'parent_station boş durak bir istasyonun hemen yanında',
     'STP_041': 'Alt durak adı üst istasyon adını içermiyor',
     'STP_042': 'stop_url geçersiz',
     'STP_043': 'stop_access yasak bağlamda kullanılmış',
@@ -5197,6 +5204,9 @@ export const trRemediationTexts: Record<string, Record<string, string>> = {
   },
   'STP_045': {
     'Link platforms to their station (location_type=1) through parent_station; if the stop is not a platform, remove platform_code.': 'Peronları location_type=1 olan istasyona parent_station ile bağlayın; peron değilse platform_code\'u kaldırın.',
+  },
+  'STP_046': {
+    'If this stop belongs to this station, fill in parent_station; otherwise check the coordinates and whether the record is needed.': 'Bu durak bu istasyona aitse parent_station alanını doldurun; değilse koordinatı ve kaydın gerekli olup olmadığını doğrulayın.',
   },
   'TFR_003': {
     'Enter a valid end_time in HH:MM:SS format.': 'end_time için HH:MM:SS formatında geçerli bir değer girin.',
@@ -7011,6 +7021,9 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
   },
   'STP_045': {
     '{stp045_count} stops carry platform_code but have no parent_station — the platform is not linked to a station.': '{stp045_count} durak platform_code taşıyor ama parent_station boş — peron bir istasyona bağlanmamış.',
+  },
+  'STP_046': {
+    'Stop \'{a0}\' (code: \'{a1}\') has no parent_station but is {a2}m from station \'{a3}\' (code: \'{a4}\').': '\'{a0}\' durağının (kod: \'{a1}\') parent_station alanı boş ama \'{a3}\' istasyonuna (kod: \'{a4}\') {a2}m uzaklıkta.',
   },
   'TFR_002': {
     'Service calendar \'{a0}\' is not defined.': '\'{a0}\' servis takvimi tanimli degil.',

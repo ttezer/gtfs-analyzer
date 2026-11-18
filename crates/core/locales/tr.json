@@ -875,6 +875,9 @@
     "STP_045": {
       "Link platforms to their station (location_type=1) through parent_station; if the stop is not a platform, remove platform_code.": "Peronları location_type=1 olan istasyona parent_station ile bağlayın; peron değilse platform_code'u kaldırın."
     },
+    "STP_046": {
+      "If this stop belongs to this station, fill in parent_station; otherwise check the coordinates and whether the record is needed.": "Bu durak bu istasyona aitse parent_station alanını doldurun; değilse koordinatı ve kaydın gerekli olup olmadığını doğrulayın."
+    },
     "TFR_003": {
       "Enter a valid end_time in HH:MM:SS format.": "end_time için HH:MM:SS formatında geçerli bir değer girin.",
       "Enter a valid start_time in HH:MM:SS format.": "start_time için HH:MM:SS formatında geçerli bir değer girin."
@@ -2675,6 +2678,9 @@
     "STP_045": {
       "{stp045_count} stops carry platform_code but have no parent_station — the platform is not linked to a station.": "{stp045_count} durak platform_code taşıyor ama parent_station boş — peron bir istasyona bağlanmamış."
     },
+    "STP_046": {
+      "Stop '{a0}' (code: '{a1}') has no parent_station but is {a2}m from station '{a3}' (code: '{a4}').": "'{a0}' durağının (kod: '{a1}') parent_station alanı boş ama '{a3}' istasyonuna (kod: '{a4}') {a2}m uzaklıkta."
+    },
     "TFR_002": {
       "Service calendar '{a0}' is not defined.": "'{a0}' servis takvimi tanimli degil."
     },
@@ -3133,6 +3139,7 @@
     "STP_040": "Durak adı gereksiz genel stop/station sözcüğü içeriyor",
     "STP_044": "platform_code gereksiz 'platform/track' sözcüğü içeriyor",
     "STP_045": "platform_code var ama parent_station boş",
+    "STP_046": "parent_station boş durak bir istasyonun hemen yanında",
     "STP_041": "Alt durak adı üst istasyon adını içermiyor",
     "STP_042": "stop_url geçersiz",
     "STP_043": "stop_access yasak bağlamda kullanılmış",
@@ -6198,6 +6205,11 @@
       "title": "Peron numarası var ama istasyona bağlı değil",
       "what": "Bir durağa peron numarası verilmiş ama hangi istasyonun peronu olduğu belirtilmemiş.",
       "action": "Peronu ait olduğu istasyona bağlayın."
+    },
+    "STP_046": {
+      "title": "İstasyonun hemen yanında, istasyona bağlı olmayan durak",
+      "what": "Bir durak bir istasyonun 2 metreden yakınında, ama hangi istasyona ait olduğu belirtilmemiş; büyük ihtimalle o istasyonun peronu.",
+      "action": "Durak bu istasyona aitse istasyona bağlayın; değilse konumunu ve kaydın gerekli olup olmadığını kontrol edin."
     },
     "TFR_001": {
       "title": "Zaman dilimi grubu boş",

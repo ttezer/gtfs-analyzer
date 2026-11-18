@@ -4636,6 +4636,111 @@ fn check_geo_stop_analytics(
     }
     drop(_tstp17);
 
+    // STP_046: a boardable stop (location_type 0/empty) with an empty parent_station that lies
+    // under 2 m from a station (location_type=1). Likely the station's platform with the link
+    // missing (upstream gtfs-validator PR #2218, `stop_too_close_to_non_parent_station`, which
+    // also counts stops that have another parent; that branch is left to a separate review).
+    // A fixed 2 m — not `stop_too_close_m`. One finding per stop, for the nearest station; a tie
+    // is broken by station_id. Null Island is skipped (GEO_016). Stations are sorted by latitude
+    // and only the ±2 m band is scanned, so the cost is O(n log n).
+    let _tstp46 = Timer::start("K6::geo::stp_046");
+    {
+        const STP_046_M: f64 = 2.0;
+        let band = STP_046_M / 1000.0 / 111.0;
+        let null_island = |la: f64, lo: f64| la.abs() < 0.1 && lo.abs() < 0.1;
+        fn parent_of(s: &crate::k2::stops::StopRecord) -> Option<&str> {
+            s.row
+                .get("parent_station")
+                .map(|v| v.trim())
+                .filter(|v| !v.is_empty())
+        }
+        let mut stations: Vec<(f64, f64, &crate::k2::stops::StopRecord)> = records
+            .stops
+            .iter()
+            .filter(|s| s.location_type == Some(1))
+            .filter_map(|s| recoverable_stop_coord(s).map(|(la, lo)| (la, lo, s)))
+            .filter(|&(la, lo, _)| !null_island(la, lo))
+            .collect();
+        if !stations.is_empty() {
+            stations.sort_by(|a, b| a.0.total_cmp(&b.0));
+            // Stations with at least one physical (location_type 0/empty) child.
+            let with_platforms: HashSet<&str> = records
+                .stops
+                .iter()
+                .filter(|s| s.location_type.unwrap_or(0) == 0)
+                .filter_map(parent_of)
+                .collect();
+            let used = &records.stop_times_index.stop_id_set;
+            for s in &records.stops {
+                if s.location_type.unwrap_or(0) != 0 || parent_of(s).is_some() {
+                    continue;
+                }
+                let Some((la, lo)) = recoverable_stop_coord(s) else {
+                    continue;
+                };
+                if null_island(la, lo) {
+                    continue;
+                }
+                let from = stations.partition_point(|t| t.0 < la - band);
+                let mut nearest: Option<(f64, &crate::k2::stops::StopRecord)> = None;
+                for &(sla, slo, station) in &stations[from..] {
+                    if sla > la + band {
+                        break;
+                    }
+                    let dist_m = haversine_km(la, lo, sla, slo) * 1000.0;
+                    if dist_m >= STP_046_M {
+                        continue;
+                    }
+                    let closer = nearest.is_none_or(|(best_m, best)| {
+                        dist_m < best_m || (dist_m == best_m && station.stop_id < best.stop_id)
+                    });
+                    if closer {
+                        nearest = Some((dist_m, station));
+                    }
+                }
+                let Some((dist_m, station)) = nearest else {
+                    continue;
+                };
+                let mut n = k6_notice(
+                    ctr,
+                    "STP_046",
+                    EntityType::Stop,
+                    Some(s.stop_id.clone()),
+                    Some(s.stop_id.clone()),
+                    "stops.txt",
+                    Some(s.line),
+                    Some("parent_station"),
+                    Some(format!("{dist_m:.1}m → '{}'", station.stop_id)),
+                    None,
+                    format!(
+                        "Stop '{}' (code: '{}') has no parent_station but is {dist_m:.1}m from station '{}' (code: '{}').",
+                        s.stop_name.as_deref().unwrap_or(s.stop_id.as_str()),
+                        s.stop_id,
+                        station.stop_name.as_deref().unwrap_or(station.stop_id.as_str()),
+                        station.stop_id,
+                    ),
+                    "If this stop belongs to this station, fill in parent_station; otherwise check the coordinates and whether the record is needed.",
+                );
+                let mut d = std::collections::BTreeMap::new();
+                d.insert("station_id".to_string(), station.stop_id.clone());
+                d.insert("distance_m".to_string(), format!("{dist_m:.1}"));
+                d.insert(
+                    "station_has_platforms".to_string(),
+                    with_platforms
+                        .contains(station.stop_id.as_str())
+                        .to_string(),
+                );
+                d.insert(
+                    "stop_used".to_string(),
+                    used.contains(s.stop_id.as_str()).to_string(),
+                );
+                n.details = Some(d.into());
+                notices.push(n);
+            }
+        }
+    }
+    drop(_tstp46);
+
     // GEO_002: stop coordinates are outside the bounding box (feed-wide statistical anomaly).
     // Calculate the median coordinate of all stops in the feed and flag those far away.
     let _tgeo2 = Timer::start("K6::geo::geo_002_014");
@@ -17715,6 +17820,127 @@ mod tests {
         assert!(
             result.notices.iter().any(|n| n.rule_id == "STP_017"),
             "STP_017 olmalı"
+        );
+    }
+
+    // ── STP_046: empty-parent stop next to a station ─────────────────────
+
+    fn stp046(stops: Vec<StopRecord>) -> Vec<Notice> {
+        let records = crate::k2::EntityRecords {
+            stops,
+            ..Default::default()
+        };
+        analyze(
+            &records,
+            &DerivedData::default(),
+            &default_config(),
+            20260514,
+        )
+        .notices
+        .into_iter()
+        .filter(|n| n.rule_id == "STP_046")
+        .collect()
+    }
+
+    fn station(id: &str, lat: f64, lon: f64) -> StopRecord {
+        StopRecord {
+            location_type: Some(1),
+            ..stop(id, lat, lon)
+        }
+    }
+
+    #[test]
+    fn stp_046_flags_an_empty_parent_stop_under_2m_from_a_station() {
+        // ~1 m north of the station (0.000009° ≈ 1 m).
+        let found = stp046(vec![station("ST", 41.0, 29.0), stop("P", 41.000009, 29.0)]);
+        assert_eq!(found.len(), 1, "{found:?}");
+        let d = found[0].details.as_ref().unwrap();
+        assert_eq!(found[0].entity_id.as_deref(), Some("P"));
+        assert_eq!(d.get("station_id").map(String::as_str), Some("ST"));
+        assert_eq!(d.get("distance_m").map(String::as_str), Some("1.0"));
+        assert_eq!(
+            d.get("station_has_platforms").map(String::as_str),
+            Some("false")
+        );
+        assert_eq!(d.get("stop_used").map(String::as_str), Some("false"));
+    }
+
+    #[test]
+    fn stp_046_skips_own_parent_far_stops_null_island_and_non_boardable_types() {
+        let mut child = stop("P", 41.000009, 29.0);
+        child
+            .row
+            .insert("parent_station".to_string(), "ST".to_string());
+        assert!(stp046(vec![station("ST", 41.0, 29.0), child]).is_empty());
+        // ~3 m away: not under 2 m.
+        assert!(stp046(vec![station("ST", 41.0, 29.0), stop("P", 41.000027, 29.0)]).is_empty());
+        // Null Island placeholder coordinates.
+        assert!(stp046(vec![station("ST", 0.0, 0.0), stop("P", 0.000009, 0.0)]).is_empty());
+        // Entrance, node and boarding area are not boardable stops.
+        for lt in [2, 3, 4] {
+            let other = StopRecord {
+                location_type: Some(lt),
+                ..stop("P", 41.000009, 29.0)
+            };
+            assert!(
+                stp046(vec![station("ST", 41.0, 29.0), other]).is_empty(),
+                "lt={lt}"
+            );
+        }
+    }
+
+    #[test]
+    fn stp_046_reports_one_finding_for_the_nearest_station_and_breaks_ties_by_id() {
+        // Two stations at the same point: one finding, the smaller station_id.
+        let tied = stp046(vec![
+            station("ST_B", 41.0, 29.0),
+            station("ST_A", 41.0, 29.0),
+            stop("P", 41.000009, 29.0),
+        ]);
+        assert_eq!(tied.len(), 1);
+        assert_eq!(
+            tied[0]
+                .details
+                .as_ref()
+                .unwrap()
+                .get("station_id")
+                .map(String::as_str),
+            Some("ST_A")
+        );
+        // A nearer station wins over a farther one, whatever the order.
+        let nearest = stp046(vec![
+            station("FAR", 41.000018, 29.0),
+            station("NEAR", 41.000014, 29.0),
+            stop("P", 41.000009, 29.0),
+        ]);
+        assert_eq!(nearest.len(), 1);
+        assert_eq!(
+            nearest[0]
+                .details
+                .as_ref()
+                .unwrap()
+                .get("station_id")
+                .map(String::as_str),
+            Some("NEAR")
+        );
+        // A station with a physical child reports it.
+        let mut platform = stop("Q", 41.1, 29.1);
+        platform
+            .row
+            .insert("parent_station".to_string(), "ST".to_string());
+        let with_child = stp046(vec![
+            station("ST", 41.0, 29.0),
+            platform,
+            stop("P", 41.000009, 29.0),
+        ]);
+        assert_eq!(
+            with_child[0]
+                .details
+                .as_ref()
+                .unwrap()
+                .get("station_has_platforms")
+                .map(String::as_str),
+            Some("true")
         );
     }
 

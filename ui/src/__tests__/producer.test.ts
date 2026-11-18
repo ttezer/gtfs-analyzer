@@ -4045,3 +4045,13 @@ describe('Kalan küçük grup kartları (AGN, TRN, GGL, FAR, PDW, BKR, SAR, NET,
       .toContain('Birleştirme kuralı: ağ „N1“ → „N1“, durak S9 → Merkez.');
   });
 });
+
+describe('İstasyon yanındaki bağlantısız durak kartı (STP_046)', () => {
+  it('durağı, istasyonu ve mesafeyi adıyla söyler', () => {
+    const ni = { ...emptyNameIndex, stops: { P: 'Gar Peron', ST: 'Gar' } };
+    const n = notice('a', 'STP_046', 'LOW', { entity_type: 'Stop', entity_id: 'P', details: { station_id: 'ST', distance_m: '1.0', station_has_platforms: 'false', stop_used: 'true' } });
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [['STP_046', 1, 1]], true, ni));
+    expect(root.innerHTML).toContain('Gar Peron, Gar istasyonundan 1 m uzakta. Bu istasyona bağlı başka peron da yok.');
+  });
+});

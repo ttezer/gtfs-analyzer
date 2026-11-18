@@ -458,6 +458,10 @@ pub static RULES: &[RuleMeta] = &[
         "platform_code contains a redundant platform/track word"),
     r_noscore!("STP_045", Bilgi, Quality, 1, &[], None, VS, Feed,
         "platform_code without parent_station"),
+    // STP_046: an empty-parent stop under 2 m from a station (upstream PR #2218). A heuristic,
+    // local quality signal → no score weight in its first release.
+    r_noscore!("STP_046", Dusuk, Quality, 1, &[], Some("stop_id"), VS, Entity,
+        "Stop without parent_station right next to a station"),
     r!("STP_041", Dusuk, Quality, 1, &[], Some("stop_id"), VS, Entity,
         "Child stop name does not include the parent station name"),
     // STP_042: spec type `URL`—"fully qualified URL that includes http:// or https://".
@@ -2478,6 +2482,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("STP_043", GtfsSpec),
     ("STP_044", ProjectQuality),
     ("STP_045", ProjectQuality),
+    ("STP_046", ProjectQuality),
     ("TFR_001", GtfsSpec),
     ("TFR_002", GtfsSpec),
     ("TFR_003", GtfsSpec),
@@ -2817,7 +2822,7 @@ mod tests {
             "STM_017", "STM_021", "STM_026", "STM_035", "OPR_007", "OPR_008", "STM_045",
             "STP_022", "ARC_022", "ARC_010", "CLD_006", "ATR_001", "DQ_006", "RTS_017", "TRP_011",
             "TRP_013", "DQ_013", "PTH_008", "PTH_009", "PTH_025", "PTH_029", "STP_039",
-            "XFL_027",
+            "XFL_027", "STP_046",
         ] {
             assert_eq!(get_rule(rule_id).unwrap().score_weight, 0.0, "{rule_id}");
         }
