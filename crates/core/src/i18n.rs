@@ -1068,6 +1068,19 @@ mod tests {
     }
 
     #[test]
+    fn stm_017_partial_summary_translates_to_turkish() {
+        let translator = Translator::new(Lang::Tr).unwrap().unwrap();
+        let mut n = notice();
+        n.rule_id = "STM_017".to_string();
+        n.message = "shape_dist_traveled is missing on 120 trips of 4 shapes while other trips carry it — stop positions cannot be checked on these trips.".to_string();
+        translator.translate(&mut n);
+        assert_eq!(
+            n.message,
+            "shape_dist_traveled başka seferlerde varken 4 güzergaha ait 120 seferde eksik — bu seferlerde durak konumları doğrulanamıyor."
+        );
+    }
+
+    #[test]
     fn dq_018_field_summary_translates_in_every_language() {
         let summary = || {
             let mut n = notice();

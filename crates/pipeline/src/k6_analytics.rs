@@ -8942,7 +8942,12 @@ fn check_remaining_analytics<'a>(
             .map(|(&trip_id, &line)| (trip_id, line))
             .collect();
 
-        if !any_sdt_present && flagged.len() > 1 {
+        // Partially populated: trip granularity up to STM017_PARTIAL_SUMMARY_AT trips; above it, the
+        // same summary as the feed-wide case, marked `partial` (2026-11-18). Corpus run 43302993350:
+        // one feed wrote 172,163 trip notices on this path, 39 feeds over 10,000.
+        const STM017_PARTIAL_SUMMARY_AT: usize = 50;
+        let partial_summary = any_sdt_present && flagged.len() > STM017_PARTIAL_SUMMARY_AT;
+        if (!any_sdt_present && flagged.len() > 1) || partial_summary {
             // Completely absent feed-wide → one summary notice (noise ~54k → 1).
             let n = flagged.len();
             let n_shapes = flagged
@@ -8961,11 +8966,18 @@ fn check_remaining_analytics<'a>(
                 Some("shape_dist_traveled"),
                 Some(n.to_string()),
                 None,
-                format!("shape_dist_traveled is not used anywhere in the feed: {n} trips of {n_shapes} shapes are affected — stop positions cannot be checked on the shape."),
+                if partial_summary {
+                    format!("shape_dist_traveled is missing on {n} trips of {n_shapes} shapes while other trips carry it — stop positions cannot be checked on these trips.")
+                } else {
+                    format!("shape_dist_traveled is not used anywhere in the feed: {n} trips of {n_shapes} shapes are affected — stop positions cannot be checked on the shape.")
+                },
                 "Add shape_dist_traveled to every stop_times row, or provide distance data per shape.",
             );
             let mut details = gtfs_core::NoticeDetails::new();
-            details.insert("summary_mode".to_string(), "feed".to_string());
+            details.insert(
+                "summary_mode".to_string(),
+                if partial_summary { "partial" } else { "feed" }.to_string(),
+            );
             details.insert("affected_trip_count".to_string(), n.to_string());
             details.insert("affected_shape_count".to_string(), n_shapes.to_string());
             let mut examples = flagged.clone();
@@ -19087,6 +19099,72 @@ mod tests {
                 (gtfs_core::EntityType::Trip, Some("T3".to_string()), Some(6)),
             ],
             "kısmen dolu sdt'de trip-başına STM_017 beklenir"
+        );
+    }
+
+    fn stm017_partial(missing: usize) -> Vec<Notice> {
+        use crate::k2::shapes::ShapePointRecord;
+        let mut shape_ti = ShapeInternTable::new();
+        // T0 carries sdt; T1..=missing do not → partially populated.
+        let ids: Vec<String> = (0..=missing).map(|i| format!("T{i}")).collect();
+        let trips = ids.iter().map(|t| trip_sh(t, "R1", "S1")).collect();
+        let mut st = vec![
+            stoptime_with_dist("T0", 1, "A", (8, 0, 0), (8, 0, 0), 0.0, 2),
+            stoptime_with_dist("T0", 2, "B", (8, 10, 0), (8, 10, 0), 14.0, 3),
+        ];
+        for (i, t) in ids.iter().enumerate().skip(1) {
+            let line = 2 + 2 * i as u64;
+            st.push(stoptime(t, 1, "A", (9, 0, 0), (9, 0, 0), line));
+            st.push(stoptime(t, 2, "B", (9, 10, 0), (9, 10, 0), line + 1));
+        }
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3)],
+            trips,
+            st,
+        );
+        records.stop_times.clear();
+        records.shapes = vec![
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.0),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.1),
+                Some(29.1),
+                Some(2),
+                None,
+                3,
+            ),
+        ];
+        records.shape_interns = shape_ti.clone();
+        analyze(&records, &empty_derived(), &default_config(), 20260514)
+            .notices
+            .into_iter()
+            .filter(|n| n.rule_id == "STM_017")
+            .collect()
+    }
+
+    #[test]
+    fn stm_017_partial_sdt_summarises_above_50_trips() {
+        assert_eq!(stm017_partial(50).len(), 50, "50 trips stay trip-level");
+        let over = stm017_partial(51);
+        assert_eq!(over.len(), 1, "51 trips become one summary");
+        let n = &over[0];
+        let d = n.details.as_ref().unwrap();
+        assert_eq!(n.entity_type, gtfs_core::EntityType::Feed);
+        assert_eq!(n.observed_value.as_deref(), Some("51"));
+        assert_eq!(d.get("summary_mode").map(String::as_str), Some("partial"));
+        assert_eq!(d.get("affected_trip_count").map(String::as_str), Some("51"));
+        assert!(
+            n.message.contains("while other trips carry it"),
+            "{}",
+            n.message
         );
     }
 

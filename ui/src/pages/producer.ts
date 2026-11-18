@@ -2984,12 +2984,12 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
     case 'STM_017': {
       const d = n.details ?? {};
       const context = n.entity_type === 'Trip' ? tripContextText(tripContext(n, result)) : undefined;
-      const summary = d.summary_mode === 'feed';
+      const summary = d.summary_mode === 'feed' || d.summary_mode === 'partial';
       return {
         title: t('producer.card.STM_017.title'),
         context,
         what: summary
-          ? t('producer.card.STM_017.what_feed', {
+          ? t(d.summary_mode === 'partial' ? 'producer.card.STM_017.what_partial' : 'producer.card.STM_017.what_feed', {
             trips: d.affected_trip_count || g.count,
             shapes: d.affected_shape_count || '—',
           })

@@ -4074,3 +4074,12 @@ describe('Tamamen büyük harf özeti (DQ_018)', () => {
     expect(root.innerHTML).toContain('1.200 değer tamamen BÜYÜK HARFLE yazılmış (14 farklı değer)');
   });
 });
+
+describe('Kısmi güzergâh mesafesi özeti (STM_017)', () => {
+  it('başka seferlerde varken eksik olan seferleri sayar', () => {
+    const n = notice('a', 'STM_017', 'MEDIUM', { entity_type: 'Feed', observed_value: '172163', details: { summary_mode: 'partial', affected_trip_count: '172163', affected_shape_count: '940' } });
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [['STM_017', 1, 1]], true, emptyNameIndex));
+    expect(root.innerHTML).toContain('Başka seferlerde girilmişken 940 güzergâha ait 172163 seferde');
+  });
+});

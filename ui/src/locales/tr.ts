@@ -236,6 +236,7 @@ const tr = {
     'producer.card.ATR_012.what': "Bir atıf kaydı, listede olmayan bir sefere bağlanmış.",
     'producer.card.ATR_012.action': "Atfı mevcut bir sefere bağlayın.",
     'producer.card.BKR.rule': "Kural „{rule}“: {setting}.",
+    'producer.card.STM_017.what_partial': "Başka seferlerde girilmişken {shapes} güzergâha ait {trips} seferde durakların güzergâh başından itibaren kümülatif mesafesi eksik.",
     'producer.card.DQ_018.summary': "{field} alanında {count} değer tamamen BÜYÜK HARFLE yazılmış ({distinct} farklı değer). Örnekler: {examples}.",
     'producer.card.STP_047.title': "Aynı yer için iki istasyon kaydı",
     'producer.card.STP_047.what': "İki istasyon birkaç metre arayla duruyor ve birinin durağı tam ötekinin üzerinde; büyük ihtimalle aynı yer iki kez kaydedilmiş.",
@@ -6776,6 +6777,7 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
   'STM_017': {
     'Route \'{a0}\' trip{dep_infix} has no shape distance (shape_dist_traveled) — stop positions cannot be checked.': '\'{a0}\' hattının{dep_infix} seferinde güzergah mesafe bilgisi (shape_dist_traveled) eksik — durak konumları doğrulanamıyor.',
     'shape_dist_traveled is not used anywhere in the feed: {n} trips of {n_shapes} shapes are affected — stop positions cannot be checked on the shape.': 'Feed genelinde shape_dist_traveled hiç kullanılmamış: {n_shapes} güzergaha ait {n} sefer etkileniyor — durak konumları güzergah üzerinde doğrulanamıyor.',
+    'shape_dist_traveled is missing on {n} trips of {n_shapes} shapes while other trips carry it — stop positions cannot be checked on these trips.': 'shape_dist_traveled başka seferlerde varken {n_shapes} güzergaha ait {n} seferde eksik — bu seferlerde durak konumları doğrulanamıyor.',
   },
   'STM_018': {
     '{n} stop_times rows: continuous_pickup is outside 0-3 — the same enum violation repeats at high volume.': '{n} stop_times satırında continuous_pickup alanı 0-3 dışında — aynı enum ihlali yüksek hacimde tekrarlanıyor.',

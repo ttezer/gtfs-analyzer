@@ -238,6 +238,7 @@ const en: LocaleShape = {
     'producer.card.ATR_012.what': "An attribution record is linked to a trip that is not in the list.",
     'producer.card.ATR_012.action': "Link the attribution to an existing trip.",
     'producer.card.BKR.rule': "Rule “{rule}”: {setting}.",
+    'producer.card.STM_017.what_partial': "The cumulative distance from the start of the route is missing at the stops of {trips} trips on {shapes} routes, while other trips have it.",
     'producer.card.DQ_018.summary': "{count} values of the {field} are written in CAPITAL LETTERS ({distinct} different values). Examples: {examples}.",
     'producer.card.STP_047.title': "Two station records for the same place",
     'producer.card.STP_047.what': "Two stations lie a few metres apart and a stop of one sits right on the other; most likely one place was recorded twice.",

@@ -2425,7 +2425,8 @@
     },
     "STM_017": {
       "Route '{a0}' trip{dep_infix} has no shape distance (shape_dist_traveled) — stop positions cannot be checked.": "'{a0}' hattının{dep_infix} seferinde güzergah mesafe bilgisi (shape_dist_traveled) eksik — durak konumları doğrulanamıyor.",
-      "shape_dist_traveled is not used anywhere in the feed: {n} trips of {n_shapes} shapes are affected — stop positions cannot be checked on the shape.": "Feed genelinde shape_dist_traveled hiç kullanılmamış: {n_shapes} güzergaha ait {n} sefer etkileniyor — durak konumları güzergah üzerinde doğrulanamıyor."
+      "shape_dist_traveled is not used anywhere in the feed: {n} trips of {n_shapes} shapes are affected — stop positions cannot be checked on the shape.": "Feed genelinde shape_dist_traveled hiç kullanılmamış: {n_shapes} güzergaha ait {n} sefer etkileniyor — durak konumları güzergah üzerinde doğrulanamıyor.",
+      "shape_dist_traveled is missing on {n} trips of {n_shapes} shapes while other trips carry it — stop positions cannot be checked on these trips.": "shape_dist_traveled başka seferlerde varken {n_shapes} güzergaha ait {n} seferde eksik — bu seferlerde durak konumları doğrulanamıyor."
     },
     "STM_018": {
       "{n} stop_times rows: continuous_pickup is outside 0-3 — the same enum violation repeats at high volume.": "{n} stop_times satırında continuous_pickup alanı 0-3 dışında — aynı enum ihlali yüksek hacimde tekrarlanıyor."
