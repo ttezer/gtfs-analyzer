@@ -11212,6 +11212,8 @@ fn check_remaining_analytics<'a>(
             );
             let mut d = std::collections::BTreeMap::new();
             d.insert("message_variant".to_string(), "summary".to_string());
+            // The summary stands for every finding it replaces in the score (k7 score_instances).
+            d.insert("instance_count".to_string(), total.to_string());
             d.insert("affected_records".to_string(), total.to_string());
             d.insert("distinct_values".to_string(), distinct_count.to_string());
             d.insert(

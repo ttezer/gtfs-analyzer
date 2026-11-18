@@ -1201,7 +1201,7 @@ fn build_pub_penalty_map(notices: &[Notice]) -> (f64, HashMap<String, f64>) {
         let e = rule_data
             .entry(n.rule_id.as_str())
             .or_insert((n.severity.weight(), 0));
-        e.1 += 1;
+        e.1 += score_instances(n);
     }
     let mut per_rule: HashMap<String, f64> = HashMap::new();
     let mut total = 0.0_f64;
@@ -1332,7 +1332,7 @@ fn build_closure_pub_penalty(closure_indices: &FxHashSet<usize>, notices: &[Noti
         let e = rule_data
             .entry(n.rule_id.as_str())
             .or_insert((n.severity.weight(), 0));
-        e.1 += 1;
+        e.1 += score_instances(n);
     }
     let mut total = 0.0_f64;
     for &(w, cnt) in rule_data.values() {
@@ -1342,6 +1342,18 @@ fn build_closure_pub_penalty(closure_indices: &FxHashSet<usize>, notices: &[Noti
 }
 
 // ── WP-10c: R9 Priority Score + Bucket Ordering ──────────────────────────────
+
+/// How many instances a notice stands for in the score. A summary that replaces many findings
+/// carries their real count in `details.instance_count`, so summarising a rule changes the
+/// presentation but not the score (2026-11-18); every other notice counts once.
+fn score_instances(n: &Notice) -> u32 {
+    n.details
+        .as_ref()
+        .and_then(|d| d.get("instance_count"))
+        .and_then(|v| v.parse::<u32>().ok())
+        .filter(|&c| c > 0)
+        .unwrap_or(1)
+}
 
 fn instance_multiplier(count: u32) -> f64 {
     if count <= 5 {
@@ -1468,7 +1480,7 @@ fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
             let base_effort = get_rule(rule_id)
                 .map(|m| m.base_effort)
                 .unwrap_or(first.base_effort);
-            let affected = indices.len() as u32;
+            let affected: u32 = indices.iter().map(|&i| score_instances(&notices[i])).sum();
             let multiplier = instance_multiplier(affected);
             let fix_effort = base_effort as f64 * multiplier;
             let realized_dep =
@@ -1487,7 +1499,8 @@ fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
             let score_delta = {
                 let mut removed: HashMap<&str, u32> = HashMap::new();
                 for &ci in &closure {
-                    *removed.entry(notices[ci].rule_id.as_str()).or_default() += 1;
+                    *removed.entry(notices[ci].rule_id.as_str()).or_default() +=
+                        score_instances(&notices[ci]);
                 }
                 round1(r5_overall(&r5_rules, &removed) - cur_overall)
             };
@@ -1714,7 +1727,7 @@ fn r5_rule_penalties(notices: &[Notice]) -> HashMap<&str, R5RulePenalty> {
                         .unwrap_or(1.0),
                 count: 0,
             })
-            .count += 1;
+            .count += score_instances(n);
     }
     rules
 }
@@ -1765,7 +1778,7 @@ fn class_score(notices: &[Notice], class: RuleClass) -> f64 {
                 0,
             )
         });
-        e.1 += 1;
+        e.1 += score_instances(n);
     }
     let penalty: f64 = per_rule
         .values()
@@ -2453,6 +2466,34 @@ mod tests {
         // expected = 4 × 1 × log2(2) / 1 = 4.0
         let score = compute_priority_score(Severity::Kritik, 0, 1, 1.0);
         assert!((score - 4.0).abs() < 0.01, "beklenen ~4.0, gelen {score}");
+    }
+
+    #[test]
+    fn a_summary_counts_as_the_findings_it_replaces() {
+        let one = |id: &str, details: Option<(&str, &str)>| {
+            let mut n = notice(id, "DQ_018", Severity::Orta, RuleClass::Quality);
+            n.details = details.map(|(k, v)| {
+                std::collections::BTreeMap::from([(k.to_string(), v.to_string())]).into()
+            });
+            n
+        };
+        let separate: Vec<Notice> = (0..51).map(|i| one(&format!("n{i}"), None)).collect();
+        let summary = vec![one("s", Some(("instance_count", "51")))];
+        assert_eq!(
+            class_score(&separate, RuleClass::Quality),
+            class_score(&summary, RuleClass::Quality)
+        );
+        let rules_sep = r5_rule_penalties(&separate);
+        let rules_sum = r5_rule_penalties(&summary);
+        assert_eq!(
+            r5_overall(&rules_sep, &HashMap::new()),
+            r5_overall(&rules_sum, &HashMap::new())
+        );
+        // Without the count a summary counts once, as before.
+        let bare = vec![one("b", None)];
+        assert!(
+            class_score(&bare, RuleClass::Quality) > class_score(&separate, RuleClass::Quality)
+        );
     }
 
     #[test]
