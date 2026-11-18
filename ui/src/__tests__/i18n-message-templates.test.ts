@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matchTemplate, tMsgForLocale, tRemediationForLocale } from '../i18n';
+import { containsToken, matchTemplate, tMsgForLocale, tRemediationForLocale } from '../i18n';
 import { trMessageTemplates, trRemediationTemplates } from '../locales/tr';
 import { enEngineMessageRules } from '../locales/en';
 import sharedCases from '../../../tests/fixtures/i18n/template_match_cases.json';
@@ -68,6 +68,22 @@ describe('message template matcher', () => {
     const message = "Engine text with every value: 'S1' at 08:15.";
     expect(tMsgForLocale('en', { rule_id: rule, message })).toBe(message);
     expect(tMsgForLocale('ja', { rule_id: rule, message })).not.toBe(message);
+  });
+
+  it('matches an id only as a whole word, like Rust contains_token', () => {
+    expect(containsToken("Route 'R1' has one trip.", 'R1')).toBe(true);
+    expect(containsToken('stop 1 of 3', '1')).toBe(true);
+    expect(containsToken("Route 'R10' has one trip.", 'R1')).toBe(false);
+    expect(containsToken('11 rows', '1')).toBe(false);
+    expect(containsToken("Stop 'Süd'", 'Sü')).toBe(false);
+  });
+
+  it('adds the entity id to an English engine message that does not show it', () => {
+    const rule = enEngineMessageRules[0];
+    expect(tMsgForLocale('en', { rule_id: rule, message: "Route '10' has one trip.", entity_id: 'R1' }))
+      .toBe("Route '10' has one trip. (id: R1)");
+    expect(tMsgForLocale('en', { rule_id: rule, message: "Route 'R1' has one trip.", entity_id: 'R1' }))
+      .toBe("Route 'R1' has one trip.");
   });
 
   it('keeps an unmatched engine message as it is', () => {

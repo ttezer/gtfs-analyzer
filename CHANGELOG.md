@@ -9,10 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **More detailed English messages for 350 rules (#201 F5, step 1).** These rules now show the
-  engine's own English message instead of the shorter `en.ts` template; the engine text names
-  every value the template had and more (stop names and codes, departures, thresholds, row
-  counts). For example `AGN_011` reads "The feed has 6 agencies; 1 routes have no agency_id — it
+- **More detailed English messages for 558 rules (#201 F5).** These rules now show the engine's
+  own English message instead of the shorter `en.ts` template; the engine text names more of the
+  finding (stop names and codes, departures, thresholds, row counts). When it names an entity by
+  its name or code rather than its id, the id is added at the end — "Route '101' … (id: R1)".
+  For 39 of them the message no longer repeats a value that `observed_value` / `expected_value`
+  already carry. For example `AGN_011` reads "The feed has 6 agencies; 1 routes have no agency_id — it
   cannot be told which agency runs them." instead of "Multiple agencies present with no
   agency_id." Only English changes; Turkish, Japanese and French are unchanged. Consumers that
   match English message strings must update them. The list is `enEngineMessageRules` in `en.ts`.

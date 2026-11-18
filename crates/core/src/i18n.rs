@@ -200,7 +200,13 @@ impl Translator {
         {
             notice.message = message;
         } else if self.primary.engine_messages.contains(notice.rule_id.as_str()) {
-            // Keep the engine's own (English) message.
+            // Keep the engine's own (English) message. It often names an entity by its name or
+            // code ("Route '10'"); the id the old template showed is added when it is missing.
+            if let Some(id) = notice.entity_id.as_deref().filter(|id| !id.is_empty()) {
+                if !contains_token(&notice.message, id) {
+                    notice.message = format!("{} (id: {id})", notice.message);
+                }
+            }
         } else if let Some(template) = specific
             .as_deref()
             .and_then(|key| self.lookup(|d| &d.messages, key))
@@ -367,6 +373,14 @@ fn has_placeholder(text: &str) -> bool {
 
 /// `message_templates` key for templates every rule may use (shared value-parser messages).
 const SHARED_TEMPLATES: &str = "*";
+
+/// Does `text` contain `token` as a whole word (not inside a longer id or number)?
+pub fn contains_token(text: &str, token: &str) -> bool {
+    let word = |c: Option<char>| c.is_some_and(|c| c.is_alphanumeric() || c == '_');
+    text.match_indices(token).any(|(at, _)| {
+        !word(text[..at].chars().next_back()) && !word(text[at + token.len()..].chars().next())
+    })
+}
 
 /// `message_templates` key for the engine's fatal error texts.
 const FATAL_TEMPLATES: &str = "FATAL";
@@ -758,6 +772,15 @@ mod tests {
         );
     }
 
+    #[test]
+    fn token_match_is_whole_word() {
+        assert!(contains_token("Route 'R1' has one trip.", "R1"));
+        assert!(contains_token("stop 1 of 3", "1"));
+        assert!(!contains_token("Route 'R10' has one trip.", "R1"));
+        assert!(!contains_token("11 rows", "1"));
+        assert!(!contains_token("Stop 'Süd'", "Sü"));
+    }
+
     /// English shows the engine's own message for the listed rules; Japanese keeps its template
     /// and its English fallback stays the template (issue #201 F5).
     #[test]
@@ -766,9 +789,17 @@ mod tests {
         let rule = en.primary.engine_messages.iter().min().expect("listed rules").clone();
         let mut n = notice();
         n.rule_id = rule.clone();
+        n.entity_id = Some("S1".to_string());
         n.message = "Engine text with every value: 'S1' at 08:15.".to_string();
         en.translate(&mut n);
         assert_eq!(n.message, "Engine text with every value: 'S1' at 08:15.", "{rule}");
+        // The id the old template showed is added when the engine text does not name it.
+        let mut named = notice();
+        named.rule_id = rule.clone();
+        named.entity_id = Some("S1".to_string());
+        named.message = "Stop 'Main Street' has no code.".to_string();
+        en.translate(&mut named);
+        assert_eq!(named.message, "Stop 'Main Street' has no code. (id: S1)", "{rule}");
 
         let ja = Translator::new(Lang::Ja).unwrap().unwrap();
         let mut j = notice();
@@ -963,6 +994,19 @@ mod tests {
     fn english_rewrites_title_message_and_remediation() {
         let translator = Translator::new(Lang::En).unwrap().unwrap();
         let mut n = notice();
+        // A rule that still uses its en.ts template (not one that shows the engine message).
+        n.rule_id = translator
+            .primary
+            .messages
+            .iter()
+            .filter(|(rule, tpl)| {
+                !rule.contains('.')
+                    && tpl.contains("{entity_id}")
+                    && !translator.primary.engine_messages.contains(rule.as_str())
+            })
+            .map(|(rule, _)| rule.clone())
+            .min()
+            .expect("a template rule with {entity_id}");
         translator.translate(&mut n);
 
         assert!(

@@ -199,6 +199,15 @@ function translateByTemplate(templates: Record<string, string> | undefined, mess
 
 const enEngineMessageSet = new Set(enEngineMessageRules);
 
+/** Same as Rust `contains_token`: `token` occurs as a whole word. */
+export function containsToken(text: string, token: string): boolean {
+  const word = (c: string | undefined) => c !== undefined && /[\p{L}\p{N}_]/u.test(c);
+  for (let at = text.indexOf(token); at !== -1; at = text.indexOf(token, at + 1)) {
+    if (!word([...text.slice(0, at)].pop()) && !word([...text.slice(at + token.length)][0])) return true;
+  }
+  return false;
+}
+
 /** Translate a notice without mutating the application's active locale. */
 export function tMsgForLocale(locale: Locale, n: NoticeLike): string {
   // Fixed messages moved to the Turkish dictionary are matched by the engine's own text (issue #201).
@@ -208,7 +217,11 @@ export function tMsgForLocale(locale: Locale, n: NoticeLike): string {
       ?? translateByTemplate(trMessageTemplates['*'], n.message)
       ?? n.message;
   }
-  if (locale === 'en' && enEngineMessageSet.has(n.rule_id)) return n.message;
+  if (locale === 'en' && enEngineMessageSet.has(n.rule_id)) {
+    // Same as Rust: the engine text often names an entity by name; add the id when it is missing.
+    const id = n.entity_id;
+    return id && !containsToken(n.message, id) ? `${n.message} (id: ${id})` : n.message;
+  }
   // JA: fall back to the EN template when there is no Japanese message
   const profile = n.details?.jp_profile?.toLowerCase();
   const variant = profile ? `${n.rule_id}.${profile}` : n.rule_id;
