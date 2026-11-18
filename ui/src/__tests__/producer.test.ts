@@ -4102,3 +4102,13 @@ describe('Tamamen küçük harf özeti (DQ_019)', () => {
     expect(root.innerHTML).toContain('60 değer tamamen küçük harfle yazılmış (2 farklı değer)');
   });
 });
+
+describe('Durak çifti başına mesafe bulgusu (STM_026)', () => {
+  it('aynı durak çiftindeki sefer sayısını söyler', () => {
+    const ni = { ...emptyNameIndex, stops: { A: 'Otogar', B: 'Merkez' } };
+    const n = notice('a', 'STM_026', 'INFO', { entity_type: 'Trip', entity_id: 'T1', details: { stop_a: 'A', stop_b: 'B', distance_meters: '200000', threshold_km: '100', trip_count: '40' } });
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [['STM_026', 1, 1]], true, ni));
+    expect(root.innerHTML).toContain('Aynı iki durak arasında bu sorun 40 seferde var');
+  });
+});

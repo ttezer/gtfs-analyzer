@@ -8978,7 +8978,11 @@
         },
         {
           "details": {
+            "direction_id": "-",
             "distance_meters": "10839965",
+            "instance_count": "1",
+            "route_id": "R1",
+            "segment_count": "1",
             "stop_a": "S1",
             "stop_a_arrival": "08:00:00",
             "stop_a_departure": "08:00:00",
@@ -8987,7 +8991,10 @@
             "stop_b_arrival": "08:10:00",
             "stop_b_departure": "08:10:00",
             "stop_b_sequence": "2",
-            "threshold_km": "50"
+            "threshold_km": "50",
+            "trip_count": "1",
+            "trips": "T1",
+            "trips_parts": "1"
           },
           "entity_id": "T1",
           "entity_type": "Trip",

@@ -3286,21 +3286,26 @@ fn check_speed_and_duration<'a>(
         }
     }
 
-    // ── STM_012: one finding per (route, direction, stop pair) ──────────────
+    // ── STM_012 / STM_026: one finding per (route, direction, stop pair) ────
     // The same impossible segment repeats on every trip of a route that passes the two stops (one
     // wrong coordinate or time pattern): corpus run 43302993350 had 422,303 STM_012 notices in one
     // feed. The trip findings are grouped by stop pair as STM_025 is (2026-11-18): the first trip's
     // finding is kept with all its context and identity, and it carries the group's trip count,
     // segment count, every trip and `instance_count` (the score counts the segments, so it does not
     // change). Its message is the first trip's, so every language still translates it.
+    // STM_026 (excessive distance between stops, 107,000 notices in one feed) has the same shape
+    // and is grouped the same way, per rule.
     {
         let _t = Timer::start("K6::sd::stm012_group");
-        let mut group_of: FxHashMap<(String, String, String, String), usize> = FxHashMap::default();
+        type GroupKey = (&'static str, String, String, String, String);
+        let mut group_of: FxHashMap<GroupKey, usize> = FxHashMap::default();
         let mut groups: Vec<Vec<usize>> = Vec::new(); // members, in emission order
         for (i, n) in notices.iter().enumerate() {
-            if n.rule_id != "STM_012" {
-                continue;
-            }
+            let rule: &'static str = match n.rule_id.as_str() {
+                "STM_012" => "STM_012",
+                "STM_026" => "STM_026",
+                _ => continue,
+            };
             let trip = n.entity_id.as_deref().unwrap_or("");
             let detail = |k: &str| {
                 n.details
@@ -3311,7 +3316,7 @@ fn check_speed_and_duration<'a>(
             };
             let route = trip_to_route.get(trip).copied().unwrap_or(trip).to_string();
             let dir = trip_direction.get(trip).copied().unwrap_or("-").to_string();
-            let key = (route, dir, detail("stop_a"), detail("stop_b"));
+            let key = (rule, route, dir, detail("stop_a"), detail("stop_b"));
             match group_of.get(&key) {
                 Some(&g) => groups[g].push(i),
                 None => {
@@ -3322,10 +3327,9 @@ fn check_speed_and_duration<'a>(
         }
         if !groups.is_empty() {
             let mut drop = vec![false; notices.len()];
-            let mut keyed: Vec<((String, String, String, String), usize)> =
-                group_of.into_iter().collect();
+            let mut keyed: Vec<(GroupKey, usize)> = group_of.into_iter().collect();
             keyed.sort_unstable_by_key(|(_, g)| *g);
-            for ((route, dir, _, _), g) in keyed {
+            for ((_, route, dir, _, _), g) in keyed {
                 let members = &groups[g];
                 // Trips are visited in hash order, so "first emitted" is not deterministic: the
                 // representative is the finding earliest in stop_times.txt (smallest line).
@@ -15625,6 +15629,34 @@ mod tests {
     // If both times are exact minutes, the real travel time is unknown (0–59 sec). To call it
     // "impossible", the distance must exceed the maximum speed even if a full minute elapsed → max_speed/60.
     // Corpus evidence (mdb-2155): a fixed 1.0 km threshold made 41 of 42 findings false positives.
+
+    #[test]
+    fn stm_026_groups_trips_of_one_route_direction_and_stop_pair() {
+        // A → B is ~200 km in three hours on two trips: an excessive gap, not an impossible speed.
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 42.8, 29.0)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1"), trip("T2", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (11, 0, 0), (11, 0, 0), 3),
+                stoptime("T2", 1, "A", (12, 0, 0), (12, 0, 0), 4),
+                stoptime("T2", 2, "B", (15, 0, 0), (15, 0, 0), 5),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let hits: Vec<&Notice> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "STM_026")
+            .collect();
+        assert_eq!(hits.len(), 1, "{hits:?}");
+        let d = hits[0].details.as_ref().unwrap();
+        assert_eq!(hits[0].entity_id.as_deref(), Some("T1"));
+        assert_eq!(d.get("trip_count").map(String::as_str), Some("2"));
+        assert_eq!(d.get("instance_count").map(String::as_str), Some("2"));
+        assert!(!result.notices.iter().any(|n| n.rule_id == "STM_012"));
+    }
 
     #[test]
     fn stm_012_groups_trips_of_one_route_direction_and_stop_pair() {

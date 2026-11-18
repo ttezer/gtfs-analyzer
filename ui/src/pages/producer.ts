@@ -3261,11 +3261,15 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       return {
         title: t(`producer.card.${g.ruleId}.title`),
         context: tripContextText(tripContext(n, result)),
-        what: t('producer.card.STM_026.what_detail', {
-          ...common,
-          distance: localizedNumber(String(Number(d.distance_meters) / 1000)),
-          threshold: d.threshold_km ?? '—',
-        }),
+        what: [
+          t('producer.card.STM_026.what_detail', {
+            ...common,
+            distance: localizedNumber(String(Number(d.distance_meters) / 1000)),
+            threshold: d.threshold_km ?? '—',
+          }),
+          // Grouped per route, direction and stop pair (2026-11-18), like STM_012.
+          Number(d.trip_count) > 1 ? t('producer.card.STM_012.group', { trips: localizedNumber(d.trip_count ?? '') }) : '',
+        ].filter(Boolean).join(' '),
         action: t(`producer.card.${g.ruleId}.action`),
       };
     }
