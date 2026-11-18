@@ -147,7 +147,10 @@ pub fn check_with_files_and_whitespace_roots(
         // idx.rows is populated in both tests and production; rows without flex are cheap to skip.
         let mut xfl024_seen: HashSet<&str> = HashSet::new();
         let mut xfl025_seen: HashSet<&str> = HashSet::new();
-        for st in &idx.rows {
+        // Planner context: (row index, notice index) of each XFL_024/025 finding, resolved to its trip
+        // after the loop in one pass over the trip ranges.
+        let mut xfl_rows: Vec<(u32, usize)> = Vec::new();
+        for (row_i, st) in idx.rows.iter().enumerate() {
             let Some(flex) = idx.flex_of(st) else {
                 continue;
             };
@@ -165,6 +168,7 @@ pub fn check_with_files_and_whitespace_roots(
                             format!("Location group '{}' is not defined in location_groups.txt.", lg),
                             "Use a valid location_group_id or define the group in location_groups.txt.",
                         ));
+                        xfl_rows.push((row_i as u32, notices.len() - 1));
                     }
                 }
             } else {
@@ -185,10 +189,25 @@ pub fn check_with_files_and_whitespace_roots(
                             format!("Location '{}' is not defined in locations.geojson.", loc),
                             "Use a valid location_id or add the location to locations.geojson.",
                         ));
+                        xfl_rows.push((row_i as u32, notices.len() - 1));
                     }
                 }
             } else {
                 skipped_checks.push("K4::stop_times::geojson_location_cross_reference".to_string());
+            }
+        }
+        if !xfl_rows.is_empty() {
+            xfl_rows.sort_unstable();
+            for (trip, &(start, end)) in &idx.trip_ranges {
+                let from = xfl_rows.partition_point(|&(row, _)| row < start);
+                for &(row, at) in xfl_rows[from..].iter().take_while(|&&(row, _)| row < end) {
+                    let d = notices[at].details.get_or_insert_with(Default::default);
+                    d.insert("trip_id".to_string(), trip.to_string());
+                    d.insert(
+                        "stop_sequence".to_string(),
+                        idx.rows[row as usize].sequence.to_string(),
+                    );
+                }
             }
         }
 
@@ -3850,6 +3869,14 @@ fn check_fares_v2(
                 format!("Location group '{}' is not defined in location_groups.txt.", rec.location_group_id),
                 "Use a valid location_group_id or define the group in location_groups.txt.",
             ));
+            // Planner context: the stop the row puts in the missing group.
+            if !rec.stop_id.is_empty() {
+                if let Some(last) = notices.last_mut() {
+                    last.details
+                        .get_or_insert_with(Default::default)
+                        .insert("stop_id".to_string(), rec.stop_id.clone());
+                }
+            }
         }
         if !rec.stop_id.is_empty() && !map.stops.contains_key(rec.stop_id.as_str()) {
             notices.push(notice(
@@ -3866,6 +3893,15 @@ fn check_fares_v2(
                 format!("Stop '{}' is not defined in stops.txt.", rec.stop_id),
                 "Use a valid stop_id.",
             ));
+            // Planner context: the group the missing stop is listed in.
+            if !rec.location_group_id.is_empty() {
+                if let Some(last) = notices.last_mut() {
+                    last.details.get_or_insert_with(Default::default).insert(
+                        "location_group_id".to_string(),
+                        rec.location_group_id.clone(),
+                    );
+                }
+            }
         }
     }
 
@@ -7086,6 +7122,7 @@ fn check_xfl(
                 .location_group_stops_has_location_group_id
                 .unwrap_or(true)
             {
+                let before = notices.len();
                 emit_empty(
                     r.location_group_id.trim().is_empty(),
                     "XFL_033",
@@ -7097,8 +7134,17 @@ fn check_xfl(
                     notices,
                     ctr,
                 );
+                // Planner context: the other side of the row.
+                if notices.len() > before && !r.stop_id.trim().is_empty() {
+                    if let Some(last) = notices.last_mut() {
+                        last.details
+                            .get_or_insert_with(Default::default)
+                            .insert("stop_id".to_string(), r.stop_id.clone());
+                    }
+                }
             }
             if records.location_group_stops_has_stop_id.unwrap_or(true) {
+                let before = notices.len();
                 emit_empty(
                     r.stop_id.trim().is_empty(),
                     "XFL_034",
@@ -7110,6 +7156,14 @@ fn check_xfl(
                     notices,
                     ctr,
                 );
+                // Planner context: the other side of the row.
+                if notices.len() > before && !r.location_group_id.trim().is_empty() {
+                    if let Some(last) = notices.last_mut() {
+                        last.details
+                            .get_or_insert_with(Default::default)
+                            .insert("location_group_id".to_string(), r.location_group_id.clone());
+                    }
+                }
             }
         }
         for r in &records.stop_areas {
@@ -7730,6 +7784,11 @@ fn check_xfl(
         clashes.sort();
         clashes.dedup();
         for (id, other) in clashes {
+            let source = if other.starts_with("stops") {
+                "stop"
+            } else {
+                "location"
+            };
             notices.push(notice(
                 ctr, "XFL_031", EntityType::Row,
                 Some(id.clone()), Some(id.clone()),
@@ -7738,6 +7797,12 @@ fn check_xfl(
                 format!("ID '{id}' conflicts with '{other}' — stop_id, locations.geojson id and location_group_id share one namespace."),
                 "Rename one of the clashing IDs; every ID must be unique across these three sources.",
             ));
+            // Planner context: which kind of record shares the code.
+            if let Some(last) = notices.last_mut() {
+                last.details
+                    .get_or_insert_with(Default::default)
+                    .insert("clashes_with".to_string(), source.to_string());
+            }
         }
     }
 
@@ -7751,6 +7816,14 @@ fn check_xfl(
             .iter()
             .any(|r| r.network_id.as_deref().is_some_and(|n| !n.is_empty()));
         if has_route_network_id {
+            // Planner context: how many routes carry a network code, with the first few.
+            let mut with_network: Vec<&str> = records
+                .routes
+                .iter()
+                .filter(|r| r.network_id.as_deref().is_some_and(|n| !n.is_empty()))
+                .map(|r| r.route_id.as_str())
+                .collect();
+            with_network.sort_unstable();
             let other = if records.has_route_networks_file {
                 "route_networks.txt"
             } else {
@@ -7775,6 +7848,19 @@ fn check_xfl(
                 format!("routes.txt defines network_id AND the {other} file also exists — the network is defined in two places."),
                 "Define the network assignment in only one place: either routes.txt network_id or networks.txt/route_networks.txt.",
             ));
+            if let Some(last) = notices.last_mut() {
+                let d = last.details.get_or_insert_with(Default::default);
+                d.insert("route_count".to_string(), with_network.len().to_string());
+                d.insert(
+                    "example_routes".to_string(),
+                    with_network
+                        .iter()
+                        .take(10)
+                        .copied()
+                        .collect::<Vec<_>>()
+                        .join(","),
+                );
+            }
         }
     }
 

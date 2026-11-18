@@ -3853,3 +3853,37 @@ describe('Rezervasyon kuralı kartları (BKR)', () => {
       .toContain('Kural „R2“: önceki günden, son rezervasyon 1 gün önce. Girilen değer: „25:00“.');
   });
 });
+
+describe('Çapraz dosya ve Flex kartları (XFL)', () => {
+  const ni = { ...emptyNameIndex, stops: { S1: 'Otogar' }, routes: { R1: '101' } };
+  const render = (n: Notice) => {
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [[n.rule_id, 1, 1]], true, ni));
+    return root.innerHTML;
+  };
+
+  it('XFL_015 bulunmayan işletmeciyi ve hattı adıyla sayar', () => {
+    expect(render(notice('a', 'XFL_015', 'CRITICAL', { observed_value: 'agency_id:A9, route_id:R1' })))
+      .toContain('Bulunmayan: işletmeci „A9“, hat 101.');
+  });
+
+  it('XFL_022 tanımsız grubu ve satırdaki durağı gösterir', () => {
+    expect(render(notice('a', 'XFL_022', 'CRITICAL', { entity_type: 'Row', entity_id: 'LG8', details: { stop_id: 'S1' } })))
+      .toContain('Grup „LG8“, durak: Otogar.');
+  });
+
+  it('XFL_024 bölgeyi kullanan seferi ve sırayı söyler', () => {
+    expect(render(notice('a', 'XFL_024', 'CRITICAL', { entity_type: 'Row', entity_id: 'LG9', details: { trip_id: 'T7', stop_sequence: '2' } })))
+      .toContain('Grup „LG9“: T7 kodlu sefer, 2. durak sırası.');
+  });
+
+  it('XFL_031 kodun neyle çakıştığını söyler', () => {
+    expect(render(notice('a', 'XFL_031', 'CRITICAL', { entity_type: 'Row', entity_id: 'S2', details: { clashes_with: 'stop' } })))
+      .toContain('„S2“ kodu bir durakta da kullanılıyor.');
+  });
+
+  it('XFL_019 ağ kodlu hatları sayar', () => {
+    expect(render(notice('a', 'XFL_019', 'MEDIUM', { details: { route_count: '12', example_routes: 'R1' } })))
+      .toContain('12 hatta ağ kodu girilmiş: 101 (+11).');
+  });
+});

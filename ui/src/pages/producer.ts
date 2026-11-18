@@ -458,6 +458,52 @@ function xflText(g: RuleGroup, n: Notice, result: ValidationResult): string | nu
       const pair = trfPairText(n, result);
       return pair ? `${t(`producer.card.${n.rule_id}.what`)} ${pair}` : null;
     }
+    default: {
+      const extra = xflRowText(n, result);
+      return extra ? `${t(`producer.card.${n.rule_id}.what`)} ${extra}` : null;
+    }
+  }
+}
+
+/** XFL_014–034 (references, Flex groups, codes): the record behind the finding, named the planner's way. */
+function xflRowText(n: Notice, result: ValidationResult): string | null {
+  const d = n.details ?? {};
+  const ni = result.name_index;
+  const stop = (id?: string) => id ? ni.stops?.[id] || id : '—';
+  const route = (id: string) => ni.routes?.[id] || id;
+  const capped = (items: string[]) => items.slice(0, 10).join(', ') + (items.length > 10 ? ` (+${localizedNumber(String(items.length - 10))})` : '');
+  switch (n.rule_id) {
+    case 'XFL_014': {
+      const items = (n.observed_value ?? '').split(/,\s*/).map(pair => pair.match(/^([^:]+):(.+)$/)).filter((m): m is RegExpMatchArray => !!m)
+        .map(m => t('producer.card.XFL.record', { list: plannerListName(m[1]) || m[1], id: m[2] }));
+      return items.length ? t('producer.card.XFL.records', { records: capped(items) }) : null;
+    }
+    case 'XFL_015': {
+      const items = (n.observed_value ?? '').split(/,\s*/).map(pair => pair.match(/^(agency_id|route_id|trip_id):(.+)$/)).filter((m): m is RegExpMatchArray => !!m)
+        .map(([, kind, id]) => kind === 'agency_id' ? t('producer.card.XFL_015.agency', { id })
+          : kind === 'route_id' ? t('producer.card.XFL_015.route', { route: route(id) }) : tripPhrase(id, result));
+      return items.length ? t('producer.card.XFL_015.refs', { refs: capped(items) }) : null;
+    }
+    case 'XFL_019': {
+      const ids = (d.example_routes ?? '').split(',').filter(Boolean);
+      return d.route_count && ids.length ? t('producer.card.XFL_019.routes', { count: localizedNumber(d.route_count), routes: routeLabels(ids, result) + (Number(d.route_count) > ids.length ? ` (+${localizedNumber(String(Number(d.route_count) - ids.length))})` : '') }) : null;
+    }
+    case 'XFL_022':
+      return n.entity_id && d.stop_id ? t('producer.card.XFL_022.row', { group: n.entity_id, stop: stop(d.stop_id) }) : null;
+    case 'XFL_023':
+      return n.entity_id && d.location_group_id ? t('producer.card.XFL_023.row', { group: d.location_group_id, stop: n.entity_id }) : null;
+    case 'XFL_024':
+    case 'XFL_025':
+      if (!n.entity_id) return null;
+      return d.trip_id ? t(`producer.card.${n.rule_id}.row`, { zone: n.entity_id, trip: tripPhrase(d.trip_id, result), seq: d.stop_sequence ?? '—' }) : t('producer.card.XFL.zone', { zone: n.entity_id });
+    case 'XFL_027':
+      return n.entity_id ? t('producer.card.XFL.route', { route: route(n.entity_id) }) : null;
+    case 'XFL_031':
+      return n.entity_id && (d.clashes_with === 'stop' || d.clashes_with === 'location') ? t(`producer.card.XFL_031.${d.clashes_with}`, { code: n.entity_id }) : null;
+    case 'XFL_033':
+      return d.stop_id ? t('producer.card.XFL.stop', { stop: stop(d.stop_id) }) : null;
+    case 'XFL_034':
+      return d.location_group_id ? t('producer.card.XFL.group', { group: d.location_group_id }) : null;
     default:
       return null;
   }
@@ -2438,7 +2484,9 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       const what = frlText(n, result);
       return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
     }
-    case 'XFL_002': case 'XFL_006': case 'XFL_012': case 'XFL_013': case 'XFL_020': case 'XFL_021': {
+    case 'XFL_002': case 'XFL_006': case 'XFL_012': case 'XFL_013': case 'XFL_020': case 'XFL_021':
+    case 'XFL_014': case 'XFL_015': case 'XFL_019': case 'XFL_022': case 'XFL_023': case 'XFL_024': case 'XFL_025':
+    case 'XFL_027': case 'XFL_031': case 'XFL_033': case 'XFL_034': {
       const what = xflText(g, n, result);
       return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
     }

@@ -9215,3 +9215,53 @@ fn trn_002_carries_the_translation_rows_target() {
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
 }
+
+/// Planner cards (XFL): Flex and cross-file findings carry the other side of the row, the trip
+/// that uses an undefined zone, the kind of record that shares a code and the routes with a
+/// network code — in `details` only.
+#[test]
+fn xfl_findings_carry_planner_context() {
+    static ST: &[u8] =
+        b"trip_id,arrival_time,departure_time,stop_id,location_group_id,stop_sequence,\
+start_pickup_drop_off_window,end_pickup_drop_off_window\n\
+          T1,08:00:00,08:00:00,S1,,1,,\n\
+          T1,,,,LG9,2,08:00:00,12:00:00\n";
+    static GROUPS: &[u8] = b"location_group_id\nLG1\nS2\n";
+    static GROUP_STOPS: &[u8] = b"location_group_id,stop_id\nLG8,S1\nLG1,S9\n,S1\nLG1,\n";
+    static ROUTES_NET: &[u8] =
+        b"route_id,agency_id,route_short_name,route_type,network_id\nR1,1,101,3,N1\n";
+    static NETWORKS: &[u8] = b"network_id,network_name\nN1,City\n";
+    let mut files = base_files();
+    files.retain(|(n, _)| *n != "stop_times.txt" && *n != "routes.txt");
+    files.extend([
+        ("stop_times.txt", ST),
+        ("routes.txt", ROUTES_NET),
+        ("location_groups.txt", GROUPS),
+        ("location_group_stops.txt", GROUP_STOPS),
+        ("networks.txt", NETWORKS),
+    ]);
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("fatal")
+    };
+    let detail = |rule: &str, key: &str| -> Option<String> {
+        vr.notices
+            .iter()
+            .filter(|n| n.rule_id == rule)
+            .find_map(|n| n.details.as_ref().and_then(|d| d.get(key).cloned()))
+    };
+    assert_eq!(detail("XFL_022", "stop_id").as_deref(), Some("S1"));
+    assert_eq!(
+        detail("XFL_023", "location_group_id").as_deref(),
+        Some("LG1")
+    );
+    assert_eq!(detail("XFL_033", "stop_id").as_deref(), Some("S1"));
+    assert_eq!(
+        detail("XFL_034", "location_group_id").as_deref(),
+        Some("LG1")
+    );
+    assert_eq!(detail("XFL_024", "trip_id").as_deref(), Some("T1"));
+    assert_eq!(detail("XFL_024", "stop_sequence").as_deref(), Some("2"));
+    assert_eq!(detail("XFL_031", "clashes_with").as_deref(), Some("stop"));
+    assert_eq!(detail("XFL_019", "route_count").as_deref(), Some("1"));
+    assert_eq!(detail("XFL_019", "example_routes").as_deref(), Some("R1"));
+}
