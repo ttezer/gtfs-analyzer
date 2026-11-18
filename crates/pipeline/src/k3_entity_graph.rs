@@ -605,6 +605,12 @@ fn build_fares_v2(
                 ),
                 "Assign a unique rider_category_id to each rider category.",
             ));
+            let at = notices.len() - 1;
+            crate::k2::common::add_row_fields(
+                &rec.row,
+                crate::k2::rider_categories::RIDER_CATEGORY_FIELDS,
+                &mut notices[at..],
+            );
         } else {
             map.rider_category_ids.insert(rec.rider_category_id.clone());
         }

@@ -564,6 +564,44 @@ function ftrText(n: Notice): string | null {
   return [t(`producer.card.${n.rule_id}.what`), rule, value ? t('producer.card.FIN.value', { value }) : ''].filter(Boolean).join(' ');
 }
 
+/** Timeframe cards (TFR): the period by its group, times and calendar; an overlap names both ranges. */
+function tfrText(n: Notice, result: ValidationResult): string | null {
+  const d = n.details ?? {};
+  const group = d.timeframe_group_id || n.entity_id;
+  if (!group) return null;
+  const range = (a?: string, b?: string) => `${plannerTime(a) ?? '—'}–${plannerTime(b) ?? '—'}`;
+  const base = t(`producer.card.${n.rule_id}.what`);
+  if (n.rule_id === 'TFR_005') {
+    if (!d.previous_start) return null;
+    return `${base} ${t('producer.card.TFR.overlap', { group, service: d.service_id ? serviceText(d.service_id, result) : '—', previous: range(d.previous_start, d.previous_end), start: plannerTime(d.start_time) ?? '—' })}`;
+  }
+  const service = d.service_id ? t('producer.card.TFR.service', { service: serviceText(d.service_id, result) }) : '';
+  const value = n.rule_id === 'TFR_003' || n.rule_id === 'TFR_006' ? visibleValue(n.observed_value ?? null) : '';
+  return [base, t('producer.card.TFR.row', { group, range: range(d.start_time, d.end_time), service }), value ? t('producer.card.FIN.value', { value }) : ''].filter(Boolean).join(' ');
+}
+
+/** Rider category cards (RCT): the category by its name, code and ages; RCT_006 names the fare
+ *  products and the categories that would resolve them. */
+function rctText(n: Notice): string | null {
+  const d = n.details ?? {};
+  const base = t(`producer.card.${n.rule_id}.what`);
+  if (n.rule_id === 'RCT_006') {
+    if (d.affected_products) {
+      return [base,
+        t('producer.card.RCT_006.summary', { count: localizedNumber(d.affected_products), examples: d.example_products || '—' }),
+        d.resolving_categories ? t('producer.card.RCT_006.resolve', { categories: d.resolving_categories }) : ''].filter(Boolean).join(' ');
+    }
+    return n.entity_id && n.observed_value ? `${base} ${t('producer.card.RCT_006.product', { product: n.entity_id, count: localizedNumber(n.observed_value) })}` : null;
+  }
+  const id = d.rider_category_id || n.entity_id;
+  const name = d.rider_category_name;
+  if (!id && !name) return null;
+  const category = name && id ? t('producer.card.RCT.named', { name, id }) : t('producer.card.RCT.code', { id: name || id || '' });
+  const ages = d.min_age || d.max_age ? t('producer.card.RCT.ages', { min: d.min_age ?? '—', max: d.max_age ?? '—' }) : '';
+  const value = ['RCT_003', 'RCT_004', 'RCT_007'].includes(n.rule_id) ? visibleValue(n.observed_value ?? null) : '';
+  return [base, t('producer.card.RCT.row', { category, ages }), value ? t('producer.card.FIN.value', { value }) : ''].filter(Boolean).join(' ');
+}
+
 /** Station pathway cards: the pathway by its kind, two ends and station (shared engine step). */
 function pthMode(mode?: string): string {
   return mode && /^[1-7]$/.test(mode) ? t(`producer.pathway_mode.${mode}`) : t('producer.pathway_mode.unknown');
@@ -2558,6 +2596,16 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
     case 'FTR_001': case 'FTR_002': case 'FTR_003': case 'FTR_004': case 'FTR_005': case 'FTR_006': case 'FTR_007':
     case 'FTR_008': case 'FTR_009': case 'FTR_010': case 'FTR_011': {
       const what = ftrText(n);
+      return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
+    }
+    case 'TFR_001': case 'TFR_002': case 'TFR_003': case 'TFR_004': case 'TFR_005': case 'TFR_006': case 'TFR_007':
+    case 'TFR_008': {
+      const what = tfrText(n, result);
+      return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
+    }
+    case 'RCT_001': case 'RCT_002': case 'RCT_003': case 'RCT_004': case 'RCT_005': case 'RCT_006': case 'RCT_007':
+    case 'RCT_008': {
+      const what = rctText(n);
       return what ? { title: t(`producer.card.${g.ruleId}.title`), what, action: t(`producer.card.${g.ruleId}.action`) } : null;
     }
     case 'PTH_001': case 'PTH_002': case 'PTH_003': case 'PTH_004': case 'PTH_005': case 'PTH_006':

@@ -3939,3 +3939,31 @@ describe('Ücret aktarma kartları (FTR)', () => {
       .toContain('Aktarma kuralı: „LG_A“ → „herhangi bir yolculuk“, sınırsız aktarma.');
   });
 });
+
+describe('Zaman dilimi ve yolcu kategorisi kartları (TFR, RCT)', () => {
+  const render = (n: Notice) => {
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [[n.rule_id, 1, 1]], true, emptyNameIndex));
+    return root.innerHTML;
+  };
+
+  it('TFR_004 zaman dilimini saatleriyle gösterir', () => {
+    expect(render(notice('a', 'TFR_004', 'CRITICAL', { entity_type: 'Row', entity_id: 'NIGHT', details: { timeframe_group_id: 'NIGHT', start_time: '22:00:00', end_time: '21:00:00' } })))
+      .toContain('Zaman dilimi „NIGHT“: 22:00–21:00.');
+  });
+
+  it('TFR_005 çakışan iki aralığı söyler', () => {
+    expect(render(notice('a', 'TFR_005', 'MEDIUM', { entity_type: 'Row', entity_id: 'PEAK', details: { service_id: 'SVC1', previous_start: '07:00:00', previous_end: '09:00:00', start_time: '08:00:00' } })))
+      .toContain('07:00–09:00 ile 08:00 başlangıçlı aralık çakışıyor.');
+  });
+
+  it('RCT_005 kategoriyi adı ve yaşlarıyla gösterir', () => {
+    expect(render(notice('a', 'RCT_005', 'CRITICAL', { entity_type: 'Row', details: { rider_category_id: 'ADULT', rider_category_name: 'Yetişkin', min_age: '30', max_age: '18' } })))
+      .toContain('Yolcu kategorisi „Yetişkin“ („ADULT“), yaş 30–18.');
+  });
+
+  it('RCT_006 özeti çözen kategorileri söyler', () => {
+    expect(render(notice('a', 'RCT_006', 'HIGH', { details: { affected_products: '3', example_products: 'P1, P2', resolving_categories: 'senior' } })))
+      .toContain('3 ücret ürünü etkileniyor, örneğin P1, P2. Şu kategorilerden birini varsayılan yapmak hepsini çözer: senior.');
+  });
+});

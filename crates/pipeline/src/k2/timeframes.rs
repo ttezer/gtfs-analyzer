@@ -2,7 +2,8 @@ use gtfs_core::EntityType;
 use std::collections::HashMap;
 
 use super::common::{
-    build_row_map, get_raw_field, get_trimmed_field, make_k2_notice, parse_gtfs_time, RowMap,
+    add_row_fields, build_row_map, get_raw_field, get_trimmed_field, make_k2_notice,
+    parse_gtfs_time, RowMap,
 };
 use crate::k1_parse::RawFile;
 
@@ -16,6 +17,10 @@ pub struct TimeframeRecord {
     pub line: u64,
 }
 
+/// Planner context for timeframe findings (K2 and K4): the timeframe as written.
+pub const TIMEFRAME_FIELDS: &[&str] =
+    &["timeframe_group_id", "start_time", "end_time", "service_id"];
+
 pub fn validate_timeframes(file: &RawFile) -> (Vec<TimeframeRecord>, Vec<gtfs_core::Notice>) {
     let mut notices = Vec::new();
     let mut records = Vec::new();
@@ -24,6 +29,7 @@ pub fn validate_timeframes(file: &RawFile) -> (Vec<TimeframeRecord>, Vec<gtfs_co
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
+        let first_notice = notices.len();
         let group_id = get_raw_field(&row_map, "timeframe_group_id")
             .unwrap_or("")
             .to_string();
@@ -168,6 +174,7 @@ pub fn validate_timeframes(file: &RawFile) -> (Vec<TimeframeRecord>, Vec<gtfs_co
             }
         }
 
+        add_row_fields(&row_map, TIMEFRAME_FIELDS, &mut notices[first_notice..]);
         records.push(TimeframeRecord {
             timeframe_group_id: group_id,
             start_time,
@@ -209,6 +216,15 @@ pub fn validate_timeframes(file: &RawFile) -> (Vec<TimeframeRecord>, Vec<gtfs_co
                     ),
                     "Ensure time intervals within the same group and service_id do not overlap.",
                 ));
+                // Planner context: the calendar and the two ranges that overlap.
+                let hms = |s: u64| format!("{:02}:{:02}:{:02}", s / 3600, s % 3600 / 60, s % 60);
+                if let Some(last) = notices.last_mut() {
+                    let d = last.details.get_or_insert_with(Default::default);
+                    d.insert("service_id".to_string(), service_id.to_string());
+                    d.insert("previous_start".to_string(), hms(prev_st));
+                    d.insert("previous_end".to_string(), hms(prev_et));
+                    d.insert("start_time".to_string(), hms(cur_st));
+                }
             }
         }
     }

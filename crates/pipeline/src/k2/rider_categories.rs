@@ -1,8 +1,8 @@
 use gtfs_core::EntityType;
 
 use super::common::{
-    build_row_map, get_lexical_field, get_raw_field, get_trimmed_field, looks_like_url,
-    make_k2_notice, parse_u32, validate_enum, RowMap,
+    add_row_fields, build_row_map, get_lexical_field, get_raw_field, get_trimmed_field,
+    looks_like_url, make_k2_notice, parse_u32, validate_enum, RowMap,
 };
 use crate::k1_parse::RawFile;
 
@@ -21,6 +21,15 @@ pub struct RiderCategoryRecord {
     pub line: u64,
 }
 
+/// Planner context for rider category findings (K2, K3 and K4): the category as written.
+pub const RIDER_CATEGORY_FIELDS: &[&str] = &[
+    "rider_category_id",
+    "rider_category_name",
+    "min_age",
+    "max_age",
+    "is_default_fare_category",
+];
+
 pub fn validate_rider_categories(
     file: &RawFile,
 ) -> (Vec<RiderCategoryRecord>, Vec<gtfs_core::Notice>) {
@@ -31,6 +40,7 @@ pub fn validate_rider_categories(
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
+        let first_notice = notices.len();
         let id = get_raw_field(&row_map, "rider_category_id")
             .unwrap_or("")
             .to_string();
@@ -182,6 +192,11 @@ pub fn validate_rider_categories(
             }
         }
 
+        add_row_fields(
+            &row_map,
+            RIDER_CATEGORY_FIELDS,
+            &mut notices[first_notice..],
+        );
         records.push(RiderCategoryRecord {
             rider_category_id: id,
             rider_category_name: name,

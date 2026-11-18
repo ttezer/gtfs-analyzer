@@ -3927,6 +3927,12 @@ fn check_fares_v2(
                 format!("Service calendar '{}' is not defined.", rec.service_id),
                 "Use a valid service_id.",
             ));
+            let at = notices.len() - 1;
+            crate::k2::common::add_row_fields(
+                &rec.row,
+                crate::k2::timeframes::TIMEFRAME_FIELDS,
+                &mut notices[at..],
+            );
         }
     }
 }
@@ -7076,6 +7082,7 @@ fn check_xfl(
             );
         }
         for r in &records.rider_categories {
+            let before = notices.len();
             require_nonempty(
                 &r.row,
                 "rider_category_id",
@@ -7088,6 +7095,11 @@ fn check_xfl(
                 "Give every rider category a unique rider_category_id.",
                 notices,
                 ctr,
+            );
+            crate::k2::common::add_row_fields(
+                &r.row,
+                crate::k2::rider_categories::RIDER_CATEGORY_FIELDS,
+                &mut notices[before..],
             );
         }
         // These records do not retain raw rows; K2 therefore carries the file-level
@@ -7217,6 +7229,7 @@ fn check_xfl(
             );
         }
         for r in &records.timeframes {
+            let before = notices.len();
             require_nonempty(
                 &r.row,
                 "service_id",
@@ -7229,6 +7242,11 @@ fn check_xfl(
                 "Attach every timeframe to a service_id defined in the calendar.",
                 notices,
                 ctr,
+            );
+            crate::k2::common::add_row_fields(
+                &r.row,
+                crate::k2::timeframes::TIMEFRAME_FIELDS,
+                &mut notices[before..],
             );
         }
     }

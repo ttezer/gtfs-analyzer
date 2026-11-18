@@ -59,6 +59,21 @@ pub fn get_field<'a>(row: &'a RowMap, field: &str) -> Option<&'a str> {
     row.get(field).map(String::as_str)
 }
 
+/// Planner context: copies the given fields of a row, as written and trimmed, into each finding's
+/// `details` (non-empty values only; a key the finding already carries is kept).
+pub fn add_row_fields(row: &RowMap, keys: &[&str], findings: &mut [gtfs_core::Notice]) {
+    for finding in findings {
+        let details = finding.details.get_or_insert_with(Default::default);
+        for key in keys {
+            if let Some(value) = get_trimmed_field(row, key).filter(|v| !v.is_empty()) {
+                if !details.contains_key(key) {
+                    details.insert((*key).to_string(), value.to_string());
+                }
+            }
+        }
+    }
+}
+
 pub fn get_trimmed_field<'a>(row: &'a RowMap, field: &str) -> Option<&'a str> {
     row.get(field).map(String::as_str).map(str::trim)
 }

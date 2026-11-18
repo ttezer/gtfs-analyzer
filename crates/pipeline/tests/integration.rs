@@ -9354,3 +9354,46 @@ LG_A,LG_X,7,600,P1\n";
         );
     }
 }
+
+/// Planner cards (TFR, RCT): timeframe and rider category findings carry the row as written; an
+/// overlap carries both ranges — in `details` only.
+#[test]
+fn tfr_and_rct_findings_carry_the_row() {
+    static TIMEFRAMES: &[u8] = b"timeframe_group_id,start_time,end_time,service_id\n\
+PEAK,07:00:00,09:00:00,SVC1\nPEAK,08:00:00,10:00:00,SVC1\nNIGHT,22:00:00,21:00:00,NOPE\n";
+    static RIDERS: &[u8] =
+        b"rider_category_id,rider_category_name,is_default_fare_category,min_age,max_age\n\
+ADULT,Adult,1,30,18\nADULT,Adult again,0,,\n";
+    let mut files = base_files();
+    files.extend([
+        ("timeframes.txt", TIMEFRAMES),
+        ("rider_categories.txt", RIDERS),
+    ]);
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("fatal")
+    };
+    let detail = |rule: &str, key: &str| -> Option<String> {
+        vr.notices
+            .iter()
+            .filter(|n| n.rule_id == rule)
+            .find_map(|n| n.details.as_ref().and_then(|d| d.get(key).cloned()))
+    };
+    assert_eq!(detail("TFR_004", "start_time").as_deref(), Some("22:00:00"));
+    assert_eq!(detail("TFR_002", "service_id").as_deref(), Some("NOPE"));
+    assert_eq!(
+        detail("TFR_005", "previous_start").as_deref(),
+        Some("07:00:00")
+    );
+    assert_eq!(
+        detail("TFR_005", "previous_end").as_deref(),
+        Some("09:00:00")
+    );
+    assert_eq!(
+        detail("RCT_005", "rider_category_name").as_deref(),
+        Some("Adult")
+    );
+    assert_eq!(
+        detail("RCT_001", "rider_category_name").as_deref(),
+        Some("Adult again")
+    );
+}
