@@ -1966,7 +1966,8 @@ function shpRuleText(n: Notice, result: ValidationResult): string | null {
     case 'SHP_017':
       return n.entity_id && d.bad_stop
         ? join(t('producer.card.SHP_017.what_detail', { trip: tripPhrase(n.entity_id, result), stop: result.name_index.stops?.[d.bad_stop] || d.bad_stop }),
-          c.shape ? t('producer.card.SHP_017.what_shape', { shape }) : '')
+          c.shape ? t('producer.card.SHP_017.what_shape', { shape }) : '',
+          Number(d.conflict_trip_count) > 1 ? t('producer.card.SHP_017.trips', { n: localizedNumber(d.conflict_trip_count!) }) : '')
         : null;
     case 'SHP_018': {
       const coords = c.shape ? result.name_index.shape_coords?.[c.shape] ?? [] : [];

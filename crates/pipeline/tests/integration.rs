@@ -9587,3 +9587,38 @@ T2,09:00:00,09:00:00,S1,1,Merkez*Gar\nT2,09:10:00,09:10:00,S2,2,Otogar!\n";
         Some("1")
     );
 }
+
+/// SHP_017 counts every trip that shares a (shape, stop) conflict instead of dropping the
+/// repeats: the finding carries conflict_trip_count and conflict_example_trips (2026-11-18).
+#[test]
+fn shp_017_counts_the_trips_that_share_a_conflict() {
+    static SHAPES: &[u8] = b"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n\
+SH1,40.0,40.0,1\nSH1,40.0,40.1,2\nSH1,40.0,40.2,3\nSH1,40.0,40.3,4\n";
+    static STOPS3: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
+S1,Stop1,40.0,40.0\nS2,Stop2,40.0,40.2\nS3,Stop3,40.0,40.05\n";
+    static TRIPS2: &[u8] =
+        b"route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\nR1,SVC1,T2,SH1\n";
+    static ST2: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+T1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT1,08:20:00,08:20:00,S3,3\n\
+T2,09:00:00,09:00:00,S1,1\nT2,09:10:00,09:10:00,S2,2\nT2,09:20:00,09:20:00,S3,3\n";
+    let mut files = base_files();
+    files.retain(|(n, _)| !matches!(*n, "stops.txt" | "trips.txt" | "stop_times.txt"));
+    files.extend([
+        ("shapes.txt", SHAPES),
+        ("stops.txt", STOPS3),
+        ("trips.txt", TRIPS2),
+        ("stop_times.txt", ST2),
+    ]);
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("fatal")
+    };
+    let hits: Vec<_> = vr
+        .notices
+        .iter()
+        .filter(|n| n.rule_id == "SHP_017")
+        .collect();
+    assert_eq!(hits.len(), 1, "{hits:?}");
+    let d = hits[0].details.as_ref().expect("details");
+    assert_eq!(d.get("conflict_trip_count").map(String::as_str), Some("2"));
+    assert_eq!(d.get("conflict_example_trips").map(String::as_str), Some("T1,T2"));
+}

@@ -10679,7 +10679,10 @@ fn check_remaining_analytics<'a>(
         let mut arc_cache: FxHashMap<(&str, &str), f64> = FxHashMap::default();
         // Emit one notice for each (shape_id, problem_stop_id) pair
         // (all trips on the same route should not repeat the same shape issue).
-        let mut shp017_seen: FxHashSet<(&str, &str)> = FxHashSet::default();
+        // (notice index, trip count, first trips): the repeats are counted instead of dropped, so
+        // the finding says how many trips share the conflict (2026-11-18).
+        let mut shp017_seen: FxHashMap<(&str, &str), (usize, u32, Vec<&str>)> =
+            FxHashMap::default();
 
         for &(trip_id, stimes) in &trips_by_id {
             let Some(&shape_id) = trip_shape_local.get(trip_id) else {
@@ -10770,7 +10773,11 @@ fn check_remaining_analytics<'a>(
 
                 let st = sorted[pi];
                 // Skip if a notice was already emitted for the same (shape_id, problem_stop_id) pair.
-                if !shp017_seen.insert((shape_id, idx.stop_id_of(st))) {
+                if let Some(seen) = shp017_seen.get_mut(&(shape_id, idx.stop_id_of(st))) {
+                    seen.1 += 1;
+                    if seen.2.len() < 10 {
+                        seen.2.push(trip_id);
+                    }
                     continue;
                 }
                 let route = trip_to_route_rem.get(trip_id).copied().unwrap_or(trip_id);
@@ -10844,7 +10851,18 @@ fn check_remaining_analytics<'a>(
                 det.insert("shape_id".to_string(), shape_id.to_string());
                 det.insert("bad_stop".to_string(), idx.stop_id_of(st).to_string());
                 notice.details = Some(det.into());
+                shp017_seen.insert(
+                    (shape_id, idx.stop_id_of(st)),
+                    (notices.len(), 1, vec![trip_id]),
+                );
                 notices.push(notice);
+            }
+        }
+        for (at, trip_count, trips) in shp017_seen.into_values() {
+            if let Some(d) = notices[at].details.as_mut() {
+                // Not `trip_count`: annotate_shape_context writes that key with every trip of the shape.
+                d.insert("conflict_trip_count".to_string(), trip_count.to_string());
+                d.insert("conflict_example_trips".to_string(), trips.join(","));
             }
         }
     }

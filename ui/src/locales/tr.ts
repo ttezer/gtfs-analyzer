@@ -236,6 +236,7 @@ const tr = {
     'producer.card.ATR_012.what': "Bir atıf kaydı, listede olmayan bir sefere bağlanmış.",
     'producer.card.ATR_012.action': "Atfı mevcut bir sefere bağlayın.",
     'producer.card.BKR.rule': "Kural „{rule}“: {setting}.",
+    'producer.card.SHP_017.trips': "Aynı çelişki bu güzergâhı kullanan {n} seferde var.",
     'producer.card.STM_042.group': "Aynı yön adı {rows} durak saatinde ({trips} sefer) kullanılıyor; örnek olarak ilki gösteriliyor.",
     'producer.card.DQ_019.summary': "{field} alanında {count} değer tamamen küçük harfle yazılmış ({distinct} farklı değer). Örnekler: {examples}.",
     'producer.card.STM_012.group': "Aynı iki durak arasında bu sorun {trips} seferde var; örnek olarak ilk sefer gösteriliyor.",

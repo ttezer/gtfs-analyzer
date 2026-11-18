@@ -238,6 +238,7 @@ const fr: LocaleShape = {
     'producer.card.ATR_012.what': "Une attribution est liée à une course absente de la liste.",
     'producer.card.ATR_012.action': "Liez l’attribution à une course existante.",
     'producer.card.BKR.rule': "Règle « {rule} » : {setting}.",
+    'producer.card.SHP_017.trips': "Le même conflit apparaît sur {n} courses qui utilisent ce tracé.",
     'producer.card.STM_042.group': "Le même libellé est utilisé sur {rows} horaires d’arrêt ({trips} courses) ; le premier est montré en exemple.",
     'producer.card.DQ_019.summary': "{count} valeurs du champ {field} sont écrites en minuscules ({distinct} valeurs différentes). Exemples : {examples}.",
     'producer.card.STM_012.group': "Les deux mêmes arrêts présentent ce problème sur {trips} courses ; la première est montrée en exemple.",

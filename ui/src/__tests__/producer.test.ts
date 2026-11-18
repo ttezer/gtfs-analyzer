@@ -4122,3 +4122,13 @@ describe('Yön adı değeri başına karakter bulgusu (STM_042)', () => {
     expect(root.innerHTML).toContain('Aynı yön adı 3 durak saatinde (2 sefer) kullanılıyor');
   });
 });
+
+describe('Sıra çelişkisini paylaşan seferler (SHP_017)', () => {
+  it('çelişkinin kaç seferde olduğunu söyler', () => {
+    const ni = { ...emptyNameIndex, stops: { S3: 'Pazar' } };
+    const n = notice('a', 'SHP_017', 'INFO', { entity_type: 'Trip', entity_id: 'T1', details: { bad_stop: 'S3', shape_id: 'SH1', conflict_trip_count: '12' } });
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [['SHP_017', 1, 1]], true, ni));
+    expect(root.innerHTML).toContain('Aynı çelişki bu güzergâhı kullanan 12 seferde var.');
+  });
+});
