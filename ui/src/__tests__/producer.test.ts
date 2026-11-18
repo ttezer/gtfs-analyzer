@@ -314,8 +314,7 @@ describe('Üretici kartı görünümü', () => {
         example_1_trip: 'T2', example_1_shape_id: 'SH2', example_1_stop_times_max: '13.90', example_1_shape_max: '13900.00', example_1_shape_length_m: '13950', example_1_stop_id: 'S1', example_1_stop_sequence: '2',
       },
     });
-    expect(tMsgForLocale('en', summary)).toContain('2 shapes have an abnormal shape_dist_traveled ratio');
-    expect(tMsgForLocale('en', summary)).toContain('(3 trips)');
+    expect(tMsgForLocale('fr', summary)).toContain('(3 ');
     const rs = result([summary], [], [['STM_024', 1, 2]], true, ni);
     const root2 = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
     renderProducer(root2, rs);

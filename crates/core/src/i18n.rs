@@ -1075,7 +1075,8 @@ mod tests {
 
     #[test]
     fn jp_profile_selects_the_profile_specific_message() {
-        let translator = Translator::new(Lang::En).unwrap().unwrap();
+        // English keeps the engine text (#201 F5); the profile variants serve the translations.
+        let translator = Translator::new(Lang::Fr).unwrap().unwrap();
         let mut n = notice();
         n.rule_id = "JPN_006".to_string();
         n.details = Some(std::collections::BTreeMap::from([(
@@ -1085,12 +1086,15 @@ mod tests {
         translator.translate(&mut n);
 
         assert!(n.message.contains("GTFS-JP v4"), "{}", n.message);
-        assert!(n.message.contains("cannot be represented"), "{}", n.message);
+        assert_eq!(
+            n.message,
+            translator.lookup(|d| &d.messages, "JPN_006.v4").unwrap()
+        );
     }
 
     #[test]
     fn timepoint_missing_field_variants_translate_without_a_profile() {
-        for lang in [Lang::En, Lang::Ja, Lang::Fr] {
+        for lang in [Lang::Ja, Lang::Fr] {
             let translator = Translator::new(lang).unwrap().unwrap();
             let mut n = notice();
             n.rule_id = "STM_047".to_string();
@@ -1118,7 +1122,7 @@ mod tests {
 
     #[test]
     fn jp_manual_review_and_aggregate_templates_are_used_in_all_locales() {
-        for lang in [Lang::En, Lang::Ja, Lang::Fr] {
+        for lang in [Lang::Ja, Lang::Fr] {
             let translator = Translator::new(lang).unwrap().unwrap();
             let mut n = notice();
             n.rule_id = "JPN_006".into();

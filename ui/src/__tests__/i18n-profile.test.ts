@@ -7,9 +7,8 @@ describe('GTFS-JP profile-specific notice messages', () => {
       rule_id: 'STM_047', entity_id: 'T1', message: 'runtime', remediation: 'runtime',
       details: { message_variant: 'missing_departure' },
     };
-    expect(tMsgForLocale('en', notice)).toBe(
-      "Trip 'T1': timepoint=1 (exact time point) but departure_time is missing.",
-    );
+    // English shows the engine text (#201 F5); the variants serve the translated locales.
+    expect(tMsgForLocale('en', notice)).toBe('runtime (id: T1)');
     expect(tMsgForLocale('ja', notice)).toContain('departure_timeがありません');
     expect(tMsgForLocale('fr', notice)).toContain('departure_time est absent');
     expect(tRemediationForLocale('en', notice)).toContain('Provide departure_time');
@@ -18,7 +17,7 @@ describe('GTFS-JP profile-specific notice messages', () => {
   });
 
   it('keeps aggregate counts and manual review in every translated locale', () => {
-    for (const locale of ['en', 'fr', 'ja'] as const) {
+    for (const locale of ['fr', 'ja'] as const) {
       const aggregate = tMsgForLocale(locale, {
         rule_id: 'JPN_029', field: 'stop_headsign', message: 'runtime',
         details: { jp_profile: 'V4', message_variant: 'aggregate',
@@ -40,15 +39,13 @@ describe('GTFS-JP profile-specific notice messages', () => {
       message: 'Türkçe çalışma zamanı mesajı',
     };
 
-    const v4 = tMsgForLocale('en', {
-      ...base,
-      details: { jp_profile: 'V4' },
-    });
-    const legacy = tMsgForLocale('en', base);
+    const v4 = tMsgForLocale('fr', { ...base, details: { jp_profile: 'V4' } });
+    const legacy = tMsgForLocale('fr', base);
 
     expect(v4).toContain('GTFS-JP v4');
-    expect(v4).toContain('cannot be represented');
-    expect(legacy).toBe('The GTFS-JP fare coverage is missing or incomplete.');
+    expect(v4).not.toBe(legacy);
+    expect(legacy).not.toBe(base.message);
+    expect(tMsgForLocale('en', { ...base, details: { jp_profile: 'V4' } })).toBe(base.message);
   });
 
   it('preserves required versus recommended wording in every UI locale', () => {
@@ -59,7 +56,6 @@ describe('GTFS-JP profile-specific notice messages', () => {
       message: 'Türkçe tarafsız çalışma zamanı mesajı',
     };
     const expected = {
-      en: ['required', 'recommended'],
       fr: ['exigée', 'recommandée'],
       ja: ['必須', '推奨'],
     } as const;
