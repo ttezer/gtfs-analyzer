@@ -358,6 +358,7 @@ en	ARC_011	File size (info)	'stops.txt' size: 136 bytes.	Informational notice; n
 en	ARC_011	File size (info)	'stops.txt' size: 137 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'stops.txt' size: 140 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'stops.txt' size: 151 bytes.	Informational notice; no action required.
+en	ARC_011	File size (info)	'stops.txt' size: 152 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'stops.txt' size: 154 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'stops.txt' size: 156 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'stops.txt' size: 162 bytes.	Informational notice; no action required.
@@ -876,6 +877,7 @@ en	GEO_015	Stop coordinates outside Japan bounds (feed_lang: ja)	The coordinates
 en	GEO_016	Stop at or near Null Island (|lat|<0.1 and |lon|<0.1)	The coordinates of stop 'Stop1' (0.010000,0.010000) are near Null Island — a possible coordinate error. (id: S1)	Correct the stop_lat and stop_lon values; (0,0) is in the Gulf of Guinea — likely a missing coordinate.
 en	GEO_017	Shape point at or near Null Island	A point near Null Island was found in shape 'SH1' (0.010000,0.010000) — it may be a GPS data error.	Check shapes.txt for rows with shape_pt_lat=0 and shape_pt_lon=0; these are likely GPS dropouts.
 en	GEO_018	All feed stops within 200m radius (possible test data)	All 3 stops in the feed are within an area of 1m — it may be test/placeholder data.	Replace placeholder stop coordinates with real geographic locations.
+en	GEO_018	All feed stops within 200m radius (possible test data)	All 3 stops in the feed are within an area of 30m — it may be test/placeholder data.	Replace placeholder stop coordinates with real geographic locations.
 en	GEO_018	All feed stops within 200m radius (possible test data)	All 3 stops in the feed are within an area of 70m — it may be test/placeholder data.	Replace placeholder stop coordinates with real geographic locations.
 en	GEO_018	All feed stops within 200m radius (possible test data)	All 4 stops in the feed are within an area of 0m — it may be test/placeholder data.	Replace placeholder stop coordinates with real geographic locations.
 en	GEO_019	Stop has integer (zero-precision) coordinates	The coordinates of stop '12" Street' (41,29) are integers — low-precision or placeholder data. (id: S1)	Update stop_lat and stop_lon with at least 5 decimal places of precision.
@@ -896,6 +898,7 @@ en	GEO_019	Stop has integer (zero-precision) coordinates	The coordinates of stop
 en	GEO_019	Stop has integer (zero-precision) coordinates	The coordinates of stop 'MERKEZ' (41,29) are integers — low-precision or placeholder data. (id: S1)	Update stop_lat and stop_lon with at least 5 decimal places of precision.
 en	GEO_019	Stop has integer (zero-precision) coordinates	The coordinates of stop 'Main Stop' (41,29) are integers — low-precision or placeholder data. (id: P1)	Update stop_lat and stop_lon with at least 5 decimal places of precision.
 en	GEO_019	Stop has integer (zero-precision) coordinates	The coordinates of stop 'Merkez' (41,29) are integers — low-precision or placeholder data. (id: S1)	Update stop_lat and stop_lon with at least 5 decimal places of precision.
+en	GEO_019	Stop has integer (zero-precision) coordinates	The coordinates of stop 'Pepiniere' (41,29) are integers — low-precision or placeholder data. (id: A)	Update stop_lat and stop_lon with at least 5 decimal places of precision.
 en	GEO_019	Stop has integer (zero-precision) coordinates	The coordinates of stop 'Pl' (41,29) are integers — low-precision or placeholder data. (id: P1)	Update stop_lat and stop_lon with at least 5 decimal places of precision.
 en	GEO_019	Stop has integer (zero-precision) coordinates	The coordinates of stop 'PlatA' (41,29) are integers — low-precision or placeholder data. (id: P_A)	Update stop_lat and stop_lon with at least 5 decimal places of precision.
 en	GEO_019	Stop has integer (zero-precision) coordinates	The coordinates of stop 'Platform' (41,29) are integers — low-precision or placeholder data. (id: PLAT)	Update stop_lat and stop_lon with at least 5 decimal places of precision.
@@ -1588,6 +1591,7 @@ en	STP_020	Stop with no trips	Stop 'D' (code: 'S4') is not used by any trip.	Rem
 en	STP_020	Stop with no trips	Stop 'E' (code: 'S5') is not used by any trip.	Remove the stop or add it to a trip.
 en	STP_020	Stop with no trips	Stop 'Far' (code: 'S3') is not used by any trip.	Remove the stop or add it to a trip.
 en	STP_020	Stop with no trips	Stop 'Main Stop' (code: 'P1') is not used by any trip.	Remove the stop or add it to a trip.
+en	STP_020	Stop with no trips	Stop 'Pepiniere 1' (code: 'P') is not used by any trip.	Remove the stop or add it to a trip.
 en	STP_020	Stop with no trips	Stop 'Pl' (code: 'P1') is not used by any trip.	Remove the stop or add it to a trip.
 en	STP_020	Stop with no trips	Stop 'PlatA' (code: 'P_A') is not used by any trip.	Remove the stop or add it to a trip.
 en	STP_020	Stop with no trips	Stop 'PlatB' (code: 'P_B') is not used by any trip.	Remove the stop or add it to a trip.
@@ -1620,6 +1624,7 @@ en	STP_022	stop_code missing	stop_code is missing for 2 stop(s), e.g. S2.	Provid
 en	STP_022	stop_code missing	stop_code is missing for 2 stop(s), e.g. ST1, P1.	Provide a short stop_code that passengers can recognise.
 en	STP_022	stop_code missing	stop_code is missing for 2 stop(s), e.g. X, Y.	Provide a short stop_code that passengers can recognise.
 en	STP_022	stop_code missing	stop_code is missing for 3 stop(s), e.g. A, B, C.	Provide a short stop_code that passengers can recognise.
+en	STP_022	stop_code missing	stop_code is missing for 3 stop(s), e.g. A, B, P.	Provide a short stop_code that passengers can recognise.
 en	STP_022	stop_code missing	stop_code is missing for 3 stop(s), e.g. S1, S2, LG1.	Provide a short stop_code that passengers can recognise.
 en	STP_022	stop_code missing	stop_code is missing for 3 stop(s), e.g. S1, S2, S3.	Provide a short stop_code that passengers can recognise.
 en	STP_022	stop_code missing	stop_code is missing for 3 stop(s), e.g. S1, S2, ST1.	Provide a short stop_code that passengers can recognise.
@@ -1644,6 +1649,7 @@ en	STP_028	stop_code too long	Stop 'S1' has a stop_code of 52 characters; it exc
 en	STP_029	Stop inside station but coordinate too far	Stop with code 'S1' ('Stop1') is 69558m from its parent station (ST1) (threshold: 150m).	Fix the stop coordinates or the parent_station reference.
 en	STP_029	Stop inside station but coordinate too far	Stop with code 'S2' ('Platform2') is 13927m from its parent station (ST) (threshold: 150m).	Fix the stop coordinates or the parent_station reference.
 en	STP_029	Stop inside station but coordinate too far	Stop with code 'S2' ('Stop2') is 13927m from its parent station (S1) (threshold: 150m).	Fix the stop coordinates or the parent_station reference.
+en	STP_030	Parent station has no child stops	Station with code 'B' ('Pépinière') has no platform — no stop (location_type=0) uses it as parent_station; only entrance/node records may be linked.	Populate parent_station for physical stops belonging to this station, or remove the station.
 en	STP_030	Parent station has no child stops	Station with code 'S1' ('Station') has no platform — no stop (location_type=0) uses it as parent_station; only entrance/node records may be linked.	Populate parent_station for physical stops belonging to this station, or remove the station.
 en	STP_030	Parent station has no child stops	Station with code 'S1' ('Stop1') has no platform — no stop (location_type=0) uses it as parent_station; only entrance/node records may be linked.	Populate parent_station for physical stops belonging to this station, or remove the station.
 en	STP_030	Parent station has no child stops	Station with code 'ST' ('Gar') has no platform — no stop (location_type=0) uses it as parent_station; only entrance/node records may be linked.	Populate parent_station for physical stops belonging to this station, or remove the station.
@@ -1679,6 +1685,7 @@ en	STP_046	Stop without parent_station right next to a station	Stop 'Stop1' (cod
 en	STP_046	Stop without parent_station right next to a station	Stop 'Stop1' (code: 'S1') has no parent_station but is 0.0m from station 'Station' (code: 'ST1').	If this stop belongs to this station, fill in parent_station; otherwise check the coordinates and whether the record is needed.
 en	STP_046	Stop without parent_station right next to a station	Stop 'Stop1' (code: 'S1') has no parent_station but is 0.0m from station 'Station1' (code: 'ST1').	If this stop belongs to this station, fill in parent_station; otherwise check the coordinates and whether the record is needed.
 en	STP_046	Stop without parent_station right next to a station	Stop 'Stop1' (code: 'S1') has no parent_station but is 0.0m from station 'StationA' (code: 'ST_A').	If this stop belongs to this station, fill in parent_station; otherwise check the coordinates and whether the record is needed.
+en	STP_047	Two station records for the same place	Stations 'Pepiniere' (code: 'A') and 'Pépinière' (code: 'B') are 30.0m apart, and stop 'P' of the first lies 0.0m from the second — likely one place recorded twice.	Merge the two station records if they are one place, or move them apart; check the coordinates.
 en	TFR_001	timeframe_group_id missing	timeframe_group_id is required.	Enter a timeframe_group_id for each timeframe record.
 en	TFR_002	service_id not found	Service calendar 'SVCX' is not defined. (id: TG1)	Use a valid service_id.
 en	TFR_003	start_time or end_time format error	expected HH:MM:SS for 'start_time', got: notatime (id: TG1)	Enter a valid time in HH:MM:SS format.
@@ -2210,6 +2217,7 @@ fr	ARC_011	Taille du fichier (info)	Fichier « stops.txt » : 136 bytes.	S
 fr	ARC_011	Taille du fichier (info)	Fichier « stops.txt » : 137 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « stops.txt » : 140 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « stops.txt » : 151 bytes.	Signalement informatif ; aucune action requise.
+fr	ARC_011	Taille du fichier (info)	Fichier « stops.txt » : 152 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « stops.txt » : 154 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « stops.txt » : 156 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « stops.txt » : 162 bytes.	Signalement informatif ; aucune action requise.
@@ -2687,6 +2695,7 @@ fr	GEO_016	Arrêt situé à proximité de Null Island (|lat|<0,1 et |lon|<0,1)	A
 fr	GEO_017	Point de tracé situé à proximité de Null Island	Le tracé « SH1 » comporte un point à proximité de Null Island (0.010000,0.010000) — perte de signal GPS ou erreur de données.	Vérifiez dans shapes.txt les enregistrements avec shape_pt_lat=0 et shape_pt_lon=0 ; ce sont probablement des pertes de signal GPS.
 fr	GEO_018	Tous les arrêts du jeu de données dans un rayon de 200 m (données de test probables)	Les 0m arrêts se situent tous dans un rayon de ≥200m — données de remplissage ou de test possibles.	Remplacez les coordonnées d’arrêt de remplissage par des emplacements géographiques réels.
 fr	GEO_018	Tous les arrêts du jeu de données dans un rayon de 200 m (données de test probables)	Les 1m arrêts se situent tous dans un rayon de ≥200m — données de remplissage ou de test possibles.	Remplacez les coordonnées d’arrêt de remplissage par des emplacements géographiques réels.
+fr	GEO_018	Tous les arrêts du jeu de données dans un rayon de 200 m (données de test probables)	Les 30m arrêts se situent tous dans un rayon de ≥200m — données de remplissage ou de test possibles.	Remplacez les coordonnées d’arrêt de remplissage par des emplacements géographiques réels.
 fr	GEO_018	Tous les arrêts du jeu de données dans un rayon de 200 m (données de test probables)	Les 70m arrêts se situent tous dans un rayon de ≥200m — données de remplissage ou de test possibles.	Remplacez les coordonnées d’arrêt de remplissage par des emplacements géographiques réels.
 fr	GEO_019	L’arrêt a des coordonnées entières (précision nulle)	Arrêt « A » : les coordonnées 41,29 sont entières — précision décimale nulle, données de remplissage probables.	Mettez à jour stop_lat et stop_lon avec une précision d’au moins 5 décimales.
 fr	GEO_019	L’arrêt a des coordonnées entières (précision nulle)	Arrêt « BA1 » : les coordonnées 41,29 sont entières — précision décimale nulle, données de remplissage probables.	Mettez à jour stop_lat et stop_lon avec une précision d’au moins 5 décimales.
@@ -3126,6 +3135,7 @@ fr	STP_020	Arrêt sans aucune course	L’arrêt « P1 » n’est utilisé pa
 fr	STP_020	Arrêt sans aucune course	L’arrêt « PLAT » n’est utilisé par aucune course.	Supprimez l’arrêt ou rattachez-le à une course.
 fr	STP_020	Arrêt sans aucune course	L’arrêt « P_A » n’est utilisé par aucune course.	Supprimez l’arrêt ou rattachez-le à une course.
 fr	STP_020	Arrêt sans aucune course	L’arrêt « P_B » n’est utilisé par aucune course.	Supprimez l’arrêt ou rattachez-le à une course.
+fr	STP_020	Arrêt sans aucune course	L’arrêt « P » n’est utilisé par aucune course.	Supprimez l’arrêt ou rattachez-le à une course.
 fr	STP_020	Arrêt sans aucune course	L’arrêt « S10 » n’est utilisé par aucune course.	Supprimez l’arrêt ou rattachez-le à une course.
 fr	STP_020	Arrêt sans aucune course	L’arrêt « S11 » n’est utilisé par aucune course.	Supprimez l’arrêt ou rattachez-le à une course.
 fr	STP_020	Arrêt sans aucune course	L’arrêt « S1 » n’est utilisé par aucune course.	Supprimez l’arrêt ou rattachez-le à une course.
@@ -3151,6 +3161,7 @@ fr	STP_022	stop_code manquant	stop_code est absent pour 2 arrêt(s), p. ex. S2.	
 fr	STP_022	stop_code manquant	stop_code est absent pour 2 arrêt(s), p. ex. ST1, P1.	Fournissez un stop_code court, reconnaissable par les voyageurs.
 fr	STP_022	stop_code manquant	stop_code est absent pour 2 arrêt(s), p. ex. X, Y.	Fournissez un stop_code court, reconnaissable par les voyageurs.
 fr	STP_022	stop_code manquant	stop_code est absent pour 3 arrêt(s), p. ex. A, B, C.	Fournissez un stop_code court, reconnaissable par les voyageurs.
+fr	STP_022	stop_code manquant	stop_code est absent pour 3 arrêt(s), p. ex. A, B, P.	Fournissez un stop_code court, reconnaissable par les voyageurs.
 fr	STP_022	stop_code manquant	stop_code est absent pour 3 arrêt(s), p. ex. S1, S2, LG1.	Fournissez un stop_code court, reconnaissable par les voyageurs.
 fr	STP_022	stop_code manquant	stop_code est absent pour 3 arrêt(s), p. ex. S1, S2, S3.	Fournissez un stop_code court, reconnaissable par les voyageurs.
 fr	STP_022	stop_code manquant	stop_code est absent pour 3 arrêt(s), p. ex. S1, S2, ST1.	Fournissez un stop_code court, reconnaissable par les voyageurs.
@@ -3174,6 +3185,7 @@ fr	STP_026	Valeur stop_access invalide	Arrêt « S1 » : stop_access « 
 fr	STP_028	stop_code trop long	Arrêt « S1 » : stop_code est trop long.	Gardez stop_code en dessous de 50 caractères.
 fr	STP_029	Arrêt situé dans une station mais coordonnée trop éloignée	L’arrêt « S1 » se situe dans une station mais ses coordonnées sont trop éloignées du parent.	Corrigez les coordonnées de l’arrêt ou la référence parent_station.
 fr	STP_029	Arrêt situé dans une station mais coordonnée trop éloignée	L’arrêt « S2 » se situe dans une station mais ses coordonnées sont trop éloignées du parent.	Corrigez les coordonnées de l’arrêt ou la référence parent_station.
+fr	STP_030	La station parente n’a aucun arrêt enfant	La station « B » n’a aucun arrêt enfant.	Renseignez parent_station sur les arrêts physiques appartenant à cette station, ou supprimez la station.
 fr	STP_030	La station parente n’a aucun arrêt enfant	La station « S1 » n’a aucun arrêt enfant.	Renseignez parent_station sur les arrêts physiques appartenant à cette station, ou supprimez la station.
 fr	STP_030	La station parente n’a aucun arrêt enfant	La station « ST1 » n’a aucun arrêt enfant.	Renseignez parent_station sur les arrêts physiques appartenant à cette station, ou supprimez la station.
 fr	STP_030	La station parente n’a aucun arrêt enfant	La station « ST2 » n’a aucun arrêt enfant.	Renseignez parent_station sur les arrêts physiques appartenant à cette station, ou supprimez la station.
@@ -3207,6 +3219,7 @@ fr	STP_045	platform_code sans parent_station	1 arrêts ont un platform_code mais
 fr	STP_046	Arrêt sans parent_station juste à côté d’une station	Arrêt « S1 » sans parent_station, à 0.0 m de la station « ST1 ».	Si cet arrêt appartient à cette station, renseignez parent_station ; sinon, vérifiez les coordonnées et l’utilité de l’enregistrement.
 fr	STP_046	Arrêt sans parent_station juste à côté d’une station	Arrêt « S1 » sans parent_station, à 0.0 m de la station « ST_A ».	Si cet arrêt appartient à cette station, renseignez parent_station ; sinon, vérifiez les coordonnées et l’utilité de l’enregistrement.
 fr	STP_046	Arrêt sans parent_station juste à côté d’une station	Arrêt « S2 » sans parent_station, à 1.0 m de la station « ST ».	Si cet arrêt appartient à cette station, renseignez parent_station ; sinon, vérifiez les coordonnées et l’utilité de l’enregistrement.
+fr	STP_047	Deux enregistrements de station pour le même lieu	Les stations « A » et « B » sont à 30.0 m l’une de l’autre, et un arrêt de la première se trouve sur la seconde.	Fusionnez les deux enregistrements de station s’il s’agit d’un même lieu, ou séparez-les ; vérifiez les coordonnées.
 fr	TFR_001	timeframe_group_id manquant	Plage horaire : timeframe_group_id est absent.	Saisissez un timeframe_group_id pour chaque enregistrement de plage horaire.
 fr	TFR_002	service_id introuvable	Plage horaire « TG1 » : service_id est introuvable.	Utilisez un service_id valide.
 fr	TFR_003	Erreur de format sur start_time ou end_time	Plage horaire « TG1 » : le format de start_time ou end_time est invalide.	Saisissez une heure valide au format HH:MM:SS.
@@ -3716,6 +3729,7 @@ ja	ARC_011	ファイルサイズ（情報）	ファイル'stops.txt'：136 bytes
 ja	ARC_011	ファイルサイズ（情報）	ファイル'stops.txt'：137 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'stops.txt'：140 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'stops.txt'：151 bytes。	情報通知のため対応不要です。
+ja	ARC_011	ファイルサイズ（情報）	ファイル'stops.txt'：152 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'stops.txt'：154 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'stops.txt'：156 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'stops.txt'：162 bytes。	情報通知のため対応不要です。
@@ -4193,6 +4207,7 @@ ja	GEO_016	停留所がNull Island付近（|lat|<0.1かつ|lon|<0.1）	停留所
 ja	GEO_017	形状点がNull Island付近	シェープ'SH1'：Null Island付近の点があります（0.010000,0.010000）— GPSドロップアウトまたはデータエラー。	shapes.txtでshape_pt_lat=0かつshape_pt_lon=0の行を確認してください。GPSドロップアウトの可能性があります。
 ja	GEO_018	フィードの全停留所が200m圏内（テストデータの可能性）	フィードの全0mか所の停留所が≥200mの範囲内にあります — テスト/プレースホルダーデータの可能性があります。	stops.txtのプレースホルダー座標を実際の地理的位置に置き換えてください。
 ja	GEO_018	フィードの全停留所が200m圏内（テストデータの可能性）	フィードの全1mか所の停留所が≥200mの範囲内にあります — テスト/プレースホルダーデータの可能性があります。	stops.txtのプレースホルダー座標を実際の地理的位置に置き換えてください。
+ja	GEO_018	フィードの全停留所が200m圏内（テストデータの可能性）	フィードの全30mか所の停留所が≥200mの範囲内にあります — テスト/プレースホルダーデータの可能性があります。	stops.txtのプレースホルダー座標を実際の地理的位置に置き換えてください。
 ja	GEO_018	フィードの全停留所が200m圏内（テストデータの可能性）	フィードの全70mか所の停留所が≥200mの範囲内にあります — テスト/プレースホルダーデータの可能性があります。	stops.txtのプレースホルダー座標を実際の地理的位置に置き換えてください。
 ja	GEO_019	停留所が整数座標（精度ゼロ）	停留所'A'：座標41,29が整数です — 精度ゼロ、プレースホルダーデータの可能性があります。	stop_latとstop_lonを少なくとも小数点以下5桁の精度で更新してください。
 ja	GEO_019	停留所が整数座標（精度ゼロ）	停留所'BA1'：座標41,29が整数です — 精度ゼロ、プレースホルダーデータの可能性があります。	stop_latとstop_lonを少なくとも小数点以下5桁の精度で更新してください。
@@ -4628,6 +4643,7 @@ ja	STP_017	停留所間が近すぎる	停留所'S3'が近くの停留所と近�
 ja	STP_018	停留所が存在しない	stops.txtに停留所がありません。	stops.txtに停留所を1件以上追加するか、有効なlocations.geojsonの区域をstop_times.location_idで参照してください。
 ja	STP_019	stop_nameが長すぎる	停留所'S1'：stop_nameが長すぎます。	stop_nameを100文字以内にしてください。
 ja	STP_020	どの便にも使用されていない停留所	停留所'LG1'はどの便にも使用されていません。	停留所を削除するか、便に追加してください。
+ja	STP_020	どの便にも使用されていない停留所	停留所'P'はどの便にも使用されていません。	停留所を削除するか、便に追加してください。
 ja	STP_020	どの便にも使用されていない停留所	停留所'P1'はどの便にも使用されていません。	停留所を削除するか、便に追加してください。
 ja	STP_020	どの便にも使用されていない停留所	停留所'PLAT'はどの便にも使用されていません。	停留所を削除するか、便に追加してください。
 ja	STP_020	どの便にも使用されていない停留所	停留所'P_A'はどの便にも使用されていません。	停留所を削除するか、便に追加してください。
@@ -4657,6 +4673,7 @@ ja	STP_022	stop_codeが不足	2件の停留所にstop_code（停留所番号）�
 ja	STP_022	stop_codeが不足	2件の停留所にstop_code（停留所番号）がありません（例: X, Y）。	任意項目です。標柱などに停留所番号が表示されている場合はstop_codeに入力してください。
 ja	STP_022	stop_codeが不足	2件の停留所にstop_code（停留所番号）がありません（例: ）。	任意項目です。標柱などに停留所番号が表示されている場合はstop_codeに入力してください。
 ja	STP_022	stop_codeが不足	3件の停留所にstop_code（停留所番号）がありません（例: A, B, C）。	任意項目です。標柱などに停留所番号が表示されている場合はstop_codeに入力してください。
+ja	STP_022	stop_codeが不足	3件の停留所にstop_code（停留所番号）がありません（例: A, B, P）。	任意項目です。標柱などに停留所番号が表示されている場合はstop_codeに入力してください。
 ja	STP_022	stop_codeが不足	3件の停留所にstop_code（停留所番号）がありません（例: S1, S2, LG1）。	任意項目です。標柱などに停留所番号が表示されている場合はstop_codeに入力してください。
 ja	STP_022	stop_codeが不足	3件の停留所にstop_code（停留所番号）がありません（例: S1, S2, S3）。	任意項目です。標柱などに停留所番号が表示されている場合はstop_codeに入力してください。
 ja	STP_022	stop_codeが不足	3件の停留所にstop_code（停留所番号）がありません（例: S1, S2, ST1）。	任意項目です。標柱などに停留所番号が表示されている場合はstop_codeに入力してください。
@@ -4680,6 +4697,7 @@ ja	STP_026	stop_accessが有効な列挙値でない	停留所'S1'：stop_access
 ja	STP_028	stop_codeが長すぎる	停留所'S1'：stop_codeが長すぎます。	stop_codeを50文字以内にしてください。
 ja	STP_029	停留所が親駅から遠い	停留所'S1'は駅内にありますが、親駅から座標が離れすぎています。	停留所座標またはparent_stationの参照を修正してください。
 ja	STP_029	停留所が親駅から遠い	停留所'S2'は駅内にありますが、親駅から座標が離れすぎています。	停留所座標またはparent_stationの参照を修正してください。
+ja	STP_030	子停留所のない駅	駅'B'に子停留所がありません。	この駅に属する物理的な停留所にparent_stationを入力するか、駅を削除してください。
 ja	STP_030	子停留所のない駅	駅'S1'に子停留所がありません。	この駅に属する物理的な停留所にparent_stationを入力するか、駅を削除してください。
 ja	STP_030	子停留所のない駅	駅'ST'に子停留所がありません。	この駅に属する物理的な停留所にparent_stationを入力するか、駅を削除してください。
 ja	STP_030	子停留所のない駅	駅'ST1'に子停留所がありません。	この駅に属する物理的な停留所にparent_stationを入力するか、駅を削除してください。
@@ -4713,6 +4731,7 @@ ja	STP_045	platform_codeがあるがparent_stationが空	1件の停留所にplat
 ja	STP_046	parent_stationのない停留所が駅のすぐ隣にある	停留所'S1'にparent_stationがありませんが、駅'ST1'から0.0 mの位置にあります。	この停留所がこの駅に属する場合はparent_stationを入力してください。そうでない場合は座標とレコードの要否を確認してください。
 ja	STP_046	parent_stationのない停留所が駅のすぐ隣にある	停留所'S1'にparent_stationがありませんが、駅'ST_A'から0.0 mの位置にあります。	この停留所がこの駅に属する場合はparent_stationを入力してください。そうでない場合は座標とレコードの要否を確認してください。
 ja	STP_046	parent_stationのない停留所が駅のすぐ隣にある	停留所'S2'にparent_stationがありませんが、駅'ST'から1.0 mの位置にあります。	この停留所がこの駅に属する場合はparent_stationを入力してください。そうでない場合は座標とレコードの要否を確認してください。
+ja	STP_047	同じ場所に2つの駅レコード	駅'A'と駅'B'は30.0 m離れており、前者の停留所が後者の位置にあります。	同じ場所であれば2つの駅レコードを統合し、そうでなければ位置を分けてください。座標を確認してください。
 ja	TFR_001	timeframe_group_idが不足	時間帯：timeframe_group_idがありません。	各タイムフレームレコードにtimeframe_group_idを入力してください。
 ja	TFR_002	service_idが存在しない	時間帯'TG1'：service_idが見つかりません。	有効なservice_idを使用してください。
 ja	TFR_003	start_timeまたはend_timeの形式が無効	時間帯'TG1'：start_timeまたはend_timeの形式が無効です。	HH:MM:SS形式で有効な時刻を入力してください。
@@ -5223,6 +5242,7 @@ tr	ARC_011	Dosya boyutu (bilgi)	'stops.txt' boyutu: 136 bayt.	Bilgi amaçlı; d�
 tr	ARC_011	Dosya boyutu (bilgi)	'stops.txt' boyutu: 137 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'stops.txt' boyutu: 140 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'stops.txt' boyutu: 151 bayt.	Bilgi amaçlı; düzeltme gerekmez.
+tr	ARC_011	Dosya boyutu (bilgi)	'stops.txt' boyutu: 152 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'stops.txt' boyutu: 154 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'stops.txt' boyutu: 156 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'stops.txt' boyutu: 162 bayt.	Bilgi amaçlı; düzeltme gerekmez.
@@ -5731,6 +5751,7 @@ tr	GEO_015	Durak koordinatları Japonya sınırları dışında (feed_lang: ja)	
 tr	GEO_016	Durak Null Island yakınında (|lat|<0.1 VE |lon|<0.1)	'Stop1' durağının koordinatları (0.010000,0.010000) Null Island yakınında — olası koordinat hatası.	stop_lat ve stop_lon değerlerinin gerçek konuma karşılık geldiğini doğrulayın.
 tr	GEO_017	Shape noktası Null Island yakınında	'SH1' şeklinde Null Island yakınında nokta bulundu (0.010000,0.010000) — GPS veri hatası olabilir.	shapes.txt'deki sıfır değerli koordinatları kontrol edin.
 tr	GEO_018	Tüm feed durakları 200m içinde (test verisi)	Feed'deki tüm 3 durak 1m'lik bir alan içinde — test/yer tutucu veri olabilir.	Gerçek durak koordinatlarını stops.txt'e ekleyin.
+tr	GEO_018	Tüm feed durakları 200m içinde (test verisi)	Feed'deki tüm 3 durak 30m'lik bir alan içinde — test/yer tutucu veri olabilir.	Gerçek durak koordinatlarını stops.txt'e ekleyin.
 tr	GEO_018	Tüm feed durakları 200m içinde (test verisi)	Feed'deki tüm 3 durak 70m'lik bir alan içinde — test/yer tutucu veri olabilir.	Gerçek durak koordinatlarını stops.txt'e ekleyin.
 tr	GEO_018	Tüm feed durakları 200m içinde (test verisi)	Feed'deki tüm 4 durak 0m'lik bir alan içinde — test/yer tutucu veri olabilir.	Gerçek durak koordinatlarını stops.txt'e ekleyin.
 tr	GEO_019	Durak tam sayı koordinatlara sahip (hassasiyet sıfır)	'12" Street' durağının koordinatları (41,29) tam sayı — düşük hassasiyetli veya yer tutucu veri.	stop_lat ve stop_lon değerlerini en az 5 ondalık basamakla güncelleyin.
@@ -5749,6 +5770,7 @@ tr	GEO_019	Durak tam sayı koordinatlara sahip (hassasiyet sıfır)	'Lorem ipsum
 tr	GEO_019	Durak tam sayı koordinatlara sahip (hassasiyet sıfır)	'MERKEZ' durağının koordinatları (41,29) tam sayı — düşük hassasiyetli veya yer tutucu veri.	stop_lat ve stop_lon değerlerini en az 5 ondalık basamakla güncelleyin.
 tr	GEO_019	Durak tam sayı koordinatlara sahip (hassasiyet sıfır)	'Main Stop' durağının koordinatları (41,29) tam sayı — düşük hassasiyetli veya yer tutucu veri.	stop_lat ve stop_lon değerlerini en az 5 ondalık basamakla güncelleyin.
 tr	GEO_019	Durak tam sayı koordinatlara sahip (hassasiyet sıfır)	'Merkez' durağının koordinatları (41,29) tam sayı — düşük hassasiyetli veya yer tutucu veri.	stop_lat ve stop_lon değerlerini en az 5 ondalık basamakla güncelleyin.
+tr	GEO_019	Durak tam sayı koordinatlara sahip (hassasiyet sıfır)	'Pepiniere' durağının koordinatları (41,29) tam sayı — düşük hassasiyetli veya yer tutucu veri.	stop_lat ve stop_lon değerlerini en az 5 ondalık basamakla güncelleyin.
 tr	GEO_019	Durak tam sayı koordinatlara sahip (hassasiyet sıfır)	'Pl' durağının koordinatları (41,29) tam sayı — düşük hassasiyetli veya yer tutucu veri.	stop_lat ve stop_lon değerlerini en az 5 ondalık basamakla güncelleyin.
 tr	GEO_019	Durak tam sayı koordinatlara sahip (hassasiyet sıfır)	'PlatA' durağının koordinatları (41,29) tam sayı — düşük hassasiyetli veya yer tutucu veri.	stop_lat ve stop_lon değerlerini en az 5 ondalık basamakla güncelleyin.
 tr	GEO_019	Durak tam sayı koordinatlara sahip (hassasiyet sıfır)	'Platform' durağının koordinatları (41,29) tam sayı — düşük hassasiyetli veya yer tutucu veri.	stop_lat ve stop_lon değerlerini en az 5 ondalık basamakla güncelleyin.
@@ -6425,6 +6447,7 @@ tr	STP_020	Hiç sefer geçmeyen durak	'D' durağı (kod: 'S4') hiçbir seferde k
 tr	STP_020	Hiç sefer geçmeyen durak	'E' durağı (kod: 'S5') hiçbir seferde kullanılmıyor.	Durağı kaldırın veya ilgili bir sefere ekleyin.
 tr	STP_020	Hiç sefer geçmeyen durak	'Far' durağı (kod: 'S3') hiçbir seferde kullanılmıyor.	Durağı kaldırın veya ilgili bir sefere ekleyin.
 tr	STP_020	Hiç sefer geçmeyen durak	'Main Stop' durağı (kod: 'P1') hiçbir seferde kullanılmıyor.	Durağı kaldırın veya ilgili bir sefere ekleyin.
+tr	STP_020	Hiç sefer geçmeyen durak	'Pepiniere 1' durağı (kod: 'P') hiçbir seferde kullanılmıyor.	Durağı kaldırın veya ilgili bir sefere ekleyin.
 tr	STP_020	Hiç sefer geçmeyen durak	'Pl' durağı (kod: 'P1') hiçbir seferde kullanılmıyor.	Durağı kaldırın veya ilgili bir sefere ekleyin.
 tr	STP_020	Hiç sefer geçmeyen durak	'PlatA' durağı (kod: 'P_A') hiçbir seferde kullanılmıyor.	Durağı kaldırın veya ilgili bir sefere ekleyin.
 tr	STP_020	Hiç sefer geçmeyen durak	'PlatB' durağı (kod: 'P_B') hiçbir seferde kullanılmıyor.	Durağı kaldırın veya ilgili bir sefere ekleyin.
@@ -6464,6 +6487,7 @@ tr	STP_028	stop_code çok uzun	'S1' durağının stop_code değeri 52 karakter; 
 tr	STP_029	Durak istasyon içinde ama koordinat çok uzakta	'S1' kodlu 'Stop1' durağı üst istasyonundan (ST1) 69558m uzakta (eşik: 150m).	Durak koordinatlarını veya parent_station referansını düzeltin.
 tr	STP_029	Durak istasyon içinde ama koordinat çok uzakta	'S2' kodlu 'Platform2' durağı üst istasyonundan (ST) 13927m uzakta (eşik: 150m).	Durak koordinatlarını veya parent_station referansını düzeltin.
 tr	STP_029	Durak istasyon içinde ama koordinat çok uzakta	'S2' kodlu 'Stop2' durağı üst istasyonundan (S1) 13927m uzakta (eşik: 150m).	Durak koordinatlarını veya parent_station referansını düzeltin.
+tr	STP_030	Üst istasyonun alt durağı yok	'B' kodlu 'Pépinière' istasyonunun hiç peronu yok — hiçbir durak (location_type=0) onu parent_station olarak kullanmıyor; yalnız giriş/düğüm kayıtları bağlı olabilir.	İstasyona bağlı peronlarda (location_type=0) parent_station alanını doldurun veya istasyonu kaldırın.
 tr	STP_030	Üst istasyonun alt durağı yok	'S1' kodlu 'Station' istasyonunun hiç peronu yok — hiçbir durak (location_type=0) onu parent_station olarak kullanmıyor; yalnız giriş/düğüm kayıtları bağlı olabilir.	İstasyona bağlı peronlarda (location_type=0) parent_station alanını doldurun veya istasyonu kaldırın.
 tr	STP_030	Üst istasyonun alt durağı yok	'S1' kodlu 'Stop1' istasyonunun hiç peronu yok — hiçbir durak (location_type=0) onu parent_station olarak kullanmıyor; yalnız giriş/düğüm kayıtları bağlı olabilir.	İstasyona bağlı peronlarda (location_type=0) parent_station alanını doldurun veya istasyonu kaldırın.
 tr	STP_030	Üst istasyonun alt durağı yok	'ST' kodlu 'Gar' istasyonunun hiç peronu yok — hiçbir durak (location_type=0) onu parent_station olarak kullanmıyor; yalnız giriş/düğüm kayıtları bağlı olabilir.	İstasyona bağlı peronlarda (location_type=0) parent_station alanını doldurun veya istasyonu kaldırın.
@@ -6498,6 +6522,7 @@ tr	STP_046	parent_station boş durak bir istasyonun hemen yanında	'Stop1' dura�
 tr	STP_046	parent_station boş durak bir istasyonun hemen yanında	'Stop1' durağının (kod: 'S1') parent_station alanı boş ama 'Station' istasyonuna (kod: 'ST1') 0.0m uzaklıkta.	Bu durak bu istasyona aitse parent_station alanını doldurun; değilse koordinatı ve kaydın gerekli olup olmadığını doğrulayın.
 tr	STP_046	parent_station boş durak bir istasyonun hemen yanında	'Stop1' durağının (kod: 'S1') parent_station alanı boş ama 'Station1' istasyonuna (kod: 'ST1') 0.0m uzaklıkta.	Bu durak bu istasyona aitse parent_station alanını doldurun; değilse koordinatı ve kaydın gerekli olup olmadığını doğrulayın.
 tr	STP_046	parent_station boş durak bir istasyonun hemen yanında	'Stop1' durağının (kod: 'S1') parent_station alanı boş ama 'StationA' istasyonuna (kod: 'ST_A') 0.0m uzaklıkta.	Bu durak bu istasyona aitse parent_station alanını doldurun; değilse koordinatı ve kaydın gerekli olup olmadığını doğrulayın.
+tr	STP_047	Aynı yer için iki istasyon kaydı	'Pepiniere' (kod: 'A') ve 'Pépinière' (kod: 'B') istasyonları arası 30.0m; ilkinin 'P' durağı ikinciye 0.0m uzaklıkta — büyük ihtimalle aynı yer iki kez kaydedilmiş.	Aynı yerse iki istasyon kaydını birleştirin, değilse ayırın; koordinatları kontrol edin.
 tr	TFR_001	timeframe_group_id eksik	timeframe_group_id zorunludur.	Her zaman dilimi kaydı için bir timeframe_group_id girin.
 tr	TFR_002	service_id bulunamadı	'SVCX' servis takvimi tanimli degil.	Gecerli bir service_id kullanin.
 tr	TFR_003	start_time veya end_time format hatası	'start_time' için HH:MM:SS bekleniyor, alınan: notatime	start_time için HH:MM:SS formatında geçerli bir değer girin.

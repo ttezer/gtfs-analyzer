@@ -70,6 +70,16 @@ standalone with `npm run typecheck` (requires the wasm packages to be built firs
 - **Rules & i18n:** Adding/changing/removing a rule means updating the registry
   (`crates/rules/src/registry.rs`), its card in `docs/rules/`, and the locale files
   (`ui/src/locales/{en,tr,ja,fr}.ts`). Locale parity is enforced by a test.
+  A new rule also needs:
+  - its planner card (`producer.card.<RULE>.{title,what,action}`) in **five** languages:
+    `{en,tr,ja,fr}.ts` and the cards-only `es.ts`, then `npm --prefix ui run locales:export`
+    (`every_registered_rule_has_a_card_in_every_language` and the vitest locale parity fail otherwise);
+  - a card in `docs/rules/` that follows the template, including the
+    `### Hangi raporlarda görünür` and `### Kod referansı` sections (`card_template_shape`);
+  - a fixture in `crates/pipeline/tests/emit_proof.rs`;
+  - the rule count updated everywhere it is written: six places in each `README*.md` and three
+    in `ui/index.html` (`rules_doc_drift`), then `cargo run -p gtfs-rules --example gen_rules`
+    for `RULES*.md`.
 - **Engine text is English.** Write every message, remediation and fatal error in the
   engine in English; no language has a special place in the code. Turkish, like Japanese
   and French, comes from the locale files:

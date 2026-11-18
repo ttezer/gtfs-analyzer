@@ -4741,6 +4741,113 @@ fn check_geo_stop_analytics(
     }
     drop(_tstp46);
 
+    // STP_047: two station records for the same place. A physical child of station A lies under
+    // 2 m from another station B, and A and B are between `stop_too_close_m` (STP_016/017 own the
+    // closer station pairs) and 150 m apart. Measured on the corpus (2026-11-18): 863 station
+    // pairs in 88 feeds, mostly one place recorded twice ("PEPINIERE" / "Pépinière"). The unit is
+    // the station pair; one finding per pair, on the station whose child sits on the other, in
+    // file order. Null Island is skipped (GEO_016).
+    let _tstp47 = Timer::start("K6::geo::stp_047");
+    {
+        const STP_047_NEAR_M: f64 = 2.0;
+        const STP_047_MAX_M: f64 = 150.0;
+        let min_m = config.stop_too_close_m;
+        let band = STP_047_NEAR_M / 1000.0 / 111.0;
+        let null_island = |la: f64, lo: f64| la.abs() < 0.1 && lo.abs() < 0.1;
+        let mut by_id: HashMap<&str, (f64, f64, &crate::k2::stops::StopRecord)> = HashMap::new();
+        let mut stations: Vec<(f64, f64, &crate::k2::stops::StopRecord)> = Vec::new();
+        for s in records.stops.iter().filter(|s| s.location_type == Some(1)) {
+            if let Some((la, lo)) =
+                recoverable_stop_coord(s).filter(|&(la, lo)| !null_island(la, lo))
+            {
+                by_id.insert(s.stop_id.as_str(), (la, lo, s));
+                stations.push((la, lo, s));
+            }
+        }
+        if stations.len() > 1 {
+            stations.sort_by(|a, b| a.0.total_cmp(&b.0));
+            let mut seen_pairs: HashSet<(&str, &str)> = HashSet::new();
+            for s in records
+                .stops
+                .iter()
+                .filter(|s| s.location_type.unwrap_or(0) == 0)
+            {
+                let Some(parent) = s
+                    .row
+                    .get("parent_station")
+                    .map(|v| v.trim())
+                    .filter(|v| !v.is_empty())
+                else {
+                    continue;
+                };
+                let Some(&(ala, alo, station_a)) = by_id.get(parent) else {
+                    continue;
+                };
+                let Some((la, lo)) =
+                    recoverable_stop_coord(s).filter(|&(la, lo)| !null_island(la, lo))
+                else {
+                    continue;
+                };
+                let from = stations.partition_point(|t| t.0 < la - band);
+                for &(bla, blo, station_b) in &stations[from..] {
+                    if bla > la + band {
+                        break;
+                    }
+                    if station_b.stop_id == station_a.stop_id {
+                        continue;
+                    }
+                    let stop_m = haversine_km(la, lo, bla, blo) * 1000.0;
+                    if stop_m >= STP_047_NEAR_M {
+                        continue;
+                    }
+                    let pair_m = haversine_km(ala, alo, bla, blo) * 1000.0;
+                    if pair_m < min_m || pair_m > STP_047_MAX_M {
+                        continue;
+                    }
+                    let (x, y) = (station_a.stop_id.as_str(), station_b.stop_id.as_str());
+                    if !seen_pairs.insert(if x < y { (x, y) } else { (y, x) }) {
+                        continue;
+                    }
+                    let name = |r: &crate::k2::stops::StopRecord| {
+                        r.stop_name
+                            .as_deref()
+                            .unwrap_or(r.stop_id.as_str())
+                            .to_string()
+                    };
+                    let mut n = k6_notice(
+                        ctr,
+                        "STP_047",
+                        EntityType::Stop,
+                        Some(station_a.stop_id.clone()),
+                        Some(station_a.stop_id.clone()),
+                        "stops.txt",
+                        Some(station_a.line),
+                        Some("stop_lat|stop_lon"),
+                        Some(format!("{pair_m:.1}m → '{}'", station_b.stop_id)),
+                        None,
+                        format!(
+                            "Stations '{}' (code: '{}') and '{}' (code: '{}') are {pair_m:.1}m apart, and stop '{}' of the first lies {stop_m:.1}m from the second — likely one place recorded twice.",
+                            name(station_a),
+                            station_a.stop_id,
+                            name(station_b),
+                            station_b.stop_id,
+                            s.stop_id,
+                        ),
+                        "Merge the two station records if they are one place, or move them apart; check the coordinates.",
+                    );
+                    let mut d = std::collections::BTreeMap::new();
+                    d.insert("other_station_id".to_string(), station_b.stop_id.clone());
+                    d.insert("distance_m".to_string(), format!("{pair_m:.1}"));
+                    d.insert("example_stop_id".to_string(), s.stop_id.clone());
+                    d.insert("stop_to_other_m".to_string(), format!("{stop_m:.1}"));
+                    n.details = Some(d.into());
+                    notices.push(n);
+                }
+            }
+        }
+    }
+    drop(_tstp47);
+
     // GEO_002: stop coordinates are outside the bounding box (feed-wide statistical anomaly).
     // Calculate the median coordinate of all stops in the feed and flag those far away.
     let _tgeo2 = Timer::start("K6::geo::geo_002_014");
@@ -17821,6 +17928,89 @@ mod tests {
             result.notices.iter().any(|n| n.rule_id == "STP_017"),
             "STP_017 olmalı"
         );
+    }
+
+    // ── STP_047: two station records for the same place ──────────────────
+
+    fn stp047(stops: Vec<StopRecord>) -> Vec<Notice> {
+        let records = crate::k2::EntityRecords {
+            stops,
+            ..Default::default()
+        };
+        analyze(
+            &records,
+            &DerivedData::default(),
+            &default_config(),
+            20260514,
+        )
+        .notices
+        .into_iter()
+        .filter(|n| n.rule_id == "STP_047")
+        .collect()
+    }
+
+    fn child(id: &str, lat: f64, lon: f64, parent: &str) -> StopRecord {
+        let mut s = stop(id, lat, lon);
+        s.row
+            .insert("parent_station".to_string(), parent.to_string());
+        s
+    }
+
+    #[test]
+    fn stp_047_flags_a_station_pair_when_a_child_sits_on_the_other_station() {
+        // A and B ~30 m apart (0.00027°); A's child is ~1 m from B.
+        let found = stp047(vec![
+            station("A", 41.0, 29.0),
+            station("B", 41.00027, 29.0),
+            child("P", 41.000279, 29.0, "A"),
+            child("Q", 41.000261, 29.0, "A"),
+        ]);
+        assert_eq!(found.len(), 1, "one finding per station pair: {found:?}");
+        let d = found[0].details.as_ref().unwrap();
+        assert_eq!(found[0].entity_id.as_deref(), Some("A"));
+        assert_eq!(d.get("other_station_id").map(String::as_str), Some("B"));
+        assert_eq!(d.get("example_stop_id").map(String::as_str), Some("P"));
+        assert_eq!(d.get("distance_m").map(String::as_str), Some("30.0"));
+    }
+
+    #[test]
+    fn stp_047_skips_close_far_unrelated_and_reverse_duplicate_pairs() {
+        // A–B under 5 m: STP_016/017 own it.
+        assert!(stp047(vec![
+            station("A", 41.0, 29.0),
+            station("B", 41.000027, 29.0),
+            child("P", 41.000027, 29.0, "A")
+        ])
+        .is_empty());
+        // A–B over 150 m.
+        assert!(stp047(vec![
+            station("A", 41.0, 29.0),
+            station("B", 41.002, 29.0),
+            child("P", 41.002, 29.0, "A")
+        ])
+        .is_empty());
+        // The child is 3 m from B: not on it.
+        assert!(stp047(vec![
+            station("A", 41.0, 29.0),
+            station("B", 41.00027, 29.0),
+            child("P", 41.000243, 29.0, "A")
+        ])
+        .is_empty());
+        // Null Island stations.
+        assert!(stp047(vec![
+            station("A", 0.0, 0.0),
+            station("B", 0.00027, 0.0),
+            child("P", 0.00027, 0.0, "A")
+        ])
+        .is_empty());
+        // Each station's child sits on the other: still one finding for the pair.
+        let both = stp047(vec![
+            station("A", 41.0, 29.0),
+            station("B", 41.00027, 29.0),
+            child("P", 41.00027, 29.0, "A"),
+            child("Q", 41.0, 29.0, "B"),
+        ]);
+        assert_eq!(both.len(), 1);
     }
 
     // ── STP_046: empty-parent stop next to a station ─────────────────────

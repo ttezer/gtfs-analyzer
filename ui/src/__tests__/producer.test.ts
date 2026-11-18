@@ -4055,3 +4055,13 @@ describe('İstasyon yanındaki bağlantısız durak kartı (STP_046)', () => {
     expect(root.innerHTML).toContain('Gar Peron, Gar istasyonundan 1 m uzakta. Bu istasyona bağlı başka peron da yok.');
   });
 });
+
+describe('Aynı yer için iki istasyon kaydı kartı (STP_047)', () => {
+  it('iki istasyonu, mesafeyi ve üstteki durağı söyler', () => {
+    const ni = { ...emptyNameIndex, stops: { A: 'Pepiniere', B: 'Pépinière', P: 'Pepiniere 1' } };
+    const n = notice('a', 'STP_047', 'LOW', { entity_type: 'Stop', entity_id: 'A', details: { other_station_id: 'B', distance_m: '30.0', example_stop_id: 'P', stop_to_other_m: '0.0' } });
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [['STP_047', 1, 1]], true, ni));
+    expect(root.innerHTML).toContain('Pepiniere ile Pépinière istasyonları arası 30 m; Pepiniere istasyonunun Pepiniere 1 durağı Pépinière üzerinde duruyor.');
+  });
+});

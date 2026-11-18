@@ -236,6 +236,10 @@ const tr = {
     'producer.card.ATR_012.what': "Bir atıf kaydı, listede olmayan bir sefere bağlanmış.",
     'producer.card.ATR_012.action': "Atfı mevcut bir sefere bağlayın.",
     'producer.card.BKR.rule': "Kural „{rule}“: {setting}.",
+    'producer.card.STP_047.title': "Aynı yer için iki istasyon kaydı",
+    'producer.card.STP_047.what': "İki istasyon birkaç metre arayla duruyor ve birinin durağı tam ötekinin üzerinde; büyük ihtimalle aynı yer iki kez kaydedilmiş.",
+    'producer.card.STP_047.action': "Aynı yerse iki istasyon kaydını birleştirin; değilse ayırın ve konumlarını kontrol edin.",
+    'producer.card.STP_047.what_detail': "{station} ile {other} istasyonları arası {distance} m; {station} istasyonunun {stop} durağı {other} üzerinde duruyor.",
     'producer.card.STP_046.title': "İstasyonun hemen yanında, istasyona bağlı olmayan durak",
     'producer.card.STP_046.what': "Bir durak bir istasyonun 2 metreden yakınında, ama hangi istasyona ait olduğu belirtilmemiş; büyük ihtimalle o istasyonun peronu.",
     'producer.card.STP_046.action': "Durak bu istasyona aitse istasyona bağlayın; değilse konumunu ve kaydın gerekli olup olmadığını kontrol edin.",
@@ -4329,6 +4333,7 @@ const tr = {
     'STP_044': "platform_code gereksiz 'platform/track' sözcüğü içeriyor",
     'STP_045': 'platform_code var ama parent_station boş',
     'STP_046': 'parent_station boş durak bir istasyonun hemen yanında',
+    'STP_047': 'Aynı yer için iki istasyon kaydı',
     'STP_041': 'Alt durak adı üst istasyon adını içermiyor',
     'STP_042': 'stop_url geçersiz',
     'STP_043': 'stop_access yasak bağlamda kullanılmış',
@@ -5207,6 +5212,9 @@ export const trRemediationTexts: Record<string, Record<string, string>> = {
   },
   'STP_046': {
     'If this stop belongs to this station, fill in parent_station; otherwise check the coordinates and whether the record is needed.': 'Bu durak bu istasyona aitse parent_station alanını doldurun; değilse koordinatı ve kaydın gerekli olup olmadığını doğrulayın.',
+  },
+  'STP_047': {
+    'Merge the two station records if they are one place, or move them apart; check the coordinates.': 'Aynı yerse iki istasyon kaydını birleştirin, değilse ayırın; koordinatları kontrol edin.',
   },
   'TFR_003': {
     'Enter a valid end_time in HH:MM:SS format.': 'end_time için HH:MM:SS formatında geçerli bir değer girin.',
@@ -7024,6 +7032,9 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
   },
   'STP_046': {
     'Stop \'{a0}\' (code: \'{a1}\') has no parent_station but is {a2}m from station \'{a3}\' (code: \'{a4}\').': '\'{a0}\' durağının (kod: \'{a1}\') parent_station alanı boş ama \'{a3}\' istasyonuna (kod: \'{a4}\') {a2}m uzaklıkta.',
+  },
+  'STP_047': {
+    'Stations \'{a0}\' (code: \'{a1}\') and \'{a2}\' (code: \'{a3}\') are {a4}m apart, and stop \'{a5}\' of the first lies {a6}m from the second — likely one place recorded twice.': '\'{a0}\' (kod: \'{a1}\') ve \'{a2}\' (kod: \'{a3}\') istasyonları arası {a4}m; ilkinin \'{a5}\' durağı ikinciye {a6}m uzaklıkta — büyük ihtimalle aynı yer iki kez kaydedilmiş.',
   },
   'TFR_002': {
     'Service calendar \'{a0}\' is not defined.': '\'{a0}\' servis takvimi tanimli degil.',

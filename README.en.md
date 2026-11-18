@@ -4,7 +4,7 @@
 
 [![Open App](https://img.shields.io/badge/Open%20App-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20100%25%20Machine--Checkable%20Coverage%20%28human%20review%20and%20recommendation--only%20provisions%20excluded%29-c8102e?style=flat)](https://www.gtfs.jp/)
-[![Rule count](https://img.shields.io/badge/rules-620-blue?style=flat)](RULES.en.md)
+[![Rule count](https://img.shields.io/badge/rules-621-blue?style=flat)](RULES.en.md)
 ![GTFS Spec coverage](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
 [![Corpus validation](https://img.shields.io/badge/corpus-4%2C435%20feeds%20%C3%97%2026%20runs-brightgreen?style=flat)](audit-results/)
 [![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
@@ -15,7 +15,7 @@
 
 GTFS Validator & Analyzer is an open-source GTFS validator and feed quality analyzer. A `.zip` uploaded to the browser application is never sent to a server; validation runs on the user's device via WebAssembly. It is available in eight forms: the browser application, a CLI (`cargo install gtfs-analyzer`), a Rust library, a CI/CD gate, the `gtfs-sdk` npm package, the `gtfs-analyzer` Python package, and **GTFS Validator** in ChatGPT and Claude.
 
-The project covers **97.2% of the measurable GTFS Specification requirements** and anchors all 300 atoms in the field inventory to at least one Spec rule. Of its **620 rules**, **415** produced at least one finding in the most recent full 4,435-feed catalog run. Every rule is listed in [`RULES.en.md`](RULES.en.md).
+The project covers **97.2% of the measurable GTFS Specification requirements** and anchors all 300 atoms in the field inventory to at least one Spec rule. Of its **621 rules**, **415** produced at least one finding in the most recent full 4,435-feed catalog run. Every rule is listed in [`RULES.en.md`](RULES.en.md).
 
 Accuracy is tested against MobilityData's official `gtfs-validator` through **twenty-six full catalog runs**. Each run validates every testable GTFS Schedule feed in the catalogue — **4,435** as of the most recent run — with both validators on the same machine and date, using the actual Java `gtfs-validator v8.0.1`. The raw outputs are available in [`audit-results/`](audit-results/).
 
@@ -23,7 +23,7 @@ GTFS Validator & Analyzer does not merely check whether a file conforms to the s
 
 Every finding is tagged with a rule code, an analysis class, and a severity level. Thanks to the Spec · Interop · Quality · Analytics classes and the Critical → Info severity levels, thousands of findings can be filtered, prioritized, and handled systematically. The tool also automatically detects the GTFS features used by the feed — Shapes, Transfers, Fares, Headsigns, Flex, and the like — and includes them in the report.
 
-GTFS Validator & Analyzer extends specification validation with operational quality analysis. Frequency inconsistencies per route, anomalous speed segments, isolated stops, gaps in service patterns, and network topology problems are examined with 620 distinct validation and analysis rules. Results are summarized with scores for publishability and overall feed quality. The prioritized fix queue shows which issues should be addressed first and the likely impact of each fix on the score.
+GTFS Validator & Analyzer extends specification validation with operational quality analysis. Frequency inconsistencies per route, anomalous speed segments, isolated stops, gaps in service patterns, and network topology problems are examined with 621 distinct validation and analysis rules. Results are summarized with scores for publishability and overall feed quality. The prioritized fix queue shows which issues should be addressed first and the likely impact of each fix on the score.
 
 **Who is it for?**
 
@@ -57,7 +57,7 @@ GTFS Validator & Analyzer extends specification validation with operational qual
 | npm package | ❌ | ✅ `gtfs-sdk` |
 | crates.io package | — *(Java project)* | ✅ `gtfs-analyzer` |
 | GTFS Spec coverage (measured) | — | **97.2%** · 300/300 field anchors |
-| **Total rules** | **178** | **620** |
+| **Total rules** | **178** | **621** |
 
 ### Corpus Validation
 
@@ -275,7 +275,7 @@ Even when the UI retains a limited number of finding examples for performance, t
 
 ## Eight Ways to Use It
 
-The same 620-rule validation engine is available through eight paths; each interface presents the result for its own use case:
+The same 621-rule validation engine is available through eight paths; each interface presents the result for its own use case:
 
 | Path | Best for | Where the data goes |
 |---|---|---|
@@ -857,7 +857,7 @@ gtfs-validator/
 │   ├── config/     # Configuration types
 │   ├── core/       # Shared data structures and result model
 │   ├── pipeline/   # Validation pipeline (k1–k7 stages)
-│   ├── rules/      # Rule definitions and registry (620 rules, 38 groups)
+│   ├── rules/      # Rule definitions and registry (621 rules, 38 groups)
 │   └── wasm/       # wasm-bindgen WASM output
 ├── spec-audit/     # Field table generated from the spec (anchor gate)
 └── ui/             # Vite + TypeScript frontend

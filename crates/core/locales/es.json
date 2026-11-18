@@ -2585,6 +2585,11 @@
       "what": "Una parada está a menos de 2 metros de una estación pero no indica a qué estación pertenece; lo más probable es que sea un andén de esa estación.",
       "action": "Si la parada pertenece a esta estación, vincúlela; si no, compruebe su ubicación y si el registro es necesario."
     },
+    "STP_047": {
+      "title": "Dos registros de estación para el mismo lugar",
+      "what": "Dos estaciones están a pocos metros y una parada de la primera está justo en la segunda; probablemente el mismo lugar se registró dos veces.",
+      "action": "Si son el mismo lugar, una los dos registros de estación; si no, sepárelos y compruebe las coordenadas."
+    },
     "TFR_001": {
       "title": "El grupo de franja horaria está vacío",
       "what": "Un registro de franja horaria tarifaria (p. ej., horas punta) tiene el código de grupo vacío.",
