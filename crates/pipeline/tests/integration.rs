@@ -9516,3 +9516,36 @@ T1,08:00:00,08:00:00,S1,1,0\nT1,08:10:00,08:10:00,S2,2,3300\nT1,08:20:00,08:20:0
         "SHP_017 must not repeat it: {ids:?}"
     );
 }
+
+/// DQ_018 keeps every all-caps stop_headsign row and both all-caps fields of one route; with
+/// Entity dedup the rows (no entity id) collapsed into one finding (2026-11-18).
+#[test]
+fn dq_018_keeps_each_stop_headsign_row_and_each_route_field() {
+    static ROUTES_CAPS: &[u8] =
+        b"route_id,agency_id,route_short_name,route_long_name,route_desc,route_type\n\
+R1,1,101,MERKEZ OTOGAR HATTI,EKSPRES SERVIS HATTI,3\n";
+    static ST_CAPS: &[u8] =
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\n\
+T1,08:00:00,08:00:00,S1,1,MERKEZ OTOGAR\nT1,08:10:00,08:10:00,S2,2,SANAYI SITESI\n";
+    let mut files = base_files();
+    files.retain(|(n, _)| !matches!(*n, "routes.txt" | "stop_times.txt"));
+    files.extend([("routes.txt", ROUTES_CAPS), ("stop_times.txt", ST_CAPS)]);
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("fatal")
+    };
+    let fields: Vec<&str> = vr
+        .notices
+        .iter()
+        .filter(|n| n.rule_id == "DQ_018")
+        .filter_map(|n| n.field.as_deref())
+        .collect();
+    assert_eq!(
+        fields.iter().filter(|f| **f == "stop_headsign").count(),
+        2,
+        "{fields:?}"
+    );
+    assert!(
+        fields.contains(&"route_long_name") && fields.contains(&"route_desc"),
+        "{fields:?}"
+    );
+}

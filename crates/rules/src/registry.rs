@@ -1856,7 +1856,9 @@ pub static RULES: &[RuleMeta] = &[
         "Extra whitespace in field value"),
     r!("DQ_017",  Bilgi,  Quality,  1, &[], None, VS, Feed,
         "Suspicious coordinate value"),
-    r!("DQ_018",  Orta,   Quality,  1, &[], Some("stop_id"), VS, Entity,
+    // Field dedup like DQ_019 (2026-11-18): with Entity dedup the stop_headsign rows (no entity
+    // id) collapsed into one finding, and a route with both names in capitals kept only one.
+    r!("DQ_018",  Orta,   Quality,  1, &[], Some("stop_id"), VS, Field,
         "All-caps value in recommended field"),
     r!("DQ_019",  Orta,   Quality,  1, &[], Some("file"), VS, Field,
         "All-lowercase value in recommended field"),
