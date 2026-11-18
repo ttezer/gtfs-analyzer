@@ -3129,6 +3129,8 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       } else if (g.ruleId === 'STM_042') {
         if (!d.stop_headsign) return null;
         what = t('producer.card.STM_042.what_detail', { stop, sequence, headsign: d.stop_headsign, char: n.observed_value ?? '—' });
+        // One finding per headsign value (2026-11-18): how many rows and trips use it.
+        if (Number(d.row_count) > 1) what += ` ${t('producer.card.STM_042.group', { rows: localizedNumber(d.row_count ?? ''), trips: localizedNumber(d.trip_count ?? '') })}`;
       } else if (g.ruleId === 'STM_045') {
         // The engine's own window end (≤27:00:00 by default; config and rail trips change it).
         const limit = /^≤(\d{2,3}:\d{2}:\d{2})$/.exec(n.expected_value ?? '')?.[1];

@@ -237,6 +237,7 @@ const ja: LocaleShape = {
     'producer.card.ATR_012.what': "帰属レコードが一覧にない便に紐付いています。",
     'producer.card.ATR_012.action': "既存の便に紐付けてください。",
     'producer.card.BKR.rule': "ルール「{rule}」: {setting}。",
+    'producer.card.STM_042.group': "同じ行先表示が {rows} 件の停車時刻（{trips} 便）で使われています。最初のものを例として表示しています。",
     'producer.card.DQ_019.summary': "{field} の値 {count} 件がすべて小文字で書かれています（異なる値 {distinct} 件）。例: {examples}。",
     'producer.card.STM_012.group': "同じ2停留所間でこの問題が {trips} 便にあります。最初の便を例として表示しています。",
     'producer.card.STM_017.what_partial': "他の便には入力されているのに、{shapes} 経路の {trips} 便で、経路始点からの累積距離が停留所に入力されていません。",

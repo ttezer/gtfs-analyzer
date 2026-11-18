@@ -9549,3 +9549,41 @@ T1,08:00:00,08:00:00,S1,1,MERKEZ OTOGAR\nT1,08:10:00,08:10:00,S2,2,SANAYI SITESI
         "{fields:?}"
     );
 }
+
+/// STM_042 is one finding per distinct stop_headsign value; the earliest row is kept and carries
+/// the row and trip counts and instance_count (2026-11-18).
+#[test]
+fn stm_042_groups_rows_by_headsign_value() {
+    static TRIPS2: &[u8] = b"route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n";
+    static ST_HS: &[u8] =
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\n\
+T1,08:00:00,08:00:00,S1,1,Merkez*Gar\nT1,08:10:00,08:10:00,S2,2,Merkez*Gar\n\
+T2,09:00:00,09:00:00,S1,1,Merkez*Gar\nT2,09:10:00,09:10:00,S2,2,Otogar!\n";
+    let mut files = base_files();
+    files.retain(|(n, _)| !matches!(*n, "trips.txt" | "stop_times.txt"));
+    files.extend([("trips.txt", TRIPS2), ("stop_times.txt", ST_HS)]);
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("fatal")
+    };
+    let mut hits: Vec<_> = vr
+        .notices
+        .iter()
+        .filter(|n| n.rule_id == "STM_042")
+        .collect();
+    hits.sort_by_key(|n| n.line);
+    assert_eq!(hits.len(), 2, "one per headsign value");
+    let d = hits[0].details.as_ref().unwrap();
+    assert_eq!(hits[0].line, Some(2));
+    assert_eq!(d.get("row_count").map(String::as_str), Some("3"));
+    assert_eq!(d.get("trip_count").map(String::as_str), Some("2"));
+    assert_eq!(d.get("instance_count").map(String::as_str), Some("3"));
+    assert_eq!(
+        hits[1]
+            .details
+            .as_ref()
+            .unwrap()
+            .get("row_count")
+            .map(String::as_str),
+        Some("1")
+    );
+}

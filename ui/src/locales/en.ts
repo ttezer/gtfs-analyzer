@@ -238,6 +238,7 @@ const en: LocaleShape = {
     'producer.card.ATR_012.what': "An attribution record is linked to a trip that is not in the list.",
     'producer.card.ATR_012.action': "Link the attribution to an existing trip.",
     'producer.card.BKR.rule': "Rule “{rule}”: {setting}.",
+    'producer.card.STM_042.group': "The same headsign is used on {rows} stop times ({trips} trips); the first is shown as the example.",
     'producer.card.DQ_019.summary': "{count} values of the {field} are written in lower case ({distinct} different values). Examples: {examples}.",
     'producer.card.STM_012.group': "The same two stops have this problem on {trips} trips; the first trip is shown as the example.",
     'producer.card.STM_017.what_partial': "The cumulative distance from the start of the route is missing at the stops of {trips} trips on {shapes} routes, while other trips have it.",

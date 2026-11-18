@@ -3958,6 +3958,66 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         }
     }
 
+    // STM_042: one finding per distinct stop_headsign value (2026-11-18). The same headsign text
+    // repeats on every row that shows it: corpus run 43302993350 had 133,331 STM_042 notices in
+    // one feed. The row earliest in the file is kept with its message and context and carries the
+    // row count, trip count, example trips and `instance_count` (so the score does not change).
+    {
+        let mut group_of: FxHashMap<String, usize> = FxHashMap::default();
+        let mut groups: Vec<Vec<usize>> = Vec::new();
+        for (i, n) in st.notices.iter().enumerate() {
+            if n.rule_id != "STM_042" {
+                continue;
+            }
+            let value = n
+                .details
+                .as_ref()
+                .and_then(|d| d.get("stop_headsign"))
+                .cloned()
+                .unwrap_or_default();
+            match group_of.get(&value) {
+                Some(&g) => groups[g].push(i),
+                None => {
+                    group_of.insert(value, groups.len());
+                    groups.push(vec![i]);
+                }
+            }
+        }
+        if !groups.is_empty() {
+            let mut drop = vec![false; st.notices.len()];
+            for members in &groups {
+                let rep = members
+                    .iter()
+                    .copied()
+                    .min_by_key(|&m| st.notices[m].line.unwrap_or(u64::MAX))
+                    .expect("a group has members");
+                let mut trips: Vec<String> = members
+                    .iter()
+                    .filter_map(|&m| st.notices[m].entity_id.clone())
+                    .collect();
+                trips.sort_unstable();
+                trips.dedup();
+                for &m in members.iter().filter(|&&m| m != rep) {
+                    drop[m] = true;
+                }
+                let d = st.notices[rep].details.get_or_insert_with(Default::default);
+                d.insert("row_count".to_string(), members.len().to_string());
+                d.insert("trip_count".to_string(), trips.len().to_string());
+                d.insert(
+                    "example_trips".to_string(),
+                    trips.iter().take(10).cloned().collect::<Vec<_>>().join(","),
+                );
+                d.insert("instance_count".to_string(), members.len().to_string());
+            }
+            let mut i = 0;
+            st.notices.retain(|_| {
+                let keep = !drop[i];
+                i += 1;
+                keep
+            });
+        }
+    }
+
     // STM_018/019 aggregation (#151): because the same enum violation often spans all stop_times rows
     // in producer feeds, reporting per row fills R2/R5/R9 with noise. As with SHP_010/STP_022, keep
     // pinpoint findings at low volume and emit one feed summary above the threshold.

@@ -4112,3 +4112,13 @@ describe('Durak çifti başına mesafe bulgusu (STM_026)', () => {
     expect(root.innerHTML).toContain('Aynı iki durak arasında bu sorun 40 seferde var');
   });
 });
+
+describe('Yön adı değeri başına karakter bulgusu (STM_042)', () => {
+  it('aynı yön adının kaç satırda kullanıldığını söyler', () => {
+    const ni = { ...emptyNameIndex, stops: { S1: 'Otogar' } };
+    const n = notice('a', 'STM_042', 'LOW', { entity_type: 'Trip', entity_id: 'T1', observed_value: '*', details: { stop_id: 'S1', stop_sequence: '1', stop_headsign: 'Merkez*Gar', row_count: '3', trip_count: '2' } });
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [['STM_042', 1, 1]], true, ni));
+    expect(root.innerHTML).toContain('Aynı yön adı 3 durak saatinde (2 sefer) kullanılıyor');
+  });
+});
