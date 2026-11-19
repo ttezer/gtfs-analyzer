@@ -8,6 +8,7 @@ use gtfs_core::{EntityType, Notice};
 
 use crate::k2::stop_times::CompactStopTime;
 use crate::k2::stop_times::StopTimesIndex as K2StopTimesIndex;
+use crate::k2::shapes::ShapePointRecord;
 use crate::k2::EntityRecords;
 use crate::k5_derived::DerivedData;
 use crate::recovery::FileAvailability;
@@ -1101,12 +1102,12 @@ use crate::k5_derived::{haversine_km, jdn_to_yyyymmdd, ymd_to_jdn};
 /// Returns the minimum distance in meters from a stop (slat, slon) to a shape polyline.
 /// For each segment, computes the perpendicular distance; if the projection falls outside
 /// the segment, uses the distance to the nearest endpoint.
-fn point_to_polyline_dist_m(slat: f64, slon: f64, pts: &[(f64, f64)]) -> f64 {
+fn point_to_polyline_dist_m(slat: f64, slon: f64, pts: ShapePts<'_>) -> f64 {
     if pts.is_empty() {
         return f64::MAX;
     }
     if pts.len() == 1 {
-        return haversine_km(slat, slon, pts[0].0, pts[0].1) * 1000.0;
+        return haversine_km(slat, slon, pts.at(0).0, pts.at(0).1) * 1000.0;
     }
     const DEG_TO_M: f64 = 111_320.0;
     let cos_lat = slat.to_radians().cos();
@@ -1115,7 +1116,7 @@ fn point_to_polyline_dist_m(slat: f64, slon: f64, pts: &[(f64, f64)]) -> f64 {
         ((lon - slon) * cos_lat * DEG_TO_M, (lat - slat) * DEG_TO_M)
     };
     let mut min_dist = f64::MAX;
-    for w in pts.windows(2) {
+    for w in pts.windows2() {
         let (ax, ay) = to_local(w[0].0, w[0].1);
         let (bx, by) = to_local(w[1].0, w[1].1);
         let (dx, dy) = (bx - ax, by - ay);
@@ -1158,7 +1159,7 @@ fn hms_to_secs(t: (u32, u32, u32)) -> u32 {
 /// inspection showed the first stop 10 m from the shape start and the last stop 9 m from its end
 /// — the route is CORRECT. The returned triple lets the caller see the ambiguity and stay silent.
 fn project_arc_detail(
-    pts: &[(f64, f64)],
+    pts: ShapePts<'_>,
     cum: &[f64],
     slat: f64,
     slon: f64,
@@ -1170,8 +1171,8 @@ fn project_arc_detail(
     let mut best_dsq = f64::INFINITY;
     let mut head_dsq = f64::INFINITY;
     for w in 0..pts.len() - 1 {
-        let (alat, alon) = pts[w];
-        let (blat, blon) = pts[w + 1];
+        let (alat, alon) = pts.at(w);
+        let (blat, blon) = pts.at(w + 1);
         let ax = (alon - slon) * scale;
         let ay = (alat - slat) * 111.0_f64;
         let dx = (blon - slon) * scale - ax;
@@ -1202,14 +1203,14 @@ fn project_arc_detail(
     )
 }
 
-fn project_arc_km(pts: &[(f64, f64)], cum: &[f64], slat: f64, slon: f64) -> f64 {
+fn project_arc_km(pts: ShapePts<'_>, cum: &[f64], slat: f64, slon: f64) -> f64 {
     let cos_lat = (slat.to_radians()).cos().max(0.001_f64);
     let scale = 111.0_f64 * cos_lat;
     let mut best_arc = 0.0_f64;
     let mut best_dsq = f64::INFINITY;
     for w in 0..pts.len() - 1 {
-        let (alat, alon) = pts[w];
-        let (blat, blon) = pts[w + 1];
+        let (alat, alon) = pts.at(w);
+        let (blat, blon) = pts.at(w + 1);
         let ax = (alon - slon) * scale;
         let ay = (alat - slat) * 111.0_f64;
         let bx = (blon - slon) * scale;
@@ -1237,14 +1238,14 @@ fn project_arc_km(pts: &[(f64, f64)], cum: &[f64], slat: f64, slon: f64) -> f64 
 /// Minimum distance (km) from a stop point to a shape polyline by segment projection.
 /// Finds the argmin in equirectangular space; calls haversine only once at the end.
 /// `safe_sq`: threshold²×0.98 — returns 0.0 for a segment below this value (early exit).
-fn seg_min_dist_km(pts: &[(f64, f64)], slat: f64, slon: f64, scale_lon: f64, safe_sq: f64) -> f64 {
+fn seg_min_dist_km(pts: ShapePts<'_>, slat: f64, slon: f64, scale_lon: f64, safe_sq: f64) -> f64 {
     if pts.len() < 2 {
-        return haversine_km(slat, slon, pts[0].0, pts[0].1);
+        return haversine_km(slat, slon, pts.at(0).0, pts.at(0).1);
     }
     let mut min_sq = f64::INFINITY;
-    let mut best_lat = pts[0].0;
-    let mut best_lon = pts[0].1;
-    for w in pts.windows(2) {
+    let mut best_lat = pts.at(0).0;
+    let mut best_lon = pts.at(0).1;
+    for w in pts.windows2() {
         let (alat, alon) = w[0];
         let (blat, blon) = w[1];
         // Segment A→B, stop P=(0,0) in equirectangular km coords
@@ -1486,14 +1487,69 @@ fn max_speed_kmh(route_type: u32, cfg: &ValidatorConfig) -> f64 {
 // In parallel mode (wasm32-threads), three copies could be live AT ONCE, so sharing also lowers
 // peak memory; in serial mode one copy stays live across K6 (~16B/point).
 struct ShapeIndex<'a> {
-    coords: FxHashMap<&'a str, Vec<(f64, f64)>>,
+    // Points are NOT copied: each shape is a view over the K2 `records.shapes` rows. A shape whose
+    // rows are consecutive in the file and already in shape_pt_sequence order (every shape of
+    // mdb-2014) needs only a range; any other shape keeps its sorted row indices (4 B/point).
+    // The former copy was a Vec<(f64, f64)> per shape: 16 B/point, 1.4 GB on mdb-2014.
+    recs: &'a [ShapePointRecord],
+    runs: FxHashMap<&'a str, ShapeRun>,
     bbox: FxHashMap<&'a str, [f64; 4]>,
 }
 
+enum ShapeRun {
+    Range(u32, u32),
+    Idx(Box<[u32]>),
+}
+
+/// One shape's sequence-sorted (lat, lon) points, read from the K2 rows on access.
+#[derive(Clone, Copy)]
+struct ShapePts<'a> {
+    recs: &'a [ShapePointRecord],
+    idx: Option<&'a [u32]>,
+}
+
+impl<'a> ShapePts<'a> {
+    #[inline]
+    fn len(&self) -> usize {
+        match self.idx {
+            Some(ix) => ix.len(),
+            None => self.recs.len(),
+        }
+    }
+    #[inline]
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    #[inline]
+    fn at(&self, i: usize) -> (f64, f64) {
+        let r = match self.idx {
+            Some(ix) => &self.recs[ix[i] as usize],
+            None => &self.recs[i],
+        };
+        (r.shape_pt_lat().unwrap_or(f64::NAN), r.shape_pt_lon().unwrap_or(f64::NAN))
+    }
+    #[inline]
+    fn last(&self) -> Option<(f64, f64)> {
+        self.len().checked_sub(1).map(|i| self.at(i))
+    }
+    fn iter(self) -> impl Iterator<Item = (f64, f64)> + Clone + 'a {
+        (0..self.len()).map(move |i| self.at(i))
+    }
+    /// Consecutive point pairs, like `slice.windows(2)`.
+    fn windows2(self) -> impl Iterator<Item = [(f64, f64); 2]> + 'a {
+        (1..self.len()).map(move |i| [self.at(i - 1), self.at(i)])
+    }
+    /// The first `n` points (`n` <= len), like `&slice[..n]`.
+    fn prefix(self, n: usize) -> Self {
+        match self.idx {
+            Some(ix) => ShapePts { recs: self.recs, idx: Some(&ix[..n]) },
+            None => ShapePts { recs: &self.recs[..n], idx: None },
+        }
+    }
+}
+
 impl<'a> ShapeIndex<'a> {
-    /// #15 (build_maps OOM/312s): shape_coords is built with POINT INDICES. Grouping each point
-    /// in a (u32,f64,f64)=24B temporary buffer and then copying to (f64,f64)=16B created transient
-    /// ~40B/nokta demekti; indeks (4B) + coords (16B) = ~20B/nokta tepe.
+    /// #15 (build_maps OOM/312s): points are grouped by row index (4 B/point, transient).
     /// Sorting is STABLE (`sort_by_key`) — file order is preserved for equal `shape_pt_sequence`.
     fn build(records: &'a EntityRecords) -> Self {
         let mut shape_pt_idx: FxHashMap<&str, Vec<u32>> = FxHashMap::default();
@@ -1506,25 +1562,22 @@ impl<'a> ShapeIndex<'a> {
             }
         }
         let n_shapes = shape_pt_idx.len();
-        let mut coords: FxHashMap<&str, Vec<(f64, f64)>> = FxHashMap::default();
+        let recs: &'a [ShapePointRecord] = &records.shapes;
+        let mut runs: FxHashMap<&str, ShapeRun> = FxHashMap::default();
         let mut bbox: FxHashMap<&str, [f64; 4]> = FxHashMap::default();
-        coords.reserve(n_shapes);
+        runs.reserve(n_shapes);
         bbox.reserve(n_shapes);
         for (sid, mut idxs) in shape_pt_idx {
-            idxs.sort_by_key(|&i| records.shapes[i as usize].shape_pt_sequence().unwrap_or(0));
-            let pts: Vec<(f64, f64)> = idxs
-                .iter()
-                .map(|&i| {
-                    let sp = &records.shapes[i as usize];
-                    (sp.shape_pt_lat().unwrap(), sp.shape_pt_lon().unwrap())
-                })
-                .collect();
-            if !pts.is_empty() {
-                let mut mn_lat = pts[0].0;
-                let mut mx_lat = pts[0].0;
-                let mut mn_lon = pts[0].1;
-                let mut mx_lon = pts[0].1;
-                for &(la, lo) in pts.iter().skip(1) {
+            idxs.sort_by_key(|&i| recs[i as usize].shape_pt_sequence().unwrap_or(0));
+            let contiguous = idxs.windows(2).all(|w| w[1] == w[0] + 1);
+            let run = match (contiguous, idxs.first()) {
+                (true, Some(&first)) => ShapeRun::Range(first, first + idxs.len() as u32),
+                _ => ShapeRun::Idx(idxs.into_boxed_slice()),
+            };
+            let pts = Self::view(recs, &run);
+            if let Some((la0, lo0)) = pts.iter().next() {
+                let (mut mn_lat, mut mx_lat, mut mn_lon, mut mx_lon) = (la0, la0, lo0, lo0);
+                for (la, lo) in pts.iter().skip(1) {
                     if la < mn_lat {
                         mn_lat = la;
                     }
@@ -1540,9 +1593,25 @@ impl<'a> ShapeIndex<'a> {
                 }
                 bbox.insert(sid, [mn_lat, mx_lat, mn_lon, mx_lon]);
             }
-            coords.insert(sid, pts);
+            runs.insert(sid, run);
         }
-        Self { coords, bbox }
+        Self { recs, runs, bbox }
+    }
+
+    fn view<'s>(recs: &'s [ShapePointRecord], run: &'s ShapeRun) -> ShapePts<'s> {
+        match run {
+            ShapeRun::Range(a, b) => ShapePts { recs: &recs[*a as usize..*b as usize], idx: None },
+            ShapeRun::Idx(ix) => ShapePts { recs, idx: Some(ix) },
+        }
+    }
+
+    fn get(&self, sid: &str) -> Option<ShapePts<'_>> {
+        self.runs.get(sid).map(|r| Self::view(self.recs, r))
+    }
+
+    /// Same order as the former `coords` map: same keys, inserted in the same order.
+    fn iter(&self) -> impl Iterator<Item = (&&'a str, ShapePts<'_>)> {
+        self.runs.iter().map(|(k, r)| (k, Self::view(self.recs, r)))
     }
 }
 
@@ -1912,7 +1981,7 @@ fn check_speed_and_duration<'a>(
     // distance (haversine) is calculated here. The old path built a fourth copy and used `sort_unstable`
     // → order was ambiguous for equal `shape_pt_sequence`; the shared index is STABLE-sorted (file
     // order preserved), so this path is now deterministic.
-    let shape_pts_speed = &shape_idx.coords;
+    let shape_pts_speed = shape_idx;
     let (shape_cum_speed, trip_shape_speed) = {
         let _t = Timer::start("K6::sd::shape_setup");
         let shape_cum: FxHashMap<&str, Vec<f64>> = shape_pts_speed
@@ -1921,7 +1990,7 @@ fn check_speed_and_duration<'a>(
                 let mut c = Vec::with_capacity(pts.len());
                 c.push(0.0_f64);
                 for i in 1..pts.len() {
-                    c.push(c[i - 1] + haversine_km(pts[i - 1].0, pts[i - 1].1, pts[i].0, pts[i].1));
+                    c.push(c[i - 1] + haversine_km(pts.at(i - 1).0, pts.at(i - 1).1, pts.at(i).0, pts.at(i).1));
                 }
                 (sid, c)
             })
@@ -8809,7 +8878,7 @@ const SHP017_NEAR_M: f64 = 100.0;
 /// local minimum of the distance within `radius_m`), as (km from the shape start, metres to the
 /// stop). A corridor driven twice gives two positions.
 fn shape_positions_near(
-    pts: &[(f64, f64)],
+    pts: ShapePts<'_>,
     cum_km: &[f64],
     lat: f64,
     lon: f64,
@@ -8824,8 +8893,8 @@ fn shape_positions_near(
     let mut leaving = false;
     let mut end_dist = f64::INFINITY;
     for i in 0..pts.len().saturating_sub(1) {
-        let (ax, ay) = xy(pts[i]);
-        let (bx, by) = xy(pts[i + 1]);
+        let (ax, ay) = xy(pts.at(i));
+        let (bx, by) = xy(pts.at(i + 1));
         let (dx, dy) = (bx - ax, by - ay);
         let len2 = dx * dx + dy * dy;
         let t = if len2 > 0.0 {
@@ -8950,7 +9019,7 @@ fn check_remaining_analytics<'a>(
     // ── shape geometry: borrowed from the shared ShapeIndex at K6 entry ──────
     let _tb = Timer::start("K6::rem::build_maps");
     // Built ONCE at K6 entry (see ShapeIndex) — only borrowed here.
-    let shape_coords = &shape_idx.coords;
+    let shape_coords = shape_idx;
     let shape_bbox = &shape_idx.bbox;
 
     // ── stop_id → (lat, lon) ──────────────────────────────────────────────────
@@ -10687,7 +10756,7 @@ fn check_remaining_analytics<'a>(
                 let mut c = Vec::with_capacity(pts.len());
                 c.push(0.0_f64);
                 for i in 1..pts.len() {
-                    c.push(c[i - 1] + haversine_km(pts[i - 1].0, pts[i - 1].1, pts[i].0, pts[i].1));
+                    c.push(c[i - 1] + haversine_km(pts.at(i - 1).0, pts.at(i - 1).1, pts.at(i).0, pts.at(i).1));
                 }
                 c
             });
@@ -10697,8 +10766,8 @@ fn check_remaining_analytics<'a>(
             }
             // Circular shape (start≈end) → reverse check is meaningless, skip.
             let ring = haversine_km(
-                pts[0].0,
-                pts[0].1,
+                pts.at(0).0,
+                pts.at(0).1,
                 pts.last().unwrap().0,
                 pts.last().unwrap().1,
             );
@@ -10816,7 +10885,7 @@ fn check_remaining_analytics<'a>(
                 let mut c = Vec::with_capacity(pts.len());
                 c.push(0.0_f64);
                 for i in 1..pts.len() {
-                    c.push(c[i - 1] + haversine_km(pts[i - 1].0, pts[i - 1].1, pts[i].0, pts[i].1));
+                    c.push(c[i - 1] + haversine_km(pts.at(i - 1).0, pts.at(i - 1).1, pts.at(i).0, pts.at(i).1));
                 }
                 c
             });
@@ -10990,8 +11059,8 @@ fn check_remaining_analytics<'a>(
             if pts.len() < 2 {
                 continue;
             }
-            let shape_start = pts[0];
-            let shape_end = *pts.last().unwrap();
+            let shape_start = pts.at(0);
+            let shape_end = pts.last().unwrap();
 
             if let Some(first_st) = stimes.first() {
                 if let Some(&(slat, slon)) = stop_coords.get(idx.stop_id_of(first_st)) {
@@ -11975,7 +12044,7 @@ fn check_remaining_analytics<'a>(
         const MIN_POINTS_PER_10KM: f64 = 2.0; // en az 2 nokta / 10km
         for (shape_id, pts) in shape_coords.iter() {
             let total_km: f64 = pts
-                .windows(2)
+                .windows2()
                 .map(|w| haversine_km(w[0].0, w[0].1, w[1].0, w[1].1))
                 .sum();
             if total_km > 1.0 {
@@ -12026,16 +12095,16 @@ fn check_remaining_analytics<'a>(
             // Check a small window, not only consecutive pairs.
             'outer: for i in 0..pts.len() {
                 for j in (i + 2)..pts.len().min(i + 10) {
-                    let dlat = (pts[i].0 - pts[j].0).abs();
-                    let dlon = (pts[i].1 - pts[j].1).abs();
+                    let dlat = (pts.at(i).0 - pts.at(j).0).abs();
+                    let dlon = (pts.at(i).1 - pts.at(j).1).abs();
                     if dlat < DUP_THRESHOLD_DEG && dlon < DUP_THRESHOLD_DEG {
                         let key = (
-                            (pts[i].0 * 1e6).round() as i64,
-                            (pts[i].1 * 1e6).round() as i64,
+                            (pts.at(i).0 * 1e6).round() as i64,
+                            (pts.at(i).1 * 1e6).round() as i64,
                         );
                         let e = by_coord
                             .entry(key)
-                            .or_insert_with(|| (*shape_id, i, j, pts[i].0, pts[i].1, Vec::new()));
+                            .or_insert_with(|| (*shape_id, i, j, pts.at(i).0, pts.at(i).1, Vec::new()));
                         // Deterministic representative: lexicographically smallest shape_id.
                         if *shape_id < e.0 {
                             e.0 = *shape_id;
@@ -12159,8 +12228,9 @@ fn check_remaining_analytics<'a>(
             // `segments_cross` decides only on a real intersection; first eliminating axis-aligned
             // bounding boxes cuts expensive cross products while preserving the same result. Use strict
             // `<`: a pair intersecting at the bbox boundary is left to `segments_cross` to preserve endpoint semantics.
-            let segment_bbox: Vec<(f64, f64, f64, f64)> = pts[..n]
-                .windows(2)
+            let segment_bbox: Vec<(f64, f64, f64, f64)> = pts
+                .prefix(n)
+                .windows2()
                 .map(|w| {
                     (
                         w[0].0.min(w[1].0),
@@ -12172,6 +12242,7 @@ fn check_remaining_analytics<'a>(
                 .collect();
             'seg_outer: for i in 0..n.saturating_sub(1) {
                 let (amin_lat, amax_lat, amin_lon, amax_lon) = segment_bbox[i];
+                #[allow(clippy::needless_range_loop)] // j also indexes the shape points (pts.at)
                 for j in i + 2..n.saturating_sub(1) {
                     if i == 0 && j == n - 2 {
                         continue;
@@ -12184,10 +12255,10 @@ fn check_remaining_analytics<'a>(
                     {
                         continue;
                     }
-                    if segments_cross(pts[i], pts[i + 1], pts[j], pts[j + 1]) {
+                    if segments_cross(pts.at(i), pts.at(i + 1), pts.at(j), pts.at(j + 1)) {
                         let key = (
-                            (pts[i].0 * 1e3).round() as i64,
-                            (pts[i].1 * 1e3).round() as i64,
+                            (pts.at(i).0 * 1e3).round() as i64,
+                            (pts.at(i).1 * 1e3).round() as i64,
                         );
                         let e = by_coord
                             .entry(key)
@@ -12240,7 +12311,7 @@ fn check_remaining_analytics<'a>(
                 // Planner context: where the line crosses itself.
                 if let Some((la, lo)) = shape_coords
                     .get(shape_id)
-                    .and_then(|pts| segment_intersection(pts[i], pts[i + 1], pts[j], pts[j + 1]))
+                    .and_then(|pts| segment_intersection(pts.at(i), pts.at(i + 1), pts.at(j), pts.at(j + 1)))
                 {
                     d.insert("cross_lat".to_string(), format!("{la:.6}"));
                     d.insert("cross_lon".to_string(), format!("{lo:.6}"));
@@ -12305,7 +12376,7 @@ fn check_shp012<'a>(
 ) {
     let ti_shp012 = &records.trip_interns;
     // Setup is performed ONCE at K6 entry (see ShapeIndex) — only borrowed here.
-    let shape_coords = &shape_idx.coords;
+    let shape_coords = shape_idx;
     let shape_bbox = &shape_idx.bbox;
     let stop_coords: FxHashMap<&str, (f64, f64)> = records
         .stops
@@ -12441,7 +12512,7 @@ fn check_shp022<'a>(
     let ti_shp022 = &records.trip_interns;
 
     // Setup is performed ONCE at K6 entry (see ShapeIndex) — only borrowed here.
-    let shape_coords = &shape_idx.coords;
+    let shape_coords = shape_idx;
     let shape_bbox = &shape_idx.bbox;
     let stop_coords: FxHashMap<&str, (f64, f64)> = records
         .stops
@@ -12525,11 +12596,11 @@ fn check_shp022<'a>(
                 let mut c = Vec::with_capacity(pts.len());
                 c.push(0.0_f64);
                 for i in 1..pts.len() {
-                    c.push(c[i - 1] + haversine_km(pts[i - 1].0, pts[i - 1].1, pts[i].0, pts[i].1));
+                    c.push(c[i - 1] + haversine_km(pts.at(i - 1).0, pts.at(i - 1).1, pts.at(i).0, pts.at(i).1));
                 }
                 c
             });
-            let cos_lat = (pts[0].0.to_radians()).cos().max(0.001_f64);
+            let cos_lat = (pts.at(0).0.to_radians()).cos().max(0.001_f64);
             let scale_lon = 111.0_f64 * cos_lat;
             let match_sq = MATCH_KM * MATCH_KM;
 
@@ -12562,8 +12633,8 @@ fn check_shp022<'a>(
                 // Compute the minimum distance for each segment and record those below MATCH_KM.
                 let mut close_arcs: Vec<f64> = Vec::new();
                 for w in 0..pts.len() - 1 {
-                    let (alat, alon) = pts[w];
-                    let (blat, blon) = pts[w + 1];
+                    let (alat, alon) = pts.at(w);
+                    let (blat, blon) = pts.at(w + 1);
                     let ax = (alon - slon) * scale_lon;
                     let ay = (alat - slat) * 111.0_f64;
                     let bx = (blon - slon) * scale_lon;
@@ -15956,6 +16027,40 @@ mod tests {
         let d = opr.details.as_ref().expect("details olmalı");
         assert_eq!(d.get("bad_seg_0_a").map(String::as_str), Some("A"));
         assert_eq!(d.get("bad_seg_1_b").map(String::as_str), Some("C"));
+    }
+
+    #[test]
+    fn shape_index_views_match_sorted_points() {
+        use crate::k2::shapes::ShapePointRecord;
+        let mut ti = ShapeInternTable::new();
+        let p = |ti: &mut ShapeInternTable, s: &str, lat: f64, seq: u32| {
+            ShapePointRecord::new(ti.intern(s), Some(lat), Some(lat + 100.0), Some(seq), None, 0)
+        };
+        let mut records = records_with(vec![], vec![], vec![], vec![]);
+        // "A": consecutive, already in sequence order -> range view.
+        // "B": interleaved with "C" and out of order -> row-index view.
+        // "C": one point has no latitude -> left out.
+        records.shapes = vec![
+            p(&mut ti, "A", 1.0, 1),
+            p(&mut ti, "A", 2.0, 2),
+            p(&mut ti, "B", 30.0, 3),
+            p(&mut ti, "C", 7.0, 1),
+            p(&mut ti, "B", 10.0, 1),
+            ShapePointRecord::new(ti.intern("C"), None, Some(1.0), Some(2), None, 0),
+            p(&mut ti, "B", 20.0, 2),
+        ];
+        records.shape_interns = ti;
+        let idx = ShapeIndex::build(&records);
+        assert!(matches!(idx.runs["A"], ShapeRun::Range(0, 2)));
+        assert!(matches!(idx.runs["B"], ShapeRun::Idx(_)));
+        let lats = |s: &str| idx.get(s).unwrap().iter().map(|p| p.0).collect::<Vec<_>>();
+        assert_eq!(lats("A"), vec![1.0, 2.0]);
+        assert_eq!(lats("B"), vec![10.0, 20.0, 30.0]);
+        assert_eq!(lats("C"), vec![7.0]);
+        assert_eq!(idx.get("B").unwrap().at(2), (30.0, 130.0));
+        assert_eq!(idx.get("B").unwrap().prefix(2).last(), Some((20.0, 120.0)));
+        assert_eq!(idx.get("B").unwrap().windows2().count(), 2);
+        assert_eq!(idx.bbox["B"], [10.0, 30.0, 110.0, 130.0]);
     }
 
     #[test]
