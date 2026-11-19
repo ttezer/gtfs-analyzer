@@ -340,7 +340,14 @@ pub fn check_with_files_and_whitespace_roots(
         "K4::fare_rules",
         availability.all(&["fare_rules.txt", "stops.txt"]),
         {
-            check_fare_rules(records, map, &mut notices, &mut ctr);
+            check_fare_rules(
+                records,
+                map,
+                &mut notices,
+                &mut ctr,
+                whitespace_root_files.is_some_and(|files| files.contains("fare_rules.txt")),
+                &mut whitespace_suppressions,
+            );
         }
     );
     gate!(
@@ -3006,7 +3013,14 @@ fn check_fare_rules(
     map: &EntityMap,
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
+    suppress_whitespace_derivatives: bool,
+    whitespace_suppressions: &mut WhitespaceSuppressions,
 ) {
+    // K7 drops an FRL_002 that is only a whitespace symptom when fare_rules.txt has a DQ_016
+    // root. With that root known here, the same test decides now and the notice is only
+    // counted: mdb-992 padded every value and built 1.1M FRL_002 (1.2 GB) that K7 then dropped.
+    let whitespace_references = suppress_whitespace_derivatives
+        .then(|| crate::k7_reporting::WhitespaceReferences::from_records(records));
     // FRL_006: fare_attributes is defined but has no fare_rules records.
     if records.fare_rules.is_empty() && !records.fare_attributes.is_empty() {
         notices.push(notice(
@@ -3052,7 +3066,7 @@ fn check_fare_rules(
         // FRL_002: route_id reference (when present).
         if let Some(ref rid) = rec.route_id {
             if !map.routes.contains_key(rid.as_str()) {
-                notices.push(notice(
+                let n002 = notice(
                     ctr,
                     "FRL_002",
                     EntityType::Fare,
@@ -3065,8 +3079,15 @@ fn check_fare_rules(
                     None,
                     format!("Route '{}' is not defined in routes.txt.", rid),
                     "Use a valid route_id.",
-                ));
-                fare_rule_context(notices.last_mut(), rec, records, map);
+                );
+                if whitespace_references.as_ref().is_some_and(|references| {
+                    crate::k7_reporting::is_whitespace_derivative(&n002, references)
+                }) {
+                    whitespace_suppressions.record("fare_rules.txt", "FRL_002");
+                } else {
+                    notices.push(n002);
+                    fare_rule_context(notices.last_mut(), rec, records, map);
+                }
             }
         }
 
@@ -10901,6 +10922,50 @@ mod tests {
             .expect("FRL_002 details");
         assert_eq!(d.get("route_id").map(String::as_str), Some("MISSING_ROUTE"));
         assert_eq!(d.get("origin_id").map(String::as_str), Some("Z1"));
+    }
+
+    #[test]
+    fn padded_frl_002_is_counted_not_built_when_fare_rules_has_a_whitespace_root() {
+        // ' R1' only misses routes.txt because of the padding: with a DQ_016 root on
+        // fare_rules.txt K7 would drop it, so K4 counts it instead. A route that is unknown
+        // even after trimming stays a finding, and without the root nothing changes.
+        let (mut recs, map) = empty();
+        recs.routes = vec![route("R1")];
+        let rule = |route: &str, line: u64| FareRuleRecord {
+            fare_id: "F1".into(),
+            route_id: Some(route.into()),
+            origin_id: None,
+            destination_id: None,
+            contains_id: None,
+            line,
+        };
+        recs.fare_rules = vec![rule(" R1", 2), rule(" NOPE", 3)];
+        let frl002 = |r: &K4Result| {
+            r.notices
+                .iter()
+                .filter(|n| n.rule_id == "FRL_002")
+                .map(|n| n.observed_value.clone().unwrap_or_default())
+                .collect::<Vec<_>>()
+        };
+        let roots: HashSet<String> = ["fare_rules.txt".to_string()].into();
+        let with_root = check_with_files_and_whitespace_roots(
+            &recs,
+            &map,
+            20260515,
+            &FileAvailability::complete(),
+            Some(&roots),
+        );
+        assert_eq!(frl002(&with_root), vec![" NOPE".to_string()]);
+        assert_eq!(
+            with_root.whitespace_suppressions.audit_for("fare_rules.txt"),
+            Some((1, ["FRL_002".to_string()].into()))
+        );
+        let without_root = check(&recs, &map, 20260515);
+        assert_eq!(frl002(&without_root).len(), 2);
+        assert!(without_root
+            .whitespace_suppressions
+            .audit_for("fare_rules.txt")
+            .is_none());
     }
 
     // ── XFL_006 ───────────────────────────────────────────────────────────────

@@ -592,7 +592,10 @@ impl<'a> JoinWhitespace<'a> {
     }
 }
 
-fn is_whitespace_derivative(notice: &Notice, references: &WhitespaceReferences<'_>) -> bool {
+pub(crate) fn is_whitespace_derivative(
+    notice: &Notice,
+    references: &WhitespaceReferences<'_>,
+) -> bool {
     if notice.whitespace_derived {
         return true;
     }
@@ -888,13 +891,13 @@ impl<'a> IdSets<'a> {
 /// Because `is_whitespace_derivative` runs on EVERY notice, this became quadratic:
 /// `mdb-2904` (85 MB, 3,763,204 `STM_056` findings alone) did not finish in 30 minutes,
 /// although it completed before the patch. The corpus run caught it.
-struct WhitespaceReferences<'a> {
+pub(crate) struct WhitespaceReferences<'a> {
     raw: IdSets<'a>,
     trimmed: IdSets<'a>,
 }
 
 impl<'a> WhitespaceReferences<'a> {
-    fn from_records(records: &'a EntityRecords) -> Self {
+    pub(crate) fn from_records(records: &'a EntityRecords) -> Self {
         let raw = IdSets::from_records(records);
         let trimmed = raw.trimmed();
         Self { raw, trimmed }
