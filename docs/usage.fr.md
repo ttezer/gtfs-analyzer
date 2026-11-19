@@ -171,9 +171,9 @@ Pour intégrer la validation dans votre propre service Rust, utilisez directemen
 
 ```toml
 [dependencies]
-gtfs-pipeline = "0.20.0"
-gtfs-config   = "0.20.0"
-gtfs-core     = "0.20.0"
+gtfs-pipeline = "0.21.0"
+gtfs-config   = "0.21.0"
+gtfs-core     = "0.21.0"
 ```
 
 ```rust
@@ -213,7 +213,7 @@ Codes de sortie : `0` aucun signalement · `1` signalements correspondants prés
 
 ## 5. Paquet npm `gtfs-sdk`
 
-`gtfs-sdk` expose le moteur de validation v0.20.0 sous forme d’API JavaScript/TypeScript typée. Le jeu de données est validé par WASM local et ne quitte jamais l’application :
+`gtfs-sdk` expose le moteur de validation v0.21.0 sous forme d’API JavaScript/TypeScript typée. Le jeu de données est validé par WASM local et ne quitte jamais l’application :
 
 ```js
 import { validateGtfs } from "gtfs-sdk";
