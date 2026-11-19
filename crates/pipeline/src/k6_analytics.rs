@@ -5401,7 +5401,8 @@ fn check_geo_shape_analytics(
         // Threshold per shape: simplified long straight sections are legitimate on rail routes.
         let max_jump_km = shape_jump_threshold_km(shape_id, rail_shapes, config);
         let severe_km = max_jump_km * 3.0;
-        for (i, &dist) in seg.segment_distances_km.iter().enumerate() {
+        for &(i, dist) in &seg.jumps {
+            let i = i as usize;
             if dist > severe_km {
                 continue; // → GEO_007
             }
@@ -9503,7 +9504,8 @@ fn check_remaining_analytics<'a>(
         for (shape_id, seg) in &derived.shape_geometry.shapes {
             // Same per-shape threshold as GEO_006; preserve layering (this is above 3×).
             let severe_km = shape_jump_threshold_km(shape_id, rail_shapes, config) * 3.0;
-            for (i, &dist) in seg.segment_distances_km.iter().enumerate() {
+            for &(i, dist) in &seg.jumps {
+                let i = i as usize;
                 if dist > severe_km {
                     let mut n = k6_notice(
                         ctr,
@@ -18385,7 +18387,7 @@ mod tests {
                 shapes: [(
                     "S1".to_string(),
                     ShapeSegments {
-                        segment_distances_km: vec![0.5, 15.0, 0.3], // 15 km > 10 km threshold
+                        jumps: vec![(0, 0.5), (1, 15.0), (2, 0.3)], // 15 km > 10 km threshold
                         total_length_km: 15.8,
                         bbox: (40.0, 42.0, 28.0, 30.0),
                     },
@@ -18412,7 +18414,7 @@ mod tests {
                 shapes: [(
                     "S1".to_string(),
                     ShapeSegments {
-                        segment_distances_km: vec![0.5, 0.8, 0.3],
+                        jumps: vec![(0, 0.5), (1, 0.8), (2, 0.3)],
                         total_length_km: 1.6,
                         bbox: (40.0, 40.1, 28.0, 28.1),
                     },
@@ -19676,7 +19678,7 @@ mod tests {
                 shapes: [(
                     "S1".to_string(),
                     ShapeSegments {
-                        segment_distances_km: vec![50.0],
+                        jumps: vec![(0, 50.0)],
                         total_length_km: 50.0,
                         bbox: (41.0, 41.5, 29.0, 29.5),
                     },
@@ -19709,7 +19711,7 @@ mod tests {
                 shapes: [(
                     "S1".to_string(),
                     ShapeSegments {
-                        segment_distances_km: vec![50.0],
+                        jumps: vec![(0, 50.0)],
                         total_length_km: 50.0,
                         bbox: (41.0, 41.5, 29.0, 29.5),
                     },
@@ -19745,7 +19747,7 @@ mod tests {
                 shapes: [(
                     "S1".to_string(),
                     ShapeSegments {
-                        segment_distances_km: vec![15.0],
+                        jumps: vec![(0, 15.0)],
                         total_length_km: 15.0,
                         bbox: (41.0, 41.5, 29.0, 29.5),
                     },
@@ -19776,7 +19778,7 @@ mod tests {
                 shapes: [(
                     "S1".to_string(),
                     ShapeSegments {
-                        segment_distances_km: vec![2.0],
+                        jumps: vec![(0, 2.0)],
                         total_length_km: 2.0,
                         bbox: (41.0, 41.02, 29.0, 29.02),
                     },
@@ -20212,7 +20214,7 @@ mod tests {
                     shapes: [(
                         "S1".to_string(),
                         ShapeSegments {
-                            segment_distances_km: vec![13.4],
+                            jumps: vec![(0, 13.4)],
                             total_length_km: 13.4,
                             bbox: (41.0, 41.5, 29.0, 29.5),
                         },

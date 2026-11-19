@@ -29,7 +29,8 @@ pub use k4_cross_ref::{
     check_with_files_and_whitespace_roots as check_cross_ref_with_whitespace_roots, K4Result,
 };
 pub use k5_derived::{
-    build as build_derived, build_with_files as build_derived_with_files, DerivedData, K5Result,
+    build as build_derived, build_with_files as build_derived_with_files,
+    build_with_files_jump_floor as build_derived_with_files_jump_floor, DerivedData, K5Result,
 };
 pub use k6_analytics::{
     analyze as analyze_k6, analyze_with_files as analyze_k6_with_files, K6Result,
@@ -2357,7 +2358,10 @@ fn validate_bytes_inspected_with_name_index(
 
     let k5 = {
         let _t = Timer::start("K5-derived");
-        build_derived_with_files(&k2.records, &k3.entity_map, &availability)
+        // K6 runs right after with this config, so only segments that can exceed a GEO_006
+        // threshold are kept (the WASM path re-runs K6 on cached K5 data and keeps them all).
+        let jump_floor_km = config.max_shape_jump_km.min(config.max_shape_jump_km_rail);
+        build_derived_with_files_jump_floor(&k2.records, &k3.entity_map, &availability, jump_floor_km)
     };
     crate::timing::mem_log("after K5-derived");
 

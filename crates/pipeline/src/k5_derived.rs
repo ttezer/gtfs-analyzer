@@ -17,8 +17,11 @@ pub struct ShapeGeometry {
 
 #[derive(Debug, Clone)]
 pub struct ShapeSegments {
-    /// Distance between consecutive point pairs (km). Length = point count - 1.
-    pub segment_distances_km: Vec<f64>,
+    /// Segments between consecutive positioned points that are longer than the jump floor the
+    /// shape geometry was built with, as (segment index, km). The segment index counts every
+    /// segment, so it is the same as in the full list. GEO_006/GEO_007 only report segments above
+    /// their threshold; keeping just those avoids one f64 per shape point (~0.7 GB on mdb-2014).
+    pub jumps: Vec<(u32, f64)>,
     /// Total polyline length (km).
     pub total_length_km: f64,
     /// (min_lat, max_lat, min_lon, max_lon)
@@ -85,6 +88,18 @@ pub fn build_with_files(
     entity_map: &EntityMap,
     availability: &FileAvailability<'_>,
 ) -> K5Result {
+    build_with_files_jump_floor(records, entity_map, availability, 0.0)
+}
+
+/// Like [`build_with_files`], keeping only shape segments longer than `jump_floor_km` (see
+/// [`ShapeSegments::jumps`]). The floor must not exceed the lowest GEO_006 threshold of the
+/// config K6 will run with; callers that may re-run K6 with another config use 0.
+pub fn build_with_files_jump_floor(
+    records: &EntityRecords,
+    entity_map: &EntityMap,
+    availability: &FileAvailability<'_>,
+    jump_floor_km: f64,
+) -> K5Result {
     use crate::timing::Timer;
     let mut derived = DerivedData::default();
     let mut notices = Vec::new();
@@ -106,7 +121,7 @@ pub fn build_with_files(
         availability.available("shapes.txt"),
         {
             let _t = Timer::start("K5::shape_geometry");
-            build_shape_geometry(records, entity_map, &mut derived, &mut notices, &mut ctr);
+            build_shape_geometry(records, entity_map, jump_floor_km, &mut derived, &mut notices, &mut ctr);
         }
     );
     gate!(
@@ -278,6 +293,7 @@ fn build_calendar_bitmap(records: &EntityRecords, derived: &mut DerivedData) {
 fn build_shape_geometry(
     records: &EntityRecords,
     entity_map: &EntityMap,
+    jump_floor_km: f64,
     derived: &mut DerivedData,
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
@@ -345,7 +361,8 @@ fn build_shape_geometry(
         // n_pts == 2: valid straight segment (GTFS does not require ≥3 points; a
         // ferry/short straight route is legitimate). Geometry is computed below as one segment.
 
-        let mut segment_distances_km: Vec<f64> = Vec::with_capacity(point_indices.len() - 1);
+        let mut jumps: Vec<(u32, f64)> = Vec::new();
+        let mut n_segments: u32 = 0;
         let mut total_km = 0.0f64;
         let mut min_lat = f64::MAX;
         let mut max_lat = f64::MIN;
@@ -468,7 +485,10 @@ fn build_shape_geometry(
                 }
 
                 let d = haversine_km(plat, plon, lat, lon);
-                segment_distances_km.push(d);
+                if d > jump_floor_km {
+                    jumps.push((n_segments, d));
+                }
+                n_segments += 1;
                 total_km += d;
             }
 
@@ -480,7 +500,7 @@ fn build_shape_geometry(
         derived.shape_geometry.shapes.insert(
             shape_id.clone(),
             ShapeSegments {
-                segment_distances_km,
+                jumps,
                 total_length_km: total_km,
                 bbox: (min_lat, max_lat, min_lon, max_lon),
             },
@@ -753,12 +773,36 @@ mod tests {
 
         let result = build(&records, &map);
         let seg = result.derived.shape_geometry.shapes.get("S1").unwrap();
-        assert_eq!(seg.segment_distances_km.len(), 2);
+        assert_eq!(seg.jumps.iter().map(|j| j.0).collect::<Vec<_>>(), vec![0, 1]);
         assert!(seg.total_length_km > 0.0);
         assert!(
             result.notices.is_empty(),
             "Temiz shape'te notice üretilmemeli"
         );
+    }
+
+    #[test]
+    fn jump_floor_keeps_only_longer_segments_with_their_index() {
+        let mut shape_ti = ShapeInternTable::new();
+        let mut records = empty_records();
+        let mut map = empty_map();
+        // Segment 0 is ~14 m, segment 1 is ~14 km.
+        records.shapes = vec![
+            shape_pt(&mut shape_ti, "S1", 1, 41.0, 29.0, 2),
+            shape_pt(&mut shape_ti, "S1", 2, 41.0001, 29.0001, 3),
+            shape_pt(&mut shape_ti, "S1", 3, 41.1, 29.1, 4),
+        ];
+        records.shape_interns = shape_ti.clone();
+        map.shape_points.insert("S1".into(), vec![0, 1, 2]);
+
+        let full = build(&records, &map);
+        let floored = build_with_files_jump_floor(&records, &map, &FileAvailability::complete(), 1.0);
+        let full = full.derived.shape_geometry.shapes.get("S1").unwrap();
+        let seg = floored.derived.shape_geometry.shapes.get("S1").unwrap();
+        assert_eq!(full.jumps.len(), 2);
+        assert_eq!(seg.jumps, vec![full.jumps[1]]);
+        assert_eq!(seg.jumps[0].0, 1, "index counts the dropped short segment");
+        assert_eq!(seg.total_length_km, full.total_length_km);
     }
 
     #[test]
