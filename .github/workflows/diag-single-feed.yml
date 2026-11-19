@@ -96,7 +96,7 @@ jobs:
           grep -E "Maximum resident set size|Elapsed \(wall clock\)" analyzer-time.txt || true
           ls -l analyzer.json || true
           echo "--- stage memory ---"
-          grep -E "^\[mem\] (after |K2 after|K2 st stream-end|K1-K6 notices|stop_times index live)" analyzer-stderr.txt | sed -E 's/, heap window peak=[^,]*//; s/heap peak=.*//' | cut -c1-170 || true
+          grep -E "^\[mem\] (after |K2 after|K2 st stream-end|K1-K6 notices|stop_times index live)" analyzer-stderr.txt | sed -E 's/, heap peak=.*//' | cut -c1-200 || true
           echo "--- last lines ---"
           tail -5 analyzer-stderr.txt | cut -c1-220
           exit $code
