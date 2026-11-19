@@ -7,11 +7,10 @@ CATALOG_URL="https://files.mobilitydatabase.org/feeds_v2.csv"
 
 # 🚫 Feeds that must never enter a corpus run, by standing instruction.
 #
-# `mdb-2904` is 85 MB and on its own produced 5,374,302 findings and 14.4 GB of peak
-# RSS in run-31934698855 -- roughly a tenth of that run's entire finding volume from
-# one feed. The gate already existed in `spec-audit/` (post_baseline_measure.py,
-# refresh_rule_stats.py, corpus_report.py) but this selector is a separate code path
-# and never learned about it, so the feed entered the full-catalog corpus anyway (#150).
+# `mdb-2904` (85 MB) was excluded here from #150 (run-31934698855: 5,374,302 findings,
+# 14.4 GB peak RSS) until 2026-11-19. After the pending-list fixes (128f91961, 3087183a8)
+# it validates in 26 s with a 4.1 GB heap peak and 1.07M findings, in the CLI and in the
+# browser, so it is back in the corpus (user decision). `spec-audit/` still excludes it.
 #
 # `mdb-2014` is the 1,282 MB compressed / 7,452 MB extracted BODS UK aggregate feed.
 # It reproducibly terminated the GitHub-hosted shard runner with exit 143 in both
@@ -20,7 +19,7 @@ CATALOG_URL="https://files.mobilitydatabase.org/feeds_v2.csv"
 #
 # ⚠️ Excluded feeds are RECORDED, not silently dropped: they appear in the exclusions
 # list with an explicit reason, so "not run by instruction" never reads as "not found".
-EXCLUDED_FEEDS = {"mdb-2014", "mdb-2904"}
+EXCLUDED_FEEDS = {"mdb-2014"}
 
 
 def norm(s):
@@ -124,7 +123,7 @@ def main():
     # Installed gate, not just a written one: if an excluded feed reached the manifest
     # the run must not start. The filter above can be bypassed by a future edit, a
     # different code path, or a hand-built manifest -- this is the check that actually
-    # holds. Proven by putting mdb-2904 back in and watching it exit 2 (#150).
+    # holds. Proven by putting an excluded feed (then mdb-2904) back in and watching it exit 2 (#150).
     leaked=sorted({x["feed_id"] for x in feeds} & EXCLUDED_FEEDS)
     if leaked:
         raise SystemExit(
