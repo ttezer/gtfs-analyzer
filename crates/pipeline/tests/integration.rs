@@ -9623,3 +9623,54 @@ T2,09:00:00,09:00:00,S1,1\nT2,09:10:00,09:10:00,S2,2\nT2,09:20:00,09:20:00,S3,3\
     assert_eq!(d.get("conflict_trip_count").map(String::as_str), Some("2"));
     assert_eq!(d.get("conflict_example_trips").map(String::as_str), Some("T1,T2"));
 }
+
+#[test]
+fn shp_025_is_one_finding_per_shape_with_its_trip_count() {
+    // Three trips on SA and one on SB run past their shape's length: two findings, not four.
+    // The first trip in file order is the example; `instance_count` keeps the score per trip.
+    static STOPS: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
+          S1,One,41.0,29.0\nS2,Two,41.01,29.0\n";
+    static ROUTES: &[u8] = b"route_id,agency_id,route_short_name,route_type\nR1,1,10,3\n";
+    static TRIPS: &[u8] = b"route_id,service_id,trip_id,shape_id\n\
+          R1,SVC1,T3,SA\nR1,SVC1,T1,SA\nR1,SVC1,T2,SA\nR1,SVC1,T9,SB\nR1,SVC1,T5,SA\n";
+    static TIMES: &[u8] =
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\n\
+          T1,08:00:00,08:00:00,S1,1,0\nT1,08:05:00,08:05:00,S2,2,2500\n\
+          T2,09:00:00,09:00:00,S1,1,0\nT2,09:05:00,09:05:00,S2,2,2500\n\
+          T3,10:00:00,10:00:00,S1,1,0\nT3,10:05:00,10:05:00,S2,2,2500\n\
+          T5,11:00:00,11:00:00,S1,1,0\nT5,11:05:00,11:05:00,S2,2,900\n\
+          T9,12:00:00,12:00:00,S1,1,0\nT9,12:05:00,12:05:00,S2,2,2500\n";
+    static SHAPES: &[u8] =
+        b"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
+          SA,41.0,29.0,1,0\nSA,41.01,29.0,2,1000\n\
+          SB,41.0,29.0,1,0\nSB,41.01,29.0,2,1000\n";
+    let files: Vec<(&str, &[u8])> = vec![
+        ("agency.txt", AGENCY),
+        ("stops.txt", STOPS),
+        ("routes.txt", ROUTES),
+        ("trips.txt", TRIPS),
+        ("stop_times.txt", TIMES),
+        ("calendar.txt", CALENDAR),
+        ("shapes.txt", SHAPES),
+    ];
+    let vr = match run(&files) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+    let hits: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == "SHP_025").collect();
+    assert_eq!(hits.len(), 2, "one finding per shape: {hits:?}");
+    let sa = hits
+        .iter()
+        .find(|n| n.details.as_ref().and_then(|d| d.get("shape_id")).map(String::as_str) == Some("SA"))
+        .expect("SA finding");
+    let d = sa.details.as_ref().unwrap();
+    assert_eq!(sa.entity_id.as_deref(), Some("T3"), "first trip in file order");
+    assert_eq!(d.get("affected_trip_count").map(String::as_str), Some("3"));
+    assert_eq!(d.get("instance_count").map(String::as_str), Some("3"));
+    assert_eq!(d.get("example_trips").map(String::as_str), Some("T3, T1, T2"));
+    let sb = hits.iter().find(|n| n.entity_id.as_deref() == Some("T9")).expect("SB finding");
+    assert_eq!(
+        sb.details.as_ref().unwrap().get("affected_trip_count").map(String::as_str),
+        Some("1")
+    );
+}

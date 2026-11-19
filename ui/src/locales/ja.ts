@@ -1663,6 +1663,7 @@ const ja: LocaleShape = {
     'producer.card.SHP_024.what_detail': "停車時刻に書かれた「{stop}」の距離（{sdt}）は、停留所から{dist}離れた線上の地点を指しています（{shape}）。アプリは停留所を線の誤った位置に置きます。距離が指す地点を地図に赤で示しています。",
     'producer.card.SHP_025.what_detail': "{trip}の停車時刻の距離は{max}まで達しますが、{shape}の全長は{total}です。2つのファイルで距離の単位が異なる可能性があります。",
     'producer.card.SHP_025.what_unit': "差は約1,000倍です。一方がメートル、もう一方がキロメートルの可能性があります。",
+    'producer.card.SHP_025.group': "同じ経路形状でこの問題が {trips} 便にあります。最初の便を例として表示しています。",
     'producer.card.SHP_026.what_detail': "{shape}は{n}点あります（上限{limit}）。これほど詳細な形状は地図を遅くします。乗客に見える影響はありません。",
     'producer.card.SHP_028.what_detail': "{shape}：連続する2点が同じ距離（{dist}）を持ちますが、{apart}離れています。線は進むのに距離が増えていません。",
     'producer.card.SHP_029.what_detail': "{shape}：連続する2点が同じ距離（{dist}）を持ち、間はわずか{apart}です。おそらく同じ点の重複です。",

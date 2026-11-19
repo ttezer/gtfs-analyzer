@@ -1662,6 +1662,7 @@ const tr = {
     'producer.card.SHP_024.what_detail': "„{stop}“ durağının durak saatlerindeki mesafesi ({sdt}) çizimde bu duraktan {dist} uzaktaki bir noktayı gösteriyor ({shape}); uygulamalar durağı çizginin yanlış yerine koyar. Mesafenin gösterdiği nokta haritada kırmızı.",
     'producer.card.SHP_025.what_detail': "{trip} durak saatlerinde mesafe {max} değerine kadar çıkıyor ama {shape} toplam {total} uzunluğunda; iki dosyadaki mesafeler aynı ölçüyle yazılmamış olabilir.",
     'producer.card.SHP_025.what_unit': "Fark yaklaşık 1.000 kat: biri metre, öbürü kilometre olabilir.",
+    'producer.card.SHP_025.group': "Aynı güzergâh şeklinde bu sorun {trips} seferde var; örnek olarak ilk sefer gösteriliyor.",
     'producer.card.SHP_026.what_detail': "{shape} {n} noktadan oluşuyor (sınır {limit}); bu kadar ayrıntılı çizimler haritaları yavaşlatır. Yolcuya görünür bir etkisi yoktur.",
     'producer.card.SHP_028.what_detail': "{shape}: art arda iki nokta aynı mesafeyi ({dist}) taşıyor ama aralarında {apart} var; çizgi ilerlediği halde mesafe artmıyor.",
     'producer.card.SHP_029.what_detail': "{shape}: art arda iki nokta aynı mesafeyi ({dist}) taşıyor ve aralarında yalnız {apart} var; büyük olasılıkla aynı noktanın tekrarı.",

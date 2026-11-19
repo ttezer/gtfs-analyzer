@@ -1657,6 +1657,9 @@ describe('Üretici kartı görünümü', () => {
     out = render(notice('a', 'SHP_025', 'MEDIUM', { entity_type: 'Trip', entity_id: 'T1', details: { ...ctx, shape_id: 'SA', trip_max: '2500', shape_max: '2.5' } }));
     expect(out.html).toContain('10 hattının „Çarşı“ yönündeki 06:00 kalkışlı seferinin durak saatlerinde mesafe 2.500 değerine kadar çıkıyor');
     expect(out.html).toContain('Fark yaklaşık 1.000 kat');
+    expect(out.html).not.toContain('seferde var');
+    out = render(notice('a', 'SHP_025', 'MEDIUM', { entity_type: 'Trip', entity_id: 'T1', details: { ...ctx, shape_id: 'SA', trip_max: '2500', shape_max: '2.5', affected_trip_count: '1046' } }));
+    expect(out.html).toContain('Aynı güzergâh şeklinde bu sorun 1.046 seferde var');
 
     // SHP_028: two points with one distance, pinned and linked.
     out = render(notice('a', 'SHP_028', 'LOW', { entity_type: 'Shape', entity_id: 'SA', details: { ...ctx, lat: '41', lon: '29', next_lat: '41.001', next_lon: '29', dist: '0', apart_m: '111.19' } }));

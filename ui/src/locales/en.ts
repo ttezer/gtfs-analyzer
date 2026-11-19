@@ -1664,6 +1664,7 @@ const en: LocaleShape = {
     'producer.card.SHP_024.what_detail': "The distance written for “{stop}” in the stop times ({sdt}) points to a place on the line {dist} from the stop ({shape}); apps place the stop at the wrong spot on the line. The place the distance points to is red on the map.",
     'producer.card.SHP_025.what_detail': "On {trip}, the stop-time distance goes up to {max}, but {shape} is only {total} long in total; the two files may not write distances in the same unit.",
     'producer.card.SHP_025.what_unit': "The gap is about 1,000 times: one may be metres, the other kilometres.",
+    'producer.card.SHP_025.group': "The same shape has this problem on {trips} trips; the first trip is shown as the example.",
     'producer.card.SHP_026.what_detail': "{shape} has {n} points (limit {limit}); shapes this detailed slow maps down. Riders see no difference.",
     'producer.card.SHP_028.what_detail': "{shape}: two consecutive points carry the same distance ({dist}) but are {apart} apart; the line moves on while the distance does not grow.",
     'producer.card.SHP_029.what_detail': "{shape}: two consecutive points carry the same distance ({dist}) and are only {apart} apart; most likely the same point repeated.",

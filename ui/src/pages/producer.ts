@@ -2003,7 +2003,8 @@ function shpRuleText(n: Notice, result: ValidationResult): string | null {
       const ratio = Number(d.trip_max) / Math.max(1e-9, Number(d.shape_max));
       return join(t('producer.card.SHP_025.what_detail', {
         trip: tripPhrase(n.entity_id, result, 'gen'), max: localizedNumber(d.trip_max), shape, total: localizedNumber(d.shape_max),
-      }), ratio > 500 && ratio < 2000 ? t('producer.card.SHP_025.what_unit') : '');
+      }), ratio > 500 && ratio < 2000 ? t('producer.card.SHP_025.what_unit') : '',
+      Number(d.affected_trip_count) > 1 ? t('producer.card.SHP_025.group', { trips: localizedNumber(d.affected_trip_count ?? '') }) : '');
     }
     case 'SHP_026':
       return d.point_count ? t('producer.card.SHP_026.what_detail', { shape, n: localizedNumber(d.point_count), limit: localizedNumber(d.limit || '5000') }) : null;

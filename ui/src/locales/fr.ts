@@ -1664,6 +1664,7 @@ const fr: LocaleShape = {
     'producer.card.SHP_024.what_detail': "La distance écrite pour « {stop} » dans les horaires ({sdt}) désigne un point de la ligne à {dist} de l’arrêt ({shape}) ; les applications placent l’arrêt au mauvais endroit. Ce point est en rouge sur la carte.",
     'producer.card.SHP_025.what_detail': "Sur {trip}, la distance des horaires monte jusqu’à {max}, mais {shape} ne mesure que {total} au total ; les deux fichiers n’écrivent peut-être pas les distances dans la même unité.",
     'producer.card.SHP_025.what_unit': "L’écart est d’environ 1 000 fois : l’un est peut-être en mètres, l’autre en kilomètres.",
+    'producer.card.SHP_025.group': "Le même tracé présente ce problème sur {trips} courses ; la première est montrée en exemple.",
     'producer.card.SHP_026.what_detail': "{shape} compte {n} points (limite {limit}) ; des tracés aussi détaillés ralentissent les cartes. Sans différence visible pour les voyageurs.",
     'producer.card.SHP_028.what_detail': "{shape} : deux points consécutifs ont la même distance ({dist}) mais sont distants de {apart} ; la ligne avance sans que la distance augmente.",
     'producer.card.SHP_029.what_detail': "{shape} : deux points consécutifs ont la même distance ({dist}) et ne sont distants que de {apart} ; très probablement le même point répété.",

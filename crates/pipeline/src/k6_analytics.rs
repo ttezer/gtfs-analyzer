@@ -9757,6 +9757,12 @@ fn check_remaining_analytics<'a>(
             }
         }
 
+        // One finding per shape: the trips drawn with one shape share the cause (the two files
+        // use different scales), and one notice per trip made SHP_025 85 % of a 245k-notice
+        // report. The first trip in file order is the example; `instance_count` keeps the score.
+        const SHP025_EXAMPLE_TRIPS: usize = 10;
+        let mut shp025: Vec<(Notice, usize, Vec<String>)> = Vec::new();
+        let mut shp025_by_shape: FxHashMap<&str, usize> = FxHashMap::default();
         for trip in &records.trips {
             let shape_id = match ti_rem.shape_id(trip).filter(|s| !s.is_empty()) {
                 Some(s) => s,
@@ -9782,6 +9788,14 @@ fn check_remaining_analytics<'a>(
                 .fold(f64::NEG_INFINITY, f64::max);
 
             if trip_max_sdt.is_finite() && trip_max_sdt > shape_max * 1.001 {
+                if let Some(&i) = shp025_by_shape.get(shape_id) {
+                    let (_, count, examples) = &mut shp025[i];
+                    *count += 1;
+                    if examples.len() < SHP025_EXAMPLE_TRIPS {
+                        examples.push(trip.trip_id.to_string());
+                    }
+                    continue;
+                }
                 let route = trip_to_route_rem
                     .get(trip.trip_id.as_str())
                     .copied()
@@ -9801,8 +9815,17 @@ fn check_remaining_analytics<'a>(
                 d.insert("shape_id".to_string(), shape_id.to_string());
                 d.insert("trip_max".to_string(), format!("{trip_max_sdt}"));
                 d.insert("shape_max".to_string(), format!("{shape_max}"));
-                notices.push(n025);
+                shp025_by_shape.insert(shape_id, shp025.len());
+                shp025.push((n025, 1, vec![trip.trip_id.to_string()]));
             }
+        }
+        for (mut n025, count, examples) in shp025 {
+            let d = n025.details.get_or_insert_with(Default::default);
+            // `trip_count` is the shape's route context (`annotate_shape_context` sets it).
+            d.insert("affected_trip_count".to_string(), count.to_string());
+            d.insert("example_trips".to_string(), examples.join(", "));
+            d.insert("instance_count".to_string(), count.to_string());
+            notices.push(n025);
         }
     }
 
