@@ -1910,6 +1910,15 @@ impl StChunk {
             self.stop_id_to_idx.len(), self.stop_id_to_idx.capacity(),
             self.notices.capacity(),
         ));
+        crate::timing::mem_note(&format!(
+            "K2 st {label} side: headsigns {}/{} flex {}/{} boarding {}/{} trip_id_cache {}/{} stop_first_line {}/{} unsorted {} notices {}",
+            self.stop_headsigns.len(), self.stop_headsigns.capacity(),
+            self.flex_map.len(), self.flex_map.capacity(),
+            self.boarding_restrictions.len(), self.boarding_restrictions.capacity(),
+            self.trip_id_cache.len(), self.trip_id_cache.capacity(),
+            self.stop_first_line.len(), self.stop_first_line.capacity(),
+            self.unsorted_seq_trips.len(), self.notices.len(),
+        ));
     }
 }
 
@@ -3641,15 +3650,19 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                     crate::timing::mem_log(&format!(
                                         "K2 st chunk {chunk_no} parsed"
                                     ));
+                                    // The parts own their data; free the raw chunk before the
+                                    // merge grows `all_rows`, so both are not alive at once.
+                                    let data_lines =
+                                        chunk[data_start..].iter().filter(|&&b| b == b'\n').count()
+                                            as u64;
+                                    drop(chunk);
                                     for c in parts {
                                         st.merge(c);
                                     }
                                     crate::timing::mem_log(&format!(
                                         "K2 st chunk {chunk_no} merged"
                                     ));
-                                    let data_lines =
-                                        chunk[data_start..].iter().filter(|&&b| b == b'\n').count()
-                                            as u64;
+                                    st.log_mem_report(&format!("chunk {chunk_no}"));
                                     next_line += data_lines;
                                     first_chunk = false;
                                     if eof {
