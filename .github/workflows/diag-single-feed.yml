@@ -15,6 +15,10 @@ on:
         description: Memory cap per tool (systemd MemoryMax), e.g. 13G
         required: false
         default: 13G
+      rayon_threads:
+        description: RAYON_NUM_THREADS for the analyzer (empty = all cores; 1 = K6 steps one at a time)
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -70,13 +74,14 @@ jobs:
         continue-on-error: true
         env:
           MEM_MAX: ${{ inputs.memory_max }}
+          THREADS: ${{ inputs.rayon_threads }}
         run: |
           ( while true; do echo "[trace $(date +%T)] $(free -m | awk 'NR==2{print "used="$3"MB avail="$7"MB"}') $(ps -o rss=,comm= -C gtfs-analyzer | awk '{printf "%s=%dMB ", $2, $1/1024}')"; sleep 10; done ) &
           TRACE=$!
           set +e
           sudo systemd-run --scope --quiet -p MemoryMax="$MEM_MAX" -p MemorySwapMax=0 \
             --uid="$(id -u)" --gid="$(id -g)" -- \
-            env GTFS_CLI_TIMING=1 /usr/bin/time -v -o analyzer-time.txt target/release/gtfs-analyzer validate feed.zip --json -o analyzer.json \
+            env GTFS_CLI_TIMING=1 GTFS_MEM_STEPS=1 ${THREADS:+RAYON_NUM_THREADS=$THREADS} /usr/bin/time -v -o analyzer-time.txt target/release/gtfs-analyzer validate feed.zip --json -o analyzer.json \
             2> analyzer-stderr.txt
           code=$?
           kill $TRACE
@@ -84,7 +89,7 @@ jobs:
           grep -E "Maximum resident set size|Elapsed \(wall clock\)" analyzer-time.txt || true
           ls -l analyzer.json || true
           echo "--- stage memory ---"
-          grep -E "^\[mem\] (after K|K2 after|K2 st chunk [0-9]*0 merged|K2 st stream-end|K1-K6 notices|stop_times index live)" analyzer-stderr.txt | cut -c1-220 || true
+          grep -E "^\[mem\] (after |K2 after|K2 st stream-end|K1-K6 notices|stop_times index live)" analyzer-stderr.txt | sed -E 's/, heap window peak=[^,]*//; s/heap peak=.*//' | cut -c1-170 || true
           echo "--- last lines ---"
           tail -5 analyzer-stderr.txt | cut -c1-220
           exit $code

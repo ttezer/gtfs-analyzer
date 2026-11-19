@@ -33,6 +33,11 @@ impl Drop for Timer {
                 self.label,
                 self.start.elapsed().as_millis()
             );
+            // Diagnostics only: memory after every timed step (K1–K7 sub-steps), to see which
+            // step holds or briefly needs the memory on a large feed.
+            if std::env::var_os("GTFS_MEM_STEPS").is_some() {
+                mem_log(&format!("after {}", self.label));
+            }
         }
     }
 }
