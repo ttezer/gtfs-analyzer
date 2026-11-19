@@ -12,6 +12,9 @@ use gtfs_core::{
     ValidationStatus,
 };
 use gtfs_pipeline::{validate_bytes, validate_bytes_without_name_index};
+
+mod feed_bytes;
+use feed_bytes::read_feed;
 use gtfs_rules::RULES;
 use serde::Serialize;
 
@@ -455,21 +458,6 @@ fn run_validate(args: ValidateArgs) -> ExitCode {
             .map(Into::into)
             .collect::<Vec<RuleClass>>(),
     )
-}
-
-/// Reads the feed ZIP, or the whole of stdin when the path is `-`.
-///
-/// The pipeline needs the archive as one buffer (the ZIP central directory sits
-/// at the end), so a piped feed is read to memory rather than streamed.
-fn read_feed(path: &Path) -> Result<Vec<u8>, String> {
-    if path.as_os_str() == "-" {
-        let mut buf = Vec::new();
-        return std::io::Read::read_to_end(&mut std::io::stdin().lock(), &mut buf)
-            .map(|_| buf)
-            .map_err(|err| format!("failed to read the feed from stdin: {err}"));
-    }
-
-    std::fs::read(path).map_err(|err| format!("failed to read '{}': {err}", path.display()))
 }
 
 fn load_config(path: Option<&PathBuf>) -> Result<ValidatorConfig, String> {

@@ -23,6 +23,10 @@ serde_json = { workspace = true }
 clap = { version = "4", features = ["derive"] }
 chrono = "0.4"
 
+[target.'cfg(unix)'.dependencies]
+# Read-only mmap of the feed ZIP (feed_bytes.rs); already a dependency of gtfs-pipeline.
+libc = { workspace = true }
+
 [features]
 # Diagnostics only: live/peak heap in the GTFS_CLI_TIMING `[mem]` lines.
 alloc-stats = ["gtfs-pipeline/alloc-stats"]

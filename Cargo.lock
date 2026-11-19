@@ -326,6 +326,7 @@ dependencies = [
  "gtfs-core",
  "gtfs-pipeline",
  "gtfs-rules",
+ "libc",
  "serde",
  "serde_json",
  "zip",

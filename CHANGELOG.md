@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **CLI no longer copies the feed ZIP into memory on Linux/macOS.** The file is memory-mapped read-only, so its pages are file-backed and the kernel can drop them under pressure instead of holding an anonymous copy for the whole run (mdb-2014: 1.9 GB). Stdin, empty files and other platforms read as before; `GTFS_NO_MMAP=1` turns mapping off. The feed file must not be truncated while the analysis runs.
 - **Memory on feeds with a large streamed shapes.txt.** ZIP sizes are not trusted, so the shape point list grew by doubling and could keep up to half of its slots empty for the whole run (mdb-2014: 67.1M slots for 40.2M points, 1.07 GB). The slack is now returned after parsing; mdb-2014 peak 10.5 → 9.5 GB, report identical.
 - **Memory on feeds with a large streamed stop_times.txt.** The same doubling left the stop_times row list up to half empty until the end of the run; the current mdb-2014 (69.5M rows) held 134.5M slots, 1.49 GB unused through K6, where the peak is. The slack is returned once the index is built; report identical.
 
