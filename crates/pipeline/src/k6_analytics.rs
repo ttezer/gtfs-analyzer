@@ -1982,20 +1982,9 @@ fn check_speed_and_duration<'a>(
     // → order was ambiguous for equal `shape_pt_sequence`; the shared index is STABLE-sorted (file
     // order preserved), so this path is now deterministic.
     let shape_pts_speed = shape_idx;
-    let (shape_cum_speed, trip_shape_speed) = {
+    let trip_shape_speed: FxHashMap<&str, &str> = {
         let _t = Timer::start("K6::sd::shape_setup");
-        let shape_cum: FxHashMap<&str, Vec<f64>> = shape_pts_speed
-            .iter()
-            .map(|(&sid, pts)| {
-                let mut c = Vec::with_capacity(pts.len());
-                c.push(0.0_f64);
-                for i in 1..pts.len() {
-                    c.push(c[i - 1] + haversine_km(pts.at(i - 1).0, pts.at(i - 1).1, pts.at(i).0, pts.at(i).1));
-                }
-                (sid, c)
-            })
-            .collect();
-        let trip_shape: FxHashMap<&str, &str> = records
+        records
             .trips
             .iter()
             .filter_map(|t| {
@@ -2004,8 +1993,50 @@ fn check_speed_and_duration<'a>(
                     .filter(|s| !s.is_empty())
                     .map(|s| (t.trip_id.as_str(), s))
             })
-            .collect();
-        (shape_cum, trip_shape)
+            .collect()
+    };
+    // Performance: shape arc-length projection of every (shape_id, stop_id) a trip uses, computed
+    // shape by shape. project_arc_km walks all shape points and needs the shape's cumulative
+    // distances; those are built for one shape at a time and reused, instead of being kept for
+    // every shape (8 B/point, ~0.7 GB on mdb-2014). A stop maps to one coordinate, so each value is
+    // exactly what the former lazy per-segment projection returned.
+    let arc_cache: FxHashMap<(&str, &str), f64> = {
+        let _t = Timer::start("K6::sd::arc_cache");
+        let mut trips_by_shape: FxHashMap<&str, Vec<&[CompactStopTime]>> = FxHashMap::default();
+        for (&trip_id, stimes) in &idx.by_trip {
+            if stimes.len() < 2 {
+                continue;
+            }
+            if let Some(&sid) = trip_shape_speed.get(trip_id) {
+                trips_by_shape.entry(sid).or_default().push(stimes);
+            }
+        }
+        let mut cache: FxHashMap<(&str, &str), f64> = FxHashMap::default();
+        let mut cum: Vec<f64> = Vec::new();
+        for (&sid, pts) in shape_pts_speed.iter() {
+            if pts.len() < 2 {
+                continue;
+            }
+            let Some(trips) = trips_by_shape.get(sid) else {
+                continue;
+            };
+            cum.clear();
+            cum.push(0.0_f64);
+            for i in 1..pts.len() {
+                cum.push(cum[i - 1] + haversine_km(pts.at(i - 1).0, pts.at(i - 1).1, pts.at(i).0, pts.at(i).1));
+            }
+            for stimes in trips {
+                for st in stimes.iter() {
+                    let stop_id = idx.stop_id_of(st);
+                    if let Some(&(lat, lon)) = stop_coords.get(stop_id) {
+                        cache
+                            .entry((sid, stop_id))
+                            .or_insert_with(|| project_arc_km(pts, &cum, lat, lon));
+                    }
+                }
+            }
+        }
+        cache
     };
 
     // STM_036: stop_times is not ordered/grouped by trip_id + stop_sequence (MD unsorted_stop_times,
@@ -2064,10 +2095,6 @@ fn check_speed_and_duration<'a>(
     let mut coords_buf: Vec<Option<(f64, f64)>> = Vec::new();
     let mut cum_buf: Vec<f64> = Vec::new();
 
-    // Performance: memoize shape arc-length projection for (shape_id, stop_id).
-    // project_arc_km walks all shape points; the same (shape, stop) was projected repeatedly across
-    // trips/segments. dist_km output is EXACTLY the same — only repetition is removed.
-    let mut arc_cache: FxHashMap<(&str, &str), f64> = FxHashMap::default();
     // STM_014 aggregation: (route_id, direction, stop_a, stop_b) → segment summary.
     // NO emission inside the loop; emit one by one in sorted order after the loop.
     let mut stm014_segs: FxHashMap<(&str, &str, &str, &str), Stm014Seg<'_>> = FxHashMap::default();
@@ -2691,19 +2718,10 @@ fn check_speed_and_duration<'a>(
                 let dist_km = trip_shape_speed
                     .get(trip_id)
                     .and_then(|&sid| {
-                        let pts = shape_pts_speed.get(sid)?;
-                        let cum = shape_cum_speed.get(sid)?;
-                        if pts.len() < 2 {
-                            return None;
-                        }
-                        // (sid, stop_id) → arc cache: avoids repeated projection across trips/segments
-                        // using the same shape. The result is deterministic because stop_id maps to one coordinate.
-                        let arc_a = *arc_cache
-                            .entry((sid, idx.stop_id_of(a)))
-                            .or_insert_with(|| project_arc_km(pts, cum, c1.0, c1.1));
-                        let arc_b = *arc_cache
-                            .entry((sid, idx.stop_id_of(b)))
-                            .or_insert_with(|| project_arc_km(pts, cum, c2.0, c2.1));
+                        // Precomputed above for every stop with coordinates on a shape of >= 2
+                        // points; a missing entry is exactly the former "no projection" case.
+                        let arc_a = *arc_cache.get(&(sid, idx.stop_id_of(a)))?;
+                        let arc_b = *arc_cache.get(&(sid, idx.stop_id_of(b)))?;
                         let d = (arc_b - arc_a).abs();
                         if d > 1e-6 {
                             Some(d)
