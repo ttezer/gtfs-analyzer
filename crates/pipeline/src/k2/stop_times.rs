@@ -2020,16 +2020,12 @@ fn read_bounded_trip_chunk<R: Read>(
     first_chunk: bool,
     eof: &mut bool,
 ) -> io::Result<Option<Vec<u8>>> {
-    let data_start = if first_chunk {
-        match pending.iter().position(|&b| b == b'\n') {
-            Some(i) => i + 1,
-            None => usize::MAX,
-        }
-    } else {
-        0
-    };
-
-    while !*eof && (pending.len() < target_bytes || data_start == usize::MAX) {
+    // The header must be complete before the first chunk can be cut. Checked on every read: the
+    // buffer is usually empty on entry, so a check made once before the loop would read the
+    // whole file. The header ends within the first few hundred bytes, so the scan stays short.
+    while !*eof
+        && (pending.len() < target_bytes || (first_chunk && !pending.contains(&b'\n')))
+    {
         let mut buf = [0u8; 64 * 1024];
         let n = reader.read(&mut buf)?;
         if n == 0 {
@@ -3564,6 +3560,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                     .map(|v| v.get().clamp(1, 3))
                                     .unwrap_or(2);
                                 let mut next_line = 2u64;
+                                let mut chunk_no = 0usize;
                                 while let Ok(Some(chunk)) = read_bounded_trip_chunk(
                                     &mut guarded,
                                     &mut pending,
@@ -3591,6 +3588,11 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                             budget.mark_invalid_utf8(&file.name, next_line + lines);
                                         }
                                     }
+                                    chunk_no += 1;
+                                    crate::timing::mem_log(&format!(
+                                        "K2 st chunk {chunk_no} read ({} MB)",
+                                        chunk.len() >> 20
+                                    ));
                                     let ranges = split_chunk_at_trip_boundaries(
                                         &chunk,
                                         cols.trip_id,
@@ -3636,9 +3638,15 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                             c
                                         })
                                         .collect();
+                                    crate::timing::mem_log(&format!(
+                                        "K2 st chunk {chunk_no} parsed"
+                                    ));
                                     for c in parts {
                                         st.merge(c);
                                     }
+                                    crate::timing::mem_log(&format!(
+                                        "K2 st chunk {chunk_no} merged"
+                                    ));
                                     let data_lines =
                                         chunk[data_start..].iter().filter(|&&b| b == b'\n').count()
                                             as u64;
@@ -3680,6 +3688,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                 );
                                 let mut body: Vec<u8> = Vec::new();
                                 if guarded.read_to_end(&mut body).is_ok() {
+                                    crate::timing::mem_log("K2 st body read");
                                     if let Err(e) = std::str::from_utf8(&body) {
                                         if let Some(budget) = stream_budget.as_mut() {
                                             let lines = body[..e.valid_up_to()]
@@ -3735,6 +3744,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                             c
                                         })
                                         .collect();
+                                    crate::timing::mem_log("K2 st body parsed");
                                     let mut it = parts.into_iter();
                                     if let Some(first) = it.next() {
                                         st = first;
@@ -3742,6 +3752,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                     for c in it {
                                         st.merge(c);
                                     }
+                                    crate::timing::mem_log("K2 st body merged");
                                 } else if let Some(budget) = stream_budget.as_mut() {
                                     // Guard trip / corrupt body: previously the whole file was
                                     // silently treated as empty.
@@ -4776,6 +4787,34 @@ fn parse_pickup_dropoff_col(
 
 #[cfg(test)]
 mod tests {
+    /// The first chunk must respect the target size. The header check used to run once on the
+    /// still-empty buffer, so the reader kept going to EOF and held the whole body in memory.
+    #[cfg(feature = "parallel")]
+    #[test]
+    fn bounded_chunk_reader_splits_the_first_chunk() {
+        let mut body = String::from("trip_id,stop_id\n");
+        for t in 0..200 {
+            for s in 0..5 {
+                body.push_str(&format!("T{t},S{s}\n"));
+            }
+        }
+        let mut reader = Cursor::new(body.into_bytes());
+        let mut pending = Vec::new();
+        let mut eof = false;
+        let first = read_bounded_trip_chunk(&mut reader, &mut pending, 100, Some(0), true, &mut eof)
+            .unwrap()
+            .unwrap();
+        assert!(!eof, "the first chunk read the whole body");
+        assert!(first.len() < 200, "first chunk is {} bytes", first.len());
+        let last_row = first[..first.len() - 1].rsplit(|&b| b == b'\n').next().unwrap();
+        let next_row = pending.split(|&b| b == b'\n').next().unwrap();
+        assert_ne!(
+            last_row.split(|&b| b == b',').next(),
+            next_row.split(|&b| b == b',').next(),
+            "a trip was split across chunks"
+        );
+    }
+
     /// Security review 11-12 #1: native K2 reopen is never unbounded; the shared budget
     /// caps each entry and the archive total, and does not wrap to 0 on 32-bit targets.
     /// A read error mid-body (decompression guard trip, corrupt deflate) used to look
