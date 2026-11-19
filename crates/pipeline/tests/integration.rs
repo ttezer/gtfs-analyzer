@@ -9486,14 +9486,15 @@ fn fares_v2_and_flex_findings_carry_the_row() {
     );
 }
 
-/// SHP_017 is the geometric check only: a trip that carries shape_dist_traveled on every stop
-/// is left to STM_056, which reports the same drop (2026-11-18).
+/// SHP_017 checks the stop order on the geometry only: a drop in shape_dist_traveled is STM_056's,
+/// and SHP_017 stays silent when the stops are in order on the shape (2026-11-19).
 #[test]
 fn shp_017_leaves_a_fully_measured_trip_to_stm_056() {
     static SHAPES: &[u8] = b"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n\
 SH1,41.00,29.0,1\nSH1,41.01,29.0,2\nSH1,41.02,29.0,3\nSH1,41.03,29.0,4\n";
+    // Stops in the right order on the geometry; only the shape_dist_traveled values go back.
     static STOPS4: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
-S1,Stop1,41.00,29.0\nS2,Stop2,41.03,29.0\nS3,Stop3,41.01,29.0\nS4,Stop4,41.015,29.0\n";
+S1,Stop1,41.00,29.0\nS2,Stop2,41.01,29.0\nS3,Stop3,41.015,29.0\nS4,Stop4,41.03,29.0\n";
     static TRIPS_SH: &[u8] = b"route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n";
     // The field drops from 3,300 m to 1,100 m at the third stop and never recovers.
     static ST_SDT: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\n\

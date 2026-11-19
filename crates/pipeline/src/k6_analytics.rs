@@ -8802,6 +8802,96 @@ fn summarise_case_by_field(
     }
 }
 
+/// SHP_017: how close (metres) a stop must be to the shape for a position to count; rail ×4.
+const SHP017_NEAR_M: f64 = 100.0;
+
+/// The positions along a shape that a stop lies near: one per pass of the shape by the stop (a
+/// local minimum of the distance within `radius_m`), as (km from the shape start, metres to the
+/// stop). A corridor driven twice gives two positions.
+fn shape_positions_near(
+    pts: &[(f64, f64)],
+    cum_km: &[f64],
+    lat: f64,
+    lon: f64,
+    radius_m: f64,
+) -> Vec<(f64, f64)> {
+    // Local plane in metres around the stop.
+    let kx = 111_320.0 * lat.to_radians().cos();
+    let ky = 110_540.0;
+    let xy = |p: (f64, f64)| ((p.1 - lon) * kx, (p.0 - lat) * ky);
+    let mut out = Vec::new();
+    let mut best: Option<(f64, f64)> = None; // (km, metres) of the pass being followed
+    let mut leaving = false;
+    let mut end_dist = f64::INFINITY;
+    for i in 0..pts.len().saturating_sub(1) {
+        let (ax, ay) = xy(pts[i]);
+        let (bx, by) = xy(pts[i + 1]);
+        let (dx, dy) = (bx - ax, by - ay);
+        let len2 = dx * dx + dy * dy;
+        let t = if len2 > 0.0 {
+            (-(ax * dx + ay * dy) / len2).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+        let (px, py) = (ax + t * dx, ay + t * dy);
+        let dist = (px * px + py * py).sqrt();
+        let km = cum_km[i] + t * (cum_km[i + 1] - cum_km[i]);
+        if dist <= radius_m {
+            // The shape went away from the stop and is coming back: a new pass.
+            if leaving && dist < end_dist {
+                if let Some(b) = best.take() {
+                    out.push(b);
+                }
+            }
+            if best.is_none_or(|(_, d)| dist < d) {
+                best = Some((km, dist));
+            }
+        } else if let Some(b) = best.take() {
+            out.push(b);
+        }
+        end_dist = (bx * bx + by * by).sqrt();
+        leaving = end_dist > dist;
+    }
+    if let Some(b) = best {
+        out.push(b);
+    }
+    out
+}
+
+/// Matches the stops of a pattern to positions that never go back along the shape, keeping for
+/// each position the lowest total distance to the shape. Returns the first stop that has no such
+/// position, with its nearest position (km) and the furthest position reached before it (km).
+fn first_out_of_order(options: &[&[(f64, f64)]]) -> Option<(usize, f64, f64)> {
+    // (total metres, furthest km) per position of the current stop.
+    let mut states: Vec<(f64, f64)> = options.first()?.iter().map(|&(km, d)| (d, km)).collect();
+    for (i, stop) in options.iter().enumerate().skip(1) {
+        let mut next = Vec::with_capacity(stop.len());
+        for &(km, d) in stop.iter() {
+            let prev = states
+                .iter()
+                .filter(|&&(_, reached)| reached <= km)
+                .map(|&(score, _)| score)
+                .fold(f64::INFINITY, f64::min);
+            if prev.is_finite() {
+                next.push((prev + d, km));
+            }
+        }
+        if next.is_empty() {
+            let nearest = stop
+                .iter()
+                .min_by(|a, b| a.1.total_cmp(&b.1))
+                .map_or(0.0, |p| p.0);
+            let reached = states
+                .iter()
+                .min_by(|a, b| a.0.total_cmp(&b.0))
+                .map_or(0.0, |s| s.1);
+            return Some((i, nearest, reached));
+        }
+        states = next;
+    }
+    None
+}
+
 fn add_stm017_trip_details(
     details: &mut gtfs_core::NoticeDetails,
     idx: &StopTimesIndex<'_>,
@@ -10676,7 +10766,11 @@ fn check_remaining_analytics<'a>(
     {
         let _t17 = Timer::start("K6::rem::shp_017");
         // (shape_id, stop_id) → arc — multiple trips may share the same pair.
-        let mut arc_cache: FxHashMap<(&str, &str), f64> = FxHashMap::default();
+        // (shape, stop) → positions of the shape near the stop; (shape, stop pattern) → outcome.
+        // Trips that share a pattern are matched once.
+        let mut near_cache: FxHashMap<(&str, &str), Vec<(f64, f64)>> = FxHashMap::default();
+        type OrderOutcome = Option<(usize, f64, f64)>;
+        let mut order_cache: FxHashMap<(&str, Vec<u32>), OrderOutcome> = FxHashMap::default();
         // Emit one notice for each (shape_id, problem_stop_id) pair
         // (all trips on the same route should not repeat the same shape issue).
         // (notice index, trip count, first trips): the repeats are counted instead of dropped, so
@@ -10707,70 +10801,59 @@ fn check_remaining_analytics<'a>(
             let mut sorted: Vec<&CompactStopTime> = stimes.iter().collect();
             sorted.sort_by_key(|st| st.stop_sequence().unwrap_or(0));
 
-            // Circular shape detection: if shape start and end are close
-            // (loop/circular route), arc monotonicity is meaningless → skip.
-            {
-                let shape_start = pts[0];
-                let shape_end = *pts.last().unwrap();
-                let ring_dist_km =
-                    haversine_km(shape_start.0, shape_start.1, shape_end.0, shape_end.1);
-                let shape_total_km = cum.last().copied().unwrap_or(1.0);
-                // Circular when start-to-end distance is below 10% of total length AND below 1 km.
-                if ring_dist_km < shape_total_km * 0.10 && ring_dist_km < 1.0 {
-                    continue;
-                }
-            }
-
             // Reversed shape (detected in the SHP_016 pre-pass): suppress SHP_017
             // "order broken" noise for this shape (SHP_016 is the clearer signal).
             if reversed_shapes.contains(shape_id) {
                 continue;
             }
 
-            // A trip that carries shape_dist_traveled is left to STM_056, which owns the order of
-            // that field: on a fully filled trip a drop of more than 500 m below the running maximum
-            // needs at least one consecutive decrease, so STM_056 already reports the trip, and a
-            // monotonic field cannot produce SHP_017 at all (2026-11-18). A mixed trip was already
-            // skipped to avoid a unit mismatch. SHP_017 is the geometric projection check only.
-            if sorted.iter().any(|st| st.shape_dist_traveled().is_some()) {
-                continue;
-            }
-
-            let mut prev_arc = -1.0_f64;
-            let mut prob_idx: Option<usize> = None;
-            for (i, st) in sorted.iter().enumerate() {
-                let Some(&(slat, slon)) = stop_coords.get(idx.stop_id_of(st)) else {
-                    continue;
-                };
-                let arc = *arc_cache
-                    .entry((shape_id, idx.stop_id_of(st)))
-                    .or_insert_with(|| project_arc_km(pts, cum, slat, slon));
-                // 500 m tolerance: filters projection noise and S-curve false positives.
-                if arc < prev_arc - 0.500 {
-                    prob_idx = Some(i);
-                    break;
-                }
-                if arc > prev_arc {
-                    prev_arc = arc;
-                }
-            }
-            if let Some(pi) = prob_idx {
-                // Backtrack filter: if later stops after prob_idx exceed arc prev_arc,
-                // the shape turns back and continues — false positive, skip.
-                let recovers = sorted[pi + 1..].iter().take(3).any(|nxt| {
-                    // Because the break occurs at prob_idx, later stops are not in the cache yet;
-                    // project the arc directly. (Relying on the cache returns 0.0 → recovery never fires
-                    // = false positive.)
-                    let narc = match stop_coords.get(idx.stop_id_of(nxt)) {
-                        Some(&(slat, slon)) => project_arc_km(pts, cum, slat, slon),
-                        None => 0.0,
+            // Order is checked on the geometry for every trip, with or without
+            // shape_dist_traveled (whose own order is STM_056's). Each stop is matched to the
+            // shape positions it lies near, and the stops must find positions that never go
+            // back along the shape; a loop or a corridor used twice is no longer a false alarm.
+            let route_id = trip_to_route_rem.get(trip_id).copied().unwrap_or(trip_id);
+            let radius_m = if route_type_rem.get(route_id).copied() == Some(2) {
+                SHP017_NEAR_M * 4.0
+            } else {
+                SHP017_NEAR_M
+            };
+            let key = (
+                shape_id,
+                sorted.iter().map(|st| st.stop_idx).collect::<Vec<u32>>(),
+            );
+            let outcome = match order_cache.get(&key) {
+                Some(cached) => *cached,
+                None => {
+                    let mut located = true;
+                    for st in &sorted {
+                        let stop_id = idx.stop_id_of(st);
+                        let Some(&(slat, slon)) = stop_coords.get(stop_id) else {
+                            located = false;
+                            break;
+                        };
+                        near_cache.entry((shape_id, stop_id)).or_insert_with(|| {
+                            shape_positions_near(pts, cum, slat, slon, radius_m)
+                        });
+                    }
+                    let options: Vec<&[(f64, f64)]> = if located {
+                        sorted
+                            .iter()
+                            .map(|st| near_cache[&(shape_id, idx.stop_id_of(st))].as_slice())
+                            .collect()
+                    } else {
+                        Vec::new()
                     };
-                    narc > prev_arc
-                });
-                if recovers {
-                    continue;
+                    // A stop too far from the shape is a location problem (SHP_012), not order.
+                    let result = if located && options.iter().all(|o| !o.is_empty()) {
+                        first_out_of_order(&options)
+                    } else {
+                        None
+                    };
+                    order_cache.insert(key, result);
+                    result
                 }
-
+            };
+            if let Some((pi, arc, prev_arc)) = outcome {
                 let st = sorted[pi];
                 // Skip if a notice was already emitted for the same (shape_id, problem_stop_id) pair.
                 if let Some(seen) = shp017_seen.get_mut(&(shape_id, idx.stop_id_of(st))) {
@@ -10794,10 +10877,6 @@ fn check_remaining_analytics<'a>(
                     .get(idx.stop_id_of(st))
                     .copied()
                     .unwrap_or(idx.stop_id_of(st));
-                let arc = arc_cache
-                    .get(&(shape_id, idx.stop_id_of(st)))
-                    .copied()
-                    .unwrap_or(0.0);
                 let mut notice = k6_notice(
                     ctr,
                     "SHP_017",
@@ -21548,13 +21627,75 @@ mod tests {
         assert_eq!(reps, vec![Some("T1")]);
     }
 
+    fn shp017_run(shape: &[(f64, f64)], stops: &[(&str, f64, f64)], route_type: u32) -> bool {
+        use crate::k2::shapes::ShapePointRecord;
+        let mut shape_ti = ShapeInternTable::new();
+        let mut records = records_with(
+            stops.iter().map(|&(id, la, lo)| stop(id, la, lo)).collect(),
+            vec![route("R1", route_type)],
+            vec![trip_sh("T1", "R1", "S1")],
+            stops
+                .iter()
+                .enumerate()
+                .map(|(i, &(id, _, _))| {
+                    let m = 10 * i as u32;
+                    stoptime("T1", i as u32 + 1, id, (8, m, 0), (8, m, 0), i as u64 + 2)
+                })
+                .collect(),
+        );
+        records.shapes = shape
+            .iter()
+            .enumerate()
+            .map(|(i, &(la, lo))| {
+                ShapePointRecord::new(
+                    shape_ti.intern("S1"),
+                    Some(la),
+                    Some(lo),
+                    Some(i as u32 + 1),
+                    None,
+                    i as u32 + 2,
+                )
+            })
+            .collect();
+        records.shape_interns = shape_ti.clone();
+        analyze(&records, &empty_derived(), &default_config(), 20260514)
+            .notices
+            .iter()
+            .any(|n| n.rule_id == "SHP_017")
+    }
+
     #[test]
-    fn backtrack_that_recovers_no_shp_017() {
+    fn shp_017_matches_a_corridor_driven_out_and_back() {
+        // East 29.00 → 29.10, then back west on the same road to 29.03. C (29.05) is on the
+        // way back: behind B by its nearest position, but in order on the second pass.
+        let shape = [(41.0, 29.00), (41.0, 29.10), (41.0, 29.03)];
+        let stops = [("A", 41.0, 29.02), ("B", 41.0, 29.08), ("C", 41.0, 29.05)];
+        assert!(
+            !shp017_run(&shape, &stops, 3),
+            "the return pass is a valid forward position"
+        );
+        // Same road, but the shape ends at 29.10: C has no forward position → out of order.
+        assert!(shp017_run(&[(41.0, 29.00), (41.0, 29.10)], &stops, 3));
+    }
+
+    #[test]
+    fn shp_017_skips_a_stop_far_from_the_shape_and_widens_the_radius_for_rail() {
+        // C is behind B but 220 m off the shape: a location problem (SHP_012), not order.
+        let shape = [(41.0, 29.00), (41.0, 29.10)];
+        let far = [("A", 41.0, 29.02), ("B", 41.0, 29.08), ("C", 41.002, 29.05)];
+        assert!(!shp017_run(&shape, &far, 3));
+        // On rail the radius is 400 m, so C is matched and found out of order.
+        assert!(shp017_run(&shape, &far, 2));
+    }
+
+    #[test]
+    fn a_stop_behind_on_a_straight_shape_is_shp_017_even_if_later_stops_go_on() {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         // Backtrack recovery filter (#17): straight eastbound shape 29.00 → 29.10 (lat 41.0).
         // stop_times: A(29.00) → B(29.03) → C(29.015: B'nin ~1.3km gerisi, >500m tolerans) → D(29.05).
-        // C jumps backward, BUT D exceeds the previous maximum (B) within 3 stops → recovery → NO SHP_017.
+        // C is behind B on a straight shape (no loop, no second pass): no forward position exists for C,
+        // so it is out of order; the old "recovers within 3 stops" filter hid this (2026-11-19).
         let mut records = records_with(
             vec![
                 stop("A", 41.0, 29.00),
@@ -21599,8 +21740,10 @@ mod tests {
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_017"),
-            "geri sıçrayıp 3 durak içinde toparlanan trip SHP_017 üretmemeli (backtrack kurtarma filtresi)");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "SHP_017"),
+            "C is behind B on a straight shape: out of order even if D is further on"
+        );
     }
 
     // ── STP_029: stop far from parent_station ────────────────────────────────
