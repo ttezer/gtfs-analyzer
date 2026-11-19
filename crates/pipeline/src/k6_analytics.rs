@@ -10738,7 +10738,17 @@ fn check_remaining_analytics<'a>(
         .iter()
         .filter_map(|t| ti_rem.shape_id(t).map(|s| (t.trip_id.as_str(), s)))
         .collect();
-    let mut shape_cum: FxHashMap<&str, Vec<f64>> = FxHashMap::default();
+    // Cumulative km along ONE shape at a time (8 B/point). Keeping it for every shape cost
+    // ~0.7 GB on mdb-2014; each rule now refills this buffer when the shape changes.
+    fn fill_cum(c: &mut Vec<f64>, pts: ShapePts<'_>) {
+        c.clear();
+        c.push(0.0_f64);
+        for i in 1..pts.len() {
+            c.push(c[i - 1] + haversine_km(pts.at(i - 1).0, pts.at(i - 1).1, pts.at(i).0, pts.at(i).1));
+        }
+    }
+    let mut cum_buf: Vec<f64> = Vec::new();
+    let mut cum_shape: Option<&str> = None;
     // Make SHP_016/017 representative trip and notice order independent of iteration: FxHashMap
     // traversal differs between 32-bit WASM and 64-bit native (the same feed showed web `1150B`,
     // CLI `0850B`). trip_id order is the same on both platforms.
@@ -10762,24 +10772,26 @@ fn check_remaining_analytics<'a>(
         // too and makes the shape fire MORE EASILY — measured: `mdb-1138` rose from 46 to 168.
         // Correct: make NO DECISION about the uncertain trip's shape.
         let mut unreliable: FxHashSet<&str> = FxHashSet::default();
-        for &(trip_id, stimes) in &trips_by_id {
-            let Some(&shape_id) = trip_shape_local.get(trip_id) else {
-                continue;
-            };
+        // Trips grouped by shape so each shape's distances are computed once. Everything below is
+        // per shape (`agg`, `unreliable`) and the sort is STABLE, so within a shape trips still
+        // come in trip_id order: same representative trip, same result.
+        let mut trips_by_shape: Vec<(&str, &str, &[CompactStopTime])> = trips_by_id
+            .iter()
+            .filter_map(|&(t, st)| trip_shape_local.get(t).map(|&sid| (sid, t, st)))
+            .collect();
+        trips_by_shape.sort_by_key(|e| e.0);
+        for &(shape_id, trip_id, stimes) in &trips_by_shape {
             let Some(pts) = shape_coords.get(shape_id) else {
                 continue;
             };
             if pts.len() < 2 {
                 continue;
             }
-            let cum = shape_cum.entry(shape_id).or_insert_with(|| {
-                let mut c = Vec::with_capacity(pts.len());
-                c.push(0.0_f64);
-                for i in 1..pts.len() {
-                    c.push(c[i - 1] + haversine_km(pts.at(i - 1).0, pts.at(i - 1).1, pts.at(i).0, pts.at(i).1));
-                }
-                c
-            });
+            if cum_shape != Some(shape_id) {
+                fill_cum(&mut cum_buf, pts);
+                cum_shape = Some(shape_id);
+            }
+            let cum = &cum_buf;
             let total = cum.last().copied().unwrap_or(0.0);
             if total <= 0.1 {
                 continue;
@@ -10901,14 +10913,6 @@ fn check_remaining_analytics<'a>(
                 continue;
             }
 
-            let cum = shape_cum.entry(shape_id).or_insert_with(|| {
-                let mut c = Vec::with_capacity(pts.len());
-                c.push(0.0_f64);
-                for i in 1..pts.len() {
-                    c.push(c[i - 1] + haversine_km(pts.at(i - 1).0, pts.at(i - 1).1, pts.at(i).0, pts.at(i).1));
-                }
-                c
-            });
 
             let mut sorted: Vec<&CompactStopTime> = stimes.iter().collect();
             sorted.sort_by_key(|st| st.stop_sequence().unwrap_or(0));
@@ -10936,6 +10940,12 @@ fn check_remaining_analytics<'a>(
             let outcome = match order_cache.get(&key) {
                 Some(cached) => *cached,
                 None => {
+                    // Distances are needed only to place stops on the shape (near_cache).
+                    if cum_shape != Some(shape_id) {
+                        fill_cum(&mut cum_buf, pts);
+                        cum_shape = Some(shape_id);
+                    }
+                    let cum = &cum_buf;
                     let mut located = true;
                     for st in &sorted {
                         let stop_id = idx.stop_id_of(st);
