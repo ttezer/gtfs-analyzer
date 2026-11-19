@@ -3,27 +3,44 @@
 🇹🇷 [Türkçe](README.md) · 🇬🇧 **English** · 🇯🇵 [日本語](README.ja.md) · 🇫🇷 [Français](README.fr.md)
 
 [![Open App](https://img.shields.io/badge/Open%20App-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
-[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20100%25%20Machine--Checkable%20Coverage%20%28human%20review%20and%20recommendation--only%20provisions%20excluded%29-c8102e?style=flat)](https://www.gtfs.jp/)
+[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20100%25-c8102e?style=flat)](https://www.gtfs.jp/)
 [![Rule count](https://img.shields.io/badge/rules-621-blue?style=flat)](RULES.en.md)
 ![GTFS Spec coverage](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
-[![Corpus validation](https://img.shields.io/badge/corpus-4%2C435%20feeds%20%C3%97%2026%20runs-brightgreen?style=flat)](audit-results/)
 [![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
 [![ChatGPT plugin](https://img.shields.io/badge/ChatGPT%20plugin-GTFS%20Validator-10a37f?style=flat)](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)
 [![Claude plugin](https://img.shields.io/badge/Claude%20plugin-GTFS%20Validator-d97757?style=flat&logo=claude&logoColor=white)](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)
 [![License MIT](https://img.shields.io/badge/license-MIT-yellow?style=flat)](LICENSE)
 
-GTFS Validator & Analyzer is an open-source GTFS validator and feed quality analyzer. A `.zip` uploaded to the browser application is never sent to a server; validation runs on the user's device via WebAssembly. It is available in eight forms: the browser application, a CLI (`cargo install gtfs-analyzer`), a Rust library, a CI/CD gate, the `gtfs-sdk` npm package, the `gtfs-analyzer` Python package, and **GTFS Validator** in ChatGPT and Claude.
+**GTFS Validator & Analyzer** is an open-source **GTFS validator** that checks GTFS files and analyzes feed quality. A `.zip` uploaded to the web app is never sent to a server; validation runs on the user's device with **WebAssembly**. The same **621-rule** engine is reachable in eight ways:
 
-The project covers **97.2% of the measurable GTFS Specification requirements** and anchors all 300 atoms in the field inventory to at least one Spec rule. Of its **621 rules**, **415** produced at least one finding in the most recent full 4,435-feed catalog run. Every rule is listed in [`RULES.en.md`](RULES.en.md).
+| Path | Best for |
+|---|---|
+| **Browser** ([app](https://ttezer.github.io/gtfs-analyzer/)) | Inspecting one feed with the map and report |
+| **CLI** (`cargo install gtfs-analyzer`, or a prebuilt binary) | Batch validation, scripting, and Python integration |
+| **Rust library** ([`gtfs-pipeline`](https://crates.io/crates/gtfs-pipeline)) | Embedding validation in your own Rust service |
+| **CI/CD** (exit codes + `--fail-on`) | A release gate before publishing a feed |
+| **[`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk) npm package** | Embedding validation in your web or Node application |
+| **[`gtfs-analyzer`](https://pypi.org/project/gtfs-analyzer/) Python package** (`pip install gtfs-analyzer`) | Embedding validation in your Python application |
+| **ChatGPT — [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)** | Validating a ZIP or URL in a conversation and explaining the findings |
+| **Claude — [GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)** | Validating a ZIP, path or URL with `/gtfs` and explaining the findings |
 
-Accuracy is tested against MobilityData's official `gtfs-validator` through **twenty-six full catalog runs**. Each run validates every testable GTFS Schedule feed in the catalogue — **4,435** as of the most recent run — with both validators on the same machine and date, using the actual Java `gtfs-validator v8.0.1`. The raw outputs are available in [`audit-results/`](audit-results/).
+## Key Features
 
-GTFS Validator & Analyzer does not merely check whether a file conforms to the specification; it also analyzes how reliable, consistent, and usable the feed is. It shows errors together with the relevant file and line number, provides remediation steps for each finding, and marks geographic issues — such as deviating routes, broken coordinates, or unreachable stops — on an interactive map.
-
-Every finding is tagged with a rule code, an analysis class, and a severity level. Thanks to the Spec · Interop · Quality · Analytics classes and the Critical → Info severity levels, thousands of findings can be filtered, prioritized, and handled systematically. The tool also automatically detects the GTFS features used by the feed — Shapes, Transfers, Fares, Headsigns, Flex, and the like — and includes them in the report.
-
-GTFS Validator & Analyzer extends specification validation with operational quality analysis. Frequency inconsistencies per route, anomalous speed segments, isolated stops, gaps in service patterns, and network topology problems are examined with 621 distinct validation and analysis rules. Results are summarized with scores for publishability and overall feed quality. The prioritized fix queue shows which issues should be addressed first and the likely impact of each fix on the score.
+- **621 validation and analysis rules** in 38 groups; **97.2%** of the measurable provisions of the GTFS specification are covered, and **all 300 atoms** of the field inventory carry at least one Spec anchor. Full list: [`RULES.en.md`](RULES.en.md).
+- **Runs locally:** the browser, the CLI, the libraries and the npm/Python packages process the feed on your own device.
+- **Quality and operations beyond Spec compliance:** anomalous speed segments, frequency inconsistencies, isolated stops, service gaps, network topology.
+- **Four classes, five severity levels:** every finding is tagged Spec · Interop · Quality · Analytics and Critical → Info, so thousands of findings can be filtered and prioritized.
+- **Two scores:** the **Publish Score** for publishability and the weighted **Overall Score** of the four classes.
+- **Prioritized fix queue:** what to tackle first and how much a fix may move the score.
+- **File, row and remediation step for every finding.**
+- **For Planners page:** turns the technical report into a plain-language task list for planners who do not know GTFS (below).
+- **Map:** stop, shape, trip, route and pathway issues are drawn on the real shape geometry.
+- **GTFS Flex and Fares v2** validation; the GTFS features a feed uses (Shapes, Transfers, Fares, Headsigns, Flex…) are detected automatically.
+- **GTFS-JP profile:** Japan's national profile is recognized automatically, with v3 and v4 checked separately.
+- **Outputs:** HTML, CSV, JSON, compact JSON and the Executive PDF Report; run-to-run comparison.
+- **CI/CD gate:** `--fail-on` and exit codes stop a pipeline only at the class/severity you choose.
+- **Four interface languages:** Turkish, English, Japanese, French.
 
 **Who is it for?**
 
@@ -34,589 +51,144 @@ GTFS Validator & Analyzer extends specification validation with operational qual
 
 ---
 
-## Comparison with Other Tools
+## For Planners
 
-### Feature Matrix
+The **For Planners** page of the web app tells the same analysis result in the planner's language instead of a technical report; it produces no new findings, it simplifies the Analyzer's result.
 
-| Feature | MobilityData | GTFS Analyzer |
-|---|:---:|:---:|
-| Web interface | ✅ | ✅ |
-| Data never leaves the browser | ❌ | ✅ |
-| Spec compliance rules | ✅ | ✅ |
-| Quality rules | ❌ | ✅ |
-| Operational analytics | ❌ | ✅ |
-| Map visualization | ❌ | Stops, routes, trips, lines, pathways |
-| Feed score | ❌ | ✅ |
-| Remediation guidance | Partial | ✅ |
-| GTFS Flex support | Partial | ✅ |
-| Fares v2 validation | Partial | ✅ |
-| GTFS-JP profile validation | ❌ | ✅ |
-| Output formats | HTML, JSON | HTML, CSV, JSON, PDF |
-| Distribution | Web · desktop installers (msi/dmg/deb) · CLI JAR · Docker | Web · CLI binary · `cargo install` · npm SDK · PyPI |
-| Documented CI/CD integration | Not documented in the README (possible via Docker/CLI) | ✅ `--fail-on` + exit codes |
-| npm package | ❌ | ✅ `gtfs-sdk` |
-| crates.io package | — *(Java project)* | ✅ `gtfs-analyzer` |
-| GTFS Spec coverage (measured) | — | **97.2%** · 300/300 field anchors |
-| **Total rules** | **178** | **621** |
+- **A one-line verdict:** can the feed be published, and how many topics block publication.
+- **Two lists:** first the issues that block publication, then the improvement suggestions that do not — in priority order.
+- **A card for every topic:** what it is, what to do and **where to fix it**, with the route code, stop name and departure time a planner knows instead of file and column names.
+- **On the map:** the affected stops, routes and trips are drawn on the real route geometry.
+- **Cards in five languages:** Turkish, English, Japanese, French and Spanish.
 
-### Corpus Validation
+---
 
-Accuracy cannot be shown with a handful of feeds. Every release is run against the **entire MobilityDatabase GTFS Schedule catalogue** — **4,435 feeds** in the most recent run, over 640 parallel shards. On the other side is MobilityData's **`gtfs-validator` v8.0.1**, executed again on the same archive rather than read from its published reports, so the difference is "who found what", not "whose report was generated when".
+## Our Corpus Results
 
-From the most recent run (`40411348163`: 4,435 feeds attempted, 4,403 valid ZIPs downloaded, and both validators completed on **4,390** feeds):
+Every release is run against **MobilityDatabase's entire GTFS Schedule catalogue**. Latest run (`44474551308`, 2026-11-19):
 
-| | GTFS Analyzer | MobilityData |
-|---|---|---|
-| Median wall time | **0.05 s** | 2.77 s |
-| Median peak memory | **15 MB** | 332 MB |
-| Downloaded ZIPs not completed | **0** | 13 |
-| Facts MobilityData saw and we did not | **0** | — |
-| Total wall time | **78.3 min** | 351.3 min |
+| | |
+|---|---:|
+| Feeds attempted | **4,479** |
+| Valid ZIPs downloaded | **4,447** |
+| Analysis completed | **4,447** (no failures) |
+| Partial report (broken/missing file skipped safely) | 76 |
+| Countries | 96 |
+| Rules triggered | 423 / 621 |
+| Median time per feed | **0.05 s** (p90 1.1 s) |
+| Median peak memory per feed | **15 MB** (p90 152 MB) |
+| Total time | 77.8 min |
 
-GTFS Analyzer completed all 4,403 downloaded ZIPs. `mdb-2014`, the 1,282 MB compressed / 7,452 MB extracted BODS UK aggregate, is now explicitly excluded at selection because it terminated its shard process on both attempts; the exclusion is recorded rather than silently lost. MobilityData's 13 incomplete feeds fall into documented state classes: 8 partial runs, 3 with no report, and 2 timeouts.
+**Speed.** The whole catalogue, 23.8 GB of compressed GTFS, was validated in **77.8 minutes** on a 4-core CI machine:
 
-⚠️ **The median speed ratio varies widely with feed size and cannot be stated as one multiplier:** **~123×** below 1 MB (coarse, since analyzer times are recorded at 10 ms resolution), 11.1× at 1-5 MB, 4.8× at 5-20 MB, 2.8× at 20-100 MB and **2.0×** above 100 MB. 71% of the corpus sits below 1 MB, so the median ratio is largely JVM startup cost. The memory advantage is steadier across every band.
-
-Raw output is under [`audit-results/`](audit-results/) — the first seven runs are committed, later ones are archived as an `audit-<run-id>` prerelease.
-
-### Feed Analysis Examples
-
-The figures below come from corpus run `40411348163`: the same archive and the same analysis date (2026-08-20), with MobilityData running Java `gtfs-validator v8.0.1`. Times are each run record's own wall clock on the same machine. ZIP sizes and finding counts come from the run artifact; the BART, TriMet and VBB archive sha256 values were rechecked. Tokyo's `latest.zip` changed after the run, so structural counts that could not be rechecked against the old archive are omitted.
-
-#### BART (Bay Area Rapid Transit, San Francisco)
-
-Feed: `mdb-53` · 14 routes, 291 stops, 6,377 trips · 1.0 MB
-
-| | MobilityData | GTFS Analyzer |
+| Validation time | Feeds | Share |
 |---|---:|---:|
-| Total findings | 2,716 | 1,027 |
-| Critical / Error | 2 | 2 |
-| High / Warning | 2,653 | 2 |
-| Medium | — | 13 |
-| Low | — | 10 |
-| Info | 61 | 1,000 |
-| Rule types triggered | 13 | **38** |
-| Validation time | 3.03 s | **0.22 s** |
-| Publication score | — | **92.6 / 100** |
-| Overall score | — | **92.3 / 100** |
+| Under 0.1 seconds | 2,778 | **62.5%** |
+| Under 1 second | 3,973 | **89.3%** |
+| Under 10 seconds | 4,371 | **98.3%** |
+| Under 1 minute | 4,437 | **99.8%** |
 
-#### TriMet (Portland, Oregon)
+**Memory.** Peak memory per feed: **mean 102 MB, median 15 MB**.
 
-Feed: `mdb-247` · 82 routes, 6,031 stops, 67,957 trips · 41.4 MB
-
-| | MobilityData | GTFS Analyzer |
+| Peak memory | Feeds | Share |
 |---|---:|---:|
-| Total findings | 31 | 4,690 |
-| Critical / Error | 0 | 0 |
-| High / Warning | 20 | 1 |
-| Medium | — | 33 |
-| Low | — | 692 |
-| Info | 11 | 3,964 |
-| Rule types triggered | 8 | **40** |
-| Validation time | 21.22 s | **6.70 s** |
-| Publication score | — | **100 / 100** |
-| Overall score | — | **95.1 / 100** |
+| Under 100 MB | 3,849 | **86.6%** |
+| Under 500 MB | 4,279 | **96.2%** |
+| Under 1 GB | 4,366 | **98.2%** |
+| Under 4 GB | 4,437 | **99.8%** |
 
-> This is a specification-clean feed: both tools report zero Critical findings and a Publish Score of 100. The difference in rule counts reflects GTFS Analyzer's additional operational-quality analysis.
+The largest feeds finish in minutes too:
 
-#### Tokyo Toei (Tokyo Metropolitan Bureau of Transportation)
+| Feed | ZIP | Extracted | Time | Peak memory |
+|---|---:|---:|---:|---:|
+| Sweden-wide (Trafiklab, `mdb-2939`) | 908 MB | 4.5 GB | 3 min 15 s | 11.3 GB |
+| Baden-Württemberg (NVBW, `mdb-2393`) | 700 MB | 4.6 GB | 1 min 44 s | 8.7 GB |
+| Germany-wide (DELFI, `mdb-3215`) | 589 MB | 4.9 GB | 4 min 19 s | 13.2 GB |
+| Entur (`mdb-1078`) | 554 MB | 3.4 GB | 1 min 31 s | 6.3 GB |
+| Great Britain-wide (BODS, `mdb-2014`) | 1.34 GB | 7.8 GB | 1 min 58 s | 10.5 GB |
+| Czechia (`mdb-2904`) | 86 MB | 0.85 GB | 26 s | 4.1 GB |
 
-Feed: `mdb-3175` · 6.8 MB · **GTFS-JP profile**
+The tables inside these feeds are huge as well; every row is read and checked:
 
-| | MobilityData | GTFS Analyzer |
-|---|---:|---:|
-| Total findings | 1,673 | 3,095 |
-| Critical / Error | 0 | 0 |
-| High / Warning | 301 | 10 |
-| Medium | — | 2,182 |
-| Low | — | 518 |
-| Info | 1,372 | 385 |
-| Rule types triggered | 11 | **50** |
-| Validation time | 8.30 s | **2.12 s** |
-| Publication score | — | **100 / 100** |
-| Overall score | — | **87.6 / 100** |
+| Feed | `stop_times` | Trips | Shape points | Calendar exceptions | Transfers | Time |
+|---|---:|---:|---:|---:|---:|---:|
+| Germany-wide (DELFI, `mdb-3215`) | **65.1 million** | 3.17 million | 10.5 million | 456 k | 1.07 million | 4 min 19 s |
+| Switzerland-wide (SKI+, `mdb-2898`) | **42.6 million** | 2.62 million | — | **10.5 million** | 1.12 million | 2 min 16 s |
+| Baden-Württemberg (NVBW, `mdb-2393`) | 6.5 million | 373 k | **57.5 million** | 340 k | 106 k | 1 min 44 s |
+| Buenos Aires (Colectivos, `mdb-1220`) | **29.3 million** | 436 k | 756 k | 95 | — | 44 s |
+| Bogotá (SIMUR, `mdb-3358`) | 9.6 million | 182 k | 942 k | 126 | — | 19 s |
+| Great Britain-wide (BODS, `mdb-2014`) | **59.7 million** | 1.55 million | **40.2 million** | 232 k | — | 1 min 58 s |
+| Czechia (`mdb-2904`) | 9.6 million | 494 k | — | **4.4 million** | — | 26 s |
 
-> The GTFS-JP profile produces no false positives on this real Japanese feed: it is specification-clean (0 Critical, Publish Score 100), and profile rules inspect only Japan-specific requirements. 1,673 of the Medium findings are `JPN_001`, a stop name without its kana (ja-Hrkt) reading — a quality recommendation, not a specification violation.
+Buenos Aires' 29.3 million `stop_times` rows are validated against all 621 rules in 44 seconds: about **666,000 rows per second**.
 
-#### VBB (Berlin-Brandenburg Transport Association)
+The Germany-wide DELFI feed and two regional Nouvelle-Aquitaine feeds (77 and 83 MB) are among the feeds MobilityData's `gtfs-validator` stopped with an internal error in this run; GTFS Analyzer validated all three to the end.
 
-Feed: `mdb-782` · 1,254 routes, 41,904 stops, 183,349 trips, 14,189 shapes · **62.5 MB**
+**Size.** There is no fixed feed size limit. The only ceiling is a 16 GB safety guard on extracted data against zip bombs; in the browser, browsers with Memory64 use the WASM64 engine and the device's memory sets the limit.
 
-| | MobilityData | GTFS Analyzer |
-|---|---:|---:|
-| Total findings | 11,573 | 19,979 |
-| Critical / Error | 5 | 0 |
-| High / Warning | 10,704 | 788 |
-| Medium | — | 3,739 |
-| Low | — | 5,626 |
-| Info | 864 | 9,826 |
-| Rule types triggered | 19 | **83** |
-| Validation time | 35.36 s | **15.79 s** |
-| Publication score | — | **100 / 100** |
-| Overall score | — | **79.7 / 100** |
+The largest feed in the catalogue, **Great Britain-wide BODS** (`mdb-2014`): 7.8 GB of data and 59.7 million `stop_times` rows are validated in **under 2 minutes**, and the feed also opens end to end **in the browser**.
 
-> 🇩🇪 **Large feed:** MobilityData's hosted web validator cannot process a feed of this size. GTFS Analyzer validates it directly in the browser without sending the file to a server. More than half of MobilityData's total (6,818) is `non_ascii_or_non_printable_char`: ü/ö/ä/ß inside ID fields (for example `zone_id` `7958 Prösen, Bahnhof`). The specification recommends printable ASCII for IDs; GTFS Analyzer reports this as one `ARC_037` summary per file. MobilityData's 5 errors (`pathway_unreachable_location`) appear here as `PTH_012` (High, one feed-level summary).
+The **Czechia** feed (`mdb-2904`) is a genuinely broken feed with 494,000 trips and 1.07 million findings: it is validated in **26 seconds** and also opens **in the browser**.
+
+Partial reports are not failures: in feeds whose files sit in a subfolder instead of the ZIP root (48), that lack a required file (22) or whose geometry file exceeds the safety limit (6), independent checks continue and the skipped checks are listed in the report. Raw results: [`audit-results/`](audit-results/).
 
 ---
 
 ## GTFS-JP Support
 
-GTFS Analyzer automatically recognizes **GTFS-JP**, Japan's national GTFS profile (国土交通省 / MLIT standard), and enforces the requirements that GTFS-JP makes mandatory where standard GTFS leaves them optional. Because MLIT requires subsidized operators to publish GTFS-JP, hundreds of small operators must conform to this profile — yet mainstream validators do not check its profile-specific obligations.
+GTFS Analyzer recognizes Japan's national GTFS profile **GTFS-JP** (国土交通省 / MLIT standard) automatically and applies the rules that GTFS-JP makes mandatory where standard GTFS leaves them optional. Because MLIT requires subsidized operators to publish GTFS-JP, hundreds of small operators must conform to this profile.
 
-**Automatic detection.** A feed is flagged as GTFS-JP — and a **GTFS-JP** badge appears in the report — when it contains the current GTFS-JP files (`agency_jp.txt`, `office_jp.txt`, `pattern_jp.txt`) or the legacy-compatible `routes_jp.txt`, when `feed_info.feed_lang` is a valid BCP-47 tag with primary subtag `ja` (such as `ja-JP`), when `translations.txt` carries kana (`ja-Hrkt`) readings, when an agency has both `agency_lang=ja` and `agency_timezone=Asia/Tokyo`, or when `agency_name` or `stop_name` contains Japanese kana. `routes_jp.txt` is not a v3 file; it remains recognized only for legacy-feed compatibility. The kana signal recovers Japanese feeds whose language and timezone metadata are wrong; Kanji alone is ambiguous with Chinese and Taiwanese names. Under the default **auto** profile and explicitly selected `v3`/`v4` profiles, these signals are required to enable JPN validation; the profile only selects the validation scope. Under v4, v3-extension rules do not run.
+- **Automatic detection:** GTFS-JP extension files (`agency_jp.txt`, `office_jp.txt`, `pattern_jp.txt`, the legacy `routes_jp.txt`), `feed_lang=ja`, kana (`ja-Hrkt`) translations, `agency_lang=ja` + `Asia/Tokyo`, or Japanese kana in name fields mark a feed as GTFS-JP; the report shows a **GTFS-JP** badge.
+- **Profile selection:** in the web app **Analysis Criteria → GTFS-JP profile scope** (`Auto`, `V3`, `V4`); in the CLI `--gtfs-jp-profile v3|v4`; in the SDK `config: { gtfs_jp_profile: 'v3' }`. The choice does not detect the feed's official version; it only sets the rule scope.
+- **100% machine-checkable coverage:** with an explicit V3 or V4 profile, every machine-checkable MLIT provision is covered by rules; provisions that need human judgement or are recommendations only are out of scope.
+- **Rules:** the profile rules are in the **JPN** group and run only on GTFS-JP feeds; full list in [`RULES.en.md`](RULES.en.md).
 
-**Selecting the profile for an analysis.** In the web app, open **Analysis Criteria** before choosing the ZIP and select `Auto`, `V3`, or `V4` under **GTFS-JP validation profile**. The current selection is committed when you choose a feed, before automatic validation starts; `Auto` is the default. For the CLI, use `--gtfs-jp-profile v3` or `--gtfs-jp-profile v4`. In the SDK, pass `config: { gtfs_jp_profile: 'v3' }` or `'v4'`. This selects the validation scope; it does not infer the feed's official GTFS-JP version. See the [GTFS-JP v3/v4 compatibility matrix](docs/gtfs-jp-v3-v4-matrix.md) for the detailed differences.
+### Profile monitors and difference pages
 
-**Machine-checkable coverage badge.** The **GTFS-JP v3/v4 100% Machine-Checkable Coverage (human review and recommendation-only provisions excluded)** badge on an explicitly selected V3 or V4 profile means that all strong and soft MLIT provisions enforced by that profile and backed by an Analyzer rule are covered. Human review, external verification, and recommendation-only provisions whose absence is not a conformance violation are excluded from the denominator; `Auto` does not make a version coverage claim. The badge does not infer the feed's official GTFS-JP version.
-
-**Profile rules (JPN group).**
-
-| Rule | Check |
+| Page | What it shows |
 |---|---|
-| **JPN_001** | Kana reading (よみがな — `translations.txt`, `ja-Hrkt`) for stop names; required by GTFS-JP for voice announcements and search |
-| **JPN_002** | `jp_office_id` (in `trips.txt` **or** `routes.txt`) must match an `office_id` defined in `office_jp.txt` (operating-office referential integrity) |
-| **JPN_003** | `agency_jp.txt` `agency_id` must be defined in `agency.txt` (operator referential integrity) |
-| **JPN_004** | `translations.txt` must be present — mandatory in GTFS-JP (notably for kana readings) |
-| **JPN_005** | `office_name` (a required field) must be filled in `office_jp.txt` |
-| **JPN_006** | V3/Auto: MEDIUM fare coverage; V4: absent file INFO/manual review, empty/unusable file MEDIUM |
-| **JPN_007** | `feed_info.txt` must be present — mandatory in GTFS-JP |
-| **JPN_008** | Independent kana readings for Japanese `route_short_name` and `route_long_name` |
-| **JPN_009** | Kana (`ja-Hrkt`) reading for `trip_headsign` |
-| **JPN_010** | Kana (`ja-Hrkt`) reading for the operator name (`agency_name`) |
-| **JPN_011** | `agency_id` is required in both `agency.txt` and `routes.txt` |
-| **JPN_012** | `agency_jp.agency_id` is required and must identify an `agency.txt` row |
-| **JPN_013** | When present, `agency_zip_number` must contain exactly 7 ASCII digits |
-| **JPN_014** | `office_jp.office_id` must be present and unique |
-| **JPN_015** | Legacy `routes_jp.route_id` compatibility check in V3 and Auto; not a v3 file |
-| **JPN_016** | V3 `pattern_jp.route_update_date`; legacy `routes_jp.route_update_date` date format in V3 and Auto |
-| **JPN_017** | `pattern_jp.jp_pattern_id` must be present and unique |
-| **JPN_018** | When `pattern_jp.txt` exists, `trips.jp_pattern_id` must reference it |
-| **JPN_019** | `ja-Hrkt` rows must use valid GTFS tables, fields, records, and stop-time sub-records |
-| **JPN_020** | `office_url` and `office_phone` receive basic format quality checks |
-| **JPN_021** | `ja-Hrkt` translations must be non-empty, consistent, and contain kana |
-| **JPN_022** | GTFS-JP v4 main fields and the `location_type` column; a blank cell is valid `0` |
-| **JPN_023–026** | Explicit profiles require `feed_lang=ja`, `agency_lang=ja`, `agency_timezone=Asia/Tokyo`, and `currency_type=JPY` |
-| **JPN_027** | Explicit V3 profile requires every numeric `route_type` to be `3`; excluded from Auto/V4 |
-| **JPN_028** | Remaining required V3 `ja-Hrkt` translations |
-| **JPN_029** | V4 readings aggregated per source value, with affected-row count and up to 5 examples |
-| **JPN_030** | Remaining required V3 `language=ja` translations |
-| **JPN_031** | V3/V4: conditional `zone_id` through fare→route→trip→stop links |
-| **JPN_032** | Strict V3: `agency_id` uses a 13-digit corporate-number body, with an optional non-empty branch suffix |
-| **JPN_033** | V3/V4: reserved `jp` namespace is forbidden in custom file and field names, according to the selected profile |
-
-The **Tokyo Toei** comparison above shows how the profile behaves on a real GTFS-JP feed: the feed is specification-clean (0 critical), and the profile rules produce no false positives on correctly referenced data.
+| [GTFS-JP Monitor](https://ttezer.github.io/gtfs-jp-monitor/) | GTFS-JP profile results of Japanese feeds |
+| [GTFS-FR Monitor](https://ttezer.github.io/gtfs-fr-monitor/) | Results of French feeds |
+| [GTFS-JP v3/v4 compatibility matrix](docs/gtfs-jp-v3-v4-matrix.md) | Rule differences between v3 and v4 |
 
 ---
 
-## Usage
+## ChatGPT and Claude: Ask in Any Language, Get Answers in That Language
 
-GTFS Validator & Analyzer is a web application — no installation required. Open the live version in your browser and upload your GTFS zip file.
+GTFS Validator runs as a plugin in ChatGPT and in Claude. Give it your feed in the chat and get the result **in the language you ask in**: ask in English and it answers in English, ask in Japanese and it answers in Japanese. The GTFS Analyzer engine computes the validation and the scores; the AI explains the result, summarizes the priority fixes clearly and does not change the scores.
 
-The runtime is selected automatically from browser capabilities: browsers with Memory64 use
-**WASM64** for feeds that need more than 4 GB; all others use **WASM32**. The active engine is
-shown on the upload screen. For diagnostics, use `?wasm32=1`, `?wasm64=1`, or `?serial=1`.
+### ChatGPT — GTFS Validator
 
-**→ [https://ttezer.github.io/gtfs-analyzer/](https://ttezer.github.io/gtfs-analyzer/)**
+Open ChatGPT's [GTFS Validator page](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c) and add the app. Type `/gtfs` and upload a GTFS ZIP, give a public feed URL, or ask what a rule such as `/gtfs TRP_002` means.
 
-1. Drag and drop your GTFS zip file, or use the file picker.
-2. Validation starts automatically; progress is shown step by step on screen.
-3. When complete, the Publish and Overall scores appear with the detailed report tabs.
-4. To compare an earlier analysis, open **Compare** and upload its Golden JSON. Fixed, new, decreased, and increased rules are shown alongside score, feed-date, and normalized notice-density changes.
-5. For a shareable deliverable, open **Export → Executive PDF Report**, choose the report language, and use **Print / Save PDF** in the preview.
+### Claude — GTFS Validator
 
-### ChatGPT GTFS Validator
+Add the [GTFS Validator plugin](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory) in Claude. Type `/gtfs` and attach a GTFS ZIP, give a file path or a public feed URL, or ask about a rule such as `/gtfs TRP_002`. The plugin uses code execution; on claude.ai it must be enabled, and there attach the feed as a ZIP rather than a URL.
 
-To analyze a feed in a conversation, open ChatGPT's
-[GTFS Validator page](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c).
-You can upload a GTFS ZIP, provide a public
-feed URL, or ask about a rule such as `TRP_002`. The GTFS Analyzer engine still
-performs validation and scoring; ChatGPT explains the result and summarizes the
-priority fixes without recalculating the scores.
-
-Unlike the browser application, the ChatGPT path temporarily processes the feed
-through the GTFS Validator MCP service for the duration of the request. Feed
-contents and validation reports are not intentionally retained after processing.
-Use the browser, CLI, or a local package for data that must not leave your
-organization.
-
-### Claude GTFS Validator
-
-To analyze a feed in Claude, add the [GTFS Validator plugin](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory).
-Type `/gtfs` and attach a GTFS ZIP, give a local path or a public feed URL, or ask
-about a rule such as `/gtfs TRP_002`. The GTFS Analyzer engine performs validation
-and scoring; the plugin does not recalculate the scores or change the publishability
-verdict.
-
-The analysis runs where Claude runs: in Claude's code sandbox on claude.ai, or on
-your own computer in Claude Code. The plugin installs the `gtfs-analyzer` package
-from PyPI (pinned version); the feed is not sent to any server operated by the
-plugin, and nothing is stored. Code execution must be turned on; in chat the
-sandbox cannot download feeds from URLs, so attach the ZIP instead.
-
-### Executive PDF Report
-
-The **Executive PDF Report** turns detailed validation results into a readable, color-coded, A4-ready document for decision-makers and feed producers. It is generated exclusively from **GTFS Analyzer** results and does not include output from another validator or an external comparison.
-
-The report includes:
-
-- publication status, Publish Score, Overall Score, and the Spec · Interop · Quality · Analytics components;
-- a feed profile covering stops, routes, trips, shapes, service days, and date ranges;
-- deduplicated **P0 / P1 / P2** actions that combine R1 publication blockers with the R9 impact/effort ranking;
-- evidence, impact, recommended remediation, actual affected-instance count, and potential score gain for every priority finding;
-- feed-specific structural insights, a phased remediation plan, severity/class distributions, and a technical appendix.
-
-Even when the UI retains a limited number of finding examples for performance, the report uses **actual aggregate counts** from `capped_totals` when available. The document can be generated in Turkish, English, or Japanese, independently of the UI language. Generation and printing happen entirely in the browser: the GTFS data is not uploaded to a server, and no external API is required.
-
-> Report scores assess the uploaded GTFS feed; they do not rate the performance or accuracy of GTFS Analyzer itself.
-
-> To self-host or set up a development environment, see [Developer Setup](#developer-setup).
+**Example questions:** "Is this feed ready to publish?", "Explain the three most important issues and how to fix them", "What does STP_046 mean?"
 
 ---
 
 ## Eight Ways to Use It
 
-The same 621-rule validation engine is available through eight paths; each interface presents the result for its own use case:
-
-| Path | Best for | Where the data goes |
+| Path | How to start | Details |
 |---|---|---|
-| **Browser** ([app](https://ttezer.github.io/gtfs-analyzer/)) | Inspecting one feed with the map and report | **Nowhere** — on-device WebAssembly |
-| **CLI** (`cargo install gtfs-analyzer`, or a prebuilt binary) | Batch validation, scripting, and Python integration | Nowhere — local binary |
-| **Rust library** ([`gtfs-pipeline`](https://crates.io/crates/gtfs-pipeline)) | Embedding validation in your own Rust service | Nowhere — your own process |
-| **CI/CD** (exit codes + `--fail-on`) | A release gate before publishing a feed | Nowhere — your own runner |
-| **[`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk) npm package** | Embedding validation in your web or Node application | Nowhere — local WASM |
-| **[`gtfs-analyzer`](https://pypi.org/project/gtfs-analyzer/) Python package** (`pip install gtfs-analyzer`) | Embedding validation in your Python application | Nowhere — local Rust native module |
-| **ChatGPT — [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)** | Validating a ZIP or URL in a conversation and explaining the findings | GTFS Validator MCP service — temporary processing for the request |
-| **Claude — [GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)** | Validating a ZIP, path or URL with `/gtfs` and explaining the findings | Where Claude runs — your own computer in Claude Code, Claude's code sandbox on claude.ai |
+| Browser | [Open the app](https://ttezer.github.io/gtfs-analyzer/) and drop the ZIP | [Browser](docs/usage.en.md#1-browser) |
+| CLI | `cargo install gtfs-analyzer` or a [prebuilt binary](https://github.com/ttezer/gtfs-analyzer/releases) | [CLI](docs/usage.en.md#2-cli) |
+| Rust library | `gtfs-pipeline` dependency | [Rust](docs/usage.en.md#3-rust-library) |
+| CI/CD | `--fail-on` and exit codes | [CI/CD](docs/usage.en.md#4-cicd) |
+| npm | `npm install gtfs-sdk` | [npm](docs/usage.en.md#5-gtfs-sdk-npm-package) |
+| Python | `pip install gtfs-analyzer` | [Python](docs/usage.en.md#6-python-package) |
+| ChatGPT | [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c), `/gtfs` | above |
+| Claude | [GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory), `/gtfs` | above |
 
-The first six paths run locally or on infrastructure you control. ChatGPT is the
-exception: it transfers the feed to the MCP service while processing the
-analysis request. Use the browser application, CLI, or local packages for data
-that cannot leave your organization. The Claude plugin does not send the feed to a server of its own; in Claude Code the analysis runs entirely on your computer.
-
-### CI/CD integration
-
-The `--fail-on` flags fail the run only for the severity or class you choose, so Analytics findings do not break a release pipeline:
-
-```yaml
-# GitHub Actions — fail only on official GTFS Spec violations
-- name: Validate GTFS feed
-  run: |
-    curl -sL https://github.com/ttezer/gtfs-analyzer/releases/latest/download/gtfs-analyzer-x86_64-linux.tar.gz | tar xz
-    ./gtfs-analyzer validate feed.zip --fail-on-class spec --min-severity critical
-```
-
-Exit codes: `0` clean · `1` matching findings present · `2` feed/config/file error.
-
-### Rust library
-
-To embed validation in your own Rust service, use `gtfs-pipeline` directly — no CLI, no filesystem, no network:
-
-```toml
-[dependencies]
-gtfs-pipeline = "0.20.0"
-gtfs-config   = "0.20.0"
-gtfs-core     = "0.20.0"
-```
-
-```rust
-use gtfs_config::ValidatorConfig;
-use gtfs_core::ValidateResult;
-use gtfs_pipeline::validate_bytes;
-
-let zip = std::fs::read("feed.zip")?;
-let config = ValidatorConfig::default();
-
-match validate_bytes(&zip, &config, 20_260_820) {
-    ValidateResult::Ok(result) => {
-        println!("notices: {}", result.notices.len());
-        println!("publication score: {}", result.reports.r5.pub_score);
-    }
-    ValidateResult::Fatal(err) => eprintln!("fatal: {}", err.message),
-}
-```
-
-`validate_bytes` takes bytes and returns a result carrying every report (`r1`–`r9`), the scores and the notices. Adjust `ValidatorConfig` fields to change thresholds, or apply a JSON delta with `merge_delta`.
-
-⚠️ The library crates are the analyzer's **internals**. They are published so the binary can be built from the registry and they carry **no API stability guarantee**. If you need a stable surface, the CLI's JSON output or `gtfs-sdk` is the safer choice.
-
-### `gtfs-sdk` npm package
-
-`gtfs-sdk` exposes the v0.20.0 validation engine as a typed JavaScript/TypeScript API. The feed is validated with local WASM and never leaves the application:
-
-```js
-import { validateGtfs } from "gtfs-sdk";
-
-const result = await validateGtfs(new Uint8Array(zipBytes), {
-  today: "2026-08-20",
-});
-console.log(result.notices.length, result.reports.r5.score);
-```
-
-The public API includes `validateGtfs`, `getVersion`, and `createValidatorSession` for applications that need progress and cache events. The low-level `gtfs-wasm` binding is not part of the SDK contract; WASM64 and threaded engine selection remain internal to the first SDK package.
-
-Package sources live under `sdk/`; the detailed usage, result model, and config reference are in [`sdk/README.md`](sdk/README.md). The WASM binding is generated from `crates/wasm` during the build.
-
-### Python package
-
-Install from [PyPI](https://pypi.org/project/gtfs-analyzer/) (CPython 3.9+):
-
-```bash
-pip install gtfs-analyzer
-```
-
-The package runs the same Rust pipeline through a PyO3 native module; no Cargo
-or CLI install is needed. Pass the ZIP as a path or as bytes:
-
-```python
-from gtfs_analyzer import validate_gtfs
-
-result = validate_gtfs("feed.zip", today="2026-09-30")
-print(result["validation_status"])
-print(len(result["notices"]))
-```
-
-`result` carries the same core result as the npm SDK and the CLI JSON output.
-Parameters, the result structure, and error types are described in
-[`python/README.md`](python/README.md).
-
-### Community bindings
-
-| Language | Package | Maintained by |
-|---|---|---|
-| Kotlin / JVM | [`io.github.transittrack:gtfs-analyzer`](https://central.sonatype.com/artifact/io.github.transittrack/gtfs-analyzer) | Its authors, outside this repository |
-
-Community bindings are not tested in this repository and do not ship from its release
-process. Report engine findings here and binding-specific issues to the package's own
-repository.
+All installation and usage details: [Eight ways to use it](docs/usage.en.md).
 
 ---
 
-## CLI (Terminal)
+## Analysis Criteria, Scores and Notice Limits
 
-Besides the web UI, you can run the same validation core (`gtfs_pipeline::validate_bytes`) from a terminal — for Python/automation integration.
-
-### Installation
-
-With Rust installed, the shortest path:
-
-```bash
-cargo install gtfs-analyzer
-gtfs-analyzer validate feed.zip
-```
-
-Without installing Rust: download the archive for your platform from [Releases](https://github.com/ttezer/gtfs-analyzer/releases) (`x86_64-linux`, `aarch64-macos`, `x86_64-windows`), unpack it and put the `gtfs-analyzer` binary on your `PATH`.
-
-```bash
-# Linux / macOS — latest release
-curl -sL https://github.com/ttezer/gtfs-analyzer/releases/latest/download/gtfs-analyzer-x86_64-linux.tar.gz | tar xz
-./gtfs-analyzer --version
-```
-
-To build from source:
-
-```bash
-cargo build --release -p gtfs-analyzer
-target/release/gtfs-analyzer validate feed.zip --json
-
-# or directly
-cargo run -p gtfs-analyzer -- validate feed.zip --json
-```
-
-### `validate` — feed validation
-
-| Flag | Description |
-|---|---|
-| `--json` | Writes the full result as JSON |
-| `--compact-json` | Emit the canonical compact JSON projection for machine consumers; add R9 root-cause samples with `--samples N` |
-| `--summary` | Short summary: status, notice count, scores (default; cannot be combined with `--json`) |
-| `--rule SHP_010` | Only notices for the given rule |
-| `--severity critical` | Notices with exactly this severity (critical/high/medium/low/info) |
-| `--min-severity high` | This severity and anything worse (critical is the worst) |
-| `--class spec` | Only these rule classes — `spec,interop,quality,analytics`, comma separated |
-| `--disable-rule DQ_004` | Removes the listed rules from notices, scores, and the R9 queue; comma separated |
-| `--disable-rule-gtfs-jp DQ_004` | Removes these rules only for feeds detected as GTFS-JP |
-| `--fail-on critical` | Exit 1 **only** when this severity or worse is present |
-| `--fail-on-class spec` | Exit 1 only when a notice in these classes is present |
-| `--pretty` | Indent the JSON output (requires `--json`) |
-| `--include-name-index` | Include `name_index` (stop/route/shape lookup tables) in the JSON |
-| `--max-notices-per-rule 20` | Keep at most N notices per rule in the JSON; real counts of truncated rules go to `capped_totals`, R1/R5/R9 are still computed over every notice (requires `--json`) |
-| `--samples N` | With `--compact-json`, add the first N root-cause findings per R9 rule (`entity_type`, `entity_id`, `file`, `line`, `field`, `observed_value`, `expected_value`) |
-| `-o report.json` | Write the output to a file instead of stdout |
-| `--lang en` | Language of the finding texts: `en` (default) / `tr` / `ja` / `fr` / `es` (`es`: planner cards only) |
-| `--config config.json` | Apply a JSON config delta (on top of `ValidatorConfig::default()`) |
-| `--today 20260710` | Pin the analysis "today" (for calendar rules) |
-
-**Filters only narrow what is displayed.** `notices` and the R2–R9 lists are filtered; **the R1 publish verdict and the R5 scores always describe the whole feed**. When a filter is active the JSON gains a `filtered` field and the summary a `filter:` line.
-
-`name_index` is **omitted by default**: on large feeds the stop/shape coordinate tables dominate the payload. Pass `--include-name-index` when you need it.
-
-Pass `-` instead of a path to read the ZIP from **stdin**: `curl -sL <url> | gtfs-analyzer validate - --json`. (The ZIP central directory lives at the end of the file, so the archive is buffered in memory rather than streamed.)
-
-> **Counts differ from the web UI.** The browser caps how many findings it keeps per rule for performance (the real totals are reported in `capped_totals`). The CLI applies **no such cap** — the same feed yields more notices and unscaled R9 impact figures. This is expected; do not compare the two outputs count by count.
-
-### Compact JSON and the web cap
-
-`--compact-json` is the canonical machine-consumer projection: it omits the individual
-`notices` list and `name_index` tables from the full `--json` report. Its top level
-contains `status`, `engine`, `engine_version`, `engine_commit`,
-`validation_date`, `partial`, `analysis`, `reports.r1`, `reports.r5`,
-`reports.r9`, `metrics`, `notice_counts`, and `triggered_rule_count`.
-Each `reports.r9.items` entry contains rule title, severity, class, message, remediation,
-priority, impact, and score-delta fields, plus a plain-language `card` (`title`, `what`,
-`action`) in the `--lang` language; `--samples N` adds up to N root-cause
-examples to each item.
-
-`--compact-json` is not the web UI payload and does not apply a per-rule sample cap by
-itself. To approximate the web UI's visible notice list in full CLI JSON, use
-`--json --max-notices-per-rule 500`; R1/R5/R9 are still computed over the complete
-notice list and truncated rules are reported in `capped_totals`.
-
-**Exit codes:** `0` no notices · `1` notices present or a `PARTIAL` report · `2` fatal or config/file error. A `PARTIAL` report safely skips unavailable inputs and continues independent checks; JSON exposes `status: "partial"`, `validation_status: "PARTIAL"`, and the `partial` scope. `partial.skipped_checks` lists the K4/K5/K6 check families and individual rules skipped because prerequisites were unavailable; `partial.skipped_stages` is retained for coarse stage metadata. With `--fail-on*`, `1` is returned only for a matching notice; other findings are still reported but do not fail the run. In JSON mode stdout is JSON only; errors go to stderr.
-
-```bash
-# CI gate: fail only on official GTFS Spec violations
-gtfs-analyzer validate feed.zip --fail-on-class spec
-
-# Report Spec findings only (scores still describe the whole feed)
-gtfs-analyzer validate feed.zip --class spec --json --pretty -o spec.json
-```
-
-```python
-import json, pathlib, subprocess
-
-for feed in sorted(pathlib.Path("feeds").glob("*.zip")):
-    proc = subprocess.run(
-        ["gtfs-analyzer", "validate", str(feed), "--json"],
-        text=True, capture_output=True,
-    )
-    # exit 1 means "has notices", not failure — do NOT use check=True
-    data = json.loads(proc.stdout)
-    if data["status"] == "fatal":
-        print(feed.name, "FATAL", data["code"], data["message"])
-        continue
-    print(feed.name, data["reports"]["r5"]["pub_score"], len(data["notices"]))
-```
-
-### `rules` — rule registry
-
-Lists the whole rule registry without running a validation — meant as the rule dictionary for integrating projects.
-
-```bash
-gtfs-analyzer rules --class spec --severity critical
-gtfs-analyzer rules --rule STM_004 --json --pretty
-```
-
-Fields: `id`, `severity`, `class`, `authority_source`, `base_effort`, `blocks`, `title`, `message`, `remediation`, `card`.
-The `--class` / `--severity` / `--min-severity` / `--rule` filters mean the same as in `validate`.
-`--lang` applies here too (rule titles, messages and remediations).
-
-### Output language
-
-The validation core emits its finding texts in Turkish; `--lang en` / `--lang ja` / `--lang fr` replace them using the **same translation dictionaries the web UI uses**. Rule ids, severities and classes (`CRITICAL`, `SPEC`) stay machine-readable in every language — only `title`, `message` and `remediation` are translated.
-
-When a rule has no translation the chain is: requested language → English → Turkish (the core's own text), so the output is never blank.
-
-Rule-level outputs (`--compact-json` R9 items and `rules --json`) also carry `card`: the plain-language title, what happened (`what`) and what to do (`action`) of the web UI's planner view, in `tr`, `en`, `ja`, `fr` and `es`. `es` is a cards-only language: its other texts fall back to English. `what` is left out when the card text needs per-finding values.
-
-The dictionaries are derived from `ui/src/locales/{en,ja}.ts` into `crates/core/locales/*.json` by `npm run locales:export` and embedded in the CLI binary and the Python package. If a locale is edited without re-running the export, `locale-parity.test.ts` fails in CI — the locale files remain the single source of truth.
-
----
-
-## Analysis Thresholds
-
-Validation thresholds can be customized from the **Analysis Thresholds** section on the upload screen. Changed values take effect on the next ZIP upload; the reset button restores defaults.
-
-### Rule Classes and Authority Source
-
-Every rule falls into one of four classes. The class reflects the finding's **authority source** (its basis of legitimacy), so a user can tell at a glance whether a finding is a real GTFS Spec violation or an interoperability/quality/analytics signal:
-
-- **Spec** — only cases that the official **GTFS Schedule Reference** explicitly requires, forbids, or renders invalid (required / conditionally required / conditionally forbidden fields, enum values, foreign keys, uniqueness, format constraints). No other source produces `Spec`.
-- **Interop** — compatibility signals with consumer/validator behavior such as MobilityData, Google Transit, or a regional profile (e.g., GTFS-JP).
-- **Quality** — GTFS best-practice, data quality, readability, consistency, and production-quality checks.
-- **Analytics** — statistical, operational, performance, or analysis-oriented signals.
-
-Each rule also carries a machine-readable **authority source** (`authority_source`) field (`GTFS_SPEC`, `MOBILITYDATA_PARITY`, `REGIONAL_PROFILE`, `PROJECT_QUALITY`, etc.). Invariant: **the `Spec` class is legitimate only with `authority_source = GTFS_SPEC`**; parity with MobilityData/Guru/Google, best-practice, or project-specific heuristics is not on its own proof of Spec.
-
-### Optional Profiles and Source URL
-
-Setting `stop_name_best_practices=true` in the config delta enables the language-dependent `STP_040` and `STP_041` checks; they are disabled by default because of their false-positive risk. URL-based integrations may provide `source_url` metadata, allowing `ARC_028` to verify that the permanent publishing URL contains a `.zip` filename. Upload-only validation skips this check. The core engine never requests URLs found inside a feed; HTTP availability checks require a separate, explicitly opt-in online adapter.
-
-### Coordinating shape distance fields
-
-If a trip uses `shape_dist_traveled` in `stop_times.txt` but some points of its referenced shape lack the same field in `shapes.txt`, the analyzer emits `SHP_030` (Quality · Medium). Both fields are individually optional in GTFS, so this is not a Spec publish blocker; it is a shape-level compatibility signal that consumers may be unable to place stops reliably on the shape. The finding includes the affected-trip count and representative trip IDs.
-
-A one-point shape that is actually referenced by a trip is reported as `SHP_006` at Low · Quality, with `shape_id` and `shape_point_count=1` in the details. A two-point straight segment is valid. An unused one-point shape is reported only by `SHP_018`. This is an intentional near-parity mapping for MobilityData's `single_shape_point`: Analyzer reports `SHP_006` only for a used shape.
-
-### Far-stop speed parity
-
-MobilityData's current rules page is internally inconsistent for `fast_travel_between_far_stops`: the main WARNING table shows it as active, while the notice-detail metadata says `Deprecated since undefined`, and the deprecated table omits it. The #115 audit sampled 20 positive feeds; the decision is based on the signal's mixed/noisy combination of cumulative distances over 10 km, non-consecutive stop pairs, and timing cascades—not on an assumed deprecation. Aliasing it to `STM_012` or `STM_014` was rejected; no new rule was added and the difference remains an intentional Analytics coverage gap.
-
-### Stop URL specificity
-
-`STP_034` and `STP_035` compare `stop_url` with agency and route URLs using a conservative syntactic identity and report low-priority Quality findings. Scheme/host case, the root `/`, and explicit HTTP 80/HTTPS 443 default ports are equivalent; query strings, fragments, path trailing slashes, and percent-encoding remain significant. Stops sharing one normalized URL are reported in a single aggregate finding with the affected-stop count and representative IDs in `details`.
-
-### Speed Thresholds
-
-| Parameter | Default | Range | Description |
-|---|---:|---|---|
-| Max Bus Speed | 120 km/h | 60–200 | Maximum allowed speed for bus trips |
-| Max Tram Speed | 100 km/h | 40–160 | Maximum allowed speed for tram trips |
-| Max Metro Speed | 150 km/h | 80–250 | Maximum allowed speed for metro trips |
-| Max Rail Speed | 300 km/h | 100–400 | Maximum allowed speed for rail trips |
-| Max Ferry Speed | 80 km/h | 20–150 | Maximum allowed speed for ferry trips |
-| Max Cable Car Speed | 30 km/h | 10–60 | Maximum allowed speed for cable car / funicular |
-
-### Geographic and Transfer Thresholds
-
-| Parameter | Default | Range | Description |
-|---|---:|---|---|
-| Min Transfer Time | 180 s | 30–1800 | Minimum connection time for transfers |
-| Max Transfer Distance | 500 m | 50–2000 | Maximum distance for a transfer to be considered valid |
-| Max Route Jump | 10 km | 1–50 | Maximum distance between consecutive shape points |
-| Nearby Stop Threshold | 5 m | 1–20 | Stops closer than this are flagged as duplicates |
-| Stop-to-Shape Distance | 100 m | 20–500 | Maximum distance a stop may be from its shape |
-| Parent Station Distance | 100 m | 10–1000 | Maximum distance a stop may be from its parent station |
-
-### Service and Operational Thresholds
-
-| Parameter | Default | Range | Description |
-|---|---:|---|---|
-| Expiry Warning | 30 days | 1–60 | Warning generated if feed expires within this many days |
-| Feed Info Expiry Warning | 7 days | 1–60 | Default `FIN_019` horizon for `feed_info.feed_end_date`; the 30-day MobilityData parity is applicable when `feed_info_expiry_warning_days=30`, separate from `CAL_008` |
-| Service Gap Threshold | 7 days | 3–30 | Service gaps longer than this are flagged |
-| Max Trip Duration | 24 h | 8–72 | Maximum duration for a single trip |
-| Min Trip Duration | 60 s | 10–300 | Minimum duration for a single trip |
-| Max Headway | 240 min | 60–720 | Headways longer than this generate a warning |
-| Bunching Threshold | 2 min | 1–10 | Headways shorter than this are flagged as bunching |
-
----
-
-## Scores
-
-### Publish Score (0–100)
-
-Measures whether the feed is publishable per the official GTFS Schedule Reference. The score **starts at 100**; each publication-blocking issue deducts a penalty proportional to the rule's weight and remediation cost.
-
-**How the score is computed:**
-- Only `Spec` class issues at `Critical` severity (the official GTFS spec gate) affect the Publish Score. `Interop` compatibility signals are reported separately (Interop Score / R8).
-- If the same rule fires multiple times, the penalty is capped at **2×**; a single issue cannot drive the score to zero.
-- **0–40:** Feed is likely unusable. Blocker errors present.
-- **40–70:** Partial issues; some applications may reject the feed.
-- **70–90:** Usable, but attention is needed.
-- **90–100:** Ready to publish.
-
-### Overall Score (0–100)
-
-Weighted average of all four analysis classes: Spec×40% + Interop×30% + Quality×20% + Analytics×10%. Reflects both specification compliance and operational data quality. A feed can be publishable while still having a low Overall Score.
-
-**How the score is computed:**
-- Issues from all four classes (Spec, Interop, Quality, Analytics) affect this score according to their weights.
-- Missing optional fields, inconsistent service patterns, and accessibility gaps are reflected here via the Quality and Analytics components.
-- **0–60:** Significant quality issues; passenger experience may be affected.
-- **60–80:** Moderate quality; improvements recommended.
-- **80–100:** Good data quality.
-
-> **Note:** The Publish Score and the Overall Score serve different purposes and are computed with different formulas. A feed with a high Publish Score but a low Overall Score works technically, but issues such as missing accessibility information or incorrect route names affect passengers.
+The authority source of the rule classes, the adjustable thresholds, how the **Publish Score** and the **Overall Score** are computed, and notice limits on large feeds: [analysis document](docs/analysis.en.md).
 
 ---
 
@@ -625,7 +197,10 @@ Weighted average of all four analysis classes: Spec×40% + Interop×30% + Qualit
 ### 1. Report
 Summary overview: both scores, feed metrics (route count, trip count, date range, etc.), and a notice distribution chart.
 
-### 2. Detail & Fix
+### 2. For Planners
+The same result in the planner's language: the publish verdict, first the issues that block publication, then the improvement suggestions; for each topic what it is, what to do and where to fix it, with the map. Details in the **For Planners** section above.
+
+### 3. Detail & Fix
 Issues are presented as a prioritized fix queue, sorted by priority score. Each row contains:
 
 | Column | Description |
@@ -638,10 +213,10 @@ Issues are presented as a prioritized fix queue, sorted by priority score. Each 
 
 The sum of all +Pub values equals `100 − current Publish Score`; the sum of all +Score values equals `100 − current Overall Score`. Geographic issues show a map icon; clicking it displays the problem location and related shape/stop data on an interactive map. Clicking the **rule code** opens the relevant GTFS specification section in a new tab — the reference page of the file the finding most affects (gtfs.jp for GTFS-JP rules).
 
-### 3. By Category
+### 4. By Category
 All rule violations listed by group and class. Each row shows the rule code, title, affected record count, severity, and remediation guidance. Filtering and sorting are supported.
 
-### 4. Export
+### 5. Export
 Download the report as HTML, CSV, or JSON. The PDF option opens the browser's print dialog — use "Save as PDF" to export.
 
 ---
@@ -697,8 +272,8 @@ The comparison runs entirely in the browser. The Golden JSON is parsed locally; 
 
 | Class | What it measures | Affects |
 |---|---|---|
-| **Spec** | Deviations from the GTFS specification — missing required fields, invalid values, referential integrity errors | Publish Score |
-| **Interop** | Spec-compliant but rejected or misinterpreted by common consumers (Google Maps, Apple Maps, etc.) | Publish Score |
+| **Spec** | Deviations from the GTFS specification — missing required fields, invalid values, referential integrity errors | Publish (Critical only) and Overall |
+| **Interop** | Spec-compliant but rejected or misinterpreted by common consumers (Google Maps, Apple Maps, etc.) | Overall (Interop score) |
 | **Quality** | Missing optional but expected fields, inconsistencies, deviations from best practices | Overall Score |
 | **Analytics** | Service pattern analysis — bunching, sparse service, expired service | Overall Score |
 
@@ -718,8 +293,7 @@ Severity combines the file/field requirement level (Required · Conditionally Re
 
 ### Spec severity rubric
 
-Spec severity combines requirement level and semantic impact; it is not based on whether MobilityData labels
-the same finding `ERROR`, `WARNING`, or `INFO`:
+Spec severity combines requirement level and semantic impact, that is, the effect of the violation on whether the GTFS data can be consumed:
 
 - **Critical:** Required file/field, primary-key or foreign-key integrity, or core type/range violation; the feed cannot be consumed reliably and `Spec + Critical` is the publish gate.
 - **High:** A direct normative violation that materially changes schedule, fare, accessibility, or Flex/pathway semantics even though the feed remains parseable.
@@ -727,25 +301,11 @@ the same finding `ERROR`, `WARNING`, or `INFO`:
 - **Low:** A narrow metadata or optional-field normative deviation; it does not block publication.
 - **Info:** Not used for normative Spec violations; reserved for measurement or context signals.
 
-Therefore no `Spec` rule may have `Info` severity. The 2026-08-09 audit reviewed all 307
-Spec rules and raised the raw service-day rules `STM_048` and `STM_049` from Info to High.
-See the complete [Spec severity audit](docs/audits/spec-severity-rubric-2026-08-09.md).
+Therefore no `Spec` rule has `Info` severity.
 
 For GTFS-JP feeds, the **JPN** group rules are based on the official [GTFS-JP specification](https://www.gtfs.jp/) (gtfs.jp).
 
 ---
-
-## Notice Limits
-
-In large feeds the same rule can fire thousands of times. Unlimited notice lists strain browser memory and reduce readability. A two-tier cap is applied:
-
-| Limit | Value | Scope |
-|---|---|---|
-| Per rule (default) | 500 | All rules |
-| Per rule (high) | 2,000 | `TRP_020`, `OPR_007`, `STP_016`, `STP_017` |
-| Total (all rules) | — | No feed-wide 100,000 stop limit |
-
-Rules in the high-cap list naturally produce large counts in real feeds (e.g., one headway record per trip). When a rule hits its cap, the actual violation count appears in the **Total** column of the Fix Queue; on the All Findings tab, selecting that rule filter shows a yellow warning banner.
 
 ---
 

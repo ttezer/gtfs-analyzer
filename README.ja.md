@@ -3,27 +3,44 @@
 🇹🇷 [Türkçe](README.md) · 🇬🇧 [English](README.en.md) · 🇯🇵 **日本語** · 🇫🇷 [Français](README.fr.md)
 
 [![アプリを開く](https://img.shields.io/badge/%E3%82%A2%E3%83%97%E3%83%AA%E3%82%92%E9%96%8B%E3%81%8F-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
-[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20100%25%20%E6%A9%9F%E6%A2%B0%E6%A4%9C%E8%A8%BC%E5%8F%AF%E8%83%BD%E3%82%AB%E3%83%90%E3%83%AC%E3%83%83%E3%82%B8%20%28%E4%BA%BA%E6%89%8B%E7%A2%BA%E8%AA%8D%E3%83%BB%E6%8E%A8%E5%A5%A8%E3%81%AE%E3%81%BF%E3%81%AE%E8%A6%8F%E5%AE%9A%E3%82%92%E9%99%A4%E3%81%8F%29-c8102e?style=flat)](https://www.gtfs.jp/)
+[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20100%25-c8102e?style=flat)](https://www.gtfs.jp/)
 [![ルール数](https://img.shields.io/badge/rules-621-blue?style=flat)](RULES.ja.md)
 ![GTFS Spec カバレッジ](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
-[![コーパス検証](https://img.shields.io/badge/corpus-4%2C435%20feeds%20%C3%97%2026%20runs-brightgreen?style=flat)](audit-results/)
 [![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
 [![ChatGPT プラグイン](https://img.shields.io/badge/ChatGPT%20%E3%83%97%E3%83%A9%E3%82%B0%E3%82%A4%E3%83%B3-GTFS%20Validator-10a37f?style=flat)](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)
 [![Claude プラグイン](https://img.shields.io/badge/Claude%20%E3%83%97%E3%83%A9%E3%82%B0%E3%82%A4%E3%83%B3-GTFS%20Validator-d97757?style=flat&logo=claude&logoColor=white)](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)
 [![License MIT](https://img.shields.io/badge/%E3%83%A9%E3%82%A4%E3%82%BB%E3%83%B3%E3%82%B9-MIT-yellow?style=flat)](LICENSE)
 
-GTFS Validator & Analyzer は、ブラウザ上で動作するオープンソースの GTFS バリデーター兼フィード品質分析ツールです。ブラウザ版にアップロードした `.zip` はサーバーへ送信されず、WebAssembly によってユーザーのデバイス上で検証されます。ブラウザ、CLI（`cargo install gtfs-analyzer`）、Rust ライブラリ、CI/CD ゲート、`gtfs-sdk` npm パッケージ、`gtfs-analyzer` Python パッケージ、ChatGPT と Claude の **GTFS Validator** の 8 つの方法で利用できます。
+**GTFS Validator & Analyzer** は、GTFS ファイルを検証し、フィードの品質を分析するオープンソースの **GTFS バリデーター**です。Web アプリにアップロードした `.zip` はサーバーに送信されず、検証は **WebAssembly** によりユーザーの端末で実行されます。同じ **621 ルール**のエンジンに 8 つの方法でアクセスできます：
 
-測定可能な GTFS 仕様要件の **97.2%** をカバーし、フィールドインベントリの 300 個のアトムすべてを少なくとも 1 つの Spec ルールにアンカーしています。**621 個の検証ルール**のうち **415 個**が直近の 4,435 フィード完全カタログ実行で少なくとも 1 件の指摘を出しました。すべてのルールは [`RULES.ja.md`](RULES.ja.md) に一覧化されています。
+| 方法 | 用途 |
+|---|---|
+| **ブラウザ** ([アプリ](https://ttezer.github.io/gtfs-analyzer/)) | 1 つのフィードを地図とレポートで確認 |
+| **CLI**（`cargo install gtfs-analyzer` またはビルド済みバイナリ） | 一括検証、スクリプト、Python 連携 |
+| **Rust ライブラリ**（[`gtfs-pipeline`](https://crates.io/crates/gtfs-pipeline)） | 自分の Rust サービスへの組み込み |
+| **CI/CD**（終了コード + `--fail-on`） | フィード公開前のパイプラインゲート |
+| **[`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk) npm パッケージ** | Web または Node アプリへの組み込み |
+| **[`gtfs-analyzer`](https://pypi.org/project/gtfs-analyzer/) Python パッケージ**（`pip install gtfs-analyzer`） | Python アプリへの組み込み |
+| **ChatGPT — [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)** | 会話内で ZIP または URL を検証し、指摘内容を説明 |
+| **Claude — [GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)** | `/gtfs` で ZIP・パス・URL を検証し、指摘内容を説明 |
 
-MobilityData の公式 `gtfs-validator` に対して **26 回の完全なカタログ実行**で精度を検証しました。各実行ではカタログ内のテスト可能な全 GTFS Schedule フィード（直近の実行で **4,435 件**）を同じマシン・同じ日付で両方のバリデーターにかけ、MobilityData 側では実際の Java `gtfs-validator v8.0.1` を使用しています。生データは [`audit-results/`](audit-results/) にあります。
+## 主な特長
 
-GTFS Validator & Analyzer は、ファイルが仕様に準拠しているかどうかをチェックするだけではありません。フィードがどれだけ信頼でき、一貫性があり、利用可能であるかも分析します。エラーを該当するファイルと行番号とともに表示し、各検出結果に対する修正手順を提示し、地理的な問題 — 例えば逸脱した経路、壊れた座標、到達不能な停留所など — をインタラクティブな地図上にマーキングします。
-
-すべての検出結果には、ルールコード、分析クラス、重大度レベルが付与されます。仕様・相互運用・品質・分析 のクラスと 致命的 → 情報 の重大度レベルにより、数千件の検出結果をフィルタリングし、優先順位付けし、体系的に処理できます。また本ツールは、フィードが使用している GTFS 機能 — Shapes、Transfers、Fares、Headsigns、Flex など — を自動的に検出してレポートに含めます。
-
-GTFS Validator & Analyzer は、仕様検証を運用品質分析へと拡張します。路線ごとの運行頻度の不整合、異常な速度区間、孤立した停留所、サービスパターンの欠落、ネットワークトポロジーの問題を、621 個の異なる検証・分析ルールで精査します。結果は、準拠性と品質を別々に評価するスコアで要約されます。優先順位付けされた修正キューは、どの問題を最初に対処すべきか、および各修正がスコアに与える可能性のある影響を示します。
+- **621 の検証・分析ルール**（38 グループ）。GTFS 仕様の測定可能な規定の **97.2%** をカバーし、フィールド台帳の **300 の要素すべて**に少なくとも 1 つの Spec の根拠があります。全リスト：[`RULES.ja.md`](RULES.ja.md)。
+- **ローカルで動作：** ブラウザ、CLI、ライブラリ、npm/Python パッケージはフィードをご自身の端末で処理します。
+- **仕様準拠を超えた品質・運行分析：** 異常な速度区間、運行頻度の不整合、孤立した停留所、運行の空白、ネットワーク構造。
+- **4 つのクラス、5 つの重大度：** すべての検出結果に Spec · Interop · Quality · Analytics と 致命的 → 情報 が付き、数千件の結果を絞り込み、優先順位を付けられます。
+- **2 つのスコア：** 公開可能性を測る **公開スコア** と、4 クラスの加重による **総合スコア**。
+- **優先順位付きの修正キュー：** 何から直すべきか、修正がスコアをどれだけ動かすかを示します。
+- **すべての検出結果にファイル、行、修正手順。**
+- **プランナー向けページ：** 技術レポートを、GTFS を知らないプランナーが読める平易な作業リストに変換します（下記）。
+- **地図：** 停留所、shape、便、路線、pathway の問題を実際の shape 形状の上に描きます。
+- **GTFS Flex と Fares v2** の検証。フィードが使う GTFS の機能（Shapes、Transfers、Fares、Headsigns、Flex…）を自動検出します。
+- **GTFS-JP プロファイル：** 日本の全国プロファイルを自動認識し、v3 と v4 を別々に検証します。
+- **出力：** HTML、CSV、JSON、compact JSON、エグゼクティブPDFレポート。実行間の比較。
+- **CI/CD ゲート：** `--fail-on` と終了コードで、選んだクラス/重大度でのみパイプラインを止めます。
+- **4 つの UI 言語：** トルコ語、英語、日本語、フランス語。
 
 **対象ユーザー**
 
@@ -34,585 +51,144 @@ GTFS Validator & Analyzer は、仕様検証を運用品質分析へと拡張し
 
 ---
 
-## 他のツールとの比較
+## プランナー向け
 
-### 機能比較表
+Web アプリの **プランナー向け** ページは、同じ分析結果を技術レポートではなくプランナーの言葉で伝えます。新しい検出結果は生まず、Analyzer の結果をわかりやすくまとめます。
 
-| 機能 | MobilityData | GTFS Analyzer |
-|---|:---:|:---:|
-| Web インターフェース | ✅ | ✅ |
-| データがブラウザから出ない | ❌ | ✅ |
-| 仕様準拠ルール | ✅ | ✅ |
-| 品質ルール | ❌ | ✅ |
-| 運用アナリティクス | ❌ | ✅ |
-| 地図の可視化 | ❌ | 停留所・経路・便・路線・通路 |
-| フィードスコア | ❌ | ✅ |
-| 修正ガイダンス | 一部 | ✅ |
-| GTFS Flex サポート | 一部 | ✅ |
-| Fares v2 検証 | 部分的 | ✅ |
-| GTFS-JP プロファイル検証 | ❌ | ✅ |
-| 出力形式 | HTML, JSON | HTML, CSV, JSON, PDF |
-| 配布形態 | Web · デスクトップインストーラー（msi/dmg/deb）· CLI JAR · Docker | Web · CLI バイナリ · `cargo install` · npm SDK · PyPI |
-| 文書化された CI/CD 統合 | README に記載なし（Docker/CLI で可能） | ✅ `--fail-on` + 終了コード |
-| npm パッケージ | ❌ | ✅ `gtfs-sdk` |
-| crates.io パッケージ | — *（Java プロジェクト）* | ✅ `gtfs-analyzer` |
-| GTFS Spec カバレッジ（測定値） | — | **97.2%** · 300/300 フィールドアンカー |
-| **総ルール数** | **178** | **621** |
+- **一文の判定：** フィードを公開できるか、公開を妨げる項目がいくつあるか。
+- **2 つのリスト：** まず公開を妨げる問題、次に公開を妨げない改善提案 — 優先順位順。
+- **項目ごとのカード：** 何か、何をすべきか、**どこで直すか**を、ファイル名や列名ではなく、路線番号、停留所名、発車時刻などプランナーが知っている情報で示します。
+- **地図で表示：** 該当する停留所、路線、便を実際の経路形状の上に描きます。
+- **5 か国語のカード：** トルコ語、英語、日本語、フランス語、スペイン語。
 
-### コーパス検証
+---
 
-数件のフィードでは正確性を示せません。すべてのリリースは **MobilityDatabase の GTFS Schedule カタログ全体**に対して実行されます — 直近の実行で **4,435 フィード**、640 並列シャード。比較対象は MobilityData の **`gtfs-validator` v8.0.1** で、公開済みレポートを読むのではなく**同じアーカイブ上で再実行**します。したがって差分は「どちらが何を検出したか」であり、「どちらのレポートがいつ生成されたか」ではありません。
+## コーパスでの結果
 
-直近の実行（`40411348163`：4,435 フィードを試行し、4,403 件の有効な ZIP を取得、**4,390** フィードで両者とも正常完了）:
+すべてのリリースは **MobilityDatabase の GTFS Schedule カタログ全体**に対して実行されます。直近の実行（`44474551308`、2026-11-19）：
 
-| | GTFS Analyzer | MobilityData |
-|---|---|---|
-| 実行時間の中央値 | **0.05 秒** | 2.77 秒 |
-| ピークメモリの中央値 | **15 MB** | 332 MB |
-| 取得済み ZIP のうち未完了 | **0** | 13 |
-| MobilityData が検出し当方が見逃した事実 | **0 件** | — |
-| 合計実行時間 | **78.3 分** | 351.3 分 |
+| | |
+|---|---:|
+| 試行したフィード | **4,479** |
+| 取得できた有効な ZIP | **4,447** |
+| 解析完了 | **4,447** （失敗なし） |
+| 部分レポート（壊れた/欠けたファイルを安全にスキップ） | 76 |
+| 国 | 96 |
+| 発火したルール | 423 / 621 |
+| フィードあたりの中央値時間 | **0.05 秒** (p90 1.1 秒) |
+| フィードあたりのピークメモリ中央値 | **15 MB** (p90 152 MB) |
+| 合計時間 | 77.8 分 |
 
-GTFS Analyzer は取得した 4,403 件の ZIP をすべて完了しました。`mdb-2014` は圧縮時 1,282 MB、展開時 7,452 MB の BODS UK 統合フィードで、2 回ともシャードプロセスを終了させたため、選択時に理由を明記して除外しています。MobilityData の未完了 13 件は、部分実行 8、レポートなし 3、タイムアウト 2 に分類されます。
+**速度。** カタログ全体、圧縮 GTFS 23.8 GB を 4 コアの CI マシンで **77.8 分**で検証しました：
 
-⚠️ **速度比の中央値はフィードサイズによって大きく変わり、単一の倍率では表せません:** 1 MB 未満で **約 123 倍**（アナライザーの時間は 10 ms 単位で記録されるため概算）、1-5 MB で 11.1 倍、5-20 MB で 4.8 倍、20-100 MB で 2.8 倍、100 MB 超で **2.0 倍**。コーパスの 71% が 1 MB 未満であるため、中央値の大部分は JVM の起動コストです。メモリの優位性はどの帯域でもより安定しています。
-
-生データは [`audit-results/`](audit-results/) にあります — 最初の 7 回はリポジトリ内、以降は `audit-<run-id>` プレリリースとして保存されます。
-
-### フィード分析の例
-
-以下の数値はコーパス実行 `40411348163` のものです。同じアーカイブを同じ分析日（2026-08-20）に使用し、MobilityData 側では Java `gtfs-validator v8.0.1` を実行しました。時間は両側とも同一マシンで記録した実時間です。ZIP サイズと指摘件数は実行成果物から取得し、BART、TriMet、VBB の sha256 を再検証しました。Tokyo の `latest.zip` は実行後に更新されたため、旧アーカイブで再検証できない構造件数は省略しています。
-
-#### BART（ベイエリア高速鉄道、サンフランシスコ）
-
-フィード：`mdb-53` · 14 路線、291 停留所、6,377 便 · 1.0 MB。
-
-| | MobilityData | GTFS Analyzer |
+| 検証時間 | フィード数 | 割合 |
 |---|---:|---:|
-| 指摘総数 | 2,716 | 1,027 |
-| 重大 / Error | 2 | 2 |
-| 高 / Warning | 2,653 | 2 |
-| 中 | — | 13 |
-| 低 | — | 10 |
-| 情報 / Info | 61 | 1,000 |
-| 発火したルール種別 | 13 | **38** |
-| 検証時間 | 3.03 秒 | **0.22 秒** |
-| 公開スコア | — | **92.6 / 100** |
-| 総合スコア | — | **92.3 / 100** |
+| 0.1 秒未満 | 2,778 | **62.5%** |
+| 1 秒未満 | 3,973 | **89.3%** |
+| 10 秒未満 | 4,371 | **98.3%** |
+| 1 分未満 | 4,437 | **99.8%** |
 
-#### TriMet（ポートランド、オレゴン）
+**メモリ。** フィードあたりのピークメモリ：**平均 102 MB、中央値 15 MB**。
 
-フィード：`mdb-247` · 82 路線、6,031 停留所、67,957 便 · 41.4 MB。
-
-| | MobilityData | GTFS Analyzer |
+| ピークメモリ | フィード数 | 割合 |
 |---|---:|---:|
-| 指摘総数 | 31 | 4,690 |
-| 重大 / Error | 0 | 0 |
-| 高 / Warning | 20 | 1 |
-| 中 | — | 33 |
-| 低 | — | 692 |
-| 情報 / Info | 11 | 3,964 |
-| 発火したルール種別 | 8 | **40** |
-| 検証時間 | 21.22 秒 | **6.70 秒** |
-| 公開スコア | — | **100 / 100** |
-| 総合スコア | — | **95.1 / 100** |
+| 100 MB 未満 | 3,849 | **86.6%** |
+| 500 MB 未満 | 4,279 | **96.2%** |
+| 1 GB 未満 | 4,366 | **98.2%** |
+| 4 GB 未満 | 4,437 | **99.8%** |
 
-> 仕様的にクリーンなフィードです。両ツールとも Critical は 0 件で、Publish Score は 100 です。ルール数の差は、GTFS Analyzer の追加の運用品質分析を反映しています。
+最大級のフィードも数分で完了します：
 
-#### Tokyo Toei（東京都交通局）
+| フィード | ZIP | 展開後 | 時間 | ピークメモリ |
+|---|---:|---:|---:|---:|
+| スウェーデン全国（Trafiklab、`mdb-2939`） | 908 MB | 4.5 GB | 3 分 15 秒 | 11.3 GB |
+| バーデン＝ヴュルテンベルク（NVBW、`mdb-2393`） | 700 MB | 4.6 GB | 1 分 44 秒 | 8.7 GB |
+| ドイツ全国（DELFI、`mdb-3215`） | 589 MB | 4.9 GB | 4 分 19 秒 | 13.2 GB |
+| Entur（`mdb-1078`） | 554 MB | 3.4 GB | 1 分 31 秒 | 6.3 GB |
+| イギリス全国（BODS、`mdb-2014`） | 1.34 GB | 7.8 GB | 1 分 58 秒 | 10.5 GB |
+| チェコ（`mdb-2904`） | 86 MB | 0.85 GB | 26 秒 | 4.1 GB |
 
-フィード：`mdb-3175` · 6.8 MB · **GTFS-JP プロファイル**。
+これらのフィードの中のテーブルも巨大です。すべての行を読み、検証します：
 
-| | MobilityData | GTFS Analyzer |
-|---|---:|---:|
-| 指摘総数 | 1,673 | 3,095 |
-| 重大 / Error | 0 | 0 |
-| 高 / Warning | 301 | 10 |
-| 中 | — | 2,182 |
-| 低 | — | 518 |
-| 情報 / Info | 1,372 | 385 |
-| 発火したルール種別 | 11 | **50** |
-| 検証時間 | 8.30 秒 | **2.12 秒** |
-| 公開スコア | — | **100 / 100** |
-| 総合スコア | — | **87.6 / 100** |
+| フィード | `stop_times` | 便 | shape ポイント | カレンダー例外 | 乗換 | 時間 |
+|---|---:|---:|---:|---:|---:|---:|
+| ドイツ全国（DELFI、`mdb-3215`） | **6,510 万** | 317 万 | 1,050 万 | 45.6 万 | 107 万 | 4 分 19 秒 |
+| スイス全国（SKI+、`mdb-2898`） | **4,260 万** | 262 万 | — | **1,050 万** | 112 万 | 2 分 16 秒 |
+| バーデン＝ヴュルテンベルク（NVBW、`mdb-2393`） | 650 万 | 37.3 万 | **5,750 万** | 34 万 | 10.6 万 | 1 分 44 秒 |
+| ブエノスアイレス（Colectivos、`mdb-1220`） | **2,930 万** | 43.6 万 | 75.6 万 | 95 | — | 44 秒 |
+| ボゴタ（SIMUR、`mdb-3358`） | 960 万 | 18.2 万 | 94.2 万 | 126 | — | 19 秒 |
+| イギリス全国（BODS、`mdb-2014`） | **5,970 万** | 155 万 | **4,020 万** | 23.2 万 | — | 1 分 58 秒 |
+| チェコ（`mdb-2904`） | 960 万 | 49.4 万 | — | **440 万** | — | 26 秒 |
 
-> この実際の日本語フィードでは GTFS-JP プロファイルが誤検出を生みません。仕様的にクリーン（Critical 0、Publish Score 100）で、プロファイルルールは日本固有の要件だけを検査します。中の指摘のうち 1,673 件は `JPN_001`（停留所名のかな（ja-Hrkt）読みがない）で、品質上の推奨であり仕様違反ではありません。
+ブエノスアイレスの 2,930 万行の `stop_times` は、621 ルールすべてとともに 44 秒で検証されます。毎秒およそ **66.6 万行**です。
 
-#### VBB（ベルリン・ブランデンブルク運輸連合）
+ドイツ全国の DELFI フィードと、ヌーヴェル＝アキテーヌの 2 つの地域フィード（77 MB と 83 MB）は、この実行で MobilityData の `gtfs-validator` が内部エラーで途中終了したフィードです。GTFS Analyzer は 3 つとも最後まで検証しました。
 
-フィード：`mdb-782` · 1,254 路線、41,904 停留所、183,349 便、14,189 シェイプ · **62.5 MB**。
+**サイズ。** フィードサイズの固定上限はありません。唯一の上限は、zip 爆弾対策として展開後データにかける 16 GB の安全ガードです。ブラウザでは Memory64 対応ブラウザが WASM64 エンジンを使い、上限は端末のメモリで決まります。
 
-| | MobilityData | GTFS Analyzer |
-|---|---:|---:|
-| 指摘総数 | 11,573 | 19,979 |
-| 重大 / Error | 5 | 0 |
-| 高 / Warning | 10,704 | 788 |
-| 中 | — | 3,739 |
-| 低 | — | 5,626 |
-| 情報 / Info | 864 | 9,826 |
-| 発火したルール種別 | 19 | **83** |
-| 検証時間 | 35.36 秒 | **15.79 秒** |
-| 公開スコア | — | **100 / 100** |
-| 総合スコア | — | **79.7 / 100** |
+カタログ最大のフィード **イギリス全国 BODS**（`mdb-2014`）：7.8 GB のデータと 5,970 万行の `stop_times` を **2 分未満**で検証し、**ブラウザでも**最後まで開けます。
 
-> 🇩🇪 **大規模フィード：** MobilityData のホスト型 Web バリデーターではこのサイズを処理できませんが、GTFS Analyzer はファイルをサーバーに送信せずブラウザで直接検証できます。MobilityData の合計の半分以上（6,818 件）は `non_ascii_or_non_printable_char` で、ID 列に含まれる ü/ö/ä/ß（例：`zone_id` `7958 Prösen, Bahnhof`）です。仕様は ID に印字可能な ASCII を推奨しており、GTFS Analyzer はこれを `ARC_037` としてファイルごとに 1 件の要約で報告します。MobilityData のエラー 5 件（`pathway_unreachable_location`）は当方では `PTH_012`（高、フィード単位の要約）として表示されます。
+**チェコ**のフィード（`mdb-2904`）は 49.4 万便、107 万件の検出結果を出す本当に壊れたフィードです。**26 秒**で検証し、**ブラウザでも**開けます。
+
+部分レポートは失敗ではありません。ファイルが ZIP のルートではなくサブフォルダにある（48）、必須ファイルが欠けている（22）、またはジオメトリファイルが安全上限を超える（6）フィードでも、独立したチェックは継続し、スキップしたチェックはレポートに一覧されます。生の結果：[`audit-results/`](audit-results/)。
 
 ---
 
 ## GTFS-JP 対応
 
-GTFS Analyzer は、日本の国内 GTFS プロファイルである **GTFS-JP**（国土交通省 / MLIT 標準）を自動的に認識し、標準 GTFS では任意とされている項目のうち GTFS-JP が必須とする要件を検証します。MLIT は補助を受ける事業者に GTFS-JP の公開を求めているため、数百の中小事業者がこのプロファイルへの準拠を必要としますが、一般的なバリデーターはプロファイル固有の要件を検査しません。
+GTFS Analyzer は日本の全国 GTFS プロファイル **GTFS-JP**（国土交通省 / MLIT 標準）を自動認識し、標準 GTFS では任意でも GTFS-JP が必須とするルールを適用します。MLIT は補助金を受ける事業者に GTFS-JP の公開を求めているため、数百の小規模事業者がこのプロファイルに従う必要があります。
 
-**自動検出。** フィードに現行 GTFS-JP ファイル（`agency_jp.txt`、`office_jp.txt`、`pattern_jp.txt`）または旧版互換の `routes_jp.txt` が含まれる場合、`feed_info.feed_lang` が有効な BCP-47 タグで主言語タグ `ja`（例：`ja-JP`）を持つ場合、`translations.txt` にかな（`ja-Hrkt`）の読みが含まれる場合、事業者に `agency_lang=ja` と `agency_timezone=Asia/Tokyo` が同時にある場合、または `agency_name` / `stop_name` に日本語のかなが含まれる場合、そのフィードは GTFS-JP として判定され、レポートに **GTFS-JP** バッジが表示されます。`routes_jp.txt` は v3 のファイルではなく、旧版フィード互換のためにのみ認識されます。かなのシグナルは、言語・タイムゾーンのメタデータが誤っている日本語フィードも拾うためのものです。漢字だけでは中国語・台湾の名称と区別できないため、シグナルにはしません。既定の `Auto` と明示した `V3` / `V4` のどちらでも、これらのシグナルがある場合だけ JPN 検証を有効にします。プロファイルは検証範囲だけを選び、V4 では V3 拡張ルールを実行しません。
+- **自動検出：** GTFS-JP 拡張ファイル（`agency_jp.txt`、`office_jp.txt`、`pattern_jp.txt`、旧 `routes_jp.txt`）、`feed_lang=ja`、かな（`ja-Hrkt`）の翻訳、`agency_lang=ja` + `Asia/Tokyo`、または名称フィールドの日本語かなでフィードを GTFS-JP と判定し、レポートに **GTFS-JP** バッジを表示します。
+- **プロファイルの選択：** Web アプリでは **分析条件 → GTFS-JP プロファイル範囲**（`Auto`、`V3`、`V4`）、CLI では `--gtfs-jp-profile v3|v4`、SDK では `config: { gtfs_jp_profile: 'v3' }`。この選択はフィードの公式バージョンを判定せず、適用するルール範囲だけを決めます。
+- **機械で検証可能な範囲を 100% カバー：** V3 または V4 を明示したとき、機械で検証できる MLIT の規定はすべてルールでカバーされます。人による判断が必要な規定や推奨のみの規定は対象外です。
+- **ルール：** プロファイルのルールは **JPN** グループにあり、GTFS-JP フィードでのみ動作します。全リストは [`RULES.ja.md`](RULES.ja.md) にあります。
 
-**解析プロファイルの選択。** Web アプリでは ZIP を選ぶ前に **分析設定** パネルを開き、**GTFS-JP 検証プロファイル**で `Auto`、`V3`、または `V4` を選択してください。フィードを選択すると現在の選択が保存され、そのまま自動解析が始まります。デフォルトは `Auto` です。CLI では `--gtfs-jp-profile v3` または `--gtfs-jp-profile v4`、SDK では `config: { gtfs_jp_profile: 'v3' }` または `'v4'` を指定します。これは検証範囲の選択であり、フィードの公式 GTFS-JP バージョンを自動判定するものではありません。詳細は [GTFS-JP v3/v4 互換性マトリクス](docs/gtfs-jp-v3-v4-matrix.md) を参照してください。
+### プロファイルのモニターと差分ページ
 
-**機械検証可能カバレッジバッジ。** 明示した V3 または V4 プロファイルの **GTFS-JP v3/v4 機械検証可能カバレッジ100%（人手確認・推奨のみの規定を除く）** は、プロファイルが適用し Analyzer ルールで検証する強い規定とソフト規定をすべてカバーすることを示します。人手の確認、外部検証、不在が適合違反にならない推奨のみの規定は分母から除外され、`Auto` はバージョン別カバレッジを主張しません。このバッジはフィードの公式 GTFS-JP バージョンを自動判定するものでもありません。
-
-**プロファイルルール（JPN グループ）。**
-
-| ルール | 検査内容 |
+| ページ | 内容 |
 |---|---|
-| **JPN_001** | 停留所名のかな（よみがな — `translations.txt`、`ja-Hrkt`）読み。音声案内・検索のため GTFS-JP で必須 |
-| **JPN_002** | `jp_office_id`（`trips.txt` **または** `routes.txt`）が `office_jp.txt` の `office_id` と一致すること（営業所参照整合性） |
-| **JPN_003** | `agency_jp.txt` の `agency_id` が `agency.txt` に定義されていること（事業者参照整合性） |
-| **JPN_004** | `translations.txt` の存在 — GTFS-JP では（特にかな読みのため）必須 |
-| **JPN_005** | `office_jp.txt` の必須項目 `office_name` が入力されていること |
-| **JPN_006** | V3/Auto: 運賃不足は中。V4: ファイル未提供は情報・手動確認、空・使用不可は中 |
-| **JPN_007** | `feed_info.txt` の存在 — GTFS-JP では必須 |
-| **JPN_008** | 日本語の `route_short_name` と `route_long_name` を個別にかな検証 |
-| **JPN_009** | `trip_headsign` のかな（`ja-Hrkt`）読み |
-| **JPN_010** | 事業者名（`agency_name`）のかな（`ja-Hrkt`）読み |
-| **JPN_011** | `agency.txt` と `routes.txt` の両方で `agency_id` を必須とする |
-| **JPN_012** | `agency_jp.agency_id` が必須で、`agency.txt` の行を参照すること |
-| **JPN_013** | 存在する場合、`agency_zip_number` は7桁のASCII数字であること |
-| **JPN_014** | `office_jp.office_id` が存在し、一意であること |
-| **JPN_015** | V3 と Auto プロファイルで旧版 `routes_jp.route_id` の互換性をチェック（v3 ファイルではありません） |
-| **JPN_016** | V3 の `pattern_jp.route_update_date` と、V3 と Auto の旧版 `routes_jp.route_update_date` の日付形式 |
-| **JPN_017** | `pattern_jp.jp_pattern_id` が存在し、一意であること |
-| **JPN_018** | `pattern_jp.txt` が存在する場合、`trips.jp_pattern_id` が同ファイルを参照すること |
-| **JPN_019** | `ja-Hrkt` 行が有効なGTFSテーブル・フィールド・レコード・stop_timesサブレコードを使うこと |
-| **JPN_020** | `office_url` と `office_phone` の基本的な形式を品質チェックすること |
-| **JPN_021** | `ja-Hrkt` 翻訳が空でなく、一貫し、かなを含むこと |
-| **JPN_022** | GTFS-JP v4 の主要項目と `location_type` 列。空セルは有効な `0` とみなす |
-| **JPN_023–026** | 明示プロファイルで `feed_lang=ja`、`agency_lang=ja`、`agency_timezone=Asia/Tokyo`、`currency_type=JPY` |
-| **JPN_027** | 明示的な V3 プロファイルでは数値 `route_type` は `3` のみ（Auto/V4 は対象外） |
-| **JPN_028** | V3 の残りの必須 `ja-Hrkt` 翻訳 |
-| **JPN_029** | V4 の読みを原文値ごとに集約し、対象行数と最大 5 件の例を表示 |
-| **JPN_030** | V3 の残りの必須 `language=ja` 翻訳 |
-| **JPN_031** | V3/V4: 運賃→路線→便→停留所の関連に基づく条件付き `zone_id` |
-| **JPN_032** | Strict V3: `agency_id` は13桁の法人番号本体と、あれば空でない枝番号を持つ形式 |
-| **JPN_033** | V3/V4: 選択プロファイルに応じ、カスタムファイル名・フィールド名で予約済み `jp` 名前空間を使用しない |
-
-上記の **Tokyo Toei** の比較は、実際の GTFS-JP フィードでこのプロファイルがどう振る舞うかを示しています。フィードは仕様的にクリーン（重大 0 件）であり、正しく参照されたデータではプロファイルルールが誤検出を生みません。
+| [GTFS-JP Monitor](https://ttezer.github.io/gtfs-jp-monitor/) | 日本のフィードの GTFS-JP プロファイル結果 |
+| [GTFS-FR Monitor](https://ttezer.github.io/gtfs-fr-monitor/) | フランスのフィードの結果 |
+| [GTFS-JP v3/v4 互換性マトリクス](docs/gtfs-jp-v3-v4-matrix.md) | v3 と v4 のルールの違い |
 
 ---
 
-## 使い方
+## ChatGPT と Claude：好きな言語で質問、同じ言語で回答
 
-GTFS Analyzer は Web アプリケーションです — インストール不要です。ブラウザでライブ版を開き、GTFS の zip ファイルをアップロードしてください。
+GTFS Validator は ChatGPT と Claude のプラグインとして動作します。チャットにフィードを渡すと、**質問した言語で**結果が返ります。日本語で聞けば日本語で、英語で聞けば英語で答えます。検証とスコアは GTFS Analyzer エンジンが計算し、AI は結果を説明し、優先すべき修正をわかりやすくまとめ、スコアは変更しません。
 
-実行エンジンはブラウザの機能に応じて自動選択されます。Memory64 対応環境では
-4 GB を超える大規模フィード向けに **WASM64**、それ以外では **WASM32** を使用します。
-使用中のエンジンは画面に表示されます。診断用に `?wasm32=1`、`?wasm64=1`、`?serial=1` を使用できます。
+### ChatGPT — GTFS Validator
 
-**→ [https://ttezer.github.io/gtfs-analyzer/](https://ttezer.github.io/gtfs-analyzer/)**
+ChatGPT の [GTFS Validator のページ](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)を開き、アプリを追加します。`/gtfs` と入力して GTFS ZIP をアップロードするか、公開フィードの URL を渡すか、`/gtfs TRP_002` のようにルールの意味を尋ねます。
 
-1. GTFS の zip ファイルをドラッグ＆ドロップするか、ファイル選択ボタンを使用してください。
-2. 検証が自動的に開始され、進行状況が画面上にステップごとに表示されます。
-3. 完了すると、公開スコアと総合スコア、および詳細レポートのタブが表示されます。
-4. 以前の解析と比較するには、**比較**タブで旧 Golden JSON をアップロードします。修正済み・新規・減少・増加ルールに加え、スコア、フィード期間、正規化した通知密度の変化を表示します。
-5. 共有可能な成果物を作成するには、**エクスポート → エグゼクティブPDFレポート**を開き、レポート言語を選択して、プレビューの**印刷 / PDF保存**を使用します。
+### Claude — GTFS Validator
 
-### ChatGPT の GTFS Validator
+Claude に [GTFS Validator プラグイン](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)を追加します。`/gtfs` と入力して GTFS ZIP を添付するか、ファイルパスや公開フィードの URL を渡すか、`/gtfs TRP_002` のようにルールを尋ねます。プラグインはコード実行を使います。claude.ai ではこれを有効にし、フィードは URL ではなく ZIP で添付してください。
 
-会話内でフィードを解析するには、ChatGPT の
-[GTFS Validator ページ](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)
-を開いてください。GTFS ZIP のアップロード、
-公開フィード URL の指定、または `TRP_002` のようなルールの質問ができます。
-検証とスコア計算は引き続き GTFS Analyzer エンジンが行い、ChatGPT はスコアを
-再計算せずに結果と優先修正項目を説明します。
-
-ブラウザ版とは異なり、ChatGPT 経由ではリクエスト処理中に GTFS Validator の
-MCP サービスでフィードを一時的に処理します。フィード内容と検証レポートは、
-処理後に意図的に保持されません。組織外へ出せないデータには、ブラウザ版、
-CLI、またはローカルパッケージを使用してください。
-
-### Claude の GTFS Validator
-
-Claude でフィードを解析するには、[GTFS Validator プラグイン](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)
-を追加してください。`/gtfs` と入力して GTFS ZIP を添付するか、ローカルパスや公開フィード URL を
-指定するか、`/gtfs TRP_002` のようにルールを質問できます。検証とスコア計算は GTFS Analyzer
-エンジンが行い、プラグインはスコアの再計算や公開可否の判定変更を行いません。
-
-解析は Claude が動作する場所で実行されます。claude.ai では Claude のコード実行環境、
-Claude Code では自分のコンピューターです。プラグインは PyPI の `gtfs-analyzer` パッケージ
-(固定バージョン)をインストールし、フィードをプラグイン独自のサーバーへ送信・保存しません。
-コード実行を有効にする必要があります。チャットでは URL からフィードを取得できないため、
-ZIP を添付してください。
-
-### エグゼクティブPDFレポート
-
-**エグゼクティブPDFレポート**は、詳細な検証結果を意思決定者やフィード作成者向けの、読みやすく色分けされたA4対応文書に変換します。レポートは **GTFS Analyzer** の結果だけから生成され、他のバリデーターの結果や外部比較は含みません。
-
-レポートには次の内容が含まれます：
-
-- 公開可否、公開スコア、総合スコア、および仕様・相互運用性・品質・分析の各スコア；
-- 停留所、路線、便、シェープ、運行日数、日付範囲をまとめたフィード概要；
-- R1の公開ブロッカーとR9の影響度・工数順位を統合し、ルール単位で重複を除いた **P0 / P1 / P2** アクション；
-- 各優先指摘の根拠、影響、推奨修正、実際の影響件数、見込まれるスコア改善；
-- フィード固有の構造的な洞察、段階的な改善計画、重要度・クラス分布、技術付録。
-
-画面表示では性能確保のため指摘例の件数が制限される場合でも、レポートは利用可能な場合に `capped_totals` の**実集計件数**を使用します。文書はUI言語とは独立して、トルコ語・英語・日本語で生成できます。生成と印刷はすべてブラウザ内で行われ、GTFSデータはサーバーに送信されず、外部APIも必要ありません。
-
-> レポートのスコアはアップロードされたGTFSフィードを評価するものであり、GTFS Analyzer自体の性能や精度を評価するものではありません。
-
-> セルフホスティングや開発環境の構築については、[開発者セットアップ](#開発者セットアップ)をご参照ください。
+**質問の例：**「このフィードは公開できますか？」「重要な問題を 3 つと、その直し方を説明して」「STP_046 とは何ですか？」
 
 ---
 
 ## 8 つの利用方法
 
-同じ 621 ルールの検証エンジンを 8 つの方法で利用でき、各インターフェースが用途に合わせて結果を表示します。
-
-| 方法 | 用途 | データの送信先 |
+| 方法 | 始め方 | 詳細 |
 |---|---|---|
-| **ブラウザ** ([アプリ](https://ttezer.github.io/gtfs-analyzer/)) | 1 つのフィードを地図とレポートで確認 | **どこにも送信しない** — デバイス上の WebAssembly |
-| **CLI**（`cargo install gtfs-analyzer` またはビルド済みバイナリ） | 一括検証、スクリプト、Python 連携 | どこにも送信しない — ローカルバイナリ |
-| **Rust ライブラリ**（[`gtfs-pipeline`](https://crates.io/crates/gtfs-pipeline)） | 自分の Rust サービスへの組み込み | どこにも送信しない — 自分のプロセス |
-| **CI/CD**（終了コード + `--fail-on`） | フィード公開前のパイプラインゲート | どこにも送信しない — 自分の runner |
-| **[`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk) npm パッケージ** | Web または Node アプリへの組み込み | どこにも送信しない — ローカル WASM |
-| **[`gtfs-analyzer`](https://pypi.org/project/gtfs-analyzer/) Python パッケージ**（`pip install gtfs-analyzer`） | Python アプリへの組み込み | どこにも送信しない — ローカル Rust ネイティブモジュール |
-| **ChatGPT — [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)** | 会話内で ZIP または URL を検証し、指摘内容を説明 | GTFS Validator MCP サービス — リクエスト中のみ一時処理 |
-| **Claude — [GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)** | `/gtfs` で ZIP・パス・URL を検証し、指摘内容を説明 | Claude の実行場所 — Claude Code では自分のコンピューター、claude.ai では Claude のコード実行環境 |
+| ブラウザ | [アプリを開いて](https://ttezer.github.io/gtfs-analyzer/) ZIP をドロップ | [ブラウザ](docs/usage.ja.md#1-ブラウザ) |
+| CLI | `cargo install gtfs-analyzer` または[ビルド済みバイナリ](https://github.com/ttezer/gtfs-analyzer/releases) | [CLI](docs/usage.ja.md#2-cli) |
+| Rust ライブラリ | `gtfs-pipeline` を依存関係に追加 | [Rust](docs/usage.ja.md#3-rust-ライブラリ) |
+| CI/CD | `--fail-on` と終了コード | [CI/CD](docs/usage.ja.md#4-cicd) |
+| npm | `npm install gtfs-sdk` | [npm](docs/usage.ja.md#5-gtfs-sdk-npm-パッケージ) |
+| Python | `pip install gtfs-analyzer` | [Python](docs/usage.ja.md#6-python-パッケージ) |
+| ChatGPT | [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)、`/gtfs` | 上記 |
+| Claude | [GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)、`/gtfs` | 上記 |
 
-最初の 6 つはローカル環境または自分で管理するインフラ上で実行されます。
-ChatGPT は例外で、解析リクエストの処理中にフィードを MCP サービスへ転送します。
-組織外へ出せないデータには、ブラウザ版、CLI、またはローカルパッケージを使用してください。
-Claude プラグインはフィードを独自のサーバーへ送信せず、Claude Code では解析がすべて自分のコンピューター上で行われます。
-
-### CI/CD 統合
-
-`--fail-on` オプションで、指定した重大度またはクラスだけをパイプライン失敗条件にできます。Analytics の指摘でリリース全体が失敗することを防げます。
-
-```yaml
-# GitHub Actions — 公式 GTFS Spec 違反のみで失敗させる
-- name: GTFS フィードを検証
-  run: |
-    curl -sL https://github.com/ttezer/gtfs-analyzer/releases/latest/download/gtfs-analyzer-x86_64-linux.tar.gz | tar xz
-    ./gtfs-analyzer validate feed.zip --fail-on-class spec --min-severity critical
-```
-
-終了コード：`0` クリーン · `1` 条件に一致する指摘あり · `2` フィード / config / ファイルエラー。
-
-### Rust ライブラリ
-
-自分の Rust サービスに検証を組み込む場合は `gtfs-pipeline` を直接使用します。CLI もファイルシステムもネットワークも不要です:
-
-```toml
-[dependencies]
-gtfs-pipeline = "0.20.0"
-gtfs-config   = "0.20.0"
-gtfs-core     = "0.20.0"
-```
-
-```rust
-use gtfs_config::ValidatorConfig;
-use gtfs_core::ValidateResult;
-use gtfs_pipeline::validate_bytes;
-
-let zip = std::fs::read("feed.zip")?;
-let config = ValidatorConfig::default();
-
-match validate_bytes(&zip, &config, 20_260_820) {
-    ValidateResult::Ok(result) => {
-        println!("指摘: {}", result.notices.len());
-        println!("公開スコア: {}", result.reports.r5.pub_score);
-    }
-    ValidateResult::Fatal(err) => eprintln!("fatal: {}", err.message),
-}
-```
-
-`validate_bytes` はバイト列を受け取り、すべてのレポート（`r1`–`r9`）、スコア、指摘を含む結果を返します。しきい値を変更するには `ValidatorConfig` のフィールドを調整するか、`merge_delta` で JSON デルタを適用します。
-
-⚠️ ライブラリ crate はアナライザーの**内部実装**です。バイナリをレジストリからビルドできるように公開されているだけで、**API の安定性は保証されません**。安定したインターフェースが必要な場合は、CLI の JSON 出力または `gtfs-sdk` を使用してください。
-
-### `gtfs-sdk` npm パッケージ
-
-`gtfs-sdk` は v0.20.0 の検証エンジンを型付き JavaScript/TypeScript API として提供します。フィードはローカル WASM で検証され、アプリケーションの外に出ません。
-
-```js
-import { validateGtfs } from "gtfs-sdk";
-
-const result = await validateGtfs(new Uint8Array(zipBytes), {
-  today: "2026-08-20",
-});
-console.log(result.notices.length, result.reports.r5.score);
-```
-
-公開 API には `validateGtfs`、`getVersion`、および進捗・キャッシュイベントが必要なアプリ向けの `createValidatorSession` が含まれます。低レベルの `gtfs-wasm` binding は SDK 契約の一部ではなく、WASM64 と threaded engine の選択は最初の SDK パッケージでは内部実装です。
-
-パッケージのソースは `sdk/` にあります。詳細な使い方、結果モデル、config リファレンスは [`sdk/README.md`](sdk/README.md) を参照してください。WASM binding はビルド時に `crates/wasm` から生成されます。
-
-### Python パッケージ
-
-[PyPI](https://pypi.org/project/gtfs-analyzer/) からインストールできます（CPython 3.9 以上）。
-
-```bash
-pip install gtfs-analyzer
-```
-
-PyO3 ネイティブモジュールを通じて同じ Rust パイプラインを実行するため、Cargo や
-CLI のインストールは不要です。ZIP はパスまたはバイト列で渡せます。
-
-```python
-from gtfs_analyzer import validate_gtfs
-
-result = validate_gtfs("feed.zip", today="2026-09-30")
-print(result["validation_status"])
-print(len(result["notices"]))
-```
-
-`result` は npm SDK や CLI の JSON 出力と同じ基本結果を持ちます。パラメータ、結果の構造、
-エラー型は [`python/README.md`](python/README.md)（英語）を参照してください。
-
-### コミュニティ製バインディング
-
-| 言語 | パッケージ | 保守 |
-|---|---|---|
-| Kotlin / JVM | [`io.github.transittrack:gtfs-analyzer`](https://central.sonatype.com/artifact/io.github.transittrack/gtfs-analyzer) | 本リポジトリ外の作者 |
-
-コミュニティ製バインディングは本リポジトリではテストされず、本リポジトリのリリース工程からも
-公開されません。エンジンの問題はここへ、バインディング固有の問題はパッケージ側のリポジトリへ
-報告してください。
+インストールと使い方の詳細：[8 つの利用方法](docs/usage.ja.md)。
 
 ---
 
-## CLI（ターミナル）
+## 分析基準、スコア、通知の上限
 
-Web UI に加えて、同じ検証コア（`gtfs_pipeline::validate_bytes`）をターミナルから実行できます — Python/自動化連携向け。
-
-### インストール
-
-Rust がインストールされている場合、最短の方法：
-
-```bash
-cargo install gtfs-analyzer
-gtfs-analyzer validate feed.zip
-```
-
-Rust をインストールせずに使う場合：[Releases](https://github.com/ttezer/gtfs-analyzer/releases) からお使いのプラットフォーム向けアーカイブ（`x86_64-linux`、`aarch64-macos`、`x86_64-windows`）をダウンロードし、展開して `gtfs-analyzer` バイナリを `PATH` に配置します。
-
-```bash
-# Linux / macOS — 最新リリース
-curl -sL https://github.com/ttezer/gtfs-analyzer/releases/latest/download/gtfs-analyzer-x86_64-linux.tar.gz | tar xz
-./gtfs-analyzer --version
-```
-
-ソースからビルドする場合：
-
-```bash
-cargo build --release -p gtfs-analyzer
-target/release/gtfs-analyzer validate feed.zip --json
-
-# または直接
-cargo run -p gtfs-analyzer -- validate feed.zip --json
-```
-
-### `validate` — フィード検証
-
-| フラグ | 説明 |
-|---|---|
-| `--json` | 結果全体を JSON として出力 |
-| `--compact-json` | 機械的な利用者向けの正規コンパクト JSON 投影を出力（R9 の根本原因例は `--samples N` で追加） |
-| `--summary` | 短い要約：ステータス、通知数、スコア（デフォルト。`--json` とは併用不可） |
-| `--rule SHP_010` | 指定ルールの通知のみ |
-| `--severity critical` | この重大度に完全一致する通知のみ（critical/high/medium/low/info） |
-| `--min-severity high` | この重大度以上（critical が最も重い） |
-| `--class spec` | 指定したルールクラスのみ — `spec,interop,quality,analytics`、カンマ区切りで複数可 |
-| `--disable-rule DQ_004` | 指定したルールを指摘・スコア・R9キューから除外します。カンマ区切りで複数可 |
-| `--disable-rule-gtfs-jp DQ_004` | GTFS-JPと判定されたフィードでのみ、指定したルールを除外します |
-| `--fail-on critical` | この重大度以上が存在する場合**のみ** exit 1 |
-| `--fail-on-class spec` | 指定クラスの通知が存在する場合のみ exit 1 |
-| `--pretty` | JSON をインデント出力（`--json` が必要） |
-| `--include-name-index` | `name_index`（停留所/路線/shape の参照表）を JSON に含める |
-| `--max-notices-per-rule 20` | JSON に残す通知をルールごとに最大 N 件にする。切り詰めたルールの実件数は `capped_totals` に入り、R1/R5/R9 は全通知から計算される（`--json` が必要） |
-| `--samples N` | `--compact-json` と併用すると、R9 の各ルールに最初の N 件の根本原因指摘（`entity_type`、`entity_id`、`file`、`line`、`field`、`observed_value`、`expected_value`）を追加 |
-| `-o report.json` | stdout ではなくファイルに出力 |
-| `--lang en` | 指摘テキストの言語：`en`（デフォルト）/ `tr` / `ja` / `fr` / `es`（`es` はプランナーカードのみ） |
-| `--config config.json` | JSON config デルタを適用（`ValidatorConfig::default()` の上に） |
-| `--today 20260710` | 解析の「今日」を固定（カレンダールール用） |
-
-**フィルタは表示を絞るだけです。** `notices` と R2–R9 のリストはフィルタされますが、**R1 の公開可否判定と R5 のスコアは常にフィード全体**を表します。フィルタ適用時は JSON に `filtered` フィールド、要約に `filter:` 行が追加されます。
-
-`name_index` は**デフォルトでは出力されません**：大規模フィードでは停留所/shape の座標表がペイロードの大半を占めるためです。必要な場合は `--include-name-index` を指定してください。
-
-パスの代わりに `-` を渡すと ZIP を **stdin** から読み込みます：`curl -sL <url> | gtfs-analyzer validate - --json`。（ZIP の中央ディレクトリはファイル末尾にあるため、アーカイブはストリーミングではなくメモリに読み込まれます。）
-
-> **Web UI とは件数が異なります。** ブラウザは性能のためルールごとの指摘件数に上限を設けます（実際の合計は `capped_totals` で報告されます）。CLI はこの上限を**適用しません** — 同じフィードでもより多くの notice と、スケーリングされていない R9 影響値が返ります。これは想定どおりの差異であり、両者の件数を直接比較しないでください。
-
-### Compact JSON と Web の上限
-
-`--compact-json` は機械的な利用者向けの正規投影です。完全な `--json` レポート
-から個別の `notices` リストと `name_index` テーブルを省略します。トップレベル
-には `status`、`engine`、`engine_version`、`engine_commit`、
-`validation_date`、`partial`、`analysis`、`reports.r1`、`reports.r5`、
-`reports.r9`、`metrics`、`notice_counts`、`triggered_rule_count` が含まれます。
-`reports.r9.items` の各要素にはルール名、重大度、クラス、メッセージ、修正方法、
-優先度、影響度、スコア差分に加え、`--lang` の言語による平易な `card`（`title`、`what`、
-`action`）が含まれ、`--samples N` で各要素に最大 N 件の根本原因例を追加できます。
-
-`--compact-json` は Web UI の payload ではなく、それ自体はルールごとの上限を
-適用しません。Web UI の表示 notice 件数を完全 JSON で近似する場合は
-`--json --max-notices-per-rule 500` を使ってください。R1/R5/R9 は全 notice から
-計算され、切り詰めたルールの実数は `capped_totals` に記録されます。
-
-**終了コード：** `0` 通知なし · `1` 通知ありまたは `PARTIAL` レポート · `2` 致命的エラーまたは config/ファイルエラー。`PARTIAL` レポートでは利用できない入力を安全にスキップし、独立した検査を続行します。JSON には `status: "partial"`、`validation_status: "PARTIAL"`、`partial` の範囲が含まれます。`partial.skipped_checks` は前提条件が利用できず実行されなかった K4/K5/K6 の検査ファミリーと個別ルールを示し、`partial.skipped_stages` は大まかなステージメタデータのために保持されます。`--fail-on*` を指定した場合、`1` は一致する通知があるときのみ返り、その他の指摘は報告されますが実行を失敗させません。JSON モードでは stdout は JSON のみ、エラーは stderr。
-
-```bash
-# CI ゲート：公式 GTFS Spec 違反のみで失敗させる
-gtfs-analyzer validate feed.zip --fail-on-class spec
-
-# Spec の指摘のみを出力（スコアはフィード全体を表す）
-gtfs-analyzer validate feed.zip --class spec --json --pretty -o spec.json
-```
-
-```python
-import json, pathlib, subprocess
-
-for feed in sorted(pathlib.Path("feeds").glob("*.zip")):
-    proc = subprocess.run(
-        ["gtfs-analyzer", "validate", str(feed), "--json"],
-        text=True, capture_output=True,
-    )
-    # exit 1 は「通知あり」であり失敗ではない — check=True は使わない
-    data = json.loads(proc.stdout)
-    if data["status"] == "fatal":
-        print(feed.name, "FATAL", data["code"], data["message"])
-        continue
-    print(feed.name, data["reports"]["r5"]["pub_score"], len(data["notices"]))
-```
-
-### `rules` — ルールレジストリ
-
-検証を実行せずにルールレジストリ全体を一覧します — 連携するプロジェクトのルール辞書用です。
-
-```bash
-gtfs-analyzer rules --class spec --severity critical
-gtfs-analyzer rules --rule STM_004 --json --pretty
-```
-
-フィールド：`id`、`severity`、`class`、`authority_source`、`base_effort`、`blocks`、`title`、`message`、`remediation`、`card`。
-`--class` / `--severity` / `--min-severity` / `--rule` フィルタの意味は `validate` と同じです。
-`--lang` はここでも有効です（ルールのタイトル、メッセージ、修正方法）。
-
-### 出力言語
-
-検証コアは指摘テキストをトルコ語で生成します。`--lang en` / `--lang ja` / `--lang fr` は、**Web UI と同じ翻訳辞書**を使ってそれらを置き換えます。ルール ID、重大度、クラス（`CRITICAL`、`SPEC`）はどの言語でも機械可読な値のままで、翻訳されるのは `title`、`message`、`remediation` のみです。
-
-ルールの翻訳がない場合の順序は、指定言語 → 英語 → トルコ語（コアが生成したテキスト）です。出力が空になることはありません。
-
-ルール単位の出力（`--compact-json` の R9 要素と `rules --json`）には `card` も含まれます。Web UI のプランナービューと同じ平易なタイトル、何が起きたか（`what`）、何をすべきか（`action`）で、`tr`、`en`、`ja`、`fr`、`es` で提供されます。`es` はカードのみの言語で、その他のテキストは英語にフォールバックします。カードの文が指摘ごとの値を必要とする場合、`what` は省略されます。
-
-辞書は `npm run locales:export` により `ui/src/locales/{en,ja}.ts` から `crates/core/locales/*.json` へ生成され、CLI バイナリと Python パッケージに埋め込まれます。locale を更新して export を実行しなかった場合は `locale-parity.test.ts` が CI で失敗します — 単一の情報源は locale ファイルです。
-
----
-
-## 分析のしきい値
-
-検証のしきい値は、アップロード画面の**分析のしきい値**セクションからカスタマイズできます。変更した値は次回の ZIP アップロード時に有効になります。リセットボタンでデフォルト値に戻せます。
-
-### ルールのクラスと権威ソース
-
-各ルールは4つのクラスのいずれかに分類されます。クラスは検出結果の**権威ソース**（正当性の根拠）を反映し、ユーザーはその検出が本当の GTFS Spec 違反なのか、相互運用性・品質・分析シグナルなのかを一目で判断できます:
-
-- **Spec** — 公式の **GTFS Schedule Reference** が明示的に必須・禁止・無効と定めるケースのみ（required / conditionally required / conditionally forbidden フィールド、enum 値、外部キー、一意性、フォーマット制約）。他のソースは `Spec` を生成しません。
-- **Interop** — MobilityData、Google Transit、または地域プロファイル（例: GTFS-JP）などの消費者/バリデータ挙動との互換性シグナル。
-- **Quality** — GTFS ベストプラクティス、データ品質、可読性、一貫性、制作品質のチェック。
-- **Analytics** — 統計的・運用的・パフォーマンス・分析目的のシグナル。
-
-各ルールには機械可読な**権威ソース**（`authority_source`）フィールドもあります（`GTFS_SPEC`、`MOBILITYDATA_PARITY`、`REGIONAL_PROFILE`、`PROJECT_QUALITY` など）。不変条件: **`Spec` クラスは `authority_source = GTFS_SPEC` の場合にのみ正当**であり、MobilityData/Guru/Google とのパリティ、ベストプラクティス、プロジェクト固有のヒューリスティックだけでは Spec の証拠になりません。
-
-### オプションプロファイルとソースURL
-
-config deltaで`stop_name_best_practices=true`を設定すると、言語依存の`STP_040`と`STP_041`が有効になります。誤検出の可能性があるためデフォルトでは無効です。URLベースの統合では`source_url`メタデータを指定でき、`ARC_028`が恒久的な公開URLに`.zip`ファイル名を含むことを確認します。ファイルアップロードのみの場合、このチェックは実行されません。coreエンジンはフィード内URLへ通信せず、HTTP到達性チェックには明示的にopt-inする別online adapterが必要です。
-
-### shape距離フィールドの整合
-
-`stop_times.txt`で`shape_dist_traveled`を使用する便の参照shapeについて、`shapes.txt`の一部の点に同じ項目がない場合、`SHP_030`（品質・中）を出力します。両フィールドはGTFSで個別に任意項目なので、これはSpecの公開ブロッカーではありません。shape上で停留所を確実に配置できない可能性を示す互換性シグナルで、影響を受ける便数と代表的なtrip IDを検出結果の詳細に含めます。
-
-便から実際に参照される1点だけのshapeは、`shape_id`と`shape_point_count=1`を詳細に含む低・品質の`SHP_006`として報告します。2点の直線セグメントは有効です。未使用の1点shapeは`SHP_018`だけで報告します。これはMobilityDataの`single_shape_point`に対する意図的なnear-parityで、Analyzerは使用中のshapeだけを`SHP_006`で報告します。
-
-### 遠距離停留所の速度パリティ
-
-現在のMobilityData rulesページでは`fast_travel_between_far_stops`の表示が一貫していません。主WARNING表では有効ですが、notice-detail metadataは`Deprecated since undefined`を示し、deprecated表にはありません。#115 auditでは陽性20 feedを調査し、10 km超の累積距離、非連続の停留所ペア、時刻cascadeを混在させるnoisyなシグナルであることを根拠に、`STM_012`/`STM_014`へのaliasを採用しませんでした。deprecationの仮定には依存せず、新しいルールは追加せず、意図的なAnalytics coverage gapとして扱います。
-
-### 停留所URLの固有性
-
-`STP_034`と`STP_035`は、保守的な構文上の同一性を使って`stop_url`を事業者URL・路線URLと比較し、低優先度の品質検出結果として報告します。スキーム/ホストの大文字小文字、ルート`/`、明示されたHTTP 80/HTTPS 443のデフォルトポートは同一とみなします。一方、クエリ、fragment、パス末尾の`/`、percent-encodingの違いは保持します。同じ正規化URLを使う停留所は1件の集約検出結果にまとめ、影響停留所数と代表IDを`details`に含めます。
-
-### 速度のしきい値
-
-| パラメーター | デフォルト | 範囲 | 説明 |
-|---|---:|---|---|
-| バス最高速度 | 120 km/h | 60–200 | バス便に許容される最高速度 |
-| トラム最高速度 | 100 km/h | 40–160 | トラム便に許容される最高速度 |
-| 地下鉄最高速度 | 150 km/h | 80–250 | 地下鉄便に許容される最高速度 |
-| 鉄道最高速度 | 300 km/h | 100–400 | 鉄道便に許容される最高速度 |
-| フェリー最高速度 | 80 km/h | 20–150 | フェリー便に許容される最高速度 |
-| ケーブルカー最高速度 | 30 km/h | 10–60 | ケーブルカー・フニクラーに許容される最高速度 |
-
-### 地理的・乗換しきい値
-
-| パラメーター | デフォルト | 範囲 | 説明 |
-|---|---:|---|---|
-| 最小乗換時間 | 180 s | 30–1800 | 乗換に必要な最小接続時間 |
-| 最大乗換距離 | 500 m | 50–2000 | 乗換が有効とみなされる最大距離 |
-| 最大経路ジャンプ | 10 km | 1–50 | 連続するシェイプポイント間の最大距離 |
-| 近接停留所しきい値 | 5 m | 1–20 | これより近い停留所は重複としてフラグが立てられます |
-| 停留所からシェイプへの距離 | 100 m | 20–500 | 停留所がシェイプから離れてよい最大距離 |
-| 親駅からの距離 | 100 m | 10–1000 | 停留所が親駅から離れてよい最大距離 |
-
-### サービス・運用しきい値
-
-| パラメーター | デフォルト | 範囲 | 説明 |
-|---|---:|---|---|
-| 有効期限警告 | 30 日 | 1–60 | この日数以内にフィードが期限切れになる場合に警告を生成 |
-| feed_info有効期限警告 | 7 日 | 1–60 | `FIN_019`のデフォルト警告期間。`feed_info_expiry_warning_days=30`ならMobilityDataの30日パリティを適用でき、`CAL_008`とは別設定 |
-| サービス空白しきい値 | 7 日 | 3–30 | これより長いサービスの空白にフラグが立てられます |
-| 最大便所要時間 | 24 h | 8–72 | 1 便の最大所要時間 |
-| 最小便所要時間 | 60 s | 10–300 | 1 便の最小所要時間 |
-| 最大運行間隔 | 240 分 | 60–720 | これより長い運行間隔は警告を生成 |
-| 過密しきい値 | 2 分 | 1–10 | これより短い運行間隔は過密としてフラグが立てられます |
-
----
-
-## スコア
-
-### 公開スコア（0〜100）
-
-公式 GTFS Schedule Reference に照らしてフィードが公開可能かを測定します。スコアは **100 からスタート** し、各公開ブロッカー問題についてルールの重みと修正コストに比例したペナルティが差し引かれます。
-
-**スコアの計算方法：**
-- `仕様` クラスの `致命的` 重大度の問題のみ（公式 GTFS 仕様ゲート）が公開スコアに影響します。`相互運用` の互換性シグナルは別途報告されます（相互運用スコア / R8）。
-- 同じルールが複数回発動した場合、ペナルティは **2×** で上限が設けられます。1 つの問題でスコアがゼロになることはありません。
-- **0〜40：** フィードはおそらく使用不可です。ブロッカーエラーが存在します。
-- **40〜70：** 部分的な問題があります。一部のアプリケーションがフィードを拒否する可能性があります。
-- **70〜90：** 使用可能ですが、注意が必要です。
-- **90〜100：** 公開準備完了です。
-
-### 総合スコア（0〜100）
-
-4 つの分析クラスの加重平均です（Spec×40% + Interop×30% + Quality×20% + Analytics×10%）。仕様準拠だけでなく、運用上のデータ品質も反映します。フィードは公開スコアが高くても、総合スコアが低い場合があります。
-
-**スコアの計算方法：**
-- 4 つのクラスすべての問題がそれぞれの重みに応じてこのスコアに影響します。
-- オプションフィールドの欠落、サービスパターンの不整合、アクセシビリティの欠如は Quality・Analytics コンポーネントを通じて反映されます。
-- **0〜60：** 重大な品質問題があります。乗客体験が影響を受ける可能性があります。
-- **60〜80：** 品質は普通ですが、改善が推奨されます。
-- **80〜100：** 良好なデータ品質です。
-
-> **注記：** 公開スコアと総合スコアは異なる目的・異なる計算式で算出されます。公開スコアが高く総合スコアが低いフィードは技術的には機能しますが、アクセシビリティ情報の欠落や路線名の誤りなどの問題は乗客に影響を与えます。
+ルールクラスの権威ソース、調整可能なしきい値、**公開スコア**と**総合スコア**の計算方法、大規模フィードでの通知の上限：[分析ドキュメント](docs/analysis.ja.md)。
 
 ---
 
@@ -621,7 +197,10 @@ config deltaで`stop_name_best_practices=true`を設定すると、言語依存�
 ### 1. レポート
 概要サマリー：両スコア、フィードの指標（路線数、便数、日付範囲など）、および通知の分布チャートが表示されます。
 
-### 2. 詳細＆修正
+### 2. プランナー向け
+同じ結果をプランナーの言葉で示します：公開の判定、まず公開を妨げる問題、次に改善提案。各項目について何か、何をすべきか、どこで直すかを地図とともに示します。詳細は上の **プランナー向け** の節にあります。
+
+### 3. 詳細＆修正
 問題は優先度スコア順に並んだ修正キューとして表示されます。各行には次の情報が含まれます：
 
 | 列 | 説明 |
@@ -634,10 +213,10 @@ config deltaで`stop_name_best_practices=true`を設定すると、言語依存�
 
 すべての +公開 値の合計は `100 − 現在の公開スコア` に等しく、すべての +スコア 値の合計は `100 − 現在の総合スコア` に等しくなります。地理的な問題には地図アイコンが表示され、クリックするとインタラクティブな地図上に問題の場所と関連するシェイプ・停留所データが表示されます。**ルールコード**をクリックすると、関連する GTFS 仕様のセクションが新しいタブで開きます — その指摘が最も影響するファイルのリファレンスページ（GTFS-JP ルールでは gtfs.jp）。
 
-### 3. カテゴリ別
+### 4. カテゴリ別
 グループとクラスごとにすべてのルール違反が一覧表示されます。各行にはルールコード、タイトル、影響を受けたレコード数、重大度、および修正ガイダンスが表示されます。フィルタリングとソートがサポートされています。
 
-### 4. エクスポート
+### 5. エクスポート
 レポートを HTML、CSV、または JSON としてダウンロードできます。PDF オプションはブラウザの印刷ダイアログを開きます —「PDF として保存」でエクスポートしてください。
 
 ---
@@ -693,8 +272,8 @@ GTFS Analyzer は、同じフィードの 2 つの解析（前／後）を比較
 
 | クラス | 測定内容 | 影響するスコア |
 |---|---|---|
-| **仕様** | GTFS 仕様からの逸脱 — 必須フィールドの欠落、無効な値、参照整合性エラー | 公開スコア |
-| **相互運用** | 仕様準拠だが、一般的なコンシューマー（Google Maps、Apple Maps など）に拒否または誤解釈される問題 | 公開スコア |
+| **仕様** | GTFS 仕様からの逸脱 — 必須フィールドの欠落、無効な値、参照整合性エラー | 公開（致命的のみ）と総合 |
+| **相互運用** | 仕様準拠だが、一般的なコンシューマー（Google Maps、Apple Maps など）に拒否または誤解釈される問題 | 総合（相互運用スコア） |
 | **品質** | オプションだが期待されるフィールドの欠落、不整合、ベストプラクティスからの逸脱 | 総合スコア |
 | **分析** | サービスパターン分析 — 過密、疎なサービス、期限切れサービス | 総合スコア |
 
@@ -714,8 +293,7 @@ GTFS Analyzer は、同じフィードの 2 つの解析（前／後）を比較
 
 ### Spec 重大度の基準
 
-Spec の重大度は、要件レベルとsemantic impactの組み合わせであり、同じ検出結果を MobilityData が `ERROR`、`WARNING`、`INFO` のどれで
-分類するかではなく、無効なフィードが及ぼす影響で決まります。
+Spec の重大度は、要件レベルとsemantic impactの組み合わせ、つまり違反が GTFS データの利用可能性に及ぼす影響で決まります。
 
 - **致命的:** 必須ファイル/フィールド、主キー・外部キー整合性、または中核的な型/範囲の違反。フィードを信頼して利用できず、`Spec + 致命的` は公開ゲートになる。
 - **高:** フィードを解析できても、運行、運賃、アクセシビリティ、Flex/pathway の意味を大きく変える直接的な規範違反。
@@ -723,25 +301,11 @@ Spec の重大度は、要件レベルとsemantic impactの組み合わせであ
 - **低:** 影響範囲が狭いメタデータ/オプション項目の規範上の逸脱。公開をブロックしない。
 - **情報:** 規範上の Spec 違反には使用せず、測定または文脈シグナル専用。
 
-したがって `Spec` ルールに `情報` の重大度は存在できません。2026-08-09 の audit では
-307 個すべての Spec ルールを確認し、raw サービス日ルール `STM_048` と `STM_049` を
-情報から高へ変更しました。全 ID の一覧は [Spec 重大度 audit](docs/audits/spec-severity-rubric-2026-08-09.md) を参照してください。
+したがって `Spec` ルールに `情報` の重大度はありません。
 
 GTFS-JP フィードの場合、**JPN** グループのルールは公式の [GTFS-JP 仕様](https://www.gtfs.jp/)（gtfs.jp）に基づいています。
 
 ---
-
-## 通知の上限
-
-大規模なフィードでは、同じルールが何千回も発動することがあります。無制限の通知リストはブラウザのメモリを圧迫し、可読性を低下させます。2 段階の上限が適用されます：
-
-| 上限 | 値 | 適用範囲 |
-|---|---|---|
-| ルールごと（デフォルト） | 500 | すべてのルール |
-| ルールごと（高上限） | 2,000 | `TRP_020`、`OPR_007`、`STP_016`、`STP_017` |
-| 合計（全ルール） | — | フィード全体で 100,000 件を超えると停止する制限はありません |
-
-高上限リストのルールは、実際のフィードで大量の件数が自然に発生します（例：便ごとに 1 件の運行間隔レコード）。ルールが上限に達した場合、実際の違反件数は修正キューの**合計**列に表示されます。全検出結果タブでそのルールフィルターを選択すると、黄色の警告バナーが表示されます。
 
 ---
 

@@ -3,10 +3,9 @@
 🇹🇷 **Türkçe** · 🇬🇧 [English](README.en.md) · 🇯🇵 [日本語](README.ja.md) · 🇫🇷 [Français](README.fr.md)
 
 [![Uygulamayı Aç](https://img.shields.io/badge/Uygulamay%C4%B1%20A%C3%A7-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
-[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20%25100%20Makineyle%20Denetlenebilir%20Kapsam%20%28insan%20yorumu%20ve%20yaln%C4%B1zca%20%C3%B6neriler%20hari%C3%A7%29-c8102e?style=flat)](https://www.gtfs.jp/)
+[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20%25100-c8102e?style=flat)](https://www.gtfs.jp/)
 [![Kural sayısı](https://img.shields.io/badge/kural-621-blue?style=flat)](RULES.md)
 ![GTFS Spec kapsamı](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
-[![Korpus doğrulaması](https://img.shields.io/badge/korpus-4435%20feed%20%C3%97%2026%20ko%C5%9Fum-brightgreen?style=flat)](audit-results/)
 [![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
 [![PyPI](https://img.shields.io/pypi/v/gtfs-analyzer?style=flat&label=PyPI)](https://pypi.org/project/gtfs-analyzer/)
@@ -14,17 +13,35 @@
 [![Claude eklentisi](https://img.shields.io/badge/Claude%20eklentisi-GTFS%20Validator-d97757?style=flat&logo=claude&logoColor=white)](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)
 [![Lisans MIT](https://img.shields.io/badge/lisans-MIT-yellow?style=flat)](LICENSE)
 
-**GTFS Validator & Analyzer**, GTFS dosyalarını doğrudan tarayıcıda doğrulayan açık kaynak bir **GTFS validator** ve feed kalite analiz aracıdır. Web uygulamasına yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama tamamen **WebAssembly** ile kullanıcının cihazında çalışır. Tarayıcı, **CLI** (`cargo install gtfs-analyzer`), **Rust kütüphanesi**, **CI/CD**, **`gtfs-sdk` npm paketi**, **`gtfs-analyzer` Python paketi** ChatGPT'deki ve Claude'daki **GTFS Validator** olmak üzere sekiz yoldan kullanılabilir.
+**GTFS Validator & Analyzer**, GTFS dosyalarını doğrulayan ve feed kalitesini analiz eden açık kaynak bir **GTFS validator**'dür. Web uygulamasına yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama **WebAssembly** ile kullanıcının cihazında çalışır. Aynı **621 kurallı** motora sekiz farklı yoldan erişilir:
 
-**621 doğrulama kuralı** ile GTFS spesifikasyonunun ölçülebilir hükümlerinin **%97,2'sini** karşılar ve alan tablosunun **300 atomunun 300'ünde** en az bir Spec çapası taşır. Bu kuralların **415'i** son 4.435 feed'lik tam katalog koşumunda en az bir bulgu üretti. Kuralların tamamı [`RULES.md`](RULES.md) altında listelidir.
+| Yol | Ne için |
+|---|---|
+| **Tarayıcı** ([uygulama](https://ttezer.github.io/gtfs-analyzer/)) | tek feed'i açıp haritayla incelemek |
+| **CLI** (`cargo install gtfs-analyzer` ya da hazır binary) | toplu doğrulama, betikleme, Python entegrasyonu |
+| **Rust kütüphanesi** ([`gtfs-pipeline`](https://crates.io/crates/gtfs-pipeline)) | doğrulamayı kendi Rust servisinize gömmek |
+| **CI/CD** (exit kodu + `--fail-on`) | feed yayına çıkmadan önce pipeline kapısı |
+| **[`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk) npm paketi** | kendi web veya Node uygulamanıza gömmek |
+| **`gtfs-analyzer` Python paketi** (`pip install gtfs-analyzer`) | Python uygulamasına doğrulama gömmek |
+| **ChatGPT — [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)** | ZIP veya URL'yi sohbet içinde doğrulatmak ve bulguları açıklatmak |
+| **Claude — [GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)** | `/gtfs` ile ZIP, yol veya URL doğrulatmak ve bulguları açıklatmak |
 
-Doğruluk iddiası, MobilityData'nın resmî `gtfs-validator` aracına karşı **yirmi altı tam katalog koşumuyla** sınanmıştır: her koşumda MobilityDatabase kataloğunun test edilebilir her GTFS Schedule feed'i — son koşumda **4.435** —, iki validatörle **aynı makinede, aynı gün** doğrulanır — MobilityData tarafında gerçek **Java** `gtfs-validator v8.0.1` çalıştırılır, rapor karşılaştırması yapılmaz. Ham sonuçların tamamı depoda: [`audit-results/`](audit-results/).
+## Önemli Özellikler
 
-GTFS Validator & Analyzer yalnızca dosyanın spesifikasyona uygun olup olmadığını kontrol etmez; feed'in ne kadar güvenilir, tutarlı ve kullanılabilir olduğunu da analiz eder. Hataları ilgili dosya ve satır numarasıyla birlikte gösterir, her bulgu için düzeltme adımları sunar ve coğrafi sorunları — örneğin sapan güzergâhlar, bozuk koordinatlar veya erişilemeyen duraklar — interaktif harita üzerinde işaretler.
-
-Her bulgu; kural kodu, analiz sınıfı ve önem seviyesiyle etiketlenir. Spec · Interop · Quality · Analytics sınıfları ile Kritik → Bilgi önem seviyeleri sayesinde binlerce bulgu filtrelenebilir, önceliklendirilebilir ve sistematik biçimde ele alınabilir. Araç ayrıca feed'in kullandığı GTFS özelliklerini — Shapes, Transfers, Fares, Headsigns, Flex ve benzerlerini — otomatik olarak tespit ederek rapora dahil eder.
-
-GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite analiziyle genişletir. Hat bazında sefer sıklığı tutarsızlıkları, anormal hız segmentleri, izole duraklar, servis desenlerindeki boşluklar ve ağ topolojisi problemleri 621 farklı doğrulama ve analiz kuralıyla incelenir. Sonuçlar, uyumluluk ve kaliteyi ayrı ayrı değerlendiren skorlarla özetlenir. Önceliklendirilmiş düzeltme kuyruğu ise hangi sorunların önce ele alınması gerektiğini ve yapılacak düzeltmelerin skora olası etkisini gösterir.
+- **621 doğrulama ve analiz kuralı**, 38 grupta; GTFS spesifikasyonunun ölçülebilir hükümlerinin **%97,2'si** karşılanır, alan tablosunun **300 atomunun 300'ü** en az bir Spec çapası taşır. Tam liste: [`RULES.md`](RULES.md).
+- **Yerel çalışma:** tarayıcı, CLI, kütüphaneler ve npm/Python paketleri feed'i kendi cihazınızda işler.
+- **Spec uyumunun ötesinde kalite ve operasyon analizi:** anormal hız segmentleri, sefer sıklığı tutarsızlıkları, izole duraklar, servis boşlukları, ağ topolojisi.
+- **Dört sınıf, beş önem seviyesi:** her bulgu Spec · Interop · Quality · Analytics sınıfı ve Kritik → Bilgi önemiyle etiketlenir; binlerce bulgu filtrelenip önceliklendirilebilir.
+- **İki skor:** yayınlanabilirliği ölçen **Yayın Skoru** ve dört sınıfın ağırlıklı **Genel Skoru**.
+- **Önceliklendirilmiş düzeltme kuyruğu:** hangi sorunun önce ele alınacağını ve düzeltmenin skora olası etkisini gösterir.
+- **Her bulgu için dosya, satır ve düzeltme adımı.**
+- **Planlamacılar İçin sayfası:** teknik raporu, GTFS bilmeyen planlamacının okuyacağı sade dilli bir iş listesine çevirir (aşağıda).
+- **Harita:** durak, güzergâh, sefer, hat ve pathway sorunları gerçek shape geometrisi üzerinde gösterilir.
+- **GTFS Flex ve Fares v2** doğrulaması; feed'in kullandığı özellikler (Shapes, Transfers, Fares, Headsigns, Flex…) otomatik tespit edilir.
+- **GTFS-JP profili:** Japonya'nın ulusal profili otomatik tanınır, v3 ve v4 ayrı denetlenir.
+- **Çıktılar:** HTML, CSV, JSON, compact JSON ve Yönetici PDF Raporu; çalıştırmalar arası karşılaştırma.
+- **CI/CD kapısı:** `--fail-on` ve exit kodlarıyla yalnız istediğiniz sınıf/önemde pipeline'ı durdurur.
+- **Dört arayüz dili:** Türkçe, İngilizce, Japonca, Fransızca.
 
 **Kimler için?**
 
@@ -35,599 +52,144 @@ GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite ana
 
 ---
 
-## Diğer Araçlarla Karşılaştırma
+## Planlamacılar İçin
 
-### Özellikler
+Web uygulamasındaki **Planlamacılar İçin** sayfası, aynı analiz sonucunu teknik rapor yerine planlamacının diliyle anlatır; yeni bulgu üretmez, Analyzer'ın sonucunu sadeleştirir.
 
-| Özellik | MobilityData | GTFS Analyzer |
-|---|:---:|:---:|
-| Web arayüzü | ✅ | ✅ |
-| Veri sunucuya gitmiyor | ❌ | ✅ |
-| Spec uyum kuralları | ✅ | ✅ |
-| Kalite kuralları | ❌ | ✅ |
-| Operasyonel analitik | ❌ | ✅ |
-| Harita görselleştirme | ❌ | Durak, güzergah, sefer, hat, pathway |
-| Feed skoru | ❌ | ✅ |
-| Düzeltme önerisi | Kısmi | ✅ |
-| GTFS Flex desteği | Kısmi | ✅ |
-| Fares v2 doğrulama | Kısmi | ✅ |
-| GTFS-JP profil doğrulama | ❌ | ✅ |
-| Çıktı formatı | HTML, JSON | HTML, CSV, JSON, PDF |
-| Dağıtım | Web · masaüstü kurulum (msi/dmg/deb) · CLI JAR · Docker | Web · CLI binary · `cargo install` · npm SDK · PyPI |
-| Belgelenmiş CI/CD entegrasyonu | README'de tarif yok (Docker/CLI ile mümkün) | ✅ `--fail-on` + exit kodu |
-| npm paketi | ❌ | ✅ `gtfs-sdk` |
-| crates.io paketi | — *(Java projesi)* | ✅ `gtfs-analyzer` |
-| GTFS Spec kapsamı (ölçülmüş) | — | **%97,2** · 300/300 alan çapası |
-| **Toplam kural** | **178** | **621** |
+- **Tek cümlelik karar:** feed yayınlanabilir mi, kaç konu yayını engelliyor.
+- **İki liste:** önce yayını engelleyen sorunlar, sonra yayını engellemeyen iyileştirme önerileri — öncelik sırasıyla.
+- **Her konu için kart:** ne olduğu, ne yapılacağı ve **nerede düzeltileceği**; dosya ve sütun adı yerine hat kodu, durak adı, sefer saati gibi planlamacının tanıdığı bilgilerle.
+- **Haritada gösterim:** sorunlu durak, hat ve seferler gerçek güzergâh geometrisi üzerinde çizilir.
+- **Beş dilde kartlar:** Türkçe, İngilizce, Japonca, Fransızca ve İspanyolca.
 
-### Korpus Doğrulaması
+---
 
-Doğruluk birkaç feed'le gösterilemez. Her sürüm, **MobilityDatabase'in tüm GTFS Schedule kataloğuna** karşı koşturulur: son koşumda **4.435 feed**, 640 paralel shard. Karşı tarafta MobilityData'nın **`gtfs-validator` v8.0.1**'i, yayımlanmış raporları okunarak değil **aynı arşiv üzerinde yeniden çalıştırılarak** — böylece fark "kim ne buldu" olur, "kimin raporu ne zaman üretildi" değil.
+## Korpus Sonuçlarımız
 
-Son koşumdan (`40411348163`: 4.435 feed denendi, 4.403 geçerli ZIP indirildi ve **4.390** feed'de iki taraf da tamamlandı):
+Her sürüm, **MobilityDatabase'in tüm GTFS Schedule kataloğuna** karşı koşturulur. Son koşum (`44474551308`, 2026-11-19):
 
-| | GTFS Analyzer | MobilityData |
-|---|---|---|
-| Medyan süre | **0,05 sn** | 2,77 sn |
-| Medyan tepe bellek | **15 MB** | 332 MB |
-| İndirilen ZIP'lerde bitiremediği feed | **0** | 13 |
-| MD'nin görüp bizim göremediğimiz | **0 olgu** | — |
-| Toplam süre | **78,3 dk** | 351,3 dk |
+| | |
+|---|---:|
+| Denenen feed | **4.479** |
+| İndirilen geçerli ZIP | **4.447** |
+| Analizi tamamlanan | **4.447** (hatasız) |
+| Kısmi rapor (bozuk/eksik dosya güvenle atlandı) | 76 |
+| Ülke | 96 |
+| Tetiklenen kural | 423 / 621 |
+| Medyan süre / feed | **0,05 sn** (p90 1,1 sn) |
+| Medyan tepe bellek / feed | **15 MB** (p90 152 MB) |
+| Toplam süre | 77,8 dk |
 
-GTFS Analyzer indirilen 4.403 ZIP'in tamamını bitirdi. `mdb-2014`, 1.282 MB sıkıştırılmış / 7.452 MB açılmış BODS UK toplu feed'i olduğu ve iki denemede shard sürecini sonlandırdığı için seçim aşamasında açık gerekçeyle dışlandı; sessizce kayıp sayılmıyor. MobilityData'nın tamamlayamadığı 13 feed belgelenmiş durum sınıflarına ayrılıyor: 8 kısmi çalışma, 3 rapor üretmeyen ve 2 zaman aşımı.
+**Hız.** 23,8 GB'lık sıkıştırılmış GTFS'in tamamı 4 çekirdekli bir CI makinesinde **77,8 dakikada** doğrulandı:
 
-⚠️ **Medyan hız oranı feed boyutuna göre çok değişir ve tek bir çarpanla anlatılamaz:** 1 MB altında **~123×** (analizör süreleri 10 ms çözünürlükte ölçüldüğü için kaba), 1-5 MB'da 11,1×, 5-20 MB'da 4,8×, 20-100 MB'da 2,8×, 100 MB üstünde **2,0×**. Korpusun %71'i 1 MB'ın altında olduğu için medyan oranı büyük ölçüde JVM başlangıç maliyeti belirler. Bellek avantajı her bantta daha istikrarlıdır.
-
-Ham çıktılar [`audit-results/`](audit-results/) altında — ilk yedi koşum depoda, sonrakiler `audit-<run-id>` prerelease'i olarak arşivleniyor.
-
-### Feed Analizi Örnekleri
-
-Aşağıdaki sayılar `40411348163` korpus koşumundan alınmıştır: aynı arşiv, aynı analiz günü (2026-08-20), MobilityData tarafında Java `gtfs-validator v8.0.1`. Süreler iki taraf için de koşum kaydının duvar saatidir (aynı makine). ZIP boyutları ve bulgu sayıları koşum artefaktından gelir; BART, TriMet ve VBB arşivlerinin sha256 değerleri yeniden doğrulanmıştır. Tokyo'nun `latest.zip` dosyası koşumdan sonra değiştiği için eski arşivden doğrulanamayan yapısal sayılar bu özetten çıkarılmıştır.
-
-#### BART (Bay Area Rapid Transit, San Francisco)
-
-Feed: `mdb-53` · 14 hat, 291 durak, 6.377 sefer · 1,0 MB
-
-| | MobilityData | GTFS Analyzer |
+| Doğrulama süresi | Feed sayısı | Oran |
 |---|---:|---:|
-| Toplam bulgu | 2.716 | 1.027 |
-| Kritik / Error | 2 | 2 |
-| Yüksek / Warning | 2.653 | 2 |
-| Orta | — | 13 |
-| Düşük | — | 10 |
-| Bilgi / Info | 61 | 1.000 |
-| Tetiklenen kural tipi | 13 | **38** |
-| Doğrulama süresi | 3,03 sn | **0,22 sn** |
-| Yayın skoru | — | **92,6 / 100** |
-| Genel skor | — | **92,3 / 100** |
+| 0,1 saniyenin altında | 2.778 | **%62,5** |
+| 1 saniyenin altında | 3.973 | **%89,3** |
+| 10 saniyenin altında | 4.371 | **%98,3** |
+| 1 dakikanın altında | 4.437 | **%99,8** |
 
-> MobilityData'nın 2.653 uyarısının 2.514'ü tek koddan (`missing_recommended_field`) gelir. GTFS Analyzer aynı iki kritik hatayı bulur ve bulgularını 38 kural tipine dağıtır.
+**Bellek.** Feed başına tepe bellek: **ortalama 102 MB, medyan 15 MB**.
 
-#### TriMet (Portland, Oregon)
-
-Feed: `mdb-247` · 82 hat, 6.031 durak, 67.957 sefer · 41,4 MB
-
-| | MobilityData | GTFS Analyzer |
+| Tepe bellek | Feed sayısı | Oran |
 |---|---:|---:|
-| Toplam bulgu | 31 | 4.690 |
-| Kritik / Error | 0 | 0 |
-| Yüksek / Warning | 20 | 1 |
-| Orta | — | 33 |
-| Düşük | — | 692 |
-| Bilgi / Info | 11 | 3.964 |
-| Tetiklenen kural tipi | 8 | **40** |
-| Doğrulama süresi | 21,22 sn | **6,70 sn** |
-| Yayın skoru | — | **100 / 100** |
-| Genel skor | — | **95,1 / 100** |
+| 100 MB'ın altında | 3.849 | **%86,6** |
+| 500 MB'ın altında | 4.279 | **%96,2** |
+| 1 GB'ın altında | 4.366 | **%98,2** |
+| 4 GB'ın altında | 4.437 | **%99,8** |
 
-> Spec açısından temiz bir feed: iki araç da 0 kritik bulur ve yayın skoru 100'dür. Aradaki 40'a 8'lik kural farkı, GTFS Analyzer'ın spec uyumunun ötesinde operasyonel kalite de ölçmesinden gelir.
+En büyük feed'ler de birkaç dakikada tamamlanıyor:
 
-#### Tokyo Toei (Tokyo Metropolitan Bureau of Transportation)
+| Feed | ZIP | Açılmış | Süre | Tepe bellek |
+|---|---:|---:|---:|---:|
+| İsveç geneli (Trafiklab, `mdb-2939`) | 908 MB | 4,5 GB | 3 dk 15 sn | 11,3 GB |
+| Baden-Württemberg (NVBW, `mdb-2393`) | 700 MB | 4,6 GB | 1 dk 44 sn | 8,7 GB |
+| Almanya geneli (DELFI, `mdb-3215`) | 589 MB | 4,9 GB | 4 dk 19 sn | 13,2 GB |
+| Entur (`mdb-1078`) | 554 MB | 3,4 GB | 1 dk 31 sn | 6,3 GB |
+| İngiltere geneli (BODS, `mdb-2014`) | 1,34 GB | 7,8 GB | 1 dk 58 sn | 10,5 GB |
+| Çekya (`mdb-2904`) | 86 MB | 0,85 GB | 26 sn | 4,1 GB |
 
-Feed: `mdb-3175` · 6,8 MB · **GTFS-JP profili**
+Bu feed'lerin içindeki tablolar da çok büyük; satırların tamamı okunup denetleniyor:
 
-| | MobilityData | GTFS Analyzer |
-|---|---:|---:|
-| Toplam bulgu | 1.673 | 3.095 |
-| Kritik / Error | 0 | 0 |
-| Yüksek / Warning | 301 | 10 |
-| Orta | — | 2.182 |
-| Düşük | — | 518 |
-| Bilgi / Info | 1.372 | 385 |
-| Tetiklenen kural tipi | 11 | **50** |
-| Doğrulama süresi | 8,30 sn | **2,12 sn** |
-| Yayın skoru | — | **100 / 100** |
-| Genel skor | — | **87,6 / 100** |
+| Feed | `stop_times` | Sefer | Shape noktası | Takvim istisnası | Aktarma | Süre |
+|---|---:|---:|---:|---:|---:|---:|
+| Almanya geneli (DELFI, `mdb-3215`) | **65,1 milyon** | 3,17 milyon | 10,5 milyon | 456 bin | 1,07 milyon | 4 dk 19 sn |
+| İsviçre geneli (SKI+, `mdb-2898`) | **42,6 milyon** | 2,62 milyon | — | **10,5 milyon** | 1,12 milyon | 2 dk 16 sn |
+| Baden-Württemberg (NVBW, `mdb-2393`) | 6,5 milyon | 373 bin | **57,5 milyon** | 340 bin | 106 bin | 1 dk 44 sn |
+| Buenos Aires (Colectivos, `mdb-1220`) | **29,3 milyon** | 436 bin | 756 bin | 95 | — | 44 sn |
+| Bogotá (SIMUR, `mdb-3358`) | 9,6 milyon | 182 bin | 942 bin | 126 | — | 19 sn |
+| İngiltere geneli (BODS, `mdb-2014`) | **59,7 milyon** | 1,55 milyon | **40,2 milyon** | 232 bin | — | 1 dk 58 sn |
+| Çekya (`mdb-2904`) | 9,6 milyon | 494 bin | — | **4,4 milyon** | — | 26 sn |
 
-> GTFS-JP profili gerçek bir Japon feed'inde yanlış pozitif üretmez: feed spec açısından temizdir (0 kritik, yayın skoru 100) ve profil kuralları yalnız Japonya'ya özgü alanları denetler. Orta bulguların 1.673'ü `JPN_001`'dir: durak adının kana (ja-Hrkt) okuması eksik — bir kalite önerisidir, spec ihlali değil.
+Buenos Aires'in 29,3 milyon `stop_times` satırı, 621 kuralın tamamıyla birlikte 44 saniyede doğrulanıyor: saniyede yaklaşık **666 bin satır**.
 
-#### VBB (Berlin-Brandenburg Ulaşım Birliği)
+Almanya geneli DELFI feed'i ve Nouvelle-Aquitaine'in iki bölgesel feed'i (77 ve 83 MB), MobilityData'nın `gtfs-validator`'ının bu koşumda iç hatayla yarıda bıraktığı feed'lerdendir; GTFS Analyzer üçünü de sonuna kadar doğruladı.
 
-Feed: `mdb-782` · 1.254 hat, 41.904 durak, 183.349 sefer, 14.189 shape · **62,5 MB**
+**Boyut.** Sabit bir feed boyutu sınırı yok. Tek üst sınır, zip bombalarına karşı açılmış veri için konan 16 GB'lık güvenlik korumasıdır; tarayıcıda Memory64 destekleyen tarayıcılarda WASM64 motoru kullanılır ve sınırı cihazın belleği belirler.
 
-| | MobilityData | GTFS Analyzer |
-|---|---:|---:|
-| Toplam bulgu | 11.573 | 19.979 |
-| Kritik / Error | 5 | 0 |
-| Yüksek / Warning | 10.704 | 788 |
-| Orta | — | 3.739 |
-| Düşük | — | 5.626 |
-| Bilgi / Info | 864 | 9.826 |
-| Tetiklenen kural tipi | 19 | **83** |
-| Doğrulama süresi | 35,36 sn | **15,79 sn** |
-| Yayın skoru | — | **100 / 100** |
-| Genel skor | — | **79,7 / 100** |
+Kataloğun en büyük feed'i **İngiltere geneli BODS** (`mdb-2014`): 7,8 GB'lık veri ve 59,7 milyon `stop_times` satırı **2 dakikanın altında** doğrulanır ve feed **tarayıcıda da** baştan sona açılır.
 
-> 🇩🇪 **Bu feed, MobilityData'nın barındırılan web doğrulayıcısının işleyemeyeceği kadar büyüktür.** GTFS Analyzer aynı feed'i **doğrudan tarayıcıda**, dosyayı hiçbir sunucuya göndermeden doğrular. MobilityData toplamının yarıdan fazlası (6.818) `non_ascii_or_non_printable_char`'dır: ID alanlarındaki ü/ö/ä/ß (ör. `zone_id` `7958 Prösen, Bahnhof`). Spec ID'lerde yazdırılabilir ASCII'yi önerir; GTFS Analyzer bunu `ARC_037` ile dosya başına tek özet olarak bildirir. MobilityData'nın 5 hatası (`pathway_unreachable_location`) bizde `PTH_012` (Yüksek, feed özeti) olarak görünür.
+**Çekya** feed'i (`mdb-2904`), 494 bin seferli ve 1,07 milyon bulgu üreten gerçekten bozuk bir feed: **26 saniyede** doğrulanır, **tarayıcıda da** açılır.
+
+Kısmi raporlar hata değildir: dosyaları ZIP kökü yerine alt klasörde olan (48), zorunlu dosyası eksik (22) veya geometri dosyası güvenlik sınırını aşan (6) feed'lerde bağımsız kontroller sürer ve atlanan kontroller raporda listelenir. Ham sonuçlar: [`audit-results/`](audit-results/).
 
 ---
 
 ## GTFS-JP Desteği
 
-GTFS Analyzer, Japonya'nın ulusal GTFS profili **GTFS-JP**'yi (国土交通省 / MLIT standardı) otomatik olarak tanır ve standart GTFS'in isteğe bağlı bıraktığı, GTFS-JP'nin zorunlu kıldığı kuralları uygular. MLIT, sübvansiyon alan işletmecilerden GTFS-JP yayımlamasını şart koştuğu için yüzlerce küçük operatör bu profile uymak zorundadır; ancak yaygın doğrulayıcılar profile özgü zorunlulukları denetlemez.
+GTFS Analyzer, Japonya'nın ulusal GTFS profili **GTFS-JP**'yi (国土交通省 / MLIT standardı) otomatik olarak tanır ve standart GTFS'in isteğe bağlı bıraktığı, GTFS-JP'nin zorunlu kıldığı kuralları uygular. MLIT, sübvansiyon alan işletmecilerden GTFS-JP yayımlamasını şart koştuğu için yüzlerce küçük operatör bu profile uymak zorundadır.
 
-**Otomatik tespit.** Bir feed; GTFS-JP v3'te kullanılan (`agency_jp.txt`, `office_jp.txt`, `pattern_jp.txt`) uzantı dosyalarından birini veya eski sürüm uyumluluğu için tanınan `routes_jp.txt` dosyasını içeriyorsa, `feed_info.feed_lang` geçerli bir BCP-47 etiketiyle `ja` ana etiketini taşıyorsa (ör. `ja-JP`), `translations.txt` içinde kana (`ja-Hrkt`) okumaları taşıyorsa, bir işleticide `agency_lang=ja` ile `agency_timezone=Asia/Tokyo` birlikteyse ya da `agency_name` veya `stop_name` alanlarında Japonca kana bulunuyorsa GTFS-JP olarak işaretlenir ve raporda **GTFS-JP** rozeti görünür. `routes_jp.txt` v3 dosyası değildir; yalnızca eski feed'lerin tanınması için korunur. Kana sinyali, dil/saat dilimi metadata'sı tamamen yanlış olan Japon feed'lerini de yakalar; Kanji tek başına yeterli değildir çünkü Çin/Tayvan adlarıyla belirsizdir. MLIT GTFS-JP v4 bu üç v3 uzantı dosyasını ana standardın dışına almıştır; Analyzer feed'i v3 veya v4 diye etiketlemez. Varsayılan **auto** profilinde ve açıkça seçilen **v3**/**v4** profillerinde JPN doğrulaması yalnız bu sinyallerle açılır; profil yalnız uygulanacak kural kapsamını seçer. V4'te v3 uzantı kuralları çalışmaz.
+- **Otomatik tespit:** GTFS-JP uzantı dosyaları (`agency_jp.txt`, `office_jp.txt`, `pattern_jp.txt`, eski `routes_jp.txt`), `feed_lang=ja`, kana (`ja-Hrkt`) çevirileri, `agency_lang=ja` + `Asia/Tokyo` ya da ad alanlarındaki Japonca kana feed'i GTFS-JP olarak işaretler; raporda **GTFS-JP** rozeti görünür.
+- **Profil seçimi:** web uygulamasında **Analiz Kriterleri → GTFS-JP profil kapsamı** (`Auto`, `V3`, `V4`); CLI'da `--gtfs-jp-profile v3|v4`; SDK'da `config: { gtfs_jp_profile: 'v3' }`. Seçim feed'in resmî sürümünü tespit etmez, yalnız uygulanacak kural kapsamını belirler.
+- **%100 makineyle denetlenebilir kapsam:** açıkça seçilen V3 veya V4 profilinde, makineyle denetlenebilir MLIT hükümlerinin tamamı kurallarla karşılanır; insan yorumu gerektiren ve yalnızca öneri niteliğindeki hükümler kapsam dışıdır.
+- **Kurallar:** profil kuralları **JPN** grubundadır ve yalnız GTFS-JP feed'lerinde çalışır; tam liste [`RULES.md`](RULES.md) içinde.
 
-**Profil seçimi (analiz sırasında).** Web uygulamasında ZIP'i seçmeden önce **Analiz Kriterleri** panelini açın ve **GTFS-JP profil kapsamı** alanından `Auto`, `V3` veya `V4` seçin. Feed'i seçtiğiniz anda mevcut seçim kaydedilir ve analiz otomatik başlar; `Auto` varsayılandır. CLI için `--gtfs-jp-profile v3` veya `--gtfs-jp-profile v4` kullanın. SDK'da aynı seçimi `config: { gtfs_jp_profile: 'v3' }` ya da `'v4'` ile verin. Bu seçim feed'in resmî sürümünü tespit etmez; yalnızca uygulanacak doğrulama kapsamını belirler. Ayrıntılı farklar için [GTFS-JP v3/v4 uyumluluk matrisine](docs/gtfs-jp-v3-v4-matrix.md) bakın.
+### Profil izleme ve fark sayfaları
 
-**Makineyle denetlenebilir kapsam rozeti.** Açıkça seçilen V3 veya V4 profilinde raporlanan `GTFS-JP v3/v4 %100 Makineyle Denetlenebilir Kapsam (insan yorumu ve yalnızca öneriler hariç)`, profilde uygulanan ve makineyle denetlenebilir güçlü ve yumuşak MLIT hükümlerinin tamamını ifade eder. İnsan yorumu, dış doğrulama ve yokluğu uyumluluk ihlali sayılmayan yalnızca öneri hükümleri paydadan çıkarılır; `Auto` profili sürüm kapsamı rozeti üretmez. Bu rozet feed'in resmî GTFS-JP sürümünü otomatik olarak tespit ettiği anlamına gelmez.
-
-**Profil kuralları (JPN grubu).**
-
-| Kural | Denetim |
+| Sayfa | Ne gösterir |
 |---|---|
-| **JPN_001** | Durak adlarının kana (よみがな — `translations.txt`, `ja-Hrkt`) okuması; sesli anons ve arama için GTFS-JP'de zorunludur |
-| **JPN_002** | `jp_office_id` (`trips.txt` **veya** `routes.txt`) değerinin `office_jp.txt`'teki bir `office_id` ile eşleşmesi (işletme ofisi referans bütünlüğü) |
-| **JPN_003** | `agency_jp.txt` `agency_id` değerinin `agency.txt`'te tanımlı olması (işletici referans bütünlüğü) |
-| **JPN_004** | `translations.txt`'in mevcudiyeti — GTFS-JP'de (özellikle kana okumaları için) zorunludur |
-| **JPN_005** | `office_jp.txt`'te `office_name` zorunlu alanının dolu olması |
-| **JPN_006** | V3/Auto: ücret kapsamı ORTA; V4: dosya yokluğu BİLGİ/elle inceleme, boş/bozuk dosya ORTA |
-| **JPN_007** | `feed_info.txt`'in mevcudiyeti — GTFS-JP'de zorunludur |
-| **JPN_008** | Japonca `route_short_name` ve `route_long_name` için bağımsız kana okumaları |
-| **JPN_009** | `trip_headsign` kana (`ja-Hrkt`) okuması |
-| **JPN_010** | İşletici adının (`agency_name`) kana (`ja-Hrkt`) okuması |
-| **JPN_011** | `agency.txt` ve `routes.txt` içinde `agency_id` zorunluluğu |
-| **JPN_012** | `agency_jp.agency_id` eksikliği |
-| **JPN_013** | Varsa `agency_zip_number` değerinin 7 ASCII rakam olması |
-| **JPN_014** | `office_jp.office_id` eksikliği ve tekrarları |
-| **JPN_015** | V3 ve Auto profillerinde eski `routes_jp.route_id` uyumluluk kontrolü; v3 dosyası değildir |
-| **JPN_016** | V3 `pattern_jp.route_update_date`; V3 ve Auto profillerinde legacy `routes_jp.route_update_date` geçerli tarih biçimi |
-| **JPN_017** | `pattern_jp.jp_pattern_id` eksikliği ve tekrarları |
-| **JPN_018** | Mevcut `pattern_jp.txt` içindeki kopuk `trips.jp_pattern_id` referansı |
-| **JPN_019** | GTFS-JP `ja-Hrkt` satırlarında geçersiz kayıt/alan/alt kayıt |
-| **JPN_020** | `office_url` ve `office_phone` biçim kalite kontrolü |
-| **JPN_021** | Kana çevirilerinde boş, çakışan veya kana içermeyen kayıtlar |
-| **JPN_022** | GTFS-JP v4 ana alanları ve `location_type` kolonunun eksikliği; boş hücre geçerli `0` kabul edilir |
-| **JPN_023–026** | Açık profilde `feed_lang=ja`, `agency_lang=ja`, `agency_timezone=Asia/Tokyo`, `currency_type=JPY` |
-| **JPN_027** | Açık V3 profilinde sayısal `route_type` değeri yalnızca `3` olabilir; Auto/V4 kapsam dışı |
-| **JPN_028** | V3'ün kalan zorunlu `ja-Hrkt` çevirileri |
-| **JPN_029** | V4 okumaları: kaynak değeri başına toplulama, etkilenen satır sayısı ve en fazla 5 örnek |
-| **JPN_030** | V3'ün kalan zorunlu `language=ja` çevirileri |
-| **JPN_031** | V3/V4: ücret→hat→sefer→durak bağlantısıyla koşullu `zone_id` |
-| **JPN_032** | Strict V3: `agency_id` 13 haneli法人番号 gövdesi ve varsa boş olmayan dal eki biçiminde olmalı |
-| **JPN_033** | V3/V4: özel dosya ve alan adlarında ayrılmış `jp` ad alanı kullanılamaz (profil sürümüne göre) |
-
-Yukarıdaki **Tokyo Toei** karşılaştırması bu profilin gerçek bir GTFS-JP feed'inde nasıl davrandığını gösterir: feed spec açısından temizdir (0 kritik) ve profil kuralları doğru referanslı veride yanlış pozitif üretmez.
+| [GTFS-JP Monitor](https://ttezer.github.io/gtfs-jp-monitor/) | Japon feed'lerinin GTFS-JP profil sonuçları |
+| [GTFS-FR Monitor](https://ttezer.github.io/gtfs-fr-monitor/) | Fransız feed'lerinin sonuçları |
+| [GTFS-JP v3/v4 uyumluluk matrisi](docs/gtfs-jp-v3-v4-matrix.md) | v3 ile v4 arasındaki kural farkları |
 
 ---
 
-## Kullanım
+## ChatGPT ve Claude: İstediğiniz Dilde Sorun, İstediğiniz Dilde Yanıt
 
-GTFS Validator & Analyzer bir web uygulamasıdır; kurulum gerektirmez. Canlı sürümü tarayıcıda açıp GTFS zip dosyanızı yükleyin.
+GTFS Validator, ChatGPT'de ve Claude'da eklenti olarak çalışır. Feed'inizi sohbete verin, **hangi dilde sorarsanız o dilde** sonuç alın: Türkçe sorana Türkçe, Japonca sorana Japonca yanıt verir. Doğrulamayı ve skorları GTFS Analyzer motoru hesaplar; yapay zekâ sonucu açıklar, öncelikli düzeltmeleri anlaşılır biçimde özetler ve skorları değiştirmez.
 
-Motor tarayıcı yeteneğine göre otomatik seçilir: Memory64 destekleniyorsa 4 GB üzerindeki
-büyük feed'ler için **WASM64**, desteklenmiyorsa **WASM32** kullanılır. Aktif motor yükleme
-ekranında gösterilir. Hata ayıklamak için `?wasm32=1`, `?wasm64=1` veya `?serial=1` kullanılabilir.
+### ChatGPT — GTFS Validator
 
-**→ [https://ttezer.github.io/gtfs-analyzer/](https://ttezer.github.io/gtfs-analyzer/)**
+ChatGPT'nin [GTFS Validator sayfasını](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c) açıp uygulamayı ekleyin. `/gtfs` yazıp bir GTFS ZIP yükleyin, herkese açık bir feed URL'si verin veya `/gtfs TRP_002` gibi bir kuralın ne anlama geldiğini sorun.
 
-1. GTFS zip dosyanızı sürükleyip bırakın ya da dosya seçiciyle yükleyin.
-2. Doğrulama otomatik başlar; ilerleme ekranda aşama aşama gösterilir.
-3. Tamamlandığında Yayın ve Genel skorları ile ayrıntılı rapor sekmeleri görünür.
-4. Önceki bir analizi karşılaştırmak için **Karşılaştır** sekmesinden eski Golden JSON'u yükleyin. Düzeltilen, yeni, azalan ve artan kurallar; skorlar, feed tarihleri ve normalize edilmiş notice yoğunlukları birlikte gösterilir.
-5. Paylaşılabilir bir çıktı için **Dışa Aktar → Yönetici PDF Raporu** yolunu açın, rapor dilini seçin ve önizlemedeki **Yazdır / PDF Kaydet** düğmesini kullanın.
+### Claude — GTFS Validator
 
-### ChatGPT GTFS Validator
+Claude'da [GTFS Validator eklentisini](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory) ekleyin. `/gtfs` yazıp bir GTFS ZIP ekleyin, bir dosya yolu ya da herkese açık bir feed URL'si verin veya `/gtfs TRP_002` gibi bir kuralı sorun. Eklenti kod çalıştırma özelliğini kullanır; claude.ai'de bu özelliğin açık olması gerekir ve orada feed'i URL yerine ZIP olarak ekleyin.
 
-GTFS feed'ini sohbet içinde incelemek için ChatGPT'nin
-[GTFS Validator sayfasını](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)
-açın. Bir GTFS ZIP yükleyebilir, herkese açık bir
-feed URL'si verebilir veya `TRP_002` gibi bir kuralı sorabilirsiniz. Doğrulama ve
-skorları yine GTFS Analyzer motoru hesaplar; ChatGPT sonucu açıklayıp öncelikli
-düzeltmeleri anlaşılır biçimde özetler, skorları yeniden hesaplamaz.
-
-Tarayıcı uygulamasından farklı olarak ChatGPT yolu, feed'i istek süresince GTFS
-Validator MCP hizmetinde geçici olarak işler. Feed içeriği ve doğrulama raporu
-işlem sonrasında bilinçli olarak saklanmaz. Kurum dışına çıkmaması gereken veriler
-için tarayıcı, CLI veya yerel paketlerden birini kullanın.
-
-### Claude GTFS Validator
-
-Claude'da bir feed'i incelemek için [GTFS Validator eklentisini](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)
-ekleyin. `/gtfs` yazıp bir GTFS ZIP ekleyebilir, yerel bir dosya yolu ya da herkese
-açık bir feed URL'si verebilir veya `/gtfs TRP_002` gibi bir kuralı sorabilirsiniz.
-Doğrulama ve skorları GTFS Analyzer motoru hesaplar; eklenti skorları yeniden
-hesaplamaz, yayınlanabilirlik kararını değiştirmez.
-
-Analiz Claude'un çalıştığı yerde yapılır: claude.ai'de Claude'un kod ortamında,
-Claude Code'da kendi bilgisayarınızda. Eklenti PyPI'daki `gtfs-analyzer` paketini
-(sabit sürüm) kurar; feed eklentiye ait bir sunucuya gönderilmez ve saklanmaz.
-Kod çalıştırmanın açık olması gerekir; sohbet ortamı URL'den feed indiremediği
-için orada ZIP'i ekleyin.
-
-### Yönetici PDF Raporu
-
-**Yönetici PDF Raporu**, ayrıntılı doğrulama sonuçlarını karar vericiler ve feed üreticileri için okunabilir, renkli ve A4 uyumlu bir belgeye dönüştürür. Rapor yalnızca **GTFS Analyzer** sonuçlarından oluşturulur; başka bir validator sonucu veya harici karşılaştırma içermez.
-
-Rapor şunları kapsar:
-
-- yayınlanabilirlik durumu, Yayın Skoru, Genel Skor ve Spec · Interop · Quality · Analytics bileşenleri;
-- durak, hat, sefer, shape, servis günü ve tarih aralıklarından oluşan feed profili;
-- R1 yayın engelleri ile R9 etki/efor sıralamasını birleştiren, kural bazında tekilleştirilmiş **P0 / P1 / P2** aksiyonları;
-- her öncelikli bulgu için kanıt, etkisi, önerilen düzeltme, etkilenen gerçek örnek sayısı ve olası skor kazanımı;
-- feed'e özgü yapısal içgörüler, aşamalı iyileştirme planı, önem/sınıf dağılımları ve teknik ek.
-
-Arayüzde performans için sınırlandırılmış bulgu örnekleri bulunsa bile rapor, mevcut olduğunda `capped_totals` içindeki **gerçek toplu sayıları** kullanır. Belge Türkçe, İngilizce veya Japonca üretilebilir; rapor dili arayüz dilinden bağımsız seçilir. Oluşturma ve yazdırma işlemi tamamen tarayıcıda gerçekleşir, GTFS verisi sunucuya gönderilmez ve harici API kullanılmaz.
-
-> Rapor skorları yüklenen GTFS feed'ini değerlendirir; GTFS Analyzer uygulamasının performansını veya doğruluğunu puanlamaz.
-
-> Kendi sunucunuzda barındırmak veya geliştirme ortamı kurmak için [Geliştirici Kurulumu](#geliştirici-kurulumu) bölümüne bakın.
+**Örnek sorular:** "Bu feed yayına hazır mı?", "En önemli üç sorunu ve nasıl düzelteceğimi anlat", "STP_046 ne demek?"
 
 ---
 
-## Sekiz Kullanım Yolu
+## Sekiz Yolu Kullanmak
 
-Aynı 621 kurallı doğrulama motoruna sekiz farklı yoldan erişilebilir; arayüzler sonucu kendi kullanım biçimlerine göre sunar:
-
-| yol | ne için | veri nereye gider |
+| Yol | Nasıl başlanır | Ayrıntı |
 |---|---|---|
-| **Tarayıcı** ([uygulama](https://ttezer.github.io/gtfs-analyzer/)) | tek feed'i açıp haritayla incelemek | **hiçbir yere** — WebAssembly ile cihazda |
-| **CLI** (`cargo install gtfs-analyzer` ya da hazır binary) | toplu doğrulama, betikleme, Python entegrasyonu | hiçbir yere — yerel binary |
-| **Rust kütüphanesi** ([`gtfs-pipeline`](https://crates.io/crates/gtfs-pipeline)) | doğrulamayı kendi Rust servisinize gömmek | hiçbir yere — kendi süreciniz |
-| **CI/CD** (exit kodu + `--fail-on`) | feed yayına çıkmadan önce pipeline kapısı | hiçbir yere — kendi runner'ınız |
-| **[`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk) npm paketi** | kendi web veya Node uygulamanıza gömmek | hiçbir yere — yerel WASM |
-| **`gtfs-analyzer` Python paketi** (`pip install gtfs-analyzer`) | Python uygulamasına doğrulama gömmek | hiçbir yere — yerel Rust native modülü |
-| **ChatGPT — [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)** | ZIP veya URL'yi sohbet içinde doğrulatmak ve bulguları açıklatmak | GTFS Validator MCP hizmeti — yalnız istek süresince geçici işleme |
-| **Claude — [GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)** | `/gtfs` ile ZIP, yol veya URL doğrulatmak ve bulguları açıklatmak | Claude'un çalıştığı yer — Claude Code'da kendi bilgisayarınız, claude.ai'de Claude'un kod ortamı |
-
-İlk altı yol yerel veya sizin yönettiğiniz altyapıda çalışır. ChatGPT yolu bunun
-istisnasıdır: feed, analiz isteği sırasında MCP hizmetine aktarılır. Kurum dışına
-çıkamayan veriler için tarayıcı uygulamasını, CLI'yi veya yerel paketleri seçin. Claude eklentisi feed'i eklentiye ait bir sunucuya göndermez; Claude Code'da analiz tamamen kendi bilgisayarınızda yapılır.
-
-### CI/CD entegrasyonu
-
-`--fail-on` bayrağı yalnız istediğiniz sınıf/önem seviyesinde koşuyu düşürür, böylece Analytics gürültüsü pipeline'ı kırmaz:
-
-```yaml
-# GitHub Actions — yalnız resmî GTFS Spec ihlalleri koşuyu düşürsün
-- name: GTFS feed doğrulama
-  run: |
-    curl -sL https://github.com/ttezer/gtfs-analyzer/releases/latest/download/gtfs-analyzer-x86_64-linux.tar.gz | tar xz
-    ./gtfs-analyzer validate feed.zip --fail-on-class spec --min-severity critical
-```
-
-Exit kodları: `0` temiz · `1` eşiği aşan bulgu var · `2` feed okunamadı (fatal).
-
-### Rust kütüphanesi
-
-Doğrulamayı kendi Rust servisinize gömmek için `gtfs-pipeline`'ı doğrudan kullanın — CLI'a, dosya sistemine ya da ağa ihtiyaç yok:
-
-```toml
-[dependencies]
-gtfs-pipeline = "0.20.0"
-gtfs-config   = "0.20.0"
-gtfs-core     = "0.20.0"
-```
-
-```rust
-use gtfs_config::ValidatorConfig;
-use gtfs_core::ValidateResult;
-use gtfs_pipeline::validate_bytes;
-
-let zip = std::fs::read("feed.zip")?;
-let config = ValidatorConfig::default();
-
-match validate_bytes(&zip, &config, 20_260_820) {
-    ValidateResult::Ok(result) => {
-        println!("bulgu: {}", result.notices.len());
-        println!("yayın skoru: {}", result.reports.r5.pub_score);
-    }
-    ValidateResult::Fatal(err) => eprintln!("fatal: {}", err.message),
-}
-```
-
-`validate_bytes` baytları alır ve tüm raporları (`r1`–`r9`), skorları ve bulguları taşıyan bir sonuç döndürür. Eşikleri değiştirmek için `ValidatorConfig` alanlarını ayarlayın ya da `merge_delta` ile JSON bir delta uygulayın.
-
-⚠️ Kütüphane crate'leri analyzer'ın **iç yapısıdır**; binary crates.io'dan derlenebilsin diye yayımlanmışlardır ve **API kararlılığı garantisi taşımazlar**. Kararlı bir yüzey istiyorsanız CLI'ın JSON çıktısı ya da `gtfs-sdk` daha güvenlidir.
-
-### `gtfs-sdk` npm paketi
-
-`gtfs-sdk`, v0.20.0 doğrulama motorunu typed JavaScript/TypeScript API olarak sunar. Feed uygulamadan çıkmadan yerel WASM ile doğrulanır:
-
-```js
-import { validateGtfs } from "gtfs-sdk";
-
-const result = await validateGtfs(new Uint8Array(zipBytes), {
-  today: "2026-08-20",
-});
-console.log(result.notices.length, result.reports.r5.score);
-```
-
-Dışa açılan public API `validateGtfs`, `getVersion` ve progress/cache akışı gereken uygulamalar için `createValidatorSession` içerir. Düşük seviyeli `gtfs-wasm` binding'i SDK sözleşmesinin parçası değildir. WASM64 ve threaded motor seçimi ise ilk SDK paketinde internal kalır.
-
-Paket kaynakları `sdk/` altındadır; ayrıntılı kullanım, sonuç modeli ve config referansı [`sdk/README.md`](sdk/README.md) içindedir. WASM binding'i build sırasında `crates/wasm` üzerinden üretilir.
-Web UI worker'ı da aynı `ValidatorSession` facade'ını kullanır; seri/threaded/WASM64 seçimini yalnızca uygulama içindeki engine adapter belirler.
-
-### Python paketi
-
-[PyPI](https://pypi.org/project/gtfs-analyzer/) üzerinden kurulur (CPython 3.9+):
-
-```bash
-pip install gtfs-analyzer
-```
-
-Python paketi aynı Rust doğrulama pipeline'ını PyO3 native modülü üzerinden
-çalıştırır; ayrıca Cargo CLI kurulumu gerekmez. ZIP dosyasını yol veya bytes
-olarak verebilirsiniz:
-
-```python
-from gtfs_analyzer import validate_gtfs
-
-result = validate_gtfs("feed.zip", today="2026-08-20")
-print(result["validation_status"])
-print(len(result["notices"]))
-```
-
-`result`, npm SDK ve CLI JSON çıktısıyla aynı temel sonucu taşır. Parametreler,
-sonuç yapısı ve hata türleri için [`python/README.md`](python/README.md)
-dosyasına bakın.
-
-### Topluluk bağlamaları
-
-| Dil | Paket | Bakım |
-|---|---|---|
-| Kotlin / JVM | [`io.github.transittrack:gtfs-analyzer`](https://central.sonatype.com/artifact/io.github.transittrack/gtfs-analyzer) | Bu deponun dışında, kendi yazarlarınca |
-
-Topluluk bağlamaları bu depoda test edilmez ve bu deponun yayın sürecinden çıkmaz.
-Motor bulgularını buraya, bağlamaya özgü sorunları paketin kendi deposuna bildirin.
-
-## CLI (Terminal)
-
-Aynı doğrulama çekirdeğini terminalden çalıştırabilirsiniz — toplu iş, betikleme ve Python/otomasyon entegrasyonu için.
-
-### Kurulum
-
-Rust kuruluysa en kısa yol:
-
-```bash
-cargo install gtfs-analyzer
-gtfs-analyzer validate feed.zip
-```
-
-Rust kurmadan: [Releases](https://github.com/ttezer/gtfs-analyzer/releases) sayfasından platformunuza uygun arşivi indirin (`x86_64-linux`, `aarch64-macos`, `x86_64-windows`), açın ve `gtfs-analyzer` binary'sini `PATH`'inize koyun.
-
-```bash
-# Linux / macOS — en son sürüm
-curl -sL https://github.com/ttezer/gtfs-analyzer/releases/latest/download/gtfs-analyzer-x86_64-linux.tar.gz | tar xz
-./gtfs-analyzer --version
-# Sürümle birlikte deterministik provenance bilgisi
-./gtfs-analyzer --version --verbose
-```
-
-Kaynaktan derlemek için:
-
-```bash
-cargo build --release -p gtfs-analyzer
-target/release/gtfs-analyzer validate feed.zip --json
-
-# ya da doğrudan
-cargo run -p gtfs-analyzer -- validate feed.zip --json
-```
-
-### `validate` — feed doğrulama
-
-| Bayrak | Açıklama |
-|---|---|
-| `--json` | Sonucun tamamını JSON olarak yazar |
-| `--compact-json` | Makine tüketicileri için kanonik kısa JSON görünümü üretir; `--samples N` ile R9 kök neden örnekleri eklenebilir |
-| `--summary` | Kısa özet: durum, notice sayısı, skorlar (varsayılan; `--json` ile birlikte kullanılamaz) |
-| `--rule SHP_010` | Yalnızca verilen kural için notice'lar |
-| `--severity critical` | Tam olarak bu öneme sahip notice'lar (critical/high/medium/low/info) |
-| `--min-severity high` | Bu önem ve daha ağırı (critical en ağır) |
-| `--class spec` | Yalnızca bu kural sınıfları — `spec,interop,quality,analytics`, virgülle çoklu |
-| `--disable-rule DQ_004` | Belirtilen kuralları sonuçtan, skorlardan ve R9 kuyruğundan çıkarır; virgülle çoklu |
-| `--disable-rule-gtfs-jp DQ_004` | Yalnız GTFS-JP olarak tespit edilen feed'lerde bu kuralları çıkarır |
-| `--fail-on critical` | Exit 1 **yalnızca** bu önem ve daha ağırı varsa |
-| `--fail-on-class spec` | Exit 1 yalnızca bu sınıflarda notice varsa |
-| `--pretty` | JSON'ı girintili yazar (`--json` gerektirir) |
-| `--include-name-index` | `name_index`'i (durak/hat/shape arama tabloları) JSON'a dahil eder |
-| `--max-notices-per-rule 20` | JSON'da kural başına en fazla N bulgu tutar; kesilen kuralların gerçek sayısı `capped_totals`'ta, R1/R5/R9 tüm bulgulardan hesaplanır (`--json` gerektirir) |
-| `--samples N` | `--compact-json` ile her R9 kuralına K7 sırasındaki ilk N kök neden bulgusunu (`entity_type`, `entity_id`, `file`, `line`, `field`, `observed_value`, `expected_value`) ekler |
-| `-o rapor.json` | Çıktıyı stdout yerine dosyaya yazar |
-| `--lang en` | Bulgu metinlerinin dili: `en` (varsayılan) / `tr` / `ja` / `fr` / `es` (`es`: yalnız planlamacı kartları) |
-| `--config config.json` | JSON config delta uygular (`ValidatorConfig::default()` üzerine) |
-| `--gtfs-jp-profile auto\|v3\|v4` | GTFS-JP kural profilini açıkça seçer; config değerini geçersiz kılar |
-| `--today 20260710` | Analiz "bugün"ünü sabitler (takvim kuralları için) |
-
-**Filtreler yalnızca görüntülemeyi daraltır.** `notices` ve R2–R9 listeleri filtrelenir; **R1 yayınlanabilirlik kararı ve R5 skorları her zaman tüm feed'i** anlatır. Filtre uygulandığında JSON'a `filtered` alanı, özete `filter:` satırı eklenir.
-
-`name_index` varsayılan olarak **çıktıya dahil edilmez**: büyük feed'lerde shape/durak koordinat tabloları JSON'un neredeyse tamamını kaplar. Gerekiyorsa `--include-name-index` ile açın.
-
-Feed yolu yerine `-` verilirse ZIP **stdin'den** okunur: `curl -sL <url> | gtfs-analyzer validate - --json`. (ZIP merkezi dizini dosyanın sonunda olduğundan arşiv belleğe alınır, akış hâlinde işlenmez.)
-
-> **Arayüzle sayı farkı:** Tarayıcı, kural başına bulgu örneklerini performans için sınırlar (gerçek toplamlar `capped_totals`'ta bildirilir). CLI bu sınırı **uygulamaz** — aynı feed'de daha çok notice ve sınırlanmamış R9 etki değerleri döner. Fark beklenen davranıştır; iki çıktıyı doğrudan sayı sayı karşılaştırmayın.
-
-### Compact JSON ve web sınırı
-
-`--compact-json`, tam `--json` raporundaki her notice'ı ve `name_index` tablolarını
-taşımayan, makine tüketicileri için kanonik bir projeksiyondur. Üst düzeyde `status`,
-`engine`, `engine_version`, `engine_commit`, `validation_date`, `partial`,
-`analysis`, `reports.r1`, `reports.r5`, `reports.r9`, `metrics`,
-`notice_counts` ve `triggered_rule_count` alanlarını içerir. `reports.r9.items`
-her kuralın başlık, önem, sınıf, mesaj, düzeltme, öncelik, etki ve skor değişimi
-alanlarını ve `--lang` dilinde sade dilli bir `card` (`title`, `what`, `action`) taşır;
-`--samples N` verilirse her öğeye en fazla N kök neden örneği eklenir.
-
-`--compact-json` web arayüzünün payload'ı değildir ve kendi başına kural başına örnek
-sınırı uygulamaz. Web görünümündeki notice listesini CLI full JSON ile yaklaşık eşlemek
-isterseniz `--json --max-notices-per-rule 500` kullanın; gerçek R1/R5/R9 hesapları
-tam notice listesinden yapılır ve kesilen kurallar `capped_totals` içinde bildirilir.
-
-**Exit kodları:** `0` eksiksiz ve notice'sız doğrulama · `1` notice veya `PARTIAL` (kısmi kapsam) raporu · `2` fatal ya da config/dosya hatası. `PARTIAL` rapor, bozuk/eksik bir dosyayı güvenle atlayıp bağımsız kontrolleri sürdürür; JSON'da `status: "partial"`, `validation_status: "PARTIAL"` ve `partial` kapsamı görünür. `partial.skipped_checks`, önkoşul eksikliği nedeniyle çalıştırılmayan K4/K5/K6 kontrol ailelerini ve kurallarını ayrıntılı olarak listeler; `partial.skipped_stages` kaba aşama metadatası için korunur. `--fail-on*` kullanılsa da `PARTIAL` koşusu `1` döner. JSON modunda stdout yalnızca JSON'dur; hatalar stderr'e yazılır.
-
-```bash
-# CI kapısı: yalnız resmi GTFS Spec ihlalleri koşuyu düşürsün
-gtfs-analyzer validate feed.zip --fail-on-class spec
-
-# Yalnız Spec bulgularını raporla (skorlar yine tüm feed'i anlatır)
-gtfs-analyzer validate feed.zip --class spec --json --pretty -o spec.json
-```
-
-```python
-import json, pathlib, subprocess
-
-for feed in sorted(pathlib.Path("feeds").glob("*.zip")):
-    proc = subprocess.run(
-        ["gtfs-analyzer", "validate", str(feed), "--json"],
-        text=True, capture_output=True,
-    )
-    # exit 1 = "notice var", hata değil — check=True KULLANMAYIN
-    data = json.loads(proc.stdout)
-    if data["status"] == "fatal":
-        print(feed.name, "FATAL", data["code"], data["message"])
-        continue
-    print(feed.name, data["reports"]["r5"]["pub_score"], len(data["notices"]))
-```
-
-### `rules` — kural kaydı
-
-Doğrulama çalıştırmadan tüm kural kaydını listeler; entegre eden projenin kural sözlüğü için.
-
-```bash
-gtfs-analyzer rules --class spec --severity critical
-gtfs-analyzer rules --rule STM_004 --json --pretty
-```
-
-Alanlar: `id`, `severity`, `class`, `authority_source`, `base_effort`, `blocks`, `title`, `message`, `remediation`, `card`.
-`--class` / `--severity` / `--min-severity` / `--rule` filtreleri `validate` ile aynı anlamdadır.
-`--lang` burada da geçerlidir (kural başlıkları, mesajları ve düzeltme metinleri).
-
-`--compact-json` içindeki her R9 öğesi de kural başına `severity`, `rule_class`, `message` ve
-`remediation` alanlarını taşır. Büyük feed'lerde isteğe bağlı `--samples N` ile aynı öğeye ilk N
-kök neden bulgusu eklenebilir; mesaj ve çözüm metinleri kural şablonudur, örnek kaydın bağlamı
-`samples` içindedir.
-
-`triggered_rule_count`, R2'de görünen tüm kural kimliklerini sayar; `r9_total_count` ise yalnızca
-kök neden aksiyonlarını sayar. R9 semptomları tekilleştirme için gizler ve gelecekte başlayan
-feed'lerdeki sıfır puanlı `CAL_015` bilgi bildirimi bilinçli olarak aksiyon kuyruğuna alınmaz.
-
-### Çıktı dili
-
-Doğrulama çekirdeği bulgu metinlerini Türkçe üretir; `--lang en` / `--lang ja` / `--lang fr` bunları arayüzün kullandığı **aynı çeviri sözlükleriyle** değiştirir. Kural ID'leri, önem ve sınıf değerleri (`CRITICAL`, `SPEC`) her dilde makine-okunur sabit kalır; yalnızca `title`, `message` ve `remediation` çevrilir.
-
-Bir kuralın çevirisi yoksa sıra şudur: istenen dil → İngilizce → Türkçe (çekirdeğin ürettiği metin). Böylece çıktı hiçbir zaman boş kalmaz.
-
-Kural düzeyindeki çıktılar (`--compact-json` R9 öğeleri ve `rules --json`) ayrıca `card` taşır: web arayüzünün planlamacı görünümündeki sade başlık, ne olduğu (`what`) ve ne yapılacağı (`action`); `tr`, `en`, `ja`, `fr` ve `es` dillerinde. `es` yalnız kartları olan bir dildir, diğer metinleri İngilizceye düşer. Kart metni bulguya özgü değerler gerektiriyorsa `what` verilmez.
-
-Sözlükler `ui/src/locales/{en,ja}.ts` dosyalarından `npm run locales:export` ile `crates/core/locales/*.json` içine türetilir; CLI binary'sine ve Python paketine gömülür. Locale güncellenip export çalıştırılmazsa `locale-parity.test.ts` CI'da kırmızı yanar — tek kaynak locale dosyalarıdır.
+| Tarayıcı | [Uygulamayı açın](https://ttezer.github.io/gtfs-analyzer/), ZIP'i sürükleyip bırakın | [Tarayıcı](docs/usage.tr.md#1-tarayıcı) |
+| CLI | `cargo install gtfs-analyzer` ya da [hazır binary](https://github.com/ttezer/gtfs-analyzer/releases) | [CLI](docs/usage.tr.md#2-cli) |
+| Rust kütüphanesi | `gtfs-pipeline` bağımlılığı | [Rust](docs/usage.tr.md#3-rust-kütüphanesi) |
+| CI/CD | `--fail-on` ve exit kodları | [CI/CD](docs/usage.tr.md#4-cicd) |
+| npm | `npm install gtfs-sdk` | [npm](docs/usage.tr.md#5-gtfs-sdk-npm-paketi) |
+| Python | `pip install gtfs-analyzer` | [Python](docs/usage.tr.md#6-python-paketi) |
+| ChatGPT | [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c), `/gtfs` | yukarıda |
+| Claude | [GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory), `/gtfs` | yukarıda |
+
+Tüm kurulum ve kullanım ayrıntıları: [Sekiz yolu kullanmak](docs/usage.tr.md).
 
 ---
 
-## Analiz Kriterleri
+## Analiz Kriterleri, Skorlar ve Bulgu Sınırları
 
-Yükleme ekranındaki **Analiz Kriterleri** bölümünden doğrulama eşikleri özelleştirilebilir. Değiştirilen alanlar bir sonraki ZIP yüklemesinde uygulanır; sıfırla butonu varsayılanlara döndürür.
-
-### Kural Sınıfları ve Otorite Kaynağı
-
-Her kural dört sınıftan birine ayrılır. Sınıf, bulgunun **otorite kaynağını** (meşruiyet dayanağını) yansıtır; kullanıcı "bu gerçek bir GTFS Spec hatası mı, yoksa uyumluluk/kalite/analitik sinyal mi" ayrımını raporda net görür:
-
-- **Spec** — yalnızca resmi **GTFS Schedule Reference** tarafından açıkça zorunlu/yasak/geçersiz tanımlanan durumlar (required / conditionally required / conditionally forbidden alanlar, enum-değer, foreign-key, uniqueness, format kısıtları). Başka hiçbir kaynak `Spec` üretmez.
-- **Interop** — MobilityData, Google Transit veya bölgesel profil (ör. GTFS-JP) gibi tüketici/validator davranışlarıyla uyumluluk sinyalleri.
-- **Quality** — GTFS best-practice, veri kalitesi, okunabilirlik, tutarlılık ve üretim kalitesi kontrolleri.
-- **Analytics** — istatistiksel, operasyonel, performans veya analiz amaçlı sinyaller.
-
-Her kuralın ayrıca makine-okunur bir **otorite kaynağı** (`authority_source`) alanı vardır (`GTFS_SPEC`, `MOBILITYDATA_PARITY`, `REGIONAL_PROFILE`, `PROJECT_QUALITY` vb.). Değişmez kural: **`Spec` sınıfı yalnızca `authority_source = GTFS_SPEC` ile meşrudur**; MobilityData/Guru/Google paritesi, best-practice veya proje-özel sezgi tek başına Spec kanıtı değildir.
-
-### İsteğe Bağlı Profiller ve Kaynak URL
-
-Config delta içinde `stop_name_best_practices=true` verilirse dil-bağımlı `STP_040` ve `STP_041` kontrolleri etkinleşir; yanlış pozitif riski nedeniyle varsayılan kapalıdır. URL tabanlı entegrasyonlar `source_url` metadata'sı sağlayabilir; `ARC_028` kalıcı yayın adresinin `.zip` dosya adı taşımasını denetler. Dosya yükleme modunda bu kontrol sessizdir. Core motor feed içindeki URL'lere ağ isteği yapmaz; 404 kontrolü ayrı ve açıkça opt-in bir online adapter gerektirir.
-
-### Shape mesafe alanlarının birlikte kullanımı
-
-`stop_times.txt` içinde `shape_dist_traveled` kullanan bir trip'in referansladığı `shapes.txt` noktalarının bir kısmında aynı alan eksikse `SHP_030` (Quality · Orta) üretilir. Bu iki alan GTFS'te ayrı ayrı opsiyoneldir; kural bir Spec yayın engeli değil, tüketicilerin durakları shape geometrisiyle güvenilir eşleştirememe riskini shape başına toplar. Etkilenen trip sayısı ve örnek kimlikler notice ayrıntısında gösterilir.
-
-Tek noktadan oluşan ve gerçekten bir trip tarafından kullanılan shape `SHP_006` ile Düşük · Quality olarak raporlanır; ayrıntıda `shape_id` ve `shape_point_count=1` bulunur. İki noktalı düz segment geçerlidir. Kullanılmayan tek noktalı shape yalnız `SHP_018` ile raporlanır. Bu, MobilityData `single_shape_point` sinyaline bilinçli bir near-parity eşlemesidir; Analyzer yalnız kullanılan shape'i SHP_006 ile raporlar.
-
-### Uzak durak hız paritesi
-
-MobilityData'nın güncel rules sayfası `fast_travel_between_far_stops` için tutarsızdır: ana WARNING tablosunda kural aktif görünürken notice-detail metadata'sı `Deprecated since undefined` gösterir ve deprecated tablosunda kural yoktur. #115 audit'inde 20 pozitif feed örneği incelendi; karar deprecation varsayımına değil, 10 km üzeri kümülatif mesafe, ardışık olmayan stop çiftleri ve zaman cascade'lerini birleştiren sinyalin karma/noisy olmasına dayanır. Bu notice'ın `STM_012`/`STM_014` ile eşlenmesi reddedildi; yeni kural eklenmedi ve fark bilinçli Analytics coverage gap olarak tutulur.
-
-### Durak URL özgüllüğü
-
-`STP_034` ve `STP_035`, `stop_url` değerini acente ve hat URL'leriyle güvenli bir sözdizimsel anahtarla karşılaştırır ve düşük öncelikli Quality bulguları üretir. Şema/host harf büyüklüğü, kök `/` ve HTTP 80/HTTPS 443 varsayılan port farkları eşdeğer sayılır; query, fragment, path sonundaki `/` ve percent-encoding farkları korunur. Aynı normalize URL'yi kullanan duraklar tek aggregate bulguda toplanır; ayrıntıda etkilenen durak sayısı ve örnek kimlikler bulunur.
-
-### Hız Eşikleri
-
-| Parametre | Varsayılan | Aralık | Açıklama |
-|---|---:|---|---|
-| Maks. Otobüs Hızı | 120 km/h | 60–200 | Otobüs seferleri için maksimum izin verilen hız |
-| Maks. Tramvay Hızı | 100 km/h | 40–160 | Tramvay seferleri için maksimum izin verilen hız |
-| Maks. Metro Hızı | 150 km/h | 80–250 | Metro seferleri için maksimum izin verilen hız |
-| Maks. Demiryolu Hızı | 300 km/h | 100–400 | Demiryolu seferleri için maksimum izin verilen hız |
-| Maks. Feribot Hızı | 80 km/h | 20–150 | Feribot seferleri için maksimum izin verilen hız |
-| Maks. Teleferik Hızı | 30 km/h | 10–60 | Teleferik/füniküler için maksimum izin verilen hız |
-
-### Coğrafi ve Aktarma Eşikleri
-
-| Parametre | Varsayılan | Aralık | Açıklama |
-|---|---:|---|---|
-| Min. Aktarma Süresi | 180 sn | 30–1800 | Transferler için minimum bağlantı süresi |
-| Maks. Aktarma Mesafesi | 500 m | 50–2000 | Transfer geçerli sayılmak için maksimum mesafe |
-| Maks. Güzergah Sıçraması | 10 km | 1–50 | Art arda güzergah noktaları arasındaki maksimum mesafe |
-| Çok Yakın Durak Eşiği | 5 m | 1–20 | Bu mesafeden yakın duraklar tekrar sayılır |
-| Durağın Güzergaha Uzaklığı | 100 m | 20–500 | Durağın güzergahından en fazla bu kadar uzakta olabilir |
-| Üst İstasyona Uzaklık Eşiği | 100 m | 10–1000 | Durak, üst istasyonundan en fazla bu kadar uzakta olabilir |
-
-### Servis ve Operasyonel Eşikler
-
-| Parametre | Varsayılan | Aralık | Açıklama |
-|---|---:|---|---|
-| Son Kullanma Uyarısı | 30 gün | 1–60 | Feed bu kadar günden az kalmışsa uyarı üretilir |
-| Feed Bilgisi Son Kullanma Uyarısı | 7 gün | 1–60 | `FIN_019` için `feed_info.feed_end_date` bu pencere içinde bitiyorsa uyarı üretilir; varsayılan 7 gündür ve 30 günlük MobilityData paritesi `feed_info_expiry_warning_days=30` ile elde edilir |
-| Servis Boşluğu Eşiği | 7 gün | 3–30 | Bu günden uzun servis kesintisi işaretlenir |
-| Maks. Sefer Süresi | 24 saat | 8–72 | Tek bir seferin maksimum süresi |
-| Min. Sefer Süresi | 60 sn | 10–300 | Tek bir seferin minimum süresi |
-| Maks. Sefer Aralığı | 240 dk | 60–720 | Bu dakikadan uzun aralık uyarı üretir |
-| Sıkışma Eşiği | 2 dk | 1–10 | Bu dakikadan kısa aralık sıkışma sayılır |
-
----
-
-## Skorlar
-
-### Yayın Skoru (0–100)
-
-Feed'in resmi GTFS Schedule Reference'a göre yayınlanabilirlik durumunu ölçer. Skor **100'den başlar**; yayını engelleyen her sorun, kuralın ağırlığı ve düzeltme maliyetiyle orantılı bir ceza düşürür.
-
-**Skor nasıl oluşur:**
-- Yalnızca `Spec` sınıfındaki `Kritik` seviyeli sorunlar (resmi GTFS spec kapısı) Yayın Skorunu etkiler. `Interop` uyumluluk sinyalleri ayrı raporlanır (Interop Skoru / R8).
-- Aynı kural birden fazla kez tetiklenirse ceza **en fazla 2 katıyla** sınırlıdır; tek bir sorunun tüm skoru sıfırlaması engellenir.
-- **0–40:** Feed büyük olasılıkla tüketilemez. Blocker hatalar var.
-- **40–70:** Kısmi sorunlar mevcut, bazı uygulamalar reddedebilir.
-- **70–90:** Kullanılabilir, dikkat gerektiren noktalar var.
-- **90–100:** Yayına hazır.
-
-### Genel Skor (0–100)
-
-Spec, Interop, Quality ve Analytics sınıflarının ağırlıklı ortalamasıdır (Spec×40% + Interop×30% + Quality×20% + Analytics×10%). Spesifikasyon uyumunun ötesinde operasyonel veri kalitesini de yansıtır.
-
-**Skor nasıl oluşur:**
-- Dört sınıfın tümündeki sorunlar bu skoru etkiler.
-- `Spec` ve `Interop` sınıfları daha ağır; `Quality` ve `Analytics` veri kalitesi ve servis deseni boyutlarını temsil eder.
-- **0–60:** Önemli kalite sorunları, yolcu deneyimi etkileniyor olabilir.
-- **60–80:** Orta kalite, iyileştirme önerilir.
-- **80–100:** İyi veri kalitesi.
-
-> **Not:** Yayın Skoru ve Genel Skor farklı amaçlarla ve farklı formüllerle hesaplanır. Yayın Skoru yüksek ama Genel Skor düşük bir feed teknik olarak çalışır; ancak eksik erişilebilirlik bilgisi, hatalı güzergah isimleri gibi sorunlar yolcuları etkiler.
+Kural sınıflarının otorite kaynağı, ayarlanabilir eşikler, **Yayın Skoru** ile **Genel Skor**'un nasıl hesaplandığı ve büyük feed'lerde bulgu sınırları: [analiz belgesi](docs/analysis.tr.md).
 
 ---
 
@@ -636,7 +198,10 @@ Spec, Interop, Quality ve Analytics sınıflarının ağırlıklı ortalamasıd�
 ### 1. Rapor
 Genel özet: iki skor, feed metrikleri (hat sayısı, sefer sayısı, tarih aralığı vb.) ve sorun dağılım grafiği.
 
-### 2. Ayrıntı ve Düzeltme
+### 2. Planlamacılar İçin
+Aynı sonucun planlamacı diliyle anlatımı: yayın kararı, önce yayını engelleyen sorunlar, sonra iyileştirme önerileri; her konu için ne olduğu, ne yapılacağı ve nerede düzeltileceği, haritayla birlikte. Ayrıntılar yukarıdaki **Planlamacılar İçin** bölümünde.
+
+### 3. Ayrıntı ve Düzeltme
 Bulunan sorunlar öncelik puanına göre sıralanmış bir düzeltme kuyruğu olarak sunulur. Her satır şu bilgileri içerir:
 
 | Sütun | Açıklama |
@@ -649,10 +214,10 @@ Bulunan sorunlar öncelik puanına göre sıralanmış bir düzeltme kuyruğu ol
 
 Tüm satırların +Yayın toplamı `100 − mevcut Yayın Skoru`na, +Skor toplamı `100 − mevcut Genel Skor`a eşittir. Coğrafi sorunlarda harita ikonu görünür; tıklandığında sorunlu noktalar ve ilgili şekil/durak verileri interaktif haritada gösterilir. **Kural kodu**na tıklandığında ilgili GTFS spesifikasyon bölümü yeni sekmede açılır — bulgunun en çok etkilediği dosyanın referans sayfası (GTFS-JP kurallarında gtfs.jp).
 
-### 3. Kategori Bazlı
+### 4. Kategori Bazlı
 Tüm kural ihlalleri grup ve sınıfa göre listelenir. Her satırda kural kodu, başlık, etkilenen kayıt sayısı, önem seviyesi ve düzeltme önerisi yer alır. Filtreleme ve sıralama desteklenir.
 
-### 4. Dışa Aktar
+### 5. Dışa Aktar
 Raporu HTML, CSV veya JSON olarak indirir. PDF seçeneği tarayıcının yazdırma diyaloğunu açar — "PDF olarak kaydet" ile kaydedebilirsiniz.
 
 ---
@@ -708,10 +273,10 @@ Karşılaştırma tamamen tarayıcı içinde çalışır. Golden JSON tarayıcı
 
 | Sınıf | Ne ölçer | Hangi skoru etkiler |
 |---|---|---|
-| **Spec** | GTFS spesifikasyonuna aykırılık — zorunlu alan eksikliği, geçersiz değer, referans bütünlüğü hatası | Yayın |
-| **Interop** | Spese uygun ama yaygın tüketicilerin (Google Maps, Apple Maps vb.) reddettiği veya yanlış yorumladığı durumlar | Yayın |
-| **Quality** | İsteğe bağlı ama beklenen alanların eksikliği, tutarsızlıklar, en iyi pratikten sapmalar | Kalite |
-| **Analytics** | Servis deseni analizi — sıkışıklık, seyrek sefer, süresi dolmuş servis | Kalite |
+| **Spec** | GTFS spesifikasyonuna aykırılık — zorunlu alan eksikliği, geçersiz değer, referans bütünlüğü hatası | Yayın (yalnız Kritik) ve Genel |
+| **Interop** | Spese uygun ama yaygın tüketicilerin (Google Maps, Apple Maps vb.) reddettiği veya yanlış yorumladığı durumlar | Genel (Interop skoru) |
+| **Quality** | İsteğe bağlı ama beklenen alanların eksikliği, tutarsızlıklar, en iyi pratikten sapmalar | Genel |
+| **Analytics** | Servis deseni analizi — sıkışıklık, seyrek sefer, süresi dolmuş servis | Genel |
 
 ---
 
@@ -729,8 +294,8 @@ Karşılaştırma tamamen tarayıcı içinde çalışır. Golden JSON tarayıcı
 
 ### Spec severity rubric'i
 
-Spec kurallarında önem, requirement level + semantic impact birleşiminden; MobilityData'nın `ERROR/WARNING/INFO` etiketlerinden değil, ihlalin
-GTFS verisini tüketilebilirlik üzerindeki etkisinden türetilir:
+Spec kurallarında önem, requirement level + semantic impact birleşiminden, yani ihlalin
+GTFS verisinin tüketilebilirliği üzerindeki etkisinden türetilir:
 
 - **Kritik:** Required dosya/alan, primary-key veya foreign-key bütünlüğü ya da çekirdek tip/range ihlali; feed'in güvenilir biçimde tüketilmesini engeller ve `Spec + Kritik` yayın kapısıdır.
 - **Yüksek:** Feed parse edilebilir kalsa bile sefer, ücret, erişilebilirlik veya Flex/pathway semantiğini maddi biçimde değiştiren doğrudan normatif ihlal.
@@ -738,28 +303,9 @@ GTFS verisini tüketilebilirlik üzerindeki etkisinden türetilir:
 - **Düşük:** Dar etkili, metadata/opsiyonel alan ölçeğinde normatif sapma; yayın kapısını etkilemez.
 - **Bilgi:** Normatif Spec ihlali için kullanılmaz; yalnız ölçüm veya bağlam sinyalidir.
 
-Bu değişmez nedeniyle `Spec` sınıfında `Bilgi` kural bulunamaz. 2026-08-09 audit'inde 307
-Spec kuralı bu rubric ile yeniden incelendi; iki raw servis-günü kuralı (`STM_048` ve
-`STM_049`) Bilgi'den Yüksek'e alındı. Ayrıntılı ID envanteri [`docs/audits/spec-severity-rubric-2026-08-09.md`](docs/audits/spec-severity-rubric-2026-08-09.md)'dedir.
+Bu nedenle `Spec` sınıfında `Bilgi` seviyesinde kural yoktur.
 
 GTFS-JP feed'leri için **JPN** grubu kuralları, resmî [GTFS-JP spesifikasyonu](https://www.gtfs.jp/) (gtfs.jp) esas alınarak belirlenir.
-
----
-
-## Bulgu Sınırları
-
-Büyük feed'lerde aynı kural binlerce satırda tetiklenebilir. Sınırsız bulgu listesi hem tarayıcı belleğini zorlar hem de okunabilirliği düşürür. Bu nedenle iki katmanlı bir sınır uygulanır:
-
-| Sınır | Değer | Kapsam |
-|---|---|---|
-| Kural başına (varsayılan) | 500 | Tüm kurallar |
-| Kural başına (yüksek) | 2.000 | `TRP_020`, `OPR_007`, `STP_016`, `STP_017` |
-| Toplam (tüm kurallar) | — | Feed-geneli 100.000 durdurma sınırı yok |
-
-Bu 500/2.000 sınırları yalnızca tarayıcı/WASM görünümündeki performans örnekleridir; feed-geneli
-100.000'e ulaşınca doğrulamayı durduran bir kod yolu yoktur. CLI varsayılan olarak sınırsız
-notice üretir; `--json --max-notices-per-rule N` yalnız JSON çıktısında görünür bulguları sınırlar,
-R1/R5/R9 hesaplarını sınırlamaz.
 
 ---
 

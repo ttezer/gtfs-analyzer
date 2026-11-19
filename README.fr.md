@@ -3,27 +3,44 @@
 🇹🇷 [Türkçe](README.md) · 🇬🇧 [English](README.en.md) · 🇯🇵 [日本語](README.ja.md) · 🇫🇷 **Français**
 
 [![Ouvrir l’application](https://img.shields.io/badge/Ouvrir%20l%27application-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
-[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20100%25%20Couverture%20V%C3%A9rifiable%20par%20Machine%20%28avis%20humain%20et%20recommandations%20seules%20exclus%29-c8102e?style=flat)](https://www.gtfs.jp/)
+[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20100%20%25-c8102e?style=flat)](https://www.gtfs.jp/)
 [![Nombre de règles](https://img.shields.io/badge/r%C3%A8gles-621-blue?style=flat)](RULES.fr.md)
 ![Couverture de la spécification GTFS](https://img.shields.io/badge/Sp%C3%A9cification%20GTFS-97.2%25-007ec6?style=flat)
-[![Validation sur corpus](https://img.shields.io/badge/corpus-4%2C435%20jeux%20de%20donn%C3%A9es%20%C3%97%2026%20ex%C3%A9cutions-brightgreen?style=flat)](audit-results/)
 [![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
 [![Plugin ChatGPT](https://img.shields.io/badge/Plugin%20ChatGPT-GTFS%20Validator-10a37f?style=flat)](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)
 [![Plugin Claude](https://img.shields.io/badge/Plugin%20Claude-GTFS%20Validator-d97757?style=flat&logo=claude&logoColor=white)](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-yellow?style=flat)](LICENSE)
 
-GTFS Validator & Analyzer est un validateur GTFS et un analyseur de qualité de jeux de données open source. Un fichier `.zip` téléversé dans l’application navigateur n’est jamais envoyé à un serveur ; toute la validation s’exécute sur l’appareil de l’utilisateur via WebAssembly. L’outil est disponible sous huit formes : application navigateur, CLI (`cargo install gtfs-analyzer`), bibliothèque Rust, barrière CI/CD, paquet npm `gtfs-sdk`, paquet Python `gtfs-analyzer` et **GTFS Validator** dans ChatGPT et Claude.
+**GTFS Validator & Analyzer** est un **validateur GTFS** open source qui contrôle les fichiers GTFS et analyse la qualité des jeux de données. Un `.zip` téléversé dans l’application web n’est jamais envoyé à un serveur ; la validation s’exécute sur l’appareil de l’utilisateur avec **WebAssembly**. Le même moteur de **621 règles** est accessible de huit façons :
 
-Le projet couvre **97,2 % des exigences mesurables de la spécification GTFS** et rattache les 300 atomes de l’inventaire des champs à au moins une règle Spec. Sur ses **621 règles**, **415** ont produit au moins un signalement lors de la dernière exécution complète sur le catalogue de 4 435 jeux de données. Toutes les règles sont listées dans [`RULES.fr.md`](RULES.fr.md).
+| Voie | Idéal pour |
+|---|---|
+| **Navigateur** ([application](https://ttezer.github.io/gtfs-analyzer/)) | Examiner un jeu de données avec la carte et le rapport |
+| **CLI** (`cargo install gtfs-analyzer`, ou un binaire précompilé) | Validation par lots, scripts et intégration Python |
+| **Bibliothèque Rust** ([`gtfs-pipeline`](https://crates.io/crates/gtfs-pipeline)) | Intégrer la validation dans votre propre service Rust |
+| **CI/CD** (codes de sortie + `--fail-on`) | Une barrière de publication avant de diffuser un jeu de données |
+| **Paquet npm [`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk)** | Intégrer la validation dans votre application web ou Node |
+| **Paquet Python [`gtfs-analyzer`](https://pypi.org/project/gtfs-analyzer/)** (`pip install gtfs-analyzer`) | Intégrer la validation dans votre application Python |
+| **ChatGPT — [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)** | Valider un ZIP ou une URL dans une conversation et expliquer les signalements |
+| **Claude — [GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)** | Valider un ZIP, un chemin ou une URL avec `/gtfs` et expliquer les signalements |
 
-L’exactitude est éprouvée face au `gtfs-validator` officiel de MobilityData au fil de **vingt-six exécutions complètes sur le catalogue**. Chaque exécution valide tous les jeux de données GTFS Schedule testables du catalogue — **4 435** lors de la dernière en date — avec les deux validateurs sur la même machine et à la même date, en utilisant réellement le `gtfs-validator v8.0.1` Java. Les sorties brutes sont disponibles dans [`audit-results/`](audit-results/).
+## Fonctionnalités clés
 
-GTFS Validator & Analyzer ne se contente pas de vérifier la conformité d’un fichier à la spécification ; il analyse aussi la fiabilité, la cohérence et l’exploitabilité du jeu de données. Il présente chaque erreur avec le fichier et le numéro de ligne concernés, fournit des étapes de correction pour chaque signalement, et localise sur une carte interactive les problèmes géographiques — tracés déviants, coordonnées erronées ou arrêts inatteignables.
-
-Chaque signalement porte un code de règle, une classe d’analyse et un niveau de gravité. Grâce aux classes Spec · Interop · Quality · Analytics et aux niveaux de gravité Critique → Info, des milliers de signalements peuvent être filtrés, priorisés et traités méthodiquement. L’outil détecte également de façon automatique les fonctionnalités GTFS utilisées par le jeu de données — tracés, correspondances, tarifs, girouettes, Flex, etc. — et les intègre au rapport.
-
-GTFS Validator & Analyzer prolonge la validation de la spécification par une analyse de qualité opérationnelle. Incohérences de fréquence par ligne, segments à vitesse anormale, arrêts isolés, ruptures dans les schémas de service et problèmes de topologie du réseau sont examinés à l’aide de 621 règles distinctes de validation et d’analyse. Les résultats sont synthétisés par des scores de publiabilité et de qualité globale du jeu de données. La file de correction priorisée indique quels problèmes traiter en premier et l’effet probable de chaque correction sur le score.
+- **621 règles de validation et d’analyse**, en 38 groupes ; **97,2 %** des exigences mesurables de la spécification GTFS sont couvertes et **les 300 atomes** de l’inventaire des champs portent au moins un ancrage Spec. Liste complète : [`RULES.fr.md`](RULES.fr.md).
+- **Exécution locale :** le navigateur, la CLI, les bibliothèques et les paquets npm/Python traitent le jeu de données sur votre propre appareil.
+- **Qualité et exploitation au-delà de la conformité Spec :** segments de vitesse anormaux, incohérences de fréquence, arrêts isolés, interruptions de service, topologie du réseau.
+- **Quatre classes, cinq niveaux de gravité :** chaque constat est étiqueté Spec · Interop · Quality · Analytics et Critique → Info ; des milliers de constats se filtrent et se priorisent.
+- **Deux scores :** le **score de publication** et le **score global** pondéré des quatre classes.
+- **File de correction priorisée :** ce qu’il faut traiter d’abord et l’effet probable de la correction sur le score.
+- **Fichier, ligne et étape de correction pour chaque constat.**
+- **Page Pour les planificateurs :** transforme le rapport technique en une liste de tâches en langage clair pour les planificateurs qui ne connaissent pas GTFS (ci-dessous).
+- **Carte :** les problèmes d’arrêts, de tracés, de courses, de lignes et de cheminements sont dessinés sur la géométrie réelle du tracé.
+- **Validation GTFS Flex et Fares v2** ; les fonctionnalités GTFS utilisées par le jeu (Shapes, Transfers, Fares, Headsigns, Flex…) sont détectées automatiquement.
+- **Profil GTFS-JP :** le profil national japonais est reconnu automatiquement, v3 et v4 contrôlés séparément.
+- **Sorties :** HTML, CSV, JSON, JSON compact et rapport de direction PDF ; comparaison entre deux analyses.
+- **Barrière CI/CD :** `--fail-on` et les codes de sortie n’arrêtent le pipeline qu’à la classe/gravité choisie.
+- **Quatre langues d’interface :** turc, anglais, japonais, français.
 
 **À qui s’adresse-t-il ?**
 
@@ -34,595 +51,144 @@ GTFS Validator & Analyzer prolonge la validation de la spécification par une an
 
 ---
 
-## Comparaison avec d’autres outils
+## Pour les planificateurs
 
-### Matrice de fonctionnalités
+La page **Pour les planificateurs** de l’application web présente le même résultat d’analyse dans la langue du planificateur plutôt que dans un rapport technique ; elle ne produit aucun nouveau constat, elle simplifie le résultat de l’Analyzer.
 
-| Fonctionnalité | MobilityData | GTFS Analyzer |
-|---|:---:|:---:|
-| Interface web | ✅ | ✅ |
-| Les données ne quittent jamais le navigateur | ❌ | ✅ |
-| Règles de conformité à la spécification | ✅ | ✅ |
-| Règles de qualité | ❌ | ✅ |
-| Analytique opérationnelle | ❌ | ✅ |
-| Visualisation cartographique | ❌ | Arrêts, lignes, courses, tracés, cheminements |
-| Score du jeu de données | ❌ | ✅ |
-| Aide à la correction | Partielle | ✅ |
-| Prise en charge de GTFS Flex | Partielle | ✅ |
-| Validation Tarifs v2 | Partielle | ✅ |
-| Validation du profil GTFS-JP | ❌ | ✅ |
-| Formats de sortie | HTML, JSON | HTML, CSV, JSON, PDF |
-| Distribution | Web · installeurs bureau (msi/dmg/deb) · JAR CLI · Docker | Web · binaire CLI · `cargo install` · SDK npm · PyPI |
-| Intégration CI/CD documentée | Non documentée dans le README (possible via Docker/CLI) | ✅ `--fail-on` + codes de sortie |
-| Paquet npm | ❌ | ✅ `gtfs-sdk` |
-| Paquet crates.io | — *(projet Java)* | ✅ `gtfs-analyzer` |
-| Couverture de la spécification GTFS (mesurée) | — | **97,2 %** · 300/300 ancrages de champs |
-| **Nombre total de règles** | **178** | **621** |
+- **Un verdict en une phrase :** le jeu de données peut-il être publié, et combien de sujets bloquent la publication.
+- **Deux listes :** d’abord les problèmes qui bloquent la publication, puis les suggestions d’amélioration qui ne la bloquent pas — par ordre de priorité.
+- **Une fiche par sujet :** ce que c’est, quoi faire et **où corriger**, avec le code de ligne, le nom d’arrêt et l’heure de départ que connaît le planificateur au lieu des noms de fichiers et de colonnes.
+- **Sur la carte :** les arrêts, lignes et courses concernés sont dessinés sur la géométrie réelle du parcours.
+- **Fiches en cinq langues :** turc, anglais, japonais, français et espagnol.
 
-### Validation sur corpus
+---
 
-L’exactitude ne se démontre pas avec une poignée de jeux de données. Chaque version est exécutée sur **l’intégralité du catalogue GTFS Schedule de MobilityDatabase** — **4 435 jeux de données** lors de la dernière exécution, répartis sur 640 fragments parallèles. En face se trouve le **`gtfs-validator` v8.0.1** de MobilityData, exécuté lui aussi sur la même archive plutôt que lu depuis ses rapports publiés : la différence porte donc sur « qui a trouvé quoi », et non sur « quel rapport a été produit quand ».
+## Nos résultats sur corpus
 
-D’après la dernière exécution (`40411348163` : 4 435 jeux tentés, 4 403 ZIP valides téléchargés et les deux validateurs ayant abouti sur **4 390** jeux) :
+Chaque version est exécutée sur **l’intégralité du catalogue GTFS Schedule de MobilityDatabase**. Dernière exécution (`44474551308`, 2026-11-19) :
 
-| | GTFS Analyzer | MobilityData |
-|---|---|---|
-| Temps d’exécution médian | **0,05 s** | 2,77 s |
-| Pic mémoire médian | **15 Mo** | 332 Mo |
-| ZIP téléchargés non terminés | **0** | 13 |
-| Faits vus par MobilityData et pas par nous | **0** | — |
-| Temps d’exécution total | **78,3 min** | 351,3 min |
+| | |
+|---|---:|
+| Jeux de données tentés | **4 479** |
+| ZIP valides téléchargés | **4 447** |
+| Analyse terminée | **4 447** (sans échec) |
+| Rapport partiel (fichier cassé/manquant ignoré sans risque) | 76 |
+| Pays | 96 |
+| Règles déclenchées | 423 / 621 |
+| Durée médiane par jeu | **0,05 s** (p90 1,1 s) |
+| Mémoire maximale médiane par jeu | **15 MB** (p90 152 Mo) |
+| Durée totale | 77,8 min |
 
-GTFS Analyzer a terminé les 4 403 ZIP téléchargés. `mdb-2014`, agrégat BODS UK de 1 282 Mo compressé et 7 452 Mo décompressé, est désormais exclu explicitement lors de la sélection après avoir arrêté son fragment lors de deux tentatives ; l’exclusion reste enregistrée. Les 13 exécutions incomplètes de MobilityData se répartissent en 8 partielles, 3 sans rapport et 2 dépassements de délai.
+**Vitesse.** L’ensemble du catalogue, 23,8 Go de GTFS compressé, a été validé en **77,8 minutes** sur une machine CI à 4 cœurs :
 
-⚠️ **Le rapport de vitesse médian varie fortement selon la taille du jeu de données et ne peut se résumer à un seul facteur :** **~123×** en dessous de 1 Mo (approximatif, les temps de l’analyseur étant enregistrés à 10 ms près), 11,1× entre 1 et 5 Mo, 4,8× entre 5 et 20 Mo, 2,8× entre 20 et 100 Mo et **2,0×** au-delà de 100 Mo. 71 % du corpus pèse moins de 1 Mo, si bien que le rapport médian reflète surtout le coût de démarrage de la JVM. L’avantage mémoire est plus stable sur toutes les tranches.
-
-Les sorties brutes se trouvent dans [`audit-results/`](audit-results/) — les sept premières exécutions sont versionnées, les suivantes sont archivées sous forme de préversion `audit-<run-id>`.
-
-### Exemples d’analyse de jeux de données
-
-Les chiffres ci-dessous proviennent de l’exécution `40411348163` : même archive et même date d’analyse (2026-08-20), MobilityData utilisant le `gtfs-validator v8.0.1` Java. Les temps sont, des deux côtés, l’horloge murale sur la même machine. Les tailles ZIP et les signalements viennent de l’artefact ; les sha256 de BART, TriMet et VBB ont été revérifiés. Le `latest.zip` de Tokyo ayant changé après l’exécution, les nombres structurels impossibles à revérifier sur l’ancienne archive sont omis.
-
-#### BART (Bay Area Rapid Transit, San Francisco)
-
-Jeu de données : `mdb-53` · 14 lignes, 291 arrêts, 6 377 courses · 1,0 Mo
-
-| | MobilityData | GTFS Analyzer |
+| Durée de validation | Jeux de données | Part |
 |---|---:|---:|
-| Signalements totaux | 2 716 | 1 027 |
-| Critique / Error | 2 | 2 |
-| Élevé / Warning | 2 653 | 2 |
-| Moyen | — | 13 |
-| Faible | — | 10 |
-| Info | 61 | 1 000 |
-| Types de règles déclenchés | 13 | **38** |
-| Temps de validation | 3,03 s | **0,22 s** |
-| Score de publication | — | **92,6 / 100** |
-| Score global | — | **92,3 / 100** |
+| Moins de 0,1 seconde | 2 778 | **62,5 %** |
+| Moins de 1 seconde | 3 973 | **89,3 %** |
+| Moins de 10 secondes | 4 371 | **98,3 %** |
+| Moins de 1 minute | 4 437 | **99,8 %** |
 
-#### TriMet (Portland, Oregon)
+**Mémoire.** Mémoire maximale par jeu de données : **moyenne 102 Mo, médiane 15 Mo**.
 
-Jeu de données : `mdb-247` · 82 lignes, 6 031 arrêts, 67 957 courses · 41,4 Mo
-
-| | MobilityData | GTFS Analyzer |
+| Mémoire maximale | Jeux de données | Part |
 |---|---:|---:|
-| Signalements totaux | 31 | 4 690 |
-| Critique / Error | 0 | 0 |
-| Élevé / Warning | 20 | 1 |
-| Moyen | — | 33 |
-| Faible | — | 692 |
-| Info | 11 | 3 964 |
-| Types de règles déclenchés | 8 | **40** |
-| Temps de validation | 21,22 s | **6,70 s** |
-| Score de publication | — | **100 / 100** |
-| Score global | — | **95,1 / 100** |
+| Moins de 100 Mo | 3 849 | **86,6 %** |
+| Moins de 500 Mo | 4 279 | **96,2 %** |
+| Moins de 1 Go | 4 366 | **98,2 %** |
+| Moins de 4 Go | 4 437 | **99,8 %** |
 
-> Ce jeu de données est conforme à la spécification : les deux outils signalent zéro constat critique et un score de publication de 100. L’écart du nombre de règles reflète l’analyse de qualité opérationnelle supplémentaire de GTFS Analyzer.
+Les plus gros jeux de données se terminent aussi en quelques minutes :
 
-#### Tokyo Toei (Bureau des transports de la métropole de Tokyo)
+| Jeu de données | ZIP | Décompressé | Durée | Mémoire maximale |
+|---|---:|---:|---:|---:|
+| Suède entière (Trafiklab, `mdb-2939`) | 908 Mo | 4,5 Go | 3 min 15 s | 11,3 Go |
+| Bade-Wurtemberg (NVBW, `mdb-2393`) | 700 Mo | 4,6 Go | 1 min 44 s | 8,7 Go |
+| Allemagne entière (DELFI, `mdb-3215`) | 589 Mo | 4,9 Go | 4 min 19 s | 13,2 Go |
+| Entur (`mdb-1078`) | 554 Mo | 3,4 Go | 1 min 31 s | 6,3 Go |
+| Grande-Bretagne entière (BODS, `mdb-2014`) | 1,34 Go | 7,8 Go | 1 min 58 s | 10,5 Go |
+| Tchéquie (`mdb-2904`) | 86 Mo | 0,85 Go | 26 s | 4,1 Go |
 
-Jeu de données : `mdb-3175` · 6,8 Mo · **profil GTFS-JP**
+Les tables de ces jeux de données sont elles aussi énormes ; chaque ligne est lue et contrôlée :
 
-| | MobilityData | GTFS Analyzer |
-|---|---:|---:|
-| Signalements totaux | 1 673 | 3 095 |
-| Critique / Error | 0 | 0 |
-| Élevé / Warning | 301 | 10 |
-| Moyen | — | 2 182 |
-| Faible | — | 518 |
-| Info | 1 372 | 385 |
-| Types de règles déclenchés | 11 | **50** |
-| Temps de validation | 8,30 s | **2,12 s** |
-| Score de publication | — | **100 / 100** |
-| Score global | — | **87,6 / 100** |
+| Jeu de données | `stop_times` | Courses | Points de tracé | Exceptions de calendrier | Correspondances | Durée |
+|---|---:|---:|---:|---:|---:|---:|
+| Allemagne entière (DELFI, `mdb-3215`) | **65,1 millions** | 3,17 millions | 10,5 millions | 456 k | 1,07 million | 4 min 19 s |
+| Suisse entière (SKI+, `mdb-2898`) | **42,6 millions** | 2,62 millions | — | **10,5 millions** | 1,12 million | 2 min 16 s |
+| Bade-Wurtemberg (NVBW, `mdb-2393`) | 6,5 millions | 373 k | **57,5 millions** | 340 k | 106 k | 1 min 44 s |
+| Buenos Aires (Colectivos, `mdb-1220`) | **29,3 millions** | 436 k | 756 k | 95 | — | 44 s |
+| Bogotá (SIMUR, `mdb-3358`) | 9,6 millions | 182 k | 942 k | 126 | — | 19 s |
+| Grande-Bretagne entière (BODS, `mdb-2014`) | **59,7 millions** | 1,55 million | **40,2 millions** | 232 k | — | 1 min 58 s |
+| Tchéquie (`mdb-2904`) | 9,6 millions | 494 k | — | **4,4 millions** | — | 26 s |
 
-> Le profil GTFS-JP ne produit aucun faux positif sur ce jeu de données japonais réel : il est conforme à la spécification (0 critique, score de publication 100), et les règles de profil n’examinent que les exigences propres au Japon. 1 673 des constats moyens sont `JPN_001` (nom d’arrêt sans lecture kana ja-Hrkt) : une recommandation de qualité, pas une violation de la spécification.
+Les 29,3 millions de lignes `stop_times` de Buenos Aires sont validées avec les 621 règles en 44 secondes : environ **666 000 lignes par seconde**.
 
-#### VBB (Communauté de transport Berlin-Brandebourg)
+Le jeu de données DELFI pour toute l’Allemagne et deux jeux régionaux de Nouvelle-Aquitaine (77 et 83 Mo) font partie des jeux que le `gtfs-validator` de MobilityData a interrompus sur une erreur interne lors de cette exécution ; GTFS Analyzer les a validés tous les trois jusqu’au bout.
 
-Jeu de données : `mdb-782` · 1 254 lignes, 41 904 arrêts, 183 349 courses, 14 189 tracés · **62,5 Mo**
+**Taille.** Il n’y a pas de limite fixe de taille. Le seul plafond est une protection de 16 Go sur les données décompressées contre les bombes zip ; dans le navigateur, ceux qui prennent en charge Memory64 utilisent le moteur WASM64 et c’est la mémoire de l’appareil qui fixe la limite.
 
-| | MobilityData | GTFS Analyzer |
-|---|---:|---:|
-| Signalements totaux | 11 573 | 19 979 |
-| Critique / Error | 5 | 0 |
-| Élevé / Warning | 10 704 | 788 |
-| Moyen | — | 3 739 |
-| Faible | — | 5 626 |
-| Info | 864 | 9 826 |
-| Types de règles déclenchés | 19 | **83** |
-| Temps de validation | 35,36 s | **15,79 s** |
-| Score de publication | — | **100 / 100** |
-| Score global | — | **79,7 / 100** |
+Le plus gros jeu de données du catalogue, **BODS pour toute la Grande-Bretagne** (`mdb-2014`) : 7,8 Go de données et 59,7 millions de lignes `stop_times` sont validés en **moins de 2 minutes**, et le jeu s’ouvre aussi de bout en bout **dans le navigateur**.
 
-> 🇩🇪 **Jeu de données volumineux :** le validateur web hébergé de MobilityData ne peut pas traiter un jeu de données de cette taille. GTFS Analyzer le valide directement dans le navigateur, sans envoyer le fichier à un serveur. Plus de la moitié du total de MobilityData (6 818) est `non_ascii_or_non_printable_char` : des ü/ö/ä/ß dans des champs d’identifiant (par exemple `zone_id` `7958 Prösen, Bahnhof`). La spécification recommande l’ASCII imprimable pour les identifiants ; GTFS Analyzer le signale par un résumé `ARC_037` par fichier. Les 5 erreurs de MobilityData (`pathway_unreachable_location`) apparaissent chez nous comme `PTH_012` (élevé, résumé au niveau du jeu de données).
+Le jeu de données **tchèque** (`mdb-2904`) est réellement défectueux, avec 494 000 courses et 1,07 million de constats : il est validé en **26 secondes** et s’ouvre aussi **dans le navigateur**.
+
+Les rapports partiels ne sont pas des échecs : pour les jeux dont les fichiers sont dans un sous-dossier au lieu de la racine du ZIP (48), auxquels il manque un fichier obligatoire (22) ou dont le fichier de géométrie dépasse la limite de sécurité (6), les contrôles indépendants se poursuivent et les contrôles ignorés sont listés dans le rapport. Résultats bruts : [`audit-results/`](audit-results/).
 
 ---
 
 ## Prise en charge de GTFS-JP
 
-GTFS Analyzer reconnaît automatiquement **GTFS-JP**, le profil GTFS national du Japon (norme 国土交通省 / MLIT), et applique les exigences que GTFS-JP rend obligatoires là où le GTFS standard les laisse facultatives. Le MLIT imposant aux exploitants subventionnés de publier du GTFS-JP, des centaines de petits exploitants doivent se conformer à ce profil — alors que les validateurs courants ne vérifient pas ses obligations spécifiques.
+GTFS Analyzer reconnaît automatiquement **GTFS-JP**, le profil GTFS national du Japon (国土交通省 / norme MLIT), et applique les règles que GTFS-JP rend obligatoires là où GTFS standard les laisse facultatives. Comme le MLIT impose aux exploitants subventionnés de publier en GTFS-JP, des centaines de petits exploitants doivent se conformer à ce profil.
 
-**Détection automatique.** Un jeu de données est marqué GTFS-JP — et un badge **GTFS-JP** apparaît dans le rapport — lorsqu’il contient les fichiers GTFS-JP actuels (`agency_jp.txt`, `office_jp.txt`, `pattern_jp.txt`) ou le fichier `routes_jp.txt` conservé pour la compatibilité, lorsque `feed_info.feed_lang` est une étiquette BCP-47 valide dont le sous-étiquette principale est `ja` (par exemple `ja-JP`), lorsque `translations.txt` porte des lectures kana (`ja-Hrkt`), lorsqu’un exploitant a à la fois `agency_lang=ja` et `agency_timezone=Asia/Tokyo`, ou lorsque `agency_name` ou `stop_name` contient des kana japonais. `routes_jp.txt` n’est pas un fichier v3 ; il n’est reconnu que pour la compatibilité des jeux de données hérités. Le signal kana récupère les jeux japonais dont les métadonnées de langue et de fuseau horaire sont erronées ; les kanji seuls sont ambigus avec les noms chinois et taïwanais. Avec le profil **auto** comme avec un profil `v3` ou `v4` explicite, ces signaux sont nécessaires pour activer la validation JPN ; le profil ne choisit que le périmètre de validation. En v4, les règles propres aux extensions v3 ne s’exécutent pas.
+- **Détection automatique :** les fichiers d’extension GTFS-JP (`agency_jp.txt`, `office_jp.txt`, `pattern_jp.txt`, l’ancien `routes_jp.txt`), `feed_lang=ja`, des traductions en kana (`ja-Hrkt`), `agency_lang=ja` + `Asia/Tokyo` ou du kana japonais dans les champs de nom marquent le jeu comme GTFS-JP ; le rapport affiche un badge **GTFS-JP**.
+- **Choix du profil :** dans l’application web **Critères d’analyse → portée du profil GTFS-JP** (`Auto`, `V3`, `V4`) ; en CLI `--gtfs-jp-profile v3|v4` ; dans le SDK `config: { gtfs_jp_profile: 'v3' }`. Ce choix ne détecte pas la version officielle du jeu ; il fixe seulement la portée des règles.
+- **Couverture à 100 % de ce qui se contrôle automatiquement :** avec un profil V3 ou V4 explicite, toutes les dispositions MLIT contrôlables automatiquement sont couvertes par des règles ; celles qui demandent un jugement humain ou ne sont que des recommandations sont hors champ.
+- **Règles :** les règles du profil sont dans le groupe **JPN** et ne s’exécutent que sur les jeux GTFS-JP ; liste complète dans [`RULES.fr.md`](RULES.fr.md).
 
-**Choisir le profil d’une analyse.** Dans l’application web, ouvrez **Critères d’analyse** avant de choisir le ZIP et sélectionnez `Auto`, `V3` ou `V4` sous **Profil de validation GTFS-JP**. La sélection est prise en compte au moment où vous choisissez un jeu de données, avant le démarrage de la validation automatique ; `Auto` est la valeur par défaut. Pour la CLI, utilisez `--gtfs-jp-profile v3` ou `--gtfs-jp-profile v4`. Dans le SDK, passez `config: { gtfs_jp_profile: 'v3' }` ou `'v4'`. Ce choix définit la portée de validation ; il ne déduit pas la version GTFS-JP officielle du jeu de données. Voir la [matrice de compatibilité GTFS-JP v3/v4](docs/gtfs-jp-v3-v4-matrix.md) pour le détail des différences.
+### Suivi des profils et pages de différences
 
-**Badge de couverture vérifiable par machine.** Le badge **GTFS-JP v3/v4 · couverture vérifiable par machine à 100 % (avis humain et recommandations seules exclus)** d’un profil V3 ou V4 explicitement sélectionné signifie que toutes les dispositions MLIT fortes et souples appliquées par le profil et associées à une règle Analyzer sont couvertes. L’avis humain, la vérification externe et les recommandations dont l’absence ne constitue pas une non-conformité sont exclus du dénominateur ; `Auto` ne revendique pas une couverture par version. Le badge ne déduit pas la version GTFS-JP officielle du jeu de données.
-
-**Règles de profil (groupe JPN).**
-
-| Règle | Contrôle |
+| Page | Ce qu’elle montre |
 |---|---|
-| **JPN_001** | Lecture kana (よみがな — `translations.txt`, `ja-Hrkt`) des noms d’arrêt ; exigée par GTFS-JP pour les annonces sonores et la recherche |
-| **JPN_002** | `jp_office_id` (dans `trips.txt` **ou** `routes.txt`) doit correspondre à un `office_id` défini dans `office_jp.txt` (intégrité référentielle du bureau d’exploitation) |
-| **JPN_003** | L’`agency_id` de `agency_jp.txt` doit être défini dans `agency.txt` (intégrité référentielle de l’exploitant) |
-| **JPN_004** | `translations.txt` doit être présent — obligatoire en GTFS-JP (notamment pour les lectures kana) |
-| **JPN_005** | `office_name` (champ obligatoire) doit être renseigné dans `office_jp.txt` |
-| **JPN_006** | V3/Auto : couverture MOYENNE ; V4 : fichier absent INFO/examen manuel, vide/inutilisable MOYENNE |
-| **JPN_007** | `feed_info.txt` doit être présent — obligatoire en GTFS-JP |
-| **JPN_008** | Lectures kana indépendantes pour `route_short_name` et `route_long_name` japonais |
-| **JPN_009** | Lecture kana (`ja-Hrkt`) de `trip_headsign` |
-| **JPN_010** | Lecture kana (`ja-Hrkt`) du nom de l’exploitant (`agency_name`) |
-| **JPN_011** | `agency_id` est obligatoire dans `agency.txt` et `routes.txt` |
-| **JPN_012** | `agency_jp.agency_id` est obligatoire et doit identifier un enregistrement de `agency.txt` |
-| **JPN_013** | Lorsqu’il est présent, `agency_zip_number` doit contenir exactement 7 chiffres ASCII |
-| **JPN_014** | `office_jp.office_id` doit être présent et unique |
-| **JPN_015** | Contrôle de compatibilité hérité de `routes_jp.route_id`, en profils V3 et Auto ; ce n’est pas un fichier v3 |
-| **JPN_016** | `pattern_jp.route_update_date` en V3 ; format de date de `routes_jp.route_update_date` hérité en profils V3 et Auto |
-| **JPN_017** | `pattern_jp.jp_pattern_id` doit être présent et unique |
-| **JPN_018** | Lorsque `pattern_jp.txt` existe, `trips.jp_pattern_id` doit le référencer |
-| **JPN_019** | Les enregistrements `ja-Hrkt` doivent viser des tables, champs, enregistrements et sous-enregistrements GTFS valides |
-| **JPN_020** | `office_url` et `office_phone` font l’objet de contrôles de format élémentaires |
-| **JPN_021** | Les traductions `ja-Hrkt` doivent être non vides, cohérentes et contenir des kana |
-| **JPN_022** | Champs principaux GTFS-JP v4 et colonne `location_type` ; une cellule vide vaut `0` |
-| **JPN_023–026** | Les profils explicites exigent `feed_lang=ja`, `agency_lang=ja`, `agency_timezone=Asia/Tokyo` et `currency_type=JPY` |
-| **JPN_027** | Profil V3 explicite : toute valeur numérique de `route_type` doit être `3` ; hors Auto/V4 |
-| **JPN_028** | Traductions `ja-Hrkt` V3 obligatoires restantes |
-| **JPN_029** | Lectures V4 regroupées par valeur source, nombre de lignes et jusqu’à 5 exemples |
-| **JPN_030** | Traductions `language=ja` V3 obligatoires restantes |
-| **JPN_031** | V3/V4 : `zone_id` conditionnel via les liens tarif→ligne→course→arrêt |
-| **JPN_032** | V3 strict : `agency_id` utilise un corps de 13 chiffres de numéro d’entreprise, avec suffixe de branche non vide facultatif |
-| **JPN_033** | V3/V4 : l’espace de noms réservé `jp` est interdit dans les noms de fichiers et de champs personnalisés, selon le profil |
-
-La comparaison **Tokyo Toei** ci-dessus montre le comportement du profil sur un jeu de données GTFS-JP réel : le jeu est conforme à la spécification (0 critique) et les règles de profil ne produisent aucun faux positif sur des données correctement référencées.
+| [GTFS-JP Monitor](https://ttezer.github.io/gtfs-jp-monitor/) | Résultats du profil GTFS-JP des jeux japonais |
+| [GTFS-FR Monitor](https://ttezer.github.io/gtfs-fr-monitor/) | Résultats des jeux de données français |
+| [Matrice de compatibilité GTFS-JP v3/v4](docs/gtfs-jp-v3-v4-matrix.md) | Différences de règles entre v3 et v4 |
 
 ---
 
-## Utilisation
+## ChatGPT et Claude : posez la question dans votre langue, recevez la réponse dans votre langue
 
-GTFS Validator & Analyzer est une application web — aucune installation nécessaire. Ouvrez la version en ligne dans votre navigateur et téléversez votre fichier ZIP GTFS.
+GTFS Validator fonctionne comme extension dans ChatGPT et dans Claude. Donnez votre jeu de données dans la conversation et obtenez le résultat **dans la langue de votre question** : en français si vous demandez en français, en japonais si vous demandez en japonais. Le moteur GTFS Analyzer calcule la validation et les scores ; l’IA explique le résultat, résume clairement les corrections prioritaires et ne modifie pas les scores.
 
-Le moteur d’exécution est choisi automatiquement selon les capacités du navigateur : ceux qui prennent en charge Memory64 utilisent
-**WASM64** pour les jeux de données dépassant 4 Go ; les autres utilisent **WASM32**. Le moteur actif est
-indiqué sur l’écran de téléversement. Pour le diagnostic, utilisez `?wasm32=1`, `?wasm64=1` ou `?serial=1`.
+### ChatGPT — GTFS Validator
 
-**→ [https://ttezer.github.io/gtfs-analyzer/](https://ttezer.github.io/gtfs-analyzer/)**
+Ouvrez la [page GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c) de ChatGPT et ajoutez l’application. Tapez `/gtfs` et téléversez un ZIP GTFS, donnez l’URL publique d’un jeu de données, ou demandez ce que signifie une règle comme `/gtfs TRP_002`.
 
-1. Glissez-déposez votre fichier ZIP GTFS, ou utilisez le sélecteur de fichiers.
-2. La validation démarre automatiquement ; la progression s’affiche étape par étape.
-3. Une fois terminée, les scores de publication et global apparaissent avec les onglets du rapport détaillé.
-4. Pour comparer avec une analyse antérieure, ouvrez **Comparer** et téléversez son fichier Golden JSON. Les règles corrigées, nouvelles, en baisse et en hausse sont présentées avec l’évolution des scores, des dates du jeu de données et de la densité de signalements normalisée.
-5. Pour un livrable partageable, ouvrez **Exporter → Rapport de direction PDF**, choisissez la langue du rapport, puis utilisez **Imprimer / Enregistrer en PDF** dans l’aperçu.
+### Claude — GTFS Validator
 
-### GTFS Validator dans ChatGPT
+Ajoutez l’[extension GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory) dans Claude. Tapez `/gtfs` et joignez un ZIP GTFS, donnez un chemin de fichier ou l’URL publique d’un jeu de données, ou posez une question sur une règle comme `/gtfs TRP_002`. L’extension utilise l’exécution de code ; sur claude.ai elle doit être activée, et il faut y joindre le jeu de données en ZIP plutôt qu’en URL.
 
-Pour analyser un jeu de données dans une conversation, ouvrez la
-[page GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c).
-Vous pouvez téléverser un ZIP GTFS, fournir
-l’URL publique d’un jeu de données ou demander l’explication d’une règle telle
-que `TRP_002`. Le moteur GTFS Analyzer effectue toujours la validation et le
-calcul des scores ; ChatGPT explique le résultat et résume les corrections
-prioritaires sans recalculer les scores.
-
-Contrairement à l’application navigateur, le parcours ChatGPT traite
-temporairement le jeu de données par le service MCP de GTFS Validator pendant
-la requête. Le contenu du jeu et le rapport de validation ne sont pas
-intentionnellement conservés après le traitement. Pour des données qui ne
-doivent pas quitter votre organisation, utilisez le navigateur, la CLI ou un
-paquet local.
-
-### GTFS Validator dans Claude
-
-Pour analyser un jeu de données dans Claude, ajoutez le
-[plugin GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory). Tapez `/gtfs` et joignez un ZIP GTFS, indiquez un
-chemin local ou l’URL publique d’un jeu de données, ou demandez l’explication d’une
-règle telle que `/gtfs TRP_002`. Le moteur GTFS Analyzer effectue la validation et
-le calcul des scores ; le plugin ne recalcule pas les scores et ne modifie pas le
-verdict de publication.
-
-L’analyse s’exécute là où Claude s’exécute : dans l’environnement d’exécution de
-code de Claude sur claude.ai, ou sur votre propre ordinateur dans Claude Code. Le
-plugin installe le paquet `gtfs-analyzer` depuis PyPI (version épinglée) ; le jeu de
-données n’est envoyé à aucun serveur exploité par le plugin et rien n’est conservé.
-L’exécution de code doit être activée ; en conversation, l’environnement ne peut
-pas télécharger depuis une URL, joignez donc le ZIP.
-
-### Rapport de direction PDF
-
-Le **Rapport de direction PDF** transforme les résultats détaillés de validation en un document lisible, à code couleur, prêt pour l’impression A4, destiné aux décideurs et aux producteurs de données. Il est généré exclusivement à partir des résultats de **GTFS Analyzer** et n’intègre ni la sortie d’un autre validateur ni une comparaison externe.
-
-Le rapport contient :
-
-- l’état de publication, le score de publication, le score global et les composantes Spec · Interop · Quality · Analytics ;
-- un profil du jeu de données couvrant arrêts, lignes, courses, tracés, jours de service et plages de dates ;
-- des actions **P0 / P1 / P2** dédupliquées, combinant les bloquants de publication R1 et le classement impact/effort R9 ;
-- pour chaque signalement prioritaire : preuve, impact, correction recommandée, nombre réel d’occurrences concernées et gain de score potentiel ;
-- des observations structurelles propres au jeu de données, un plan de correction par phases, les répartitions par gravité et par classe, ainsi qu’une annexe technique.
-
-Même lorsque l’interface ne conserve qu’un nombre limité d’exemples de signalements pour des raisons de performance, le rapport utilise les **décomptes agrégés réels** de `capped_totals` lorsqu’ils sont disponibles. Le document peut être généré en turc, anglais, japonais ou français, indépendamment de la langue de l’interface. La génération et l’impression se déroulent entièrement dans le navigateur : les données GTFS ne sont pas téléversées vers un serveur et aucune API externe n’est requise.
-
-> Les scores du rapport évaluent le jeu de données GTFS téléversé ; ils ne mesurent ni la performance ni la précision de GTFS Analyzer lui-même.
-
-> Pour l’auto-hébergement ou la mise en place d’un environnement de développement, voir [Installation pour le développement](#installation-pour-le-développement).
+**Exemples de questions :** « Ce jeu de données est-il prêt à être publié ? », « Explique les trois problèmes les plus importants et comment les corriger », « Que signifie STP_046 ? »
 
 ---
 
 ## Huit façons de l’utiliser
 
-Le même moteur de validation à 621 règles est accessible par huit parcours ; chaque interface présente le résultat selon son usage :
-
-| Voie | Idéal pour | Où vont les données |
+| Voie | Pour commencer | Détails |
 |---|---|---|
-| **Navigateur** ([application](https://ttezer.github.io/gtfs-analyzer/)) | Examiner un jeu de données avec la carte et le rapport | **Nulle part** — WebAssembly sur l’appareil |
-| **CLI** (`cargo install gtfs-analyzer`, ou un binaire précompilé) | Validation par lots, scripts et intégration Python | Nulle part — binaire local |
-| **Bibliothèque Rust** ([`gtfs-pipeline`](https://crates.io/crates/gtfs-pipeline)) | Intégrer la validation dans votre propre service Rust | Nulle part — votre propre processus |
-| **CI/CD** (codes de sortie + `--fail-on`) | Une barrière de publication avant de diffuser un jeu de données | Nulle part — votre propre runner |
-| **Paquet npm [`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk)** | Intégrer la validation dans votre application web ou Node | Nulle part — WASM local |
-| **Paquet Python [`gtfs-analyzer`](https://pypi.org/project/gtfs-analyzer/)** (`pip install gtfs-analyzer`) | Intégrer la validation dans votre application Python | Nulle part — module natif Rust local |
-| **ChatGPT — [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)** | Valider un ZIP ou une URL dans une conversation et expliquer les signalements | Service MCP de GTFS Validator — traitement temporaire pendant la requête |
-| **Claude — [GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)** | Valider un ZIP, un chemin ou une URL avec `/gtfs` et expliquer les signalements | Là où Claude s’exécute — votre ordinateur dans Claude Code, l’environnement de code de Claude sur claude.ai |
+| Navigateur | [Ouvrez l’application](https://ttezer.github.io/gtfs-analyzer/) et déposez le ZIP | [Navigateur](docs/usage.fr.md#1-navigateur) |
+| CLI | `cargo install gtfs-analyzer` ou un [binaire prêt à l’emploi](https://github.com/ttezer/gtfs-analyzer/releases) | [CLI](docs/usage.fr.md#2-cli) |
+| Bibliothèque Rust | dépendance `gtfs-pipeline` | [Rust](docs/usage.fr.md#3-bibliothèque-rust) |
+| CI/CD | `--fail-on` et codes de sortie | [CI/CD](docs/usage.fr.md#4-cicd) |
+| npm | `npm install gtfs-sdk` | [npm](docs/usage.fr.md#5-paquet-npm-gtfs-sdk) |
+| Python | `pip install gtfs-analyzer` | [Python](docs/usage.fr.md#6-paquet-python) |
+| ChatGPT | [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c), `/gtfs` | ci-dessus |
+| Claude | [GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory), `/gtfs` | ci-dessus |
 
-Les six premiers parcours s’exécutent localement ou sur une infrastructure que
-vous contrôlez. ChatGPT est l’exception : le jeu de données est transféré au
-service MCP pendant le traitement de la demande. Pour des données qui ne peuvent
-pas quitter votre organisation, utilisez l’application navigateur, la CLI ou
-les paquets locaux. Le plugin Claude n’envoie pas le jeu de données à un serveur qui lui est propre ; dans Claude Code, l’analyse s’exécute entièrement sur votre ordinateur.
-
-### Intégration CI/CD
-
-Les options `--fail-on` ne font échouer l’exécution que pour la gravité ou la classe choisie, de sorte que les signalements Analytics ne bloquent pas une chaîne de publication :
-
-```yaml
-# GitHub Actions — n’échouer que sur les violations officielles de la spécification GTFS
-- name: Valider le jeu de données GTFS
-  run: |
-    curl -sL https://github.com/ttezer/gtfs-analyzer/releases/latest/download/gtfs-analyzer-x86_64-linux.tar.gz | tar xz
-    ./gtfs-analyzer validate feed.zip --fail-on-class spec --min-severity critical
-```
-
-Codes de sortie : `0` aucun signalement · `1` signalements correspondants présents · `2` erreur de jeu de données, de configuration ou de fichier.
-
-### Bibliothèque Rust
-
-Pour intégrer la validation dans votre propre service Rust, utilisez directement `gtfs-pipeline` — sans CLI, sans système de fichiers, sans réseau :
-
-```toml
-[dependencies]
-gtfs-pipeline = "0.20.0"
-gtfs-config   = "0.20.0"
-gtfs-core     = "0.20.0"
-```
-
-```rust
-use gtfs_config::ValidatorConfig;
-use gtfs_core::ValidateResult;
-use gtfs_pipeline::validate_bytes;
-
-let zip = std::fs::read("feed.zip")?;
-let config = ValidatorConfig::default();
-
-match validate_bytes(&zip, &config, 20_260_820) {
-    ValidateResult::Ok(result) => {
-        println!("notices: {}", result.notices.len());
-        println!("publication score: {}", result.reports.r5.pub_score);
-    }
-    ValidateResult::Fatal(err) => eprintln!("fatal: {}", err.message),
-}
-```
-
-`validate_bytes` prend des octets et renvoie un résultat portant tous les rapports (`r1`–`r9`), les scores et les signalements. Ajustez les champs de `ValidatorConfig` pour modifier les seuils, ou appliquez un delta JSON avec `merge_delta`.
-
-⚠️ Les crates de bibliothèque sont les **rouages internes** de l’analyseur. Elles sont publiées pour que le binaire puisse être construit depuis le registre et n’offrent **aucune garantie de stabilité d’API**. Si vous avez besoin d’une surface stable, la sortie JSON de la CLI ou `gtfs-sdk` est le choix le plus sûr.
-
-### Paquet npm `gtfs-sdk`
-
-`gtfs-sdk` expose le moteur de validation v0.20.0 sous forme d’API JavaScript/TypeScript typée. Le jeu de données est validé par WASM local et ne quitte jamais l’application :
-
-```js
-import { validateGtfs } from "gtfs-sdk";
-
-const result = await validateGtfs(new Uint8Array(zipBytes), {
-  today: "2026-08-20",
-});
-console.log(result.notices.length, result.reports.r5.score);
-```
-
-L’API publique comprend `validateGtfs`, `getVersion` et `createValidatorSession` pour les applications ayant besoin d’événements de progression et de cache. La liaison bas niveau `gtfs-wasm` ne fait pas partie du contrat du SDK ; la sélection des moteurs WASM64 et multithread reste interne au premier paquet SDK.
-
-Les sources du paquet se trouvent sous `sdk/` ; l’utilisation détaillée, le modèle de résultat et la référence de configuration sont dans [`sdk/README.md`](sdk/README.md). La liaison WASM est générée à partir de `crates/wasm` lors de la construction.
-
-### Paquet Python
-
-Installation depuis [PyPI](https://pypi.org/project/gtfs-analyzer/) (CPython 3.9+) :
-
-```bash
-pip install gtfs-analyzer
-```
-
-Le paquet exécute le même pipeline Rust via un module natif PyO3 ; aucune
-installation de Cargo ou de la CLI n’est nécessaire. Le ZIP se passe sous forme
-de chemin ou d’octets :
-
-```python
-from gtfs_analyzer import validate_gtfs
-
-result = validate_gtfs("feed.zip", today="2026-09-30")
-print(result["validation_status"])
-print(len(result["notices"]))
-```
-
-`result` contient le même résultat de base que le SDK npm et la sortie JSON de
-la CLI. Paramètres, structure du résultat et types d’erreur :
-[`python/README.md`](python/README.md) (en anglais).
-
-### Liaisons communautaires
-
-| Langage | Paquet | Maintenance |
-|---|---|---|
-| Kotlin / JVM | [`io.github.transittrack:gtfs-analyzer`](https://central.sonatype.com/artifact/io.github.transittrack/gtfs-analyzer) | Par ses auteurs, hors de ce dépôt |
-
-Les liaisons communautaires ne sont pas testées dans ce dépôt et ne sont pas publiées
-par son processus de version. Signalez ici les problèmes du moteur, et ceux propres à
-la liaison dans le dépôt du paquet.
+Tous les détails d’installation et d’usage : [Huit façons de l’utiliser](docs/usage.fr.md).
 
 ---
 
-## CLI (terminal)
+## Critères d’analyse, scores et plafonds de signalements
 
-Outre l’interface web, vous pouvez exécuter le même cœur de validation (`gtfs_pipeline::validate_bytes`) depuis un terminal — pour l’intégration Python ou l’automatisation.
-
-### Installation
-
-Avec Rust installé, le chemin le plus court :
-
-```bash
-cargo install gtfs-analyzer
-gtfs-analyzer validate feed.zip
-```
-
-Sans installer Rust : téléchargez l’archive correspondant à votre plateforme depuis [Releases](https://github.com/ttezer/gtfs-analyzer/releases) (`x86_64-linux`, `aarch64-macos`, `x86_64-windows`), décompressez-la et placez le binaire `gtfs-analyzer` dans votre `PATH`.
-
-```bash
-# Linux / macOS — dernière version
-curl -sL https://github.com/ttezer/gtfs-analyzer/releases/latest/download/gtfs-analyzer-x86_64-linux.tar.gz | tar xz
-./gtfs-analyzer --version
-```
-
-Pour construire depuis les sources :
-
-```bash
-cargo build --release -p gtfs-analyzer
-target/release/gtfs-analyzer validate feed.zip --json
-
-# ou directement
-cargo run -p gtfs-analyzer -- validate feed.zip --json
-```
-
-### `validate` — validation d’un jeu de données
-
-| Option | Description |
-|---|---|
-| `--json` | Écrit le résultat complet en JSON |
-| `--compact-json` | Produit la projection JSON compacte canonique pour les consommateurs machine ; ajoutez des exemples R9 avec `--samples N` |
-| `--summary` | Résumé court : statut, nombre de signalements, scores (par défaut ; incompatible avec `--json`) |
-| `--rule SHP_010` | Uniquement les signalements de la règle indiquée |
-| `--severity critical` | Signalements de cette gravité exacte (critical/high/medium/low/info) |
-| `--min-severity high` | Cette gravité et toutes les plus graves (critical étant la plus grave) |
-| `--class spec` | Uniquement ces classes de règles — `spec,interop,quality,analytics`, séparées par des virgules |
-| `--disable-rule DQ_004` | Retire les règles indiquées des signalements, des scores et de la file R9 ; séparées par des virgules |
-| `--disable-rule-gtfs-jp DQ_004` | Retire ces règles uniquement pour les jeux détectés comme GTFS-JP |
-| `--fail-on critical` | Sortie 1 **uniquement** si cette gravité ou pire est présente |
-| `--fail-on-class spec` | Sortie 1 uniquement si un signalement de ces classes est présent |
-| `--pretty` | Indente la sortie JSON (nécessite `--json`) |
-| `--include-name-index` | Inclut `name_index` (tables de correspondance arrêts/lignes/tracés) dans le JSON |
-| `--max-notices-per-rule 20` | Conserve au plus N signalements par règle dans le JSON ; le nombre réel des règles tronquées figure dans `capped_totals`, R1/R5/R9 restent calculés sur tous les signalements (nécessite `--json`) |
-| `--samples N` | Avec `--compact-json`, ajoute les N premiers signalements de cause racine par règle R9 (`entity_type`, `entity_id`, `file`, `line`, `field`, `observed_value`, `expected_value`) |
-| `-o report.json` | Écrit la sortie dans un fichier au lieu de stdout |
-| `--lang en` | Langue des textes de signalement : `en` (par défaut) / `tr` / `ja` / `fr` / `es` (`es` : fiches planificateur uniquement) |
-| `--config config.json` | Applique un delta de configuration JSON (par-dessus `ValidatorConfig::default()`) |
-| `--today 20260710` | Fixe la date « aujourd’hui » de l’analyse (pour les règles de calendrier) |
-
-**Les filtres ne restreignent que l’affichage.** Les `notices` et les listes R2–R9 sont filtrées ; **le verdict de publication R1 et les scores R5 décrivent toujours l’intégralité du jeu de données**. Lorsqu’un filtre est actif, le JSON gagne un champ `filtered` et le résumé une ligne `filter:`.
-
-`name_index` est **omis par défaut** : sur les gros jeux de données, les tables de coordonnées des arrêts et des tracés dominent la charge utile. Passez `--include-name-index` lorsque vous en avez besoin.
-
-Passez `-` à la place d’un chemin pour lire le ZIP depuis **stdin** : `curl -sL <url> | gtfs-analyzer validate - --json`. (Le répertoire central du ZIP se situant en fin de fichier, l’archive est mise en mémoire tampon plutôt que traitée en flux.)
-
-> **Les décomptes diffèrent de ceux de l’interface web.** Le navigateur plafonne le nombre de signalements conservés par règle pour des raisons de performance (les totaux réels figurent dans `capped_totals`). La CLI **n’applique aucun plafond** — le même jeu de données produit davantage de signalements et des chiffres d’impact R9 non réduits. C’est attendu ; ne comparez pas les deux sorties décompte par décompte.
-
-### JSON compact et plafond web
-
-`--compact-json` est la projection canonique destinée aux consommateurs machine : elle
-omet la liste détaillée `notices` et les tables `name_index` du rapport complet
-`--json`. Elle contient au niveau supérieur `status`, `engine`,
-`engine_version`, `engine_commit`, `validation_date`, `partial`, `analysis`,
-`reports.r1`, `reports.r5`, `reports.r9`, `metrics`, `notice_counts` et
-`triggered_rule_count`. Chaque élément de `reports.r9.items` contient le titre, la
-gravité, la classe, le message, la correction, la priorité, l’impact et les variations
-de score, ainsi qu’une fiche en langage simple `card` (`title`, `what`, `action`) dans la
-langue de `--lang` ; `--samples N` ajoute jusqu’à N exemples de cause racine à chaque élément.
-
-`--compact-json` n’est pas le payload de l’interface web et n’applique pas de plafond
-par règle. Pour approximer dans le JSON complet de la CLI la liste visible dans l’interface,
-utilisez `--json --max-notices-per-rule 500` ; R1/R5/R9 restent calculés sur toute la
-liste et les règles tronquées sont indiquées dans `capped_totals`.
-
-**Codes de sortie :** `0` aucun signalement · `1` signalements présents ou rapport `PARTIAL` · `2` erreur fatale, de configuration ou de fichier. Un rapport `PARTIAL` ignore sans danger les entrées indisponibles et poursuit les contrôles indépendants ; le JSON expose `status: "partial"`, `validation_status: "PARTIAL"` et la portée `partial`. `partial.skipped_checks` liste les familles de contrôles K4/K5/K6 et les règles individuelles ignorées faute de prérequis ; `partial.skipped_stages` est conservé pour les métadonnées d’étape grossières. Avec `--fail-on*`, `1` n’est renvoyé que pour un signalement correspondant ; les autres constats sont tout de même rapportés sans faire échouer l’exécution. En mode JSON, stdout ne contient que du JSON ; les erreurs vont vers stderr.
-
-```bash
-# Barrière CI : n’échouer que sur les violations officielles de la spécification GTFS
-gtfs-analyzer validate feed.zip --fail-on-class spec
-
-# Ne rapporter que les constats Spec (les scores décrivent toujours tout le jeu de données)
-gtfs-analyzer validate feed.zip --class spec --json --pretty -o spec.json
-```
-
-```python
-import json, pathlib, subprocess
-
-for feed in sorted(pathlib.Path("feeds").glob("*.zip")):
-    proc = subprocess.run(
-        ["gtfs-analyzer", "validate", str(feed), "--json"],
-        text=True, capture_output=True,
-    )
-    # exit 1 signifie « des signalements existent », pas un échec — n’utilisez PAS check=True
-    data = json.loads(proc.stdout)
-    if data["status"] == "fatal":
-        print(feed.name, "FATAL", data["code"], data["message"])
-        continue
-    print(feed.name, data["reports"]["r5"]["pub_score"], len(data["notices"]))
-```
-
-### `rules` — registre des règles
-
-Liste l’ensemble du registre des règles sans lancer de validation — pensé comme dictionnaire de règles pour les projets intégrateurs.
-
-```bash
-gtfs-analyzer rules --class spec --severity critical
-gtfs-analyzer rules --rule STM_004 --json --pretty
-```
-
-Champs : `id`, `severity`, `class`, `authority_source`, `base_effort`, `blocks`, `title`, `message`, `remediation`, `card`.
-Les filtres `--class` / `--severity` / `--min-severity` / `--rule` ont le même sens que dans `validate`.
-`--lang` s’applique ici aussi (titres, messages et corrections des règles).
-
-### Langue de sortie
-
-Le cœur de validation produit ses textes de signalement en turc ; `--lang en` / `--lang ja` / `--lang fr` les remplacent à l’aide des **mêmes dictionnaires de traduction que l’interface web**. Les identifiants de règles, les gravités et les classes (`CRITICAL`, `SPEC`) restent lisibles par machine dans toutes les langues — seuls `title`, `message` et `remediation` sont traduits.
-
-Lorsqu’une règle n’a pas de traduction, la chaîne est : langue demandée → anglais → turc (le texte propre au cœur), de sorte que la sortie n’est jamais vide.
-
-Les sorties au niveau des règles (éléments R9 de `--compact-json` et `rules --json`) portent aussi `card` : le titre en langage simple, ce qui s’est passé (`what`) et que faire (`action`) de la vue planificateur de l’interface web, en `tr`, `en`, `ja`, `fr` et `es`. `es` ne contient que les fiches : ses autres textes se replient sur l’anglais. `what` est omis lorsque le texte de la fiche a besoin de valeurs propres à un signalement.
-
-Les dictionnaires sont dérivés de `ui/src/locales/{en,ja,fr}.ts` vers `crates/core/locales/*.json` par `npm run locales:export`, puis intégrés au binaire de la CLI et au paquet Python. Si un fichier de locale est modifié sans relancer l’export, `locale-parity.test.ts` échoue en CI — les fichiers de locale restent l’unique source de vérité.
-
----
-
-## Seuils d’analyse
-
-Les seuils de validation sont personnalisables depuis la section **Seuils d’analyse** de l’écran de téléversement. Les valeurs modifiées prennent effet au prochain téléversement de ZIP ; le bouton de réinitialisation rétablit les valeurs par défaut.
-
-### Classes de règles et source d’autorité
-
-Chaque règle relève de l’une des quatre classes. La classe reflète la **source d’autorité** du signalement (son fondement de légitimité), afin que l’on puisse voir d’un coup d’œil s’il s’agit d’une véritable violation de la spécification GTFS ou d’un signal d’interopérabilité, de qualité ou d’analytique :
-
-- **Spec** — uniquement les cas que la **référence officielle GTFS Schedule** exige, interdit ou rend invalides de façon explicite (champs obligatoires, conditionnellement obligatoires ou conditionnellement interdits, valeurs d’énumération, clés étrangères, unicité, contraintes de format). Aucune autre source ne produit de `Spec`.
-- **Interop** — signaux de compatibilité avec le comportement des consommateurs et validateurs tels que MobilityData, Google Transit ou un profil régional (par exemple GTFS-JP).
-- **Quality** — bonnes pratiques GTFS, qualité des données, lisibilité, cohérence et contrôles de qualité de production.
-- **Analytics** — signaux statistiques, opérationnels, de performance ou orientés analyse.
-
-Chaque règle porte également un champ **source d’autorité** lisible par machine (`authority_source` : `GTFS_SPEC`, `MOBILITYDATA_PARITY`, `REGIONAL_PROFILE`, `PROJECT_QUALITY`, etc.). Invariant : **la classe `Spec` n’est légitime qu’avec `authority_source = GTFS_SPEC`** ; la parité avec MobilityData/Guru/Google, les bonnes pratiques ou les heuristiques propres au projet ne constituent pas à elles seules une preuve de Spec.
-
-### Profils optionnels et URL source
-
-Mettre `stop_name_best_practices=true` dans le delta de configuration active les contrôles `STP_040` et `STP_041`, dépendants de la langue ; ils sont désactivés par défaut en raison de leur risque de faux positifs. Les intégrations basées sur une URL peuvent fournir une métadonnée `source_url`, ce qui permet à `ARC_028` de vérifier que l’URL de publication permanente contient un nom de fichier `.zip`. La validation par simple téléversement ignore ce contrôle. Le moteur ne requête jamais les URL trouvées dans un jeu de données ; les contrôles de disponibilité HTTP exigent un adaptateur en ligne distinct et explicitement activé.
-
-### Coordination des champs de distance de tracé
-
-Si une course utilise `shape_dist_traveled` dans `stop_times.txt` alors que certains points du tracé référencé n’ont pas ce même champ dans `shapes.txt`, l’analyseur émet `SHP_030` (Quality · Moyenne). Les deux champs étant individuellement facultatifs en GTFS, il ne s’agit pas d’un bloquant de publication Spec ; c’est un signal de compatibilité au niveau du tracé indiquant que les consommateurs pourraient ne pas placer les arrêts de façon fiable sur le tracé. Le signalement inclut le nombre de courses concernées et des identifiants de courses représentatifs.
-
-Un tracé à un seul point réellement référencé par une course est signalé comme `SHP_006` en Faible · Quality, avec `shape_id` et `shape_point_count=1` dans les détails. Un segment rectiligne à deux points est valide. Un tracé à un point inutilisé n’est signalé que par `SHP_018`. Il s’agit d’une correspondance de quasi-parité volontaire avec le `single_shape_point` de MobilityData : Analyzer ne signale `SHP_006` que pour un tracé utilisé.
-
-### Parité sur la vitesse entre arrêts éloignés
-
-La page de règles actuelle de MobilityData est incohérente en interne au sujet de `fast_travel_between_far_stops` : le tableau principal WARNING l’affiche comme active, tandis que les métadonnées de détail indiquent `Deprecated since undefined` et que le tableau des règles dépréciées l’omet. L’audit #115 a échantillonné 20 jeux de données positifs ; la décision se fonde sur la combinaison hétérogène et bruitée de distances cumulées supérieures à 10 km, de couples d’arrêts non consécutifs et de cascades d’horaires — et non sur une dépréciation supposée. L’aliasing vers `STM_012` ou `STM_014` a été rejeté ; aucune règle nouvelle n’a été ajoutée et l’écart demeure une lacune de couverture Analytics assumée.
-
-### Spécificité de l’URL d’arrêt
-
-`STP_034` et `STP_035` comparent `stop_url` aux URL d’agence et de ligne au moyen d’une identité syntaxique conservatrice, et produisent des constats Quality de faible priorité. La casse du schéma et de l’hôte, la racine `/` et les ports par défaut explicites (HTTP 80 / HTTPS 443) sont équivalents ; les chaînes de requête, les fragments, les barres obliques finales de chemin et l’encodage pourcent restent significatifs. Les arrêts partageant une même URL normalisée sont regroupés en un signalement agrégé unique, avec le nombre d’arrêts concernés et des identifiants représentatifs dans `details`.
-
-### Seuils de vitesse
-
-| Paramètre | Défaut | Plage | Description |
-|---|---:|---|---|
-| Vitesse max. bus | 120 km/h | 60–200 | Vitesse maximale autorisée pour les courses de bus |
-| Vitesse max. tramway | 100 km/h | 40–160 | Vitesse maximale autorisée pour les courses de tramway |
-| Vitesse max. métro | 150 km/h | 80–250 | Vitesse maximale autorisée pour les courses de métro |
-| Vitesse max. train | 300 km/h | 100–400 | Vitesse maximale autorisée pour les courses ferroviaires |
-| Vitesse max. ferry | 80 km/h | 20–150 | Vitesse maximale autorisée pour les courses de ferry |
-| Vitesse max. téléphérique | 30 km/h | 10–60 | Vitesse maximale autorisée pour un téléphérique ou un funiculaire |
-
-### Seuils géographiques et de correspondance
-
-| Paramètre | Défaut | Plage | Description |
-|---|---:|---|---|
-| Temps de correspondance min. | 180 s | 30–1800 | Temps de correspondance minimal |
-| Distance de correspondance max. | 500 m | 50–2000 | Distance maximale pour qu’une correspondance soit considérée comme valide |
-| Saut de tracé max. | 10 km | 1–50 | Distance maximale entre deux points de tracé consécutifs |
-| Seuil d’arrêts proches | 5 m | 1–20 | Les arrêts plus proches que cette distance sont signalés comme doublons |
-| Distance arrêt–tracé | 100 m | 20–500 | Distance maximale autorisée entre un arrêt et son tracé |
-| Distance à la station parente | 100 m | 10–1000 | Distance maximale autorisée entre un arrêt et sa station parente |
-
-### Seuils de service et d’exploitation
-
-| Paramètre | Défaut | Plage | Description |
-|---|---:|---|---|
-| Alerte d’expiration | 30 jours | 1–60 | Alerte émise si le jeu de données expire dans ce délai |
-| Alerte d’expiration Feed Info | 7 jours | 1–60 | Horizon `FIN_019` par défaut pour `feed_info.feed_end_date` ; la parité MobilityData à 30 jours s’applique avec `feed_info_expiry_warning_days=30`, distinct de `CAL_008` |
-| Seuil d’interruption de service | 7 jours | 3–30 | Les interruptions de service plus longues sont signalées |
-| Durée de course max. | 24 h | 8–72 | Durée maximale d’une même course |
-| Durée de course min. | 60 s | 10–300 | Durée minimale d’une même course |
-| Intervalle max. | 240 min | 60–720 | Les intervalles plus longs déclenchent une alerte |
-| Seuil d’effet accordéon | 2 min | 1–10 | Les intervalles plus courts sont signalés comme effet accordéon |
-
----
-
-## Scores
-
-### Score de publication (0–100)
-
-Mesure la publiabilité du jeu de données au regard de la référence officielle GTFS Schedule. Le score **part de 100** ; chaque problème bloquant la publication retranche une pénalité proportionnelle au poids de la règle et au coût de correction.
-
-**Mode de calcul :**
-- Seuls les problèmes de classe `Spec` et de gravité `Critique` (la barrière officielle de la spécification GTFS) affectent le score de publication. Les signaux de compatibilité `Interop` sont rapportés séparément (score Interop / R8).
-- Si une même règle se déclenche plusieurs fois, la pénalité est plafonnée à **2×** ; un problème isolé ne peut pas ramener le score à zéro.
-- **0–40 :** le jeu de données est probablement inexploitable. Des erreurs bloquantes sont présentes.
-- **40–70 :** problèmes partiels ; certaines applications peuvent rejeter le jeu de données.
-- **70–90 :** exploitable, mais nécessite de l’attention.
-- **90–100 :** prêt à publier.
-
-### Score global (0–100)
-
-Moyenne pondérée des quatre classes d’analyse : Spec×40 % + Interop×30 % + Quality×20 % + Analytics×10 %. Reflète à la fois la conformité à la spécification et la qualité opérationnelle des données. Un jeu de données peut être publiable tout en ayant un score global faible.
-
-**Mode de calcul :**
-- Les problèmes des quatre classes (Spec, Interop, Quality, Analytics) affectent ce score selon leurs poids respectifs.
-- Champs facultatifs manquants, schémas de service incohérents et lacunes d’accessibilité s’y reflètent via les composantes Quality et Analytics.
-- **0–60 :** problèmes de qualité importants ; l’expérience voyageur peut en pâtir.
-- **60–80 :** qualité moyenne ; améliorations recommandées.
-- **80–100 :** bonne qualité de données.
-
-> **Remarque :** le score de publication et le score global répondent à des objectifs différents et reposent sur des formules différentes. Un jeu de données au score de publication élevé mais au score global faible fonctionne techniquement, mais des problèmes tels que des informations d’accessibilité manquantes ou des noms de ligne incorrects affectent les voyageurs.
+La source d’autorité des classes de règles, les seuils réglables, le calcul du **score de publication** et du **score global**, et les plafonds de signalements sur les gros jeux de données : [document d’analyse](docs/analysis.fr.md).
 
 ---
 
@@ -631,7 +197,10 @@ Moyenne pondérée des quatre classes d’analyse : Spec×40 % + Interop×30 % +
 ### 1. Rapport
 Vue de synthèse : les deux scores, les métriques du jeu de données (nombre de lignes, nombre de courses, plage de dates, etc.) et un graphique de répartition des signalements.
 
-### 2. Détails et correction
+### 2. Pour les planificateurs
+Le même résultat dans la langue du planificateur : le verdict de publication, d’abord les problèmes qui bloquent la publication, puis les suggestions d’amélioration ; pour chaque sujet ce que c’est, quoi faire et où corriger, avec la carte. Détails dans la section **Pour les planificateurs** plus haut.
+
+### 3. Détails et correction
 Les problèmes sont présentés sous forme de file de correction priorisée, triée par score de priorité. Chaque ligne contient :
 
 | Colonne | Description |
@@ -644,10 +213,10 @@ Les problèmes sont présentés sous forme de file de correction priorisée, tri
 
 La somme de toutes les valeurs +Pub égale `100 − score de publication actuel` ; la somme de toutes les valeurs +Score égale `100 − score global actuel`. Les problèmes géographiques affichent une icône de carte ; un clic présente l’emplacement du problème et les données de tracé ou d’arrêt associées sur une carte interactive. Un clic sur le **code de règle** ouvre la section pertinente de la spécification GTFS dans un nouvel onglet — la page de référence du fichier le plus concerné par le signalement (gtfs.jp pour les règles GTFS-JP).
 
-### 3. Par catégorie
+### 4. Par catégorie
 Toutes les violations de règles listées par groupe et par classe. Chaque ligne indique le code de règle, le titre, le nombre d’enregistrements concernés, la gravité et l’aide à la correction. Le filtrage et le tri sont possibles.
 
-### 4. Exporter
+### 5. Exporter
 Téléchargez le rapport en HTML, CSV ou JSON. L’option PDF ouvre la boîte de dialogue d’impression du navigateur — utilisez « Enregistrer en PDF » pour exporter.
 
 ---
@@ -703,8 +272,8 @@ La comparaison s’exécute entièrement dans le navigateur. Le Golden JSON est 
 
 | Classe | Ce qu’elle mesure | Influe sur |
 |---|---|---|
-| **Spec** | Écarts par rapport à la spécification GTFS — champs obligatoires manquants, valeurs invalides, erreurs d’intégrité référentielle | Score de publication |
-| **Interop** | Conforme à la spécification mais rejeté ou mal interprété par les consommateurs courants (Google Maps, Apple Plans, etc.) | Score de publication |
+| **Spec** | Écarts par rapport à la spécification GTFS — champs obligatoires manquants, valeurs invalides, erreurs d’intégrité référentielle | Publication (Critique seulement) et global |
+| **Interop** | Conforme à la spécification mais rejeté ou mal interprété par les consommateurs courants (Google Maps, Apple Plans, etc.) | Global (score Interop) |
 | **Quality** | Champs facultatifs mais attendus manquants, incohérences, écarts aux bonnes pratiques | Score global |
 | **Analytics** | Analyse des schémas de service — effet accordéon, service clairsemé, service expiré | Score global |
 
@@ -724,8 +293,7 @@ La gravité combine le niveau d’exigence du fichier ou du champ (Obligatoire �
 
 ### Grille de gravité Spec
 
-La gravité Spec combine niveau d’exigence et impact sémantique ; elle ne dépend pas du fait que MobilityData
-qualifie le même constat d’`ERROR`, `WARNING` ou `INFO` :
+La gravité Spec combine niveau d’exigence et impact sémantique, c’est-à-dire l’effet de la violation sur la possibilité de consommer les données GTFS :
 
 - **Critique :** fichier ou champ obligatoire, intégrité de clé primaire ou étrangère, ou violation de type ou de plage fondamentale ; le jeu de données ne peut pas être consommé de façon fiable et `Spec + Critique` constitue la barrière de publication.
 - **Élevée :** violation normative directe qui modifie sensiblement la sémantique des horaires, des tarifs, de l’accessibilité, du Flex ou des cheminements, même si le jeu de données reste analysable.
@@ -733,25 +301,11 @@ qualifie le même constat d’`ERROR`, `WARNING` ou `INFO` :
 - **Faible :** écart normatif restreint portant sur des métadonnées ou un champ facultatif ; ne bloque pas la publication.
 - **Info :** non utilisé pour les violations normatives Spec ; réservé aux signaux de mesure ou de contexte.
 
-Aucune règle `Spec` ne peut donc avoir la gravité `Info`. L’audit du 2026-08-09 a passé en revue les 307
-règles Spec et a fait passer les règles de journée de service brute `STM_048` et `STM_049` de Info à Élevée.
-Voir l’[audit complet de la gravité Spec](docs/audits/spec-severity-rubric-2026-08-09.md).
+Aucune règle `Spec` n’a donc la gravité `Info`.
 
 Pour les jeux de données GTFS-JP, les règles du groupe **JPN** se fondent sur la [spécification GTFS-JP](https://www.gtfs.jp/) officielle (gtfs.jp).
 
 ---
-
-## Plafonds de signalements
-
-Dans les gros jeux de données, une même règle peut se déclencher des milliers de fois. Des listes de signalements illimitées saturent la mémoire du navigateur et nuisent à la lisibilité. Un plafond à deux niveaux est appliqué :
-
-| Plafond | Valeur | Portée |
-|---|---|---|
-| Par règle (défaut) | 500 | Toutes les règles |
-| Par règle (élevé) | 2 000 | `TRP_020`, `OPR_007`, `STP_016`, `STP_017` |
-| Total (toutes règles) | — | Pas de limite d’arrêt de 100 000 signalements à l’échelle du jeu de données |
-
-Les règles du plafond élevé produisent naturellement de grands décomptes sur des jeux de données réels (par exemple un enregistrement d’intervalle par course). Lorsqu’une règle atteint son plafond, le nombre réel de violations apparaît dans la colonne **Total** de la file de correction ; dans l’onglet Tous les signalements, la sélection de ce filtre de règle affiche une bannière d’avertissement jaune.
 
 ---
 

@@ -7,7 +7,7 @@
 //   - root Cargo.toml: workspace version + four internal crate pins for crates.io
 //   - sdk/src/index.ts: ENGINE_VERSION
 //   - ui/package.json + ui/package-lock.json (the UI's __APP_VERSION__)
-//   - READMEs (four languages) and version examples in sdk/README.md
+//   - docs/usage.<lang>.md (four languages) and version examples in sdk/README.md
 //   - Cargo.lock (cargo update --workspace)
 //
 // INTENTIONALLY UNCHANGED: the SDK's own version (sdk/package.json, SDK_VERSION),
@@ -70,8 +70,9 @@ const edits = [
   // Use JSON rather than a regex so a dependency with the same version is not changed by mistake.
   // npm writes these files as JSON.stringify(_, null, 2) + "\n"; preserve that formatting.
   ['ui/package-lock.json', setJsonVersion('ui/package-lock.json', (j) => [j, j.packages?.['']])],
-  // Installation examples in the READMEs (three crate lines) and the SDK introduction's `vX.Y.Z`.
-  ...['README.md', 'README.en.md', 'README.fr.md', 'README.ja.md'].map((file) => [file, replaceExact(file,
+  // Installation examples (three crate lines) and the SDK introduction's `vX.Y.Z` in the usage
+  // pages the READMEs link to (docs/usage.<lang>.md).
+  ...['docs/usage.tr.md', 'docs/usage.en.md', 'docs/usage.fr.md', 'docs/usage.ja.md'].map((file) => [file, replaceExact(file,
     new RegExp(`^(gtfs-(?:pipeline|config|core)\\s*=\\s*")${esc}(")|v${esc}(?=\\D)`, 'gm'),
     (m, a, b) => (a ? `${a}${next}${b}` : `v${next}`), 4)]),
   ['sdk/README.md', replaceExact('sdk/README.md',
