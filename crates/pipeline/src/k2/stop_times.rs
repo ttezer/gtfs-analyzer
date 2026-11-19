@@ -4189,6 +4189,12 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         let _t_032 = crate::timing::Timer::start("K2::st::fin::stm032");
         let mut stm032_pending = Vec::new();
         let mut stm056_pending = Vec::new();
+        // A broken column can fail millions of rows, and above the threshold they become one feed
+        // summary. Everything the summary shows comes from the first violating trips in trip_id
+        // order, so full notices are built only for the first PENDING_KEPT_TRIPS of them; later
+        // rows are only counted (mdb-778: 2.25M STM_056 rows held 7.8 GB for one summary).
+        let mut stm032_tail = PendingTail::default();
+        let mut stm056_tail = PendingTail::default();
         // trips_agg is a HashMap; walk by trip_id for deterministic emission order.
         let mut tids: Vec<&SmolStr> = st.trips_agg.keys().collect();
         tids.sort_unstable();
@@ -4216,10 +4222,15 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 }
                 _ => None,
             };
+            let mut stm032_keep = None;
+            let mut stm056_keep = None;
             for i in 0..trip_rows.len().saturating_sub(1) {
                 let a = &trip_rows[i];
                 let b = &trip_rows[i + 1];
-                if a.sequence != u32::MAX && a.sequence == b.sequence {
+                if a.sequence != u32::MAX
+                    && a.sequence == b.sequence
+                    && stm032_tail.keep(&mut stm032_keep, false)
+                {
                     let mut n032 = make_k2_notice(
                         &mut st.counter,
                         "STM_032",
@@ -4265,7 +4276,11 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 // STM_056 (MD `decreasing_or_equal_stop_time_distance`): stop_sequence boyunca
                 // shape_dist_traveled MUST INCREASE. Compare only when both rows have a value; a missing
                 // value is STM_017's concern. NaN comparison returns false, so the guard is required.
-                if a.dist_f32.is_finite() && b.dist_f32.is_finite() && b.dist_f32 <= a.dist_f32 {
+                if a.dist_f32.is_finite()
+                    && b.dist_f32.is_finite()
+                    && b.dist_f32 <= a.dist_f32
+                    && stm056_tail.keep(&mut stm056_keep, trip_constant_distance.is_some())
+                {
                     let stop_id = |row: &CompactStopTime| {
                         st.stop_intern
                             .get(row.stop_idx as usize)
@@ -4380,8 +4395,9 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             }
         }
         const STM032_AGG_THRESHOLD: usize = 50;
-        finalize_stm_pending(
+        finalize_stm_pending_with_tail(
             &mut stm032_pending,
+            stm032_tail,
             &mut st.notices,
             &mut st.counter,
             &file.name,
@@ -4395,8 +4411,9 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         // fail millions of rows). The summary carries STM056_EXAMPLE_CAP row examples with their full
         // row context, so the planner page can still list and map real failing rows.
         const STM056_AGG_THRESHOLD: usize = 50;
-        finalize_stm_pending(
+        finalize_stm_pending_with_tail(
             &mut stm056_pending,
+            stm056_tail,
             &mut st.notices,
             &mut st.counter,
             &file.name,
@@ -4541,6 +4558,39 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
 }
 
 #[allow(clippy::too_many_arguments)]
+/// Full notices are kept for the first violating trips only; the rest of the rows are counted.
+const PENDING_KEPT_TRIPS: usize = 50;
+
+/// Rows of a per-row check that were counted but not built as notices (see `PENDING_KEPT_TRIPS`).
+#[derive(Default)]
+struct PendingTail {
+    kept_trips: usize,
+    rows: usize,
+    /// Counted trips whose every stop carries one distance (STM_056 `constant_trips`).
+    constant_trips: usize,
+}
+
+impl PendingTail {
+    /// Whether this violation is built as a notice. `trip` holds the decision for the current
+    /// trip (taken at its first violation), so a trip is either kept whole or counted whole.
+    fn keep(&mut self, trip: &mut Option<bool>, constant: bool) -> bool {
+        let keep = *trip.get_or_insert_with(|| {
+            let keep = self.kept_trips < PENDING_KEPT_TRIPS;
+            if keep {
+                self.kept_trips += 1;
+            } else if constant {
+                self.constant_trips += 1;
+            }
+            keep
+        });
+        if !keep {
+            self.rows += 1;
+        }
+        keep
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 fn finalize_stm_pending(
     pending: &mut Vec<Notice>,
     notices: &mut Vec<Notice>,
@@ -4552,7 +4602,36 @@ fn finalize_stm_pending(
     summary: &str,
     threshold: usize,
 ) {
-    let n = pending.len();
+    finalize_stm_pending_with_tail(
+        pending,
+        PendingTail::default(),
+        notices,
+        counter,
+        file_name,
+        rule_id,
+        field,
+        remediation,
+        summary,
+        threshold,
+    );
+}
+
+/// [`finalize_stm_pending`] for a pending list cut by [`PendingTail`]. Below the threshold
+/// nothing was counted (kept trips hold at least as many rows), so the list is complete.
+#[allow(clippy::too_many_arguments)]
+fn finalize_stm_pending_with_tail(
+    pending: &mut Vec<Notice>,
+    tail: PendingTail,
+    notices: &mut Vec<Notice>,
+    counter: &mut u32,
+    file_name: &str,
+    rule_id: &str,
+    field: &str,
+    remediation: &str,
+    summary: &str,
+    threshold: usize,
+) {
+    let n = pending.len() + tail.rows;
     if n > threshold {
         // The pending list comes from HashMap/chunk iteration, so a raw take(5) is not deterministic.
         // Sort first, then take the first 5. One trip may have multiple violating rows; duplicates must
@@ -4648,7 +4727,7 @@ fn finalize_stm_pending(
             }
         }
         if rule_id == "STM_056" {
-            add_stm056_examples(pending, &mut d);
+            add_stm056_examples(pending, tail.constant_trips, &mut d);
         }
         notice.details = Some(d.into());
         notices.push(notice);
@@ -4664,7 +4743,11 @@ const STM056_EXAMPLE_CAP: usize = 50;
 /// `example_<i>_*` keys. Rows are taken round-robin over trips (trip_id order, then line), so
 /// every trip contributes its first failing row before any trip contributes a second one.
 /// Each example copies the pinpoint row's details except the per-summary counters.
-fn add_stm056_examples(pending: &[Notice], d: &mut std::collections::BTreeMap<String, String>) {
+fn add_stm056_examples(
+    pending: &[Notice],
+    counted_constant_trips: usize,
+    d: &mut std::collections::BTreeMap<String, String>,
+) {
     // Trips whose every stop carries one and the same distance, across the whole feed.
     let constant_trips: std::collections::HashSet<&str> = pending
         .iter()
@@ -4675,10 +4758,11 @@ fn add_stm056_examples(pending: &[Notice], d: &mut std::collections::BTreeMap<St
         })
         .filter_map(|n| n.entity_id.as_deref())
         .collect();
-    if !constant_trips.is_empty() {
+    let constant_trip_count = constant_trips.len() + counted_constant_trips;
+    if constant_trip_count > 0 {
         d.insert(
             "constant_trips".to_string(),
-            constant_trips.len().to_string(),
+            constant_trip_count.to_string(),
         );
     }
     let mut rows: Vec<&Notice> = pending
@@ -6272,6 +6356,43 @@ mod tests {
         }
         assert!(d.get("example_0_affected_rows").is_none());
         assert!(d.get("example_0_example_trips").is_none());
+    }
+
+    #[test]
+    fn stm056_summary_counts_the_trips_it_does_not_build() {
+        // 120 constant trips: notices are built for the first 50 only, the other 70 are counted.
+        // The summary must still report every row and every constant trip, and its examples are
+        // the first rows of the first 50 trips.
+        let mut rows: Vec<Vec<String>> = Vec::new();
+        for i in 0..120 {
+            let trip = format!("C{i:03}");
+            for seq in 1..=4u32 {
+                rows.push(vec![
+                    trip.clone(),
+                    "08:00:00".into(),
+                    "08:00:00".into(),
+                    format!("S{seq}"),
+                    seq.to_string(),
+                    "7".into(),
+                ]);
+            }
+        }
+        let rows: Vec<Vec<&str>> = rows
+            .iter()
+            .map(|r| r.iter().map(String::as_str).collect())
+            .collect();
+        let file = make_file(stm056_columns(), rows);
+        let (_, notices) = validate_stop_times(&file, None, false);
+        let stm056: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_056").collect();
+        assert_eq!(stm056.len(), 1);
+        let d = stm056[0].details.as_ref().expect("summary details");
+        assert_eq!(d.get("affected_rows").map(String::as_str), Some("360"));
+        assert_eq!(stm056[0].observed_value.as_deref(), Some("360"));
+        assert_eq!(d.get("constant_trips").map(String::as_str), Some("120"));
+        assert_eq!(d.get("example_trips").map(String::as_str), Some("C000, C001, C002, C003, C004"));
+        assert_eq!(d.get("example_0_trip").map(String::as_str), Some("C000"));
+        assert_eq!(d.get("example_49_trip").map(String::as_str), Some("C049"));
+        assert!(d.get("example_50_trip").is_none());
     }
 
     #[test]

@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Memory on feeds with a broken distance or sequence column.** `STM_056` and `STM_032` built a full notice for every failing row before folding them into one feed summary; on mdb-778 (22 MB zip) 2.25 million rows took 7.8 GB and 12 s. Notices are now built for the first 50 failing trips only and the rest are counted; the summary is identical (peak 8.1 GB → 1.0 GB).
 - **Planner map: a trip without its own shape now follows its route's shape in the same direction.**
   `name_index.shape_routes` wrote the direction as `Gidiş`/`Dönüş`, while `trip_directions` holds `0`/`1`;
   the map compared the two, never found a match and drew straight lines between the stops. The
