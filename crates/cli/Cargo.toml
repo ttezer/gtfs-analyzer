@@ -23,6 +23,10 @@ serde_json = { workspace = true }
 clap = { version = "4", features = ["derive"] }
 chrono = "0.4"
 
+[features]
+# Diagnostics only: live/peak heap in the GTFS_CLI_TIMING `[mem]` lines.
+alloc-stats = ["gtfs-pipeline/alloc-stats"]
+
 [build-dependencies]
 serde_json = { workspace = true }
 

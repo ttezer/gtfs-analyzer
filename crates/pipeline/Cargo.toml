@@ -49,5 +49,9 @@ parallel = ["dep:rayon"]
 # değişmez; UI build'i bu feature'ı açmadığı için DevTools teşhisi korunur.
 quiet = []
 
+# Diagnostics only: counts live and peak heap bytes in the `[mem]` lines (native). RSS on
+# macOS keeps freed pages and is not a stable measure. Costs two atomics per allocation.
+alloc-stats = []
+
 [target.'cfg(target_family = "wasm")'.dependencies]
 web-sys = { version = "0.3", features = ["console"] }

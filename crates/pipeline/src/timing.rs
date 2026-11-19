@@ -75,8 +75,21 @@ pub(crate) fn mem_log(label: &str) {
     let current = current_rss_bytes
         .map(|bytes| format!("{:.1} MB", bytes as f64 / 1_048_576.0))
         .unwrap_or_else(|| "?".to_owned());
+    #[cfg(feature = "alloc-stats")]
+    let heap = {
+        let (live, peak, window) = crate::alloc_stats::snapshot();
+        let mb = |b: usize| b as f64 / 1_048_576.0;
+        format!(
+            ", heap live={:.1} MB, heap window peak={:.1} MB, heap peak={:.1} MB",
+            mb(live),
+            mb(window),
+            mb(peak)
+        )
+    };
+    #[cfg(not(feature = "alloc-stats"))]
+    let heap = "";
     eprintln!(
-        "[mem] {label}: native rss={current}, maxrss={:.1} MB",
+        "[mem] {label}: native rss={current}, maxrss={:.1} MB{heap}",
         max_rss_bytes as f64 / 1_048_576.0
     );
 }

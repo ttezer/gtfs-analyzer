@@ -1,4 +1,6 @@
 pub mod agency_attribution;
+#[cfg(all(feature = "alloc-stats", not(target_family = "wasm")))]
+mod alloc_stats;
 pub mod decompress_guard;
 pub(crate) mod k1_html_elements;
 pub(crate) mod k1_html_entities;
