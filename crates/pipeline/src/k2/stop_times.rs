@@ -4451,6 +4451,14 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         ..Default::default()
     };
     index.has_stop_headsign_field = cols.stop_headsign.is_some();
+    // Without a trustworthy row count (ZIP sizes are not trusted) the row list grows by
+    // doubling, so up to half of it can be empty for the rest of the run: the current mdb-2014
+    // (69.5M rows) held 134.5M slots, 1.49 GB unused through K6, where the peak is. The rows are
+    // in place and row_trip is gone, so the shrink happens well below that peak; for large
+    // blocks the allocator shrinks in place.
+    if index.rows.capacity() - index.rows.len() > index.rows.len() / 8 {
+        index.rows.shrink_to_fit();
+    }
     index.stop_id_set = index.stop_first_line.keys().cloned().collect();
     index.stop_intern = st.stop_intern;
     index.stop_id_to_idx = st.stop_id_to_idx;
@@ -6414,6 +6422,43 @@ mod tests {
         }
         assert!(d.get("example_0_affected_rows").is_none());
         assert!(d.get("example_0_example_trips").is_none());
+    }
+
+    #[test]
+    fn zip_streamed_rows_do_not_keep_doubling_slack() {
+        // ZIP sizes are not trusted, so streamed stop_times rows grow by doubling; the index
+        // must not keep the empty half (mdb-2014: 134.5M slots for 69.5M rows, 1.49 GB).
+        use std::io::Write;
+        let n = 3_000;
+        let mut text = String::from("trip_id,arrival_time,departure_time,stop_id,stop_sequence\n");
+        for i in 0..n {
+            text.push_str(&format!("T{},08:00:00,08:00:00,S{},{}\n", i / 10, i % 10, i % 10 + 1));
+        }
+        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        writer
+            .start_file("stop_times.txt", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        writer.write_all(text.as_bytes()).unwrap();
+        let zip_bytes = writer.finish().unwrap().into_inner();
+        let file = RawFile {
+            name: "stop_times.txt".to_string(),
+            headers: ["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"]
+                .into_iter()
+                .map(str::to_string)
+                .collect(),
+            rows: Vec::new(),
+            raw_text: None,
+            bytes: text.len() as u32,
+            zip_entry_name: Some("stop_times.txt".to_string()),
+        };
+        let (index, _) = validate_stop_times(&file, Some(&zip_bytes), false);
+        assert_eq!(index.rows.len(), n);
+        assert!(
+            index.rows.capacity() - index.rows.len() <= index.rows.len() / 8,
+            "capacity {} for {} rows",
+            index.rows.capacity(),
+            index.rows.len()
+        );
     }
 
     #[test]
