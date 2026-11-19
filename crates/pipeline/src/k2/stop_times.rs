@@ -1838,6 +1838,9 @@ struct StChunk {
     /// instead of emitting one notice per row at high volume.
     stm018_pending: Vec<Notice>,
     stm019_pending: Vec<Notice>,
+    /// Rows dropped from the pending lists by [`compact_row_pending`] (counted, not kept).
+    stm018_dropped: usize,
+    stm019_dropped: usize,
     counter: u32,
     /// `STM_059` gate—does the feed contain booking_rules.txt?
     has_booking_rules: bool,
@@ -2211,6 +2214,10 @@ impl StChunk {
         self.notices.extend(incoming);
         self.stm018_pending.extend(other.stm018_pending);
         self.stm019_pending.extend(other.stm019_pending);
+        self.stm018_dropped += other.stm018_dropped;
+        self.stm019_dropped += other.stm019_dropped;
+        compact_row_pending(&mut self.stm018_pending, &mut self.stm018_dropped);
+        compact_row_pending(&mut self.stm019_pending, &mut self.stm019_dropped);
         self.arc021_fired |= other.arc021_fired;
         self.arc030_fired |= other.arc030_fired;
         self.counter += other.counter;
@@ -2774,6 +2781,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 line,
                 &file.name,
             );
+            compact_row_pending(&mut st.stm018_pending, &mut st.stm018_dropped);
 
             // STM_019: continuous_drop_off 0-3
             let continuous_drop_off = parse_pickup_dropoff_col(
@@ -2786,6 +2794,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 line,
                 &file.name,
             );
+            compact_row_pending(&mut st.stm019_pending, &mut st.stm019_dropped);
 
             // STM_022: timepoint 0 or 1
             let tp_raw = get_col(row, cols.timepoint);
@@ -4046,8 +4055,12 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
     // in producer feeds, reporting per row fills R2/R5/R9 with noise. As with SHP_010/STP_022, keep
     // pinpoint findings at low volume and emit one feed summary above the threshold.
     const STM018_019_AGG_THRESHOLD: usize = 50;
-    finalize_stm_pending(
+    finalize_stm_pending_with_tail(
         &mut st.stm018_pending,
+        PendingTail {
+            rows: st.stm018_dropped,
+            ..PendingTail::default()
+        },
         &mut st.notices,
         &mut st.counter,
         &file.name,
@@ -4057,8 +4070,12 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         "continuous_pickup is outside 0-3 — the same enum violation repeats at high volume.",
         STM018_019_AGG_THRESHOLD,
     );
-    finalize_stm_pending(
+    finalize_stm_pending_with_tail(
         &mut st.stm019_pending,
+        PendingTail {
+            rows: st.stm019_dropped,
+            ..PendingTail::default()
+        },
         &mut st.notices,
         &mut st.counter,
         &file.name,
@@ -4384,7 +4401,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         d.insert("trip_constant_value".to_string(), value.to_string());
                         d.insert("trip_stop_count".to_string(), trip_rows.len().to_string());
                     }
-                    // The feed-summary branch (`finalize_stm_pending`) writes affected_rows/example_trips;
+                    // The feed-summary branch (`finalize_stm_pending_with_tail`) writes affected_rows/example_trips;
                     // the pinpoint branch carries the same keys so the one template is populated in both branches.
                     {
                         d.insert("affected_rows".to_string(), "1".to_string());
@@ -4561,6 +4578,29 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
 /// Full notices are kept for the first violating trips only; the rest of the rows are counted.
 const PENDING_KEPT_TRIPS: usize = 50;
 
+/// Trips an STM_018/019 feed summary lists (`example_<i>_*`, smallest trip_id, its first row).
+const ROW_SUMMARY_EXAMPLE_TRIPS: usize = 10;
+/// Pending length that triggers [`compact_row_pending`]; far above every summary threshold.
+const ROW_PENDING_COMPACT_AT: usize = 4096;
+
+/// Shrinks a per-row pending list (STM_018/019) that is certain to become a feed summary to
+/// the rows the summary reads: the first row (smallest line) of each of the
+/// `ROW_SUMMARY_EXAMPLE_TRIPS` smallest trip_ids. The other rows are only counted in
+/// `dropped`. A dropped row never matters again: it is beaten by rows that stay. The rows
+/// arrive unsorted (chunks), so the "first N trips" cut of [`PendingTail`] cannot be used.
+/// tfs-1014 held 1.5M such notices per rule.
+fn compact_row_pending(pending: &mut Vec<Notice>, dropped: &mut usize) {
+    if pending.len() < ROW_PENDING_COMPACT_AT {
+        return;
+    }
+    let before = pending.len();
+    pending.retain(|n| n.entity_id.is_some() && n.line.is_some());
+    pending.sort_by(|a, b| a.entity_id.cmp(&b.entity_id).then_with(|| a.line.cmp(&b.line)));
+    pending.dedup_by(|later, first| later.entity_id == first.entity_id);
+    pending.truncate(ROW_SUMMARY_EXAMPLE_TRIPS);
+    *dropped += before - pending.len();
+}
+
 /// Rows of a per-row check that were counted but not built as notices (see `PENDING_KEPT_TRIPS`).
 #[derive(Default)]
 struct PendingTail {
@@ -4590,34 +4630,9 @@ impl PendingTail {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn finalize_stm_pending(
-    pending: &mut Vec<Notice>,
-    notices: &mut Vec<Notice>,
-    counter: &mut u32,
-    file_name: &str,
-    rule_id: &str,
-    field: &str,
-    remediation: &str,
-    summary: &str,
-    threshold: usize,
-) {
-    finalize_stm_pending_with_tail(
-        pending,
-        PendingTail::default(),
-        notices,
-        counter,
-        file_name,
-        rule_id,
-        field,
-        remediation,
-        summary,
-        threshold,
-    );
-}
-
-/// [`finalize_stm_pending`] for a pending list cut by [`PendingTail`]. Below the threshold
-/// nothing was counted (kept trips hold at least as many rows), so the list is complete.
+/// Emits a per-row pending list: one notice per row up to `threshold`, one feed summary above it.
+/// `tail` holds rows that were counted but not built ([`PendingTail`], [`compact_row_pending`]);
+/// both cut only lists already above the threshold, so a list at or below it is complete.
 #[allow(clippy::too_many_arguments)]
 fn finalize_stm_pending_with_tail(
     pending: &mut Vec<Notice>,
@@ -4721,7 +4736,7 @@ fn finalize_stm_pending_with_tail(
                     d.insert(format!("example_{index}_expected"), value.clone());
                 }
                 index += 1;
-                if index == 10 {
+                if index == ROW_SUMMARY_EXAMPLE_TRIPS {
                     break;
                 }
             }
@@ -5881,6 +5896,49 @@ mod tests {
                 .map(String::as_str),
             Some("T00"),
         );
+    }
+
+    #[test]
+    fn stm018_summary_is_the_same_when_the_pending_list_is_compacted() {
+        // 2,000 trips × 3 rows: 6,000 pending rows pass the compaction size, so only the 10
+        // smallest trips' first rows are kept. The summary must still count every row and show
+        // the same trips and lines. Ascending order compacts the smallest trips themselves;
+        // reverse order brings them last, after the other trips were compacted away.
+        for ascending in [true, false] {
+            let order: Vec<u32> = if ascending {
+                (0..2000).collect()
+            } else {
+                (0..2000).rev().collect()
+            };
+            let mut ids: Vec<String> = Vec::new();
+            for &t in &order {
+                for _ in 0..3 {
+                    ids.push(format!("T{t:04}"));
+                }
+            }
+            let rows: Vec<Vec<&str>> =
+                ids.iter().map(|id| vec![id.as_str(), "S1", "9"]).collect();
+            let file = make_file(vec!["trip_id", "stop_id", "continuous_pickup"], rows);
+            let (_, notices) = validate_stop_times(&file, None, false);
+            let stm018: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_018").collect();
+            assert_eq!(stm018.len(), 1);
+            let d = stm018[0].details.as_ref().expect("summary details");
+            assert_eq!(stm018[0].observed_value.as_deref(), Some("6000"));
+            assert_eq!(d.get("affected_rows").map(String::as_str), Some("6000"));
+            assert_eq!(
+                d.get("example_trips").map(String::as_str),
+                Some("T0000, T0001, T0002, T0003, T0004")
+            );
+            for i in 0..ROW_SUMMARY_EXAMPLE_TRIPS {
+                // File line of trip i's first row (header is line 1).
+                let pos = order.iter().position(|&t| t as usize == i).unwrap();
+                let line = (3 * pos + 2).to_string();
+                let trip = format!("T{i:04}");
+                assert_eq!(d.get(&format!("example_{i}_trip")), Some(&trip), "ascending={ascending}");
+                assert_eq!(d.get(&format!("example_{i}_line")), Some(&line), "ascending={ascending}");
+            }
+            assert!(d.get(&format!("example_{ROW_SUMMARY_EXAMPLE_TRIPS}_trip")).is_none());
+        }
     }
 
     #[test]
