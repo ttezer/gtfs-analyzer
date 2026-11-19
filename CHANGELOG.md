@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Memory on feeds with a large streamed shapes.txt.** ZIP sizes are not trusted, so the shape point list grew by doubling and could keep up to half of its slots empty for the whole run (mdb-2014: 67.1M slots for 40.2M points, 1.07 GB). The slack is now returned after parsing; mdb-2014 peak 10.5 → 9.5 GB, report identical.
+
 ## [0.21.0] - 2026-11-19
 
 Highlights. **Less noise:** rules that repeated one cause per trip or row now report once per group, and a summary keeps the score it replaces (`details.instance_count`): `STM_012`, `STM_026` (per route, direction and stop pair), `SHP_025` (per shape), `STM_042` (per headsign value), `DQ_018`/`DQ_019` (per field above 50 findings) and partially filled `STM_017`. On the full catalogue the finding count halved (29.3M → 14.8M) and the reports shrank from 17.5 to 8.7 GB; the grouping leaves every score unchanged, while finding counts for these rules drop accordingly. **Better shape matching:** `SHP_017` matches every stop to all nearby passes of the shape and checks the order along the best path; trips sharing a conflict are counted. **New rules:** `STP_046` and `STP_047` (stops and stations recorded twice; no score weight). **Memory:** feeds with a broken column no longer build millions of findings that are dropped later (mdb-778 8.1 → 1.0 GB, tfs-1014 3.1 → 0.35 GB, mdb-992 3.7 → 2.5 GB); the largest feed in the catalogue (BODS, 59.7 million `stop_times` rows) validates in under 2 minutes. **English messages:** 584 rules show the engine's more detailed English text. SDK `gtfs-sdk` 0.11.0.

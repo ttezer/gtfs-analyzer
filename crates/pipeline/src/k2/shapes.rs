@@ -872,6 +872,14 @@ pub fn validate_shapes_with_limits(
         notices.push(summary);
     }
 
+    // The point list grows by doubling when its size cannot be estimated (ZIP sizes are not
+    // trusted), so up to half of it can be empty and stays allocated until the end of the
+    // run: mdb-2014 held 67.1M slots for 40.2M points (1.07 GB). Return the slack now. The
+    // shrink may briefly need old + new buffers, but this is far below the K6 peak.
+    if records.capacity() - records.len() > records.len() / 8 {
+        records.shrink_to_fit();
+    }
+
     (records, intern, notices)
 }
 
@@ -1028,6 +1036,36 @@ mod tests {
             raw_text: Some(text),
             zip_entry_name: None,
         }
+    }
+
+    #[test]
+    fn zip_streamed_points_do_not_keep_doubling_slack() {
+        // Sizes in a ZIP are not trusted, so a streamed shapes.txt grows the point list by
+        // doubling; the slack must be returned before the records leave K2 (mdb-2014: 67.1M
+        // slots for 40.2M points, 1.07 GB).
+        use std::io::Write;
+        let n = 3_000;
+        let mut text = String::from("shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n");
+        for i in 0..n {
+            text.push_str(&format!("S{},59.91,10.75,{}\n", i / 100, i % 100));
+        }
+        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        writer
+            .start_file("shapes.txt", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        writer.write_all(text.as_bytes()).unwrap();
+        let zip_bytes = writer.finish().unwrap().into_inner();
+        let mut file = stream_file(String::new());
+        file.raw_text = None;
+        file.zip_entry_name = Some("shapes.txt".to_string());
+        let (records, _interns, _) = validate_shapes(&file, Some(&zip_bytes));
+        assert_eq!(records.len(), n);
+        assert!(
+            records.capacity() - records.len() <= records.len() / 8,
+            "capacity {} for {} points",
+            records.capacity(),
+            records.len()
+        );
     }
 
     #[test]
