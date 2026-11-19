@@ -12,14 +12,14 @@ CATALOG_URL="https://files.mobilitydatabase.org/feeds_v2.csv"
 # it validates in 26 s with a 4.1 GB heap peak and 1.07M findings, in the CLI and in the
 # browser, so it is back in the corpus (user decision). `spec-audit/` still excludes it.
 #
-# `mdb-2014` is the 1,282 MB compressed / 7,452 MB extracted BODS UK aggregate feed.
-# It reproducibly terminated the GitHub-hosted shard runner with exit 143 in both
-# attempts of workflow run 40399346692, preventing every later feed in that shard
-# from producing a result row.
+# `mdb-2014` (BODS UK, 1.34 GB compressed / 7.8 GB extracted) terminated the GitHub-hosted
+# shard runner with exit 143 in both attempts of workflow run 40399346692. On 2026-11-19 it
+# validates in 118 s with a 10.5 GB heap peak; shards run feeds one at a time, so it is back
+# in the corpus (user decision). If a shard dies again, this is the first suspect.
 #
 # ⚠️ Excluded feeds are RECORDED, not silently dropped: they appear in the exclusions
 # list with an explicit reason, so "not run by instruction" never reads as "not found".
-EXCLUDED_FEEDS = {"mdb-2014"}
+EXCLUDED_FEEDS: set[str] = set()
 
 
 def norm(s):
