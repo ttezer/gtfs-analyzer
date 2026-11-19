@@ -415,9 +415,11 @@ fn run_validate(args: ValidateArgs) -> ExitCode {
     }
 
     if args.json && !args.compact_json {
+        gtfs_pipeline::diagnostic_mem_log("CLI before JSON write");
         if let Err(err) = write_json_result(&result, &filters, args.pretty, args.output.as_deref()) {
             return cli_error(err);
         }
+        gtfs_pipeline::diagnostic_mem_log("CLI after JSON write");
         return exit_code(
             &result,
             args.fail_on.map(Into::into),

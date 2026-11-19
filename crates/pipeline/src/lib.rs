@@ -2191,6 +2191,13 @@ pub fn apply_report_scope(
 
 /// Full K1–K7 pipeline—for integration tests and tool integration.
 /// Unlike the WASM version, there is no notice limit and `today` is supplied externally.
+/// Writes the process's current and peak memory to stderr with `label` (native; silent with
+/// `GTFS_QUIET`). For callers outside the pipeline, e.g. the CLI around writing its report.
+#[doc(hidden)]
+pub fn diagnostic_mem_log(label: &str) {
+    crate::timing::mem_log(label);
+}
+
 pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> ValidateResult {
     validate_bytes_inspected(zip, config, today, &mut |_, _, _, _| {})
 }
@@ -2381,6 +2388,7 @@ fn validate_bytes_inspected_with_name_index(
 
     inspect(&all, &k2.records, &k5.derived, &whitespace_suppressions);
     aggregate_feed_level_notices(&mut all, &k2.records, &k5.derived);
+    crate::timing::mem_log("after feed-level aggregation");
     apply_report_scope(&mut all, &k2.records, config);
 
     // issue #133—the publication decision and score must expose loss of COVERAGE. If a required file
@@ -2417,6 +2425,7 @@ fn validate_bytes_inspected_with_name_index(
     } else {
         Default::default()
     };
+    crate::timing::mem_log("after name index");
     crate::timing::mem_log("after name-index");
     ValidateResult::Ok(ValidationResult {
         status: if partial.is_empty() {
