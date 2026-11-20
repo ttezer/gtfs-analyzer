@@ -236,6 +236,20 @@ pub fn validate_shapes_with_limits(
         // rows fallback: the row count is already exact.
         None => Vec::with_capacity(file.rows.len()),
     };
+    // On wasm, size the stream path from the entry's real line count (see PRECOUNT_ZIP_ROWS):
+    // the sampling estimate below has no byte total to work from on the ZIP path.
+    if let (true, Some(zb)) = (super::stop_times::PRECOUNT_ZIP_ROWS, zip_bytes) {
+        let limit = stream_budget
+            .as_ref()
+            .map(|budget| budget.limit())
+            .unwrap_or(super::stop_times::stream_byte_limit(max_data_rows));
+        let name = file.zip_entry_name.as_deref().unwrap_or(&file.name);
+        if let Some(lines) = super::stop_times::count_zip_entry_lines(zb, name, limit) {
+            let est = max_data_rows.map_or(lines, |m| lines.min(m.saturating_add(1)));
+            records.reserve_exact(est);
+            capacity_set = true;
+        }
+    }
     let mut counter = 0u32;
     // ARC_033: readers observe the violation; this loop adds the line number (see trips.rs).
     let mut rfc_acc = crate::k1_parse::Rfc4180Acc::default();
@@ -1066,6 +1080,33 @@ mod tests {
             records.capacity(),
             records.len()
         );
+    }
+
+    #[test]
+    fn zip_entry_line_count_is_exact_and_respects_the_byte_limit() {
+        use std::io::Write;
+        let zip_of = |text: &str| {
+            let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+            writer
+                .start_file("shapes.txt", zip::write::SimpleFileOptions::default())
+                .unwrap();
+            writer.write_all(text.as_bytes()).unwrap();
+            writer.finish().unwrap().into_inner()
+        };
+        let mut text = String::from("shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n");
+        for i in 0..2_500_000u32 {
+            text.push_str(&format!("S{},59.91,10.75,{}\n", i / 100, i % 100));
+        }
+        let count = super::super::stop_times::count_zip_entry_lines;
+        let zb = zip_of(&text);
+        // Header + 2.5M rows, read across many 1 MiB buffers.
+        assert_eq!(count(&zb, "shapes.txt", usize::MAX), Some(2_500_001));
+        // A last line without a trailing newline still counts.
+        assert_eq!(count(&zip_of("a\nb\nc"), "shapes.txt", usize::MAX), Some(3));
+        // The count stops where the stream would (the limit is checked per buffer).
+        let limited = count(&zb, "shapes.txt", 1).unwrap();
+        assert!(limited < 2_500_001 && limited > 0, "limited count {limited}");
+        assert_eq!(count(&zb, "missing.txt", usize::MAX), None);
     }
 
     #[test]

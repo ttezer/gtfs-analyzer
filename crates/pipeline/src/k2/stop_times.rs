@@ -64,6 +64,46 @@ pub(crate) fn stream_byte_limit(max_data_rows: Option<usize>) -> usize {
     }
 }
 
+/// Whether ZIP-streamed row buffers are sized from a counting pass first.
+///
+/// ZIP-declared sizes are not trusted for capacity, so without a count the stop_times and
+/// shapes row buffers grow by doubling. WebAssembly memory never shrinks: each doubling's
+/// old + new buffers stay in the high-water mark, and mdb-2014 reached ~15 GB in the browser.
+/// Native builds skip the extra pass: large reallocations there move pages instead of
+/// copying, and capacity that is never written is not resident.
+pub(crate) const PRECOUNT_ZIP_ROWS: bool = cfg!(target_family = "wasm");
+
+/// Line count of a ZIP entry, read once through the same decompression guard the stream
+/// uses, stopping at `byte_limit` like the stream does. It is an upper bound on the data
+/// rows (header, blank lines and quoted line breaks count too), used only as capacity.
+/// `None` when the entry cannot be read; the caller then grows as before.
+pub(crate) fn count_zip_entry_lines(zb: &[u8], name: &str, byte_limit: usize) -> Option<usize> {
+    let mut archive = zip::ZipArchive::new(Cursor::new(zb)).ok()?;
+    let entry = archive.by_name(name).ok()?;
+    let compressed_size = entry.compressed_size();
+    let mut total = 0u64;
+    let mut reader = guard_entry(entry, compressed_size, &mut total);
+    let mut buf = vec![0u8; 1 << 20];
+    let (mut lines, mut read, mut last) = (0usize, 0usize, b'\n');
+    loop {
+        let n = match reader.read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => n,
+            Err(_) => return None,
+        };
+        lines += buf[..n].iter().filter(|&&b| b == b'\n').count();
+        last = buf[n - 1];
+        read += n;
+        if read >= byte_limit {
+            break;
+        }
+    }
+    if read > 0 && last != b'\n' {
+        lines += 1;
+    }
+    Some(lines)
+}
+
 /// Shared SDK budget for the files that K2 reopens from the ZIP. A separate
 /// per-entry limit still applies, but the total budget prevents four large
 /// entries from each consuming the full allowance in one validation run.
@@ -2321,9 +2361,22 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         let est = text.bytes().filter(|&b| b == b'\n').count();
         st.all_rows.reserve(est);
         st.row_trip.reserve(est);
-    } else if zip_bytes.is_some() {
+    } else if let Some(zb) = zip_bytes {
         // ZIP central-directory sizes are attacker-controlled metadata. Do not use
-        // them as a Vec capacity hint; grow from observed rows instead.
+        // them as a Vec capacity hint; on wasm count the real lines instead (see
+        // PRECOUNT_ZIP_ROWS), elsewhere grow from observed rows.
+        if PRECOUNT_ZIP_ROWS {
+            let limit = stream_budget
+                .as_ref()
+                .map(|budget| budget.limit())
+                .unwrap_or(stream_byte_limit(max_data_rows));
+            let name = file.zip_entry_name.as_deref().unwrap_or(&file.name);
+            if let Some(lines) = count_zip_entry_lines(zb, name, limit) {
+                let est = max_data_rows.map_or(lines, |m| lines.min(m.saturating_add(1)));
+                st.all_rows.reserve_exact(est);
+                st.row_trip.reserve_exact(est);
+            }
+        }
     }
 
     #[cfg(feature = "parallel")]
