@@ -150,8 +150,6 @@ pub fn suppress_whitespace_derivatives(
     derived: &DerivedData,
     early_suppressions: WhitespaceSuppressions,
 ) -> Vec<Notice> {
-    let references = WhitespaceReferences::from_records(records);
-
     // 🔴 IMMUTABLE (#134): every suppressed finding MUST BE DECLARED SOMEWHERE. The declaration
     // is written to the finding's OWN file's `DQ_016` root; if that file has no root, there
     // is nowhere to write the declaration and the finding disappears WITHOUT A TRACE — worse
@@ -165,6 +163,13 @@ pub fn suppress_whitespace_derivatives(
         .filter(|n| n.rule_id == "DQ_016")
         .filter_map(|n| n.file.clone())
         .collect();
+    // Without a DQ_016 root nothing below can suppress or annotate a finding (every branch
+    // requires the root), so skip building the raw + trimmed identity sets: on mdb-2014 they
+    // added ~2.2 GB to the browser's WASM memory for no effect.
+    if files_with_root.is_empty() {
+        return notices;
+    }
+    let references = WhitespaceReferences::from_records(records);
 
     let mut suppressed: BTreeMap<String, (u64, BTreeSet<String>)> = files_with_root
         .iter()
