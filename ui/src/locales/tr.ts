@@ -182,6 +182,7 @@ const tr = {
     'producer.card.ARC_032.what': "Bir ad ya da açıklamada HTML etiketi veya kaçış kodu (ör. &amp;) var; yolcu bunu kod olarak görür.",
     'producer.card.ARC_032.action': "Metni düz yazı olarak yeniden girin.",
     'producer.card.ARC_033.title': "Metinde kaçırılmamış tırnak",
+    'producer.card.ARC_033.more_rows': "+{n} satır daha",
     'producer.card.ARC_033.what': "Bir alan değerinde tırnak ya da virgül var ama doğru biçimde tırnak içine alınmamış; satır yanlış bölünebilir.",
     'producer.card.ARC_033.action': "Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin.",
     'producer.card.ARC_034.title': "Başlık satırı dosyanın ortasında tekrar ediyor",

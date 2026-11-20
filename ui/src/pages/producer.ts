@@ -24,6 +24,15 @@ function visibleValue(value: string | null): string {
   return value.replace(/ /g, '␠').replace(/\t/g, '⇥').replace(/\r?\n/g, '↵');
 }
 
+/** ARC_033: every listed broken row (the engine keeps the first 100), then how many remain. */
+function arc033Lines(n: Notice): string {
+  const listed = (n.details?.example_lines ?? '').split(', ').filter(Boolean);
+  if (listed.length === 0) return n.line != null ? String(n.line) : '—';
+  const rest = Number(n.details?.affected_rows ?? listed.length) - listed.length;
+  const text = listed.join(', ');
+  return rest > 0 ? `${text} ${t('producer.card.ARC_033.more_rows', { n: localizedNumber(String(rest)) })}` : text;
+}
+
 /** STM_051/052/054/055: the boarding setting written on the Flex row and what it means; an
  *  empty cell the spec counts as 0 is shown as such. */
 function flexSetting(n: Notice): { value: string; meaning: string } {
@@ -6469,11 +6478,11 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
   }
   if (g.ruleId === 'ARC_033') {
     return {
-      head: [t('producer.col.record'), t('producer.col.affected_rows'), t('producer.col.row'), t('producer.times.value')],
+      head: [t('producer.col.record'), t('producer.col.affected_rows'), t('producer.col.example_rows'), t('producer.times.value')],
       row: n => [
         listLabel(n),
         dash(n.details?.affected_rows ? localizedNumber(n.details.affected_rows) : null),
-        n.line != null ? String(n.line) : '—',
+        arc033Lines(n),
         visibleValue(n.details?.example_value ?? null) || '—',
       ],
     };

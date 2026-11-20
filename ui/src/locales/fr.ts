@@ -184,6 +184,7 @@ const fr: LocaleShape = {
     'producer.card.ARC_032.what': "Un nom ou une description contient une balise HTML ou un code d’échappement (ex. &amp;) ; les voyageurs le voient comme du code.",
     'producer.card.ARC_032.action': "Saisissez de nouveau le texte en texte brut.",
     'producer.card.ARC_033.title': "Guillemet non échappé dans un texte",
+    'producer.card.ARC_033.more_rows': "+{n} autres lignes",
     'producer.card.ARC_033.what': "Une valeur contient un guillemet ou une virgule mal encadrés ; la ligne peut être découpée à tort.",
     'producer.card.ARC_033.action': "Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique.",
     'producer.card.ARC_034.title': "Ligne d’en-tête répétée au milieu du fichier",

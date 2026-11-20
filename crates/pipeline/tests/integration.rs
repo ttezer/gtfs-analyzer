@@ -4784,6 +4784,43 @@ fn arc033_example_shows_the_whole_cell_as_written() {
 }
 
 #[test]
+fn arc033_lists_broken_lines_up_to_the_cap() {
+    // The summary must say WHERE every broken row is, not only the first one; past the cap
+    // `affected_rows` still counts them all.
+    let mut stops = String::from("stop_id,stop_name,stop_lat,stop_lon\n");
+    for i in 1..=105 {
+        let name = if i % 2 == 0 { format!("{i}\" Street") } else { format!("Stop{i}") };
+        stops.push_str(&format!("S{i},{name},41.0,29.0\n"));
+    }
+    match run(&arc033_feed(&stops)) {
+        ValidateResult::Ok(vr) => {
+            let n = vr.notices.iter().find(|n| n.rule_id == "ARC_033").expect("ARC_033 bekleniyor");
+            let d = n.details.as_ref().expect("details");
+            assert_eq!(d.get("affected_rows").map(String::as_str), Some("52"));
+            let lines = d.get("example_lines").cloned().unwrap_or_default();
+            assert!(lines.starts_with("3, 5, 7, "), "satırlar artan ve başlıktan sayılmalı: {lines}");
+            assert_eq!(lines.split(", ").count(), 52);
+        }
+        other => panic!("Ok beklendi: {other:?}"),
+    }
+    let mut big = String::from("stop_id,stop_name,stop_lat,stop_lon\n");
+    for i in 1..=150 {
+        big.push_str(&format!("S{i},{i}\" Street,41.0,29.0\n"));
+    }
+    match run(&arc033_feed(&big)) {
+        ValidateResult::Ok(vr) => {
+            let n = vr.notices.iter().find(|n| n.rule_id == "ARC_033").expect("ARC_033 bekleniyor");
+            let d = n.details.as_ref().expect("details");
+            assert_eq!(d.get("affected_rows").map(String::as_str), Some("150"));
+            let lines = d.get("example_lines").cloned().unwrap_or_default();
+            assert_eq!(lines.split(", ").count(), 100, "liste 100'de kesilmeli");
+            assert!(lines.ends_with(", 101"), "ilk 100 satır (2..101) kalmalı: {lines}");
+        }
+        other => panic!("Ok beklendi: {other:?}"),
+    }
+}
+
+#[test]
 fn arc033_silent_on_correctly_escaped_quotes() {
     // 🔴 FALSE-POSITIVE GUARD. When parsed, this row produces the value `12" Street` —
     // the SAME value as the violating form. If the rule inspected the value, it would fire here

@@ -564,8 +564,15 @@ pub(crate) struct Rfc4180Acc {
     pub example: Option<String>,
     /// Violation type — two separate spec sentences (see the `ARC_033` card).
     pub kind: Option<&'static str>,
+    /// First `ARC033_MAX_LINES` affected line numbers, ascending. The planner needs WHERE every
+    /// broken row is; one example alone made the publisher fix them one round at a time.
+    pub lines: Vec<u64>,
     last_line: u64,
 }
+
+/// Cap for `Rfc4180Acc::lines`: covers every row of almost all corpus files (54 of 61 feeds
+/// have ≤ 100 affected rows, run 44742222593) while a 6,315-row file stays small.
+pub(crate) const ARC033_MAX_LINES: usize = 100;
 
 impl Rfc4180Acc {
     /// Planner evidence for the ARC_033 summary.
@@ -575,6 +582,12 @@ impl Rfc4180Acc {
         d.insert("issue".to_string(), rfc4180_issue_code(self.kind.unwrap_or(RFC4180_BARE_QUOTE)).to_string());
         if let Some(example) = &self.example {
             d.insert("example_value".to_string(), example.clone());
+        }
+        if !self.lines.is_empty() {
+            d.insert(
+                "example_lines".to_string(),
+                self.lines.iter().map(u64::to_string).collect::<Vec<_>>().join(", "),
+            );
         }
         d.into()
     }
@@ -605,6 +618,9 @@ impl Rfc4180Acc {
             if self.first_line.is_none() {
                 self.first_line = Some(line);
             }
+            if self.lines.len() < ARC033_MAX_LINES {
+                self.lines.push(line);
+            }
         }
         if self.kind.is_none() {
             self.kind = Some(kind);
@@ -629,6 +645,11 @@ impl Rfc4180Acc {
         if self.example.is_none() {
             self.example = other.example.clone();
         }
+        // Each chunk kept its own first lines, so the union holds the global first ones.
+        self.lines.extend_from_slice(&other.lines);
+        self.lines.sort_unstable();
+        self.lines.dedup();
+        self.lines.truncate(ARC033_MAX_LINES);
     }
 }
 

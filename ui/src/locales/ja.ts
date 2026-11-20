@@ -183,6 +183,7 @@ const ja: LocaleShape = {
     'producer.card.ARC_032.what': "名称や説明にHTMLタグやエスケープコード（例: &amp;）があり、利用者にはコードとして見えます。",
     'producer.card.ARC_032.action': "プレーンテキストで入力し直してください。",
     'producer.card.ARC_033.title': "引用符が正しく処理されていません",
+    'producer.card.ARC_033.more_rows': "ほか{n}行",
     'producer.card.ARC_033.what': "値に引用符やカンマがあるのに正しく囲まれておらず、行が誤って分割されるおそれがあります。",
     'producer.card.ARC_033.action': "これはファイル形式の問題です。出力ソフトの提供元または情報システム担当に連絡してください。",
     'producer.card.ARC_034.title': "ヘッダー行がファイルの途中で繰り返されています",

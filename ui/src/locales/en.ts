@@ -184,6 +184,7 @@ const en: LocaleShape = {
     'producer.card.ARC_032.what': "A name or description contains an HTML tag or escape code (e.g. &amp;); riders see it as code.",
     'producer.card.ARC_032.action': "Enter the text again as plain text.",
     'producer.card.ARC_033.title': "Unescaped quote in text",
+    'producer.card.ARC_033.more_rows': "+{n} more rows",
     'producer.card.ARC_033.what': "A field value contains a quote or comma that is not properly quoted; the row may be split wrongly.",
     'producer.card.ARC_033.action': "This is a file format issue; tell the export software vendor or your IT team.",
     'producer.card.ARC_034.title': "Header row repeated in the middle of the file",

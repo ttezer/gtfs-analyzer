@@ -3361,6 +3361,20 @@ describe('ARC dosya kartları (ARC_002–011)', () => {
       .toContain('<td>Durak listesi</td><td>1</td><td>4</td><td>Durak kodu</td><td>Ş3</td>');
   });
 
+  it('ARC_033 bozuk satırların hepsini, sınırı aşanların sayısını ve hücrenin yazıldığı hâlini gösterir', () => {
+    const all = render(file('ARC_033', 'stops.txt', { line: 153, details: {
+      affected_rows: '5', example_lines: '153, 154, 249, 250, 251', example_value: '"Gen.a.e.f."nila"-Różana"',
+    } }));
+    expect(all).toContain('<td>Durak listesi</td><td>5</td><td>153, 154, 249, 250, 251</td><td>&quot;Gen.a.e.f.&quot;nila&quot;-Różana&quot;</td>');
+    const capped = render(file('ARC_033', 'translations.txt', { line: 2, details: {
+      affected_rows: '6315', example_lines: '2, 3', example_value: '12" Street',
+    } }));
+    expect(capped).toContain('<td>2, 3 +6.313 satır daha</td>');
+    // Older results carry no list: fall back to the first line.
+    expect(render(file('ARC_033', 'stops.txt', { line: 7, details: { affected_rows: '1', example_value: 'a"b' } })))
+      .toContain('<td>1</td><td>7</td>');
+  });
+
   it('ARC_030 sekmeyi işaretli değerle, ARC_022 satır sayısını gösterir', () => {
     expect(render(file('ARC_030', 'trips.txt', { line: 3, details: { field_name: 'trip_headsign', value_excerpt: 'Liman⟨U+0009⟩Son' } })))
       .toContain('<td>Sefer listesi</td><td>3</td><td>Yön adı</td><td>Liman⟨U+0009⟩Son</td>');
