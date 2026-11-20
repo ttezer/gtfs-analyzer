@@ -65,70 +65,70 @@ La page **Pour les planificateurs** de l’application web présente le même r�
 
 ## Nos résultats sur corpus
 
-Chaque version est exécutée sur **l’intégralité du catalogue GTFS Schedule de MobilityDatabase**. Dernière exécution (`44474551308`, 2026-11-19) :
+Chaque version est exécutée sur **l’intégralité du catalogue GTFS Schedule de MobilityDatabase**. Dernière exécution (`44623468896`, 2026-11-19) :
 
 | | |
 |---|---:|
-| Jeux de données tentés | **4 479** |
-| ZIP valides téléchargés | **4 447** |
-| Analyse terminée | **4 447** (sans échec) |
+| Jeux de données tentés | **4 481** |
+| ZIP valides téléchargés | **4 449** |
+| Analyse terminée | **4 449** (sans échec) |
 | Rapport partiel (fichier cassé/manquant ignoré sans risque) | 76 |
-| Pays | 96 |
+| Pays | 95 |
 | Règles déclenchées | 423 / 621 |
 | Durée médiane par jeu | **0,05 s** (p90 1,1 s) |
-| Mémoire maximale médiane par jeu | **15 MB** (p90 152 Mo) |
-| Durée totale | 77,8 min |
+| Mémoire maximale médiane par jeu | **15 MB** (p90 149 Mo) |
+| Durée totale | 86,7 min |
 
-**Vitesse.** L’ensemble du catalogue, 23,8 Go de GTFS compressé, a été validé en **77,8 minutes** sur une machine CI à 4 cœurs :
+**Vitesse.** L’ensemble du catalogue, 25,8 Go de GTFS compressé, a été validé en **86,7 minutes** sur une machine CI à 4 cœurs :
 
 | Durée de validation | Jeux de données | Part |
 |---|---:|---:|
-| Moins de 0,1 seconde | 2 778 | **62,5 %** |
-| Moins de 1 seconde | 3 973 | **89,3 %** |
-| Moins de 10 secondes | 4 371 | **98,3 %** |
-| Moins de 1 minute | 4 437 | **99,8 %** |
+| Moins de 0,1 seconde | 2 761 | **62,1 %** |
+| Moins de 1 seconde | 3 968 | **89,2 %** |
+| Moins de 10 secondes | 4 370 | **98,2 %** |
+| Moins de 1 minute | 4 437 | **99,7 %** |
 
-**Mémoire.** Mémoire maximale par jeu de données : **moyenne 102 Mo, médiane 15 Mo**.
+**Mémoire.** Mémoire maximale par jeu de données : **moyenne 100 Mo, médiane 15 Mo**.
 
 | Mémoire maximale | Jeux de données | Part |
 |---|---:|---:|
-| Moins de 100 Mo | 3 849 | **86,6 %** |
-| Moins de 500 Mo | 4 279 | **96,2 %** |
-| Moins de 1 Go | 4 366 | **98,2 %** |
-| Moins de 4 Go | 4 437 | **99,8 %** |
+| Moins de 100 Mo | 3 866 | **86,9 %** |
+| Moins de 500 Mo | 4 281 | **96,2 %** |
+| Moins de 1 Go | 4 367 | **98,2 %** |
+| Moins de 4 Go | 4 438 | **99,8 %** |
 
 Les plus gros jeux de données se terminent aussi en quelques minutes :
 
 | Jeu de données | ZIP | Décompressé | Durée | Mémoire maximale |
 |---|---:|---:|---:|---:|
-| Suède entière (Trafiklab, `mdb-2939`) | 908 Mo | 4,5 Go | 3 min 15 s | 11,3 Go |
-| Bade-Wurtemberg (NVBW, `mdb-2393`) | 700 Mo | 4,6 Go | 1 min 44 s | 8,7 Go |
-| Allemagne entière (DELFI, `mdb-3215`) | 589 Mo | 4,9 Go | 4 min 19 s | 13,2 Go |
-| Entur (`mdb-1078`) | 554 Mo | 3,4 Go | 1 min 31 s | 6,3 Go |
-| Grande-Bretagne entière (BODS, `mdb-2014`) | 1,34 Go | 7,8 Go | 1 min 58 s | 10,5 Go |
-| Tchéquie (`mdb-2904`) | 86 Mo | 0,85 Go | 26 s | 4,1 Go |
+| Suède entière (Trafiklab, `mdb-2939`) | 908 Mo | 4,5 Go | 2 min 48 s | 9,3 Go |
+| Bade-Wurtemberg (NVBW, `mdb-2393`) | 700 Mo | 4,6 Go | 1 min 26 s | 7,0 Go |
+| Allemagne entière (DELFI, `mdb-3215`) | 589 Mo | 4,9 Go | 6 min 1 s | 12,9 Go |
+| Entur (`mdb-1078`) | 554 Mo | 3,4 Go | 1 min 1 s | 5,0 Go |
+| Grande-Bretagne entière (BODS, `mdb-2014`) | 1,93 Go | 11,7 Go | 6 min 36 s | 13,2 Go |
+| Tchéquie (`mdb-2904`) | 86 Mo | 0,85 Go | 58 s | 5,5 Go |
 
 Les tables de ces jeux de données sont elles aussi énormes ; chaque ligne est lue et contrôlée :
 
 | Jeu de données | `stop_times` | Courses | Points de tracé | Exceptions de calendrier | Correspondances | Durée |
 |---|---:|---:|---:|---:|---:|---:|
-| Allemagne entière (DELFI, `mdb-3215`) | **65,1 millions** | 3,17 millions | 10,5 millions | 456 k | 1,07 million | 4 min 19 s |
-| Suisse entière (SKI+, `mdb-2898`) | **42,6 millions** | 2,62 millions | — | **10,5 millions** | 1,12 million | 2 min 16 s |
-| Bade-Wurtemberg (NVBW, `mdb-2393`) | 6,5 millions | 373 k | **57,5 millions** | 340 k | 106 k | 1 min 44 s |
-| Buenos Aires (Colectivos, `mdb-1220`) | **29,3 millions** | 436 k | 756 k | 95 | — | 44 s |
-| Bogotá (SIMUR, `mdb-3358`) | 9,6 millions | 182 k | 942 k | 126 | — | 19 s |
-| Grande-Bretagne entière (BODS, `mdb-2014`) | **59,7 millions** | 1,55 million | **40,2 millions** | 232 k | — | 1 min 58 s |
-| Tchéquie (`mdb-2904`) | 9,6 millions | 494 k | — | **4,4 millions** | — | 26 s |
+| Allemagne entière (DELFI, `mdb-3215`) | **65,1 millions** | 3,17 millions | 10,5 millions | 456 k | 1,07 million | 6 min 1 s |
+| Suisse entière (SKI+, `mdb-2898`) | **42,6 millions** | 2,62 millions | — | **10,5 millions** | 1,12 million | 1 min 51 s |
+| Bade-Wurtemberg (NVBW, `mdb-2393`) | 6,5 millions | 373 k | **57,5 millions** | 340 k | 106 k | 1 min 26 s |
+| Buenos Aires (Colectivos, `mdb-1220`) | **29,3 millions** | 436 k | 756 k | 95 | — | 53 s |
+| Bogotá (SIMUR, `mdb-3358`) | 9,6 millions | 182 k | 942 k | 126 | — | 22 s |
+| Grande-Bretagne entière (BODS, `mdb-2014`) | **69,5 millions** | 1,76 million | **89,7 millions** | 278 k | — | 6 min 36 s |
+| Tchéquie (`mdb-2904`) | 9,6 millions | 494 k | — | **4,4 millions** | — | 58 s |
 
-Les 29,3 millions de lignes `stop_times` de Buenos Aires sont validées avec les 621 règles en 44 secondes : environ **666 000 lignes par seconde**.
+Les 29,3 millions de lignes `stop_times` de Buenos Aires sont validées avec les 621 règles en 53 secondes : environ **548 000 lignes par seconde**.
 
-Le jeu de données DELFI pour toute l’Allemagne et deux jeux régionaux de Nouvelle-Aquitaine (77 et 83 Mo) font partie des jeux que le `gtfs-validator` de MobilityData a interrompus sur une erreur interne lors de cette exécution ; GTFS Analyzer les a validés tous les trois jusqu’au bout.
+Le jeu BODS pour toute la Grande-Bretagne, le jeu DELFI pour toute l’Allemagne et deux jeux régionaux de Nouvelle-Aquitaine (77 et 83 Mo) font partie des jeux que le `gtfs-validator` de MobilityData a interrompus sur une erreur interne lors de cette exécution ; GTFS Analyzer les a validés tous les quatre jusqu’au bout.
 
 **Taille.** Il n’y a pas de limite fixe de taille. Le seul plafond est une protection de 16 Go sur les données décompressées contre les bombes zip ; dans le navigateur, ceux qui prennent en charge Memory64 utilisent le moteur WASM64 et c’est la mémoire de l’appareil qui fixe la limite.
 
-Le plus gros jeu de données du catalogue, **BODS pour toute la Grande-Bretagne** (`mdb-2014`) : 7,8 Go de données et 59,7 millions de lignes `stop_times` sont validés en **moins de 2 minutes**, et le jeu s’ouvre aussi de bout en bout **dans le navigateur**.
+Le plus gros jeu de données du catalogue, **BODS pour toute la Grande-Bretagne** (`mdb-2014`) : 11,7 Go de données et 69,5 millions de lignes `stop_times` sont validés de bout en bout en **6,5 minutes** sur une machine CI de 16 Go ; le jeu s’ouvre aussi **dans le navigateur** (Memory64, ~8,5 minutes, ~13,6 Go de mémoire WASM).
 
-Le jeu de données **tchèque** (`mdb-2904`) est réellement défectueux, avec 494 000 courses et 1,07 million de constats : il est validé en **26 secondes** et s’ouvre aussi **dans le navigateur**.
+Le jeu de données **tchèque** (`mdb-2904`) est réellement défectueux, avec 494 000 courses et 1,07 million de constats : il est validé en **moins d’une minute** et s’ouvre aussi **dans le navigateur**.
 
 Les rapports partiels ne sont pas des échecs : pour les jeux dont les fichiers sont dans un sous-dossier au lieu de la racine du ZIP (48), auxquels il manque un fichier obligatoire (22) ou dont le fichier de géométrie dépasse la limite de sécurité (6), les contrôles indépendants se poursuivent et les contrôles ignorés sont listés dans le rapport. Résultats bruts : [`audit-results/`](audit-results/).
 

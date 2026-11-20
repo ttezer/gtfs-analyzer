@@ -66,70 +66,70 @@ Web uygulamasındaki **Planlamacılar İçin** sayfası, aynı analiz sonucunu t
 
 ## Korpus Sonuçlarımız
 
-Her sürüm, **MobilityDatabase'in tüm GTFS Schedule kataloğuna** karşı koşturulur. Son koşum (`44474551308`, 2026-11-19):
+Her sürüm, **MobilityDatabase'in tüm GTFS Schedule kataloğuna** karşı koşturulur. Son koşum (`44623468896`, 2026-11-19):
 
 | | |
 |---|---:|
-| Denenen feed | **4.479** |
-| İndirilen geçerli ZIP | **4.447** |
-| Analizi tamamlanan | **4.447** (hatasız) |
+| Denenen feed | **4.481** |
+| İndirilen geçerli ZIP | **4.449** |
+| Analizi tamamlanan | **4.449** (hatasız) |
 | Kısmi rapor (bozuk/eksik dosya güvenle atlandı) | 76 |
-| Ülke | 96 |
+| Ülke | 95 |
 | Tetiklenen kural | 423 / 621 |
 | Medyan süre / feed | **0,05 sn** (p90 1,1 sn) |
-| Medyan tepe bellek / feed | **15 MB** (p90 152 MB) |
-| Toplam süre | 77,8 dk |
+| Medyan tepe bellek / feed | **15 MB** (p90 149 MB) |
+| Toplam süre | 86,7 dk |
 
-**Hız.** 23,8 GB'lık sıkıştırılmış GTFS'in tamamı 4 çekirdekli bir CI makinesinde **77,8 dakikada** doğrulandı:
+**Hız.** 25,8 GB'lık sıkıştırılmış GTFS'in tamamı 4 çekirdekli bir CI makinesinde **86,7 dakikada** doğrulandı:
 
 | Doğrulama süresi | Feed sayısı | Oran |
 |---|---:|---:|
-| 0,1 saniyenin altında | 2.778 | **%62,5** |
-| 1 saniyenin altında | 3.973 | **%89,3** |
-| 10 saniyenin altında | 4.371 | **%98,3** |
-| 1 dakikanın altında | 4.437 | **%99,8** |
+| 0,1 saniyenin altında | 2.761 | **%62,1** |
+| 1 saniyenin altında | 3.968 | **%89,2** |
+| 10 saniyenin altında | 4.370 | **%98,2** |
+| 1 dakikanın altında | 4.437 | **%99,7** |
 
-**Bellek.** Feed başına tepe bellek: **ortalama 102 MB, medyan 15 MB**.
+**Bellek.** Feed başına tepe bellek: **ortalama 100 MB, medyan 15 MB**.
 
 | Tepe bellek | Feed sayısı | Oran |
 |---|---:|---:|
-| 100 MB'ın altında | 3.849 | **%86,6** |
-| 500 MB'ın altında | 4.279 | **%96,2** |
-| 1 GB'ın altında | 4.366 | **%98,2** |
-| 4 GB'ın altında | 4.437 | **%99,8** |
+| 100 MB'ın altında | 3.866 | **%86,9** |
+| 500 MB'ın altında | 4.281 | **%96,2** |
+| 1 GB'ın altında | 4.367 | **%98,2** |
+| 4 GB'ın altında | 4.438 | **%99,8** |
 
 En büyük feed'ler de birkaç dakikada tamamlanıyor:
 
 | Feed | ZIP | Açılmış | Süre | Tepe bellek |
 |---|---:|---:|---:|---:|
-| İsveç geneli (Trafiklab, `mdb-2939`) | 908 MB | 4,5 GB | 3 dk 15 sn | 11,3 GB |
-| Baden-Württemberg (NVBW, `mdb-2393`) | 700 MB | 4,6 GB | 1 dk 44 sn | 8,7 GB |
-| Almanya geneli (DELFI, `mdb-3215`) | 589 MB | 4,9 GB | 4 dk 19 sn | 13,2 GB |
-| Entur (`mdb-1078`) | 554 MB | 3,4 GB | 1 dk 31 sn | 6,3 GB |
-| İngiltere geneli (BODS, `mdb-2014`) | 1,34 GB | 7,8 GB | 1 dk 58 sn | 10,5 GB |
-| Çekya (`mdb-2904`) | 86 MB | 0,85 GB | 26 sn | 4,1 GB |
+| İsveç geneli (Trafiklab, `mdb-2939`) | 908 MB | 4,5 GB | 2 dk 48 sn | 9,3 GB |
+| Baden-Württemberg (NVBW, `mdb-2393`) | 700 MB | 4,6 GB | 1 dk 26 sn | 7,0 GB |
+| Almanya geneli (DELFI, `mdb-3215`) | 589 MB | 4,9 GB | 6 dk 1 sn | 12,9 GB |
+| Entur (`mdb-1078`) | 554 MB | 3,4 GB | 1 dk 1 sn | 5,0 GB |
+| İngiltere geneli (BODS, `mdb-2014`) | 1,93 GB | 11,7 GB | 6 dk 36 sn | 13,2 GB |
+| Çekya (`mdb-2904`) | 86 MB | 0,85 GB | 58 sn | 5,5 GB |
 
 Bu feed'lerin içindeki tablolar da çok büyük; satırların tamamı okunup denetleniyor:
 
 | Feed | `stop_times` | Sefer | Shape noktası | Takvim istisnası | Aktarma | Süre |
 |---|---:|---:|---:|---:|---:|---:|
-| Almanya geneli (DELFI, `mdb-3215`) | **65,1 milyon** | 3,17 milyon | 10,5 milyon | 456 bin | 1,07 milyon | 4 dk 19 sn |
-| İsviçre geneli (SKI+, `mdb-2898`) | **42,6 milyon** | 2,62 milyon | — | **10,5 milyon** | 1,12 milyon | 2 dk 16 sn |
-| Baden-Württemberg (NVBW, `mdb-2393`) | 6,5 milyon | 373 bin | **57,5 milyon** | 340 bin | 106 bin | 1 dk 44 sn |
-| Buenos Aires (Colectivos, `mdb-1220`) | **29,3 milyon** | 436 bin | 756 bin | 95 | — | 44 sn |
-| Bogotá (SIMUR, `mdb-3358`) | 9,6 milyon | 182 bin | 942 bin | 126 | — | 19 sn |
-| İngiltere geneli (BODS, `mdb-2014`) | **59,7 milyon** | 1,55 milyon | **40,2 milyon** | 232 bin | — | 1 dk 58 sn |
-| Çekya (`mdb-2904`) | 9,6 milyon | 494 bin | — | **4,4 milyon** | — | 26 sn |
+| Almanya geneli (DELFI, `mdb-3215`) | **65,1 milyon** | 3,17 milyon | 10,5 milyon | 456 bin | 1,07 milyon | 6 dk 1 sn |
+| İsviçre geneli (SKI+, `mdb-2898`) | **42,6 milyon** | 2,62 milyon | — | **10,5 milyon** | 1,12 milyon | 1 dk 51 sn |
+| Baden-Württemberg (NVBW, `mdb-2393`) | 6,5 milyon | 373 bin | **57,5 milyon** | 340 bin | 106 bin | 1 dk 26 sn |
+| Buenos Aires (Colectivos, `mdb-1220`) | **29,3 milyon** | 436 bin | 756 bin | 95 | — | 53 sn |
+| Bogotá (SIMUR, `mdb-3358`) | 9,6 milyon | 182 bin | 942 bin | 126 | — | 22 sn |
+| İngiltere geneli (BODS, `mdb-2014`) | **69,5 milyon** | 1,76 milyon | **89,7 milyon** | 278 bin | — | 6 dk 36 sn |
+| Çekya (`mdb-2904`) | 9,6 milyon | 494 bin | — | **4,4 milyon** | — | 58 sn |
 
-Buenos Aires'in 29,3 milyon `stop_times` satırı, 621 kuralın tamamıyla birlikte 44 saniyede doğrulanıyor: saniyede yaklaşık **666 bin satır**.
+Buenos Aires'in 29,3 milyon `stop_times` satırı, 621 kuralın tamamıyla birlikte 53 saniyede doğrulanıyor: saniyede yaklaşık **548 bin satır**.
 
-Almanya geneli DELFI feed'i ve Nouvelle-Aquitaine'in iki bölgesel feed'i (77 ve 83 MB), MobilityData'nın `gtfs-validator`'ının bu koşumda iç hatayla yarıda bıraktığı feed'lerdendir; GTFS Analyzer üçünü de sonuna kadar doğruladı.
+İngiltere geneli BODS, Almanya geneli DELFI ve Nouvelle-Aquitaine'in iki bölgesel feed'i (77 ve 83 MB), MobilityData'nın `gtfs-validator`'ının bu koşumda iç hatayla yarıda bıraktığı feed'lerdendir; GTFS Analyzer dördünü de sonuna kadar doğruladı.
 
 **Boyut.** Sabit bir feed boyutu sınırı yok. Tek üst sınır, zip bombalarına karşı açılmış veri için konan 16 GB'lık güvenlik korumasıdır; tarayıcıda Memory64 destekleyen tarayıcılarda WASM64 motoru kullanılır ve sınırı cihazın belleği belirler.
 
-Kataloğun en büyük feed'i **İngiltere geneli BODS** (`mdb-2014`): 7,8 GB'lık veri ve 59,7 milyon `stop_times` satırı **2 dakikanın altında** doğrulanır ve feed **tarayıcıda da** baştan sona açılır.
+Kataloğun en büyük feed'i **İngiltere geneli BODS** (`mdb-2014`): 11,7 GB'lık veri ve 69,5 milyon `stop_times` satırı 16 GB'lık bir CI makinesinde **6,5 dakikada** baştan sona doğrulanır; **tarayıcıda da** (Memory64, ~8,5 dakika, ~13,6 GB WASM belleği) açılır.
 
-**Çekya** feed'i (`mdb-2904`), 494 bin seferli ve 1,07 milyon bulgu üreten gerçekten bozuk bir feed: **26 saniyede** doğrulanır, **tarayıcıda da** açılır.
+**Çekya** feed'i (`mdb-2904`), 494 bin seferli ve 1,07 milyon bulgu üreten gerçekten bozuk bir feed: **1 dakikanın altında** doğrulanır, **tarayıcıda da** açılır.
 
 Kısmi raporlar hata değildir: dosyaları ZIP kökü yerine alt klasörde olan (48), zorunlu dosyası eksik (22) veya geometri dosyası güvenlik sınırını aşan (6) feed'lerde bağımsız kontroller sürer ve atlanan kontroller raporda listelenir. Ham sonuçlar: [`audit-results/`](audit-results/).
 

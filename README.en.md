@@ -65,70 +65,70 @@ The **For Planners** page of the web app tells the same analysis result in the p
 
 ## Our Corpus Results
 
-Every release is run against **MobilityDatabase's entire GTFS Schedule catalogue**. Latest run (`44474551308`, 2026-11-19):
+Every release is run against **MobilityDatabase's entire GTFS Schedule catalogue**. Latest run (`44623468896`, 2026-11-19):
 
 | | |
 |---|---:|
-| Feeds attempted | **4,479** |
-| Valid ZIPs downloaded | **4,447** |
-| Analysis completed | **4,447** (no failures) |
+| Feeds attempted | **4,481** |
+| Valid ZIPs downloaded | **4,449** |
+| Analysis completed | **4,449** (no failures) |
 | Partial report (broken/missing file skipped safely) | 76 |
-| Countries | 96 |
+| Countries | 95 |
 | Rules triggered | 423 / 621 |
 | Median time per feed | **0.05 s** (p90 1.1 s) |
-| Median peak memory per feed | **15 MB** (p90 152 MB) |
-| Total time | 77.8 min |
+| Median peak memory per feed | **15 MB** (p90 149 MB) |
+| Total time | 86.7 min |
 
-**Speed.** The whole catalogue, 23.8 GB of compressed GTFS, was validated in **77.8 minutes** on a 4-core CI machine:
+**Speed.** The whole catalogue, 25.8 GB of compressed GTFS, was validated in **86.7 minutes** on a 4-core CI machine:
 
 | Validation time | Feeds | Share |
 |---|---:|---:|
-| Under 0.1 seconds | 2,778 | **62.5%** |
-| Under 1 second | 3,973 | **89.3%** |
-| Under 10 seconds | 4,371 | **98.3%** |
-| Under 1 minute | 4,437 | **99.8%** |
+| Under 0.1 seconds | 2,761 | **62.1%** |
+| Under 1 second | 3,968 | **89.2%** |
+| Under 10 seconds | 4,370 | **98.2%** |
+| Under 1 minute | 4,437 | **99.7%** |
 
-**Memory.** Peak memory per feed: **mean 102 MB, median 15 MB**.
+**Memory.** Peak memory per feed: **mean 100 MB, median 15 MB**.
 
 | Peak memory | Feeds | Share |
 |---|---:|---:|
-| Under 100 MB | 3,849 | **86.6%** |
-| Under 500 MB | 4,279 | **96.2%** |
-| Under 1 GB | 4,366 | **98.2%** |
-| Under 4 GB | 4,437 | **99.8%** |
+| Under 100 MB | 3,866 | **86.9%** |
+| Under 500 MB | 4,281 | **96.2%** |
+| Under 1 GB | 4,367 | **98.2%** |
+| Under 4 GB | 4,438 | **99.8%** |
 
 The largest feeds finish in minutes too:
 
 | Feed | ZIP | Extracted | Time | Peak memory |
 |---|---:|---:|---:|---:|
-| Sweden-wide (Trafiklab, `mdb-2939`) | 908 MB | 4.5 GB | 3 min 15 s | 11.3 GB |
-| Baden-Württemberg (NVBW, `mdb-2393`) | 700 MB | 4.6 GB | 1 min 44 s | 8.7 GB |
-| Germany-wide (DELFI, `mdb-3215`) | 589 MB | 4.9 GB | 4 min 19 s | 13.2 GB |
-| Entur (`mdb-1078`) | 554 MB | 3.4 GB | 1 min 31 s | 6.3 GB |
-| Great Britain-wide (BODS, `mdb-2014`) | 1.34 GB | 7.8 GB | 1 min 58 s | 10.5 GB |
-| Czechia (`mdb-2904`) | 86 MB | 0.85 GB | 26 s | 4.1 GB |
+| Sweden-wide (Trafiklab, `mdb-2939`) | 908 MB | 4.5 GB | 2 min 48 s | 9.3 GB |
+| Baden-Württemberg (NVBW, `mdb-2393`) | 700 MB | 4.6 GB | 1 min 26 s | 7.0 GB |
+| Germany-wide (DELFI, `mdb-3215`) | 589 MB | 4.9 GB | 6 min 1 s | 12.9 GB |
+| Entur (`mdb-1078`) | 554 MB | 3.4 GB | 1 min 1 s | 5.0 GB |
+| Great Britain-wide (BODS, `mdb-2014`) | 1.93 GB | 11.7 GB | 6 min 36 s | 13.2 GB |
+| Czechia (`mdb-2904`) | 86 MB | 0.85 GB | 58 s | 5.5 GB |
 
 The tables inside these feeds are huge as well; every row is read and checked:
 
 | Feed | `stop_times` | Trips | Shape points | Calendar exceptions | Transfers | Time |
 |---|---:|---:|---:|---:|---:|---:|
-| Germany-wide (DELFI, `mdb-3215`) | **65.1 million** | 3.17 million | 10.5 million | 456 k | 1.07 million | 4 min 19 s |
-| Switzerland-wide (SKI+, `mdb-2898`) | **42.6 million** | 2.62 million | — | **10.5 million** | 1.12 million | 2 min 16 s |
-| Baden-Württemberg (NVBW, `mdb-2393`) | 6.5 million | 373 k | **57.5 million** | 340 k | 106 k | 1 min 44 s |
-| Buenos Aires (Colectivos, `mdb-1220`) | **29.3 million** | 436 k | 756 k | 95 | — | 44 s |
-| Bogotá (SIMUR, `mdb-3358`) | 9.6 million | 182 k | 942 k | 126 | — | 19 s |
-| Great Britain-wide (BODS, `mdb-2014`) | **59.7 million** | 1.55 million | **40.2 million** | 232 k | — | 1 min 58 s |
-| Czechia (`mdb-2904`) | 9.6 million | 494 k | — | **4.4 million** | — | 26 s |
+| Germany-wide (DELFI, `mdb-3215`) | **65.1 million** | 3.17 million | 10.5 million | 456 k | 1.07 million | 6 min 1 s |
+| Switzerland-wide (SKI+, `mdb-2898`) | **42.6 million** | 2.62 million | — | **10.5 million** | 1.12 million | 1 min 51 s |
+| Baden-Württemberg (NVBW, `mdb-2393`) | 6.5 million | 373 k | **57.5 million** | 340 k | 106 k | 1 min 26 s |
+| Buenos Aires (Colectivos, `mdb-1220`) | **29.3 million** | 436 k | 756 k | 95 | — | 53 s |
+| Bogotá (SIMUR, `mdb-3358`) | 9.6 million | 182 k | 942 k | 126 | — | 22 s |
+| Great Britain-wide (BODS, `mdb-2014`) | **69.5 million** | 1.76 million | **89.7 million** | 278 k | — | 6 min 36 s |
+| Czechia (`mdb-2904`) | 9.6 million | 494 k | — | **4.4 million** | — | 58 s |
 
-Buenos Aires' 29.3 million `stop_times` rows are validated against all 621 rules in 44 seconds: about **666,000 rows per second**.
+Buenos Aires' 29.3 million `stop_times` rows are validated against all 621 rules in 53 seconds: about **548,000 rows per second**.
 
-The Germany-wide DELFI feed and two regional Nouvelle-Aquitaine feeds (77 and 83 MB) are among the feeds MobilityData's `gtfs-validator` stopped with an internal error in this run; GTFS Analyzer validated all three to the end.
+The Great Britain-wide BODS feed, the Germany-wide DELFI feed and two regional Nouvelle-Aquitaine feeds (77 and 83 MB) are among the feeds MobilityData's `gtfs-validator` stopped with an internal error in this run; GTFS Analyzer validated all four to the end.
 
 **Size.** There is no fixed feed size limit. The only ceiling is a 16 GB safety guard on extracted data against zip bombs; in the browser, browsers with Memory64 use the WASM64 engine and the device's memory sets the limit.
 
-The largest feed in the catalogue, **Great Britain-wide BODS** (`mdb-2014`): 7.8 GB of data and 59.7 million `stop_times` rows are validated in **under 2 minutes**, and the feed also opens end to end **in the browser**.
+The largest feed in the catalogue, **Great Britain-wide BODS** (`mdb-2014`): 11.7 GB of data and 69.5 million `stop_times` rows are validated end to end in **6.5 minutes** on a 16 GB CI machine; it also opens **in the browser** (Memory64, ~8.5 minutes, ~13.6 GB of WASM memory).
 
-The **Czechia** feed (`mdb-2904`) is a genuinely broken feed with 494,000 trips and 1.07 million findings: it is validated in **26 seconds** and also opens **in the browser**.
+The **Czechia** feed (`mdb-2904`) is a genuinely broken feed with 494,000 trips and 1.07 million findings: it is validated in **under a minute** and also opens **in the browser**.
 
 Partial reports are not failures: in feeds whose files sit in a subfolder instead of the ZIP root (48), that lack a required file (22) or whose geometry file exceeds the safety limit (6), independent checks continue and the skipped checks are listed in the report. Raw results: [`audit-results/`](audit-results/).
 
