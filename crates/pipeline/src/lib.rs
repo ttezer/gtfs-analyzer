@@ -2517,6 +2517,7 @@ pub fn aggregate_feed_level_notices(
         let _t = crate::timing::Timer::start("aggregate::calendar_usage");
         annotate_calendar_usage(all, records);
     }
+    annotate_arc033_services(all, records);
     {
         let _t = crate::timing::Timer::start("aggregate::stop_context");
         annotate_stop_context(all, records);
@@ -3327,6 +3328,46 @@ const CALENDAR_USAGE_RULES: [&str; 32] = [
     "CAL_017", "CAL_018", "CAL_021", "CAL_023", "CAL_024", "CAL_025", "OPR_011", "OPR_012",
     "OPR_016", "TRP_023", "TRP_026", "CLD_002", "CLD_004", "CLD_005", "CLD_006", "CLD_007",
 ];
+/// ARC_033 rows of trip files name their trip (`example_<i>_id`); add the trip's calendar
+/// (`example_<i>_service`) so the planner card can show route · direction · departure · calendar.
+/// Details only: counts, texts and severities are unchanged.
+fn annotate_arc033_services(all: &mut [gtfs_core::Notice], records: &EntityRecords) {
+    use rustc_hash::{FxHashMap, FxHashSet};
+    let is_trip_file = |n: &gtfs_core::Notice| {
+        n.rule_id == "ARC_033"
+            && matches!(n.file.as_deref(), Some("stop_times.txt" | "trips.txt" | "frequencies.txt"))
+    };
+    let wanted: FxHashSet<String> = all
+        .iter()
+        .filter(|n| is_trip_file(n))
+        .filter_map(|n| n.details.as_ref())
+        .flat_map(|d| d.iter().filter(|(k, _)| k.ends_with("_id") && k.starts_with("example_")).map(|(_, v)| v.clone()))
+        .collect();
+    if wanted.is_empty() {
+        return;
+    }
+    let ti = &records.trip_interns;
+    let service_of: FxHashMap<&str, &str> = records
+        .trips
+        .iter()
+        .filter(|t| wanted.contains(t.trip_id.as_str()))
+        .map(|t| (t.trip_id.as_str(), ti.service_id(t)))
+        .collect();
+    for n in all.iter_mut().filter(|n| is_trip_file(n)) {
+        let Some(d) = n.details.as_mut() else { continue };
+        let mut add = Vec::new();
+        for (k, v) in d.iter() {
+            let Some(i) = k.strip_prefix("example_").and_then(|r| r.strip_suffix("_id")) else { continue };
+            if let Some(service) = service_of.get(v.as_str()).filter(|s| !s.is_empty()) {
+                add.push((format!("example_{i}_service"), service.to_string()));
+            }
+        }
+        for (k, v) in add {
+            d.insert(k, v);
+        }
+    }
+}
+
 /// Routes listed per calendar finding (most trips first).
 const CALENDAR_USAGE_ROUTES: usize = 10;
 

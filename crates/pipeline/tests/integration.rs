@@ -4778,6 +4778,10 @@ fn arc033_example_shows_the_whole_cell_as_written() {
             let n = vr.notices.iter().find(|n| n.rule_id == "ARC_033").expect("ARC_033 bekleniyor");
             let example = n.details.as_ref().and_then(|d| d.get("example_value")).cloned();
             assert_eq!(example.as_deref(), Some("\"Gen.a.e.f.\"nila\"-Różana\""));
+            // The row names its own stop, so the planner can say WHICH stop is broken.
+            let d = n.details.as_ref().expect("details");
+            assert_eq!(d.get("example_0_id").map(String::as_str), Some("S1"));
+            assert_eq!(d.get("example_0_value").map(String::as_str), Some("\"Gen.a.e.f.\"nila\"-Różana\""));
         }
         other => panic!("Ok beklendi: {other:?}"),
     }
@@ -4797,9 +4801,13 @@ fn arc033_lists_broken_lines_up_to_the_cap() {
             let n = vr.notices.iter().find(|n| n.rule_id == "ARC_033").expect("ARC_033 bekleniyor");
             let d = n.details.as_ref().expect("details");
             assert_eq!(d.get("affected_rows").map(String::as_str), Some("52"));
-            let lines = d.get("example_lines").cloned().unwrap_or_default();
-            assert!(lines.starts_with("3, 5, 7, "), "satırlar artan ve başlıktan sayılmalı: {lines}");
-            assert_eq!(lines.split(", ").count(), 52);
+            // One row per broken line: line (header = 1), column name, cell as written.
+            assert_eq!(d.get("example_0_line").map(String::as_str), Some("3"));
+            assert_eq!(d.get("example_0_field").map(String::as_str), Some("stop_name"));
+            assert_eq!(d.get("example_0_value").map(String::as_str), Some("2\" Street"));
+            assert_eq!(d.get("example_1_line").map(String::as_str), Some("5"));
+            assert_eq!(d.get("example_51_line").map(String::as_str), Some("105"));
+            assert!(d.get("example_52_line").is_none());
         }
         other => panic!("Ok beklendi: {other:?}"),
     }
@@ -4812,9 +4820,23 @@ fn arc033_lists_broken_lines_up_to_the_cap() {
             let n = vr.notices.iter().find(|n| n.rule_id == "ARC_033").expect("ARC_033 bekleniyor");
             let d = n.details.as_ref().expect("details");
             assert_eq!(d.get("affected_rows").map(String::as_str), Some("150"));
-            let lines = d.get("example_lines").cloned().unwrap_or_default();
-            assert_eq!(lines.split(", ").count(), 100, "liste 100'de kesilmeli");
-            assert!(lines.ends_with(", 101"), "ilk 100 satır (2..101) kalmalı: {lines}");
+            assert_eq!(d.get("example_99_line").map(String::as_str), Some("101"), "ilk 100 satır (2..101) kalmalı");
+            assert!(d.get("example_100_line").is_none(), "liste 100'de kesilmeli");
+        }
+        other => panic!("Ok beklendi: {other:?}"),
+    }
+}
+
+#[test]
+fn arc033_marks_a_cut_cell() {
+    let long = format!("\"{}\"x", "a".repeat(100));
+    let stops = format!("stop_id,stop_name,stop_lat,stop_lon\nS1,{long},41.0,29.0\n");
+    match run(&arc033_feed(&stops)) {
+        ValidateResult::Ok(vr) => {
+            let n = vr.notices.iter().find(|n| n.rule_id == "ARC_033").expect("ARC_033 bekleniyor");
+            let v = n.details.as_ref().and_then(|d| d.get("example_0_value")).cloned().unwrap_or_default();
+            assert_eq!(v.chars().count(), 81, "80 karakter + …: {v}");
+            assert!(v.ends_with('…'), "kesilen hücre … ile bitmeli: {v}");
         }
         other => panic!("Ok beklendi: {other:?}"),
     }
@@ -4900,8 +4922,15 @@ fn arc033_covers_streamed_files_too() {
         ValidateResult::Ok(vr) => assert!(
             vr.notices
                 .iter()
-                .any(|n| n.rule_id == "ARC_033" && n.entity_id.as_deref() == Some("trips.txt")),
-            "akış modundaki trips.txt için de ARC_033 çıkmalı"
+                .any(|n| {
+                let d = n.details.as_ref();
+                n.rule_id == "ARC_033"
+                    && n.entity_id.as_deref() == Some("trips.txt")
+                    // The stream reader must keep the whole cell, quote included, and its column.
+                    && d.and_then(|d| d.get("example_0_value")).map(String::as_str) == Some("5\" Line")
+                    && d.and_then(|d| d.get("example_0_field")).map(String::as_str) == Some("trip_headsign")
+            }),
+            "akış modundaki trips.txt için de ARC_033 çıkmalı, hücre tam ve sütun adıyla"
         ),
         other => panic!("Ok beklendi: {other:?}"),
     }

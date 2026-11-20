@@ -564,30 +564,64 @@ pub(crate) struct Rfc4180Acc {
     pub example: Option<String>,
     /// Violation type — two separate spec sentences (see the `ARC_033` card).
     pub kind: Option<&'static str>,
-    /// First `ARC033_MAX_LINES` affected line numbers, ascending. The planner needs WHERE every
-    /// broken row is; one example alone made the publisher fix them one round at a time.
-    pub lines: Vec<u64>,
+    /// First `ARC033_MAX_LINES` broken rows, ascending: (line, column index, cell as written,
+    /// the row's own id — trip/stop/route… see `arc033_id_index`). The planner lists every row
+    /// with its trip (route, direction, departure) or stop; one example alone made the publisher
+    /// fix them one round at a time.
+    pub examples: Vec<(u64, usize, String, Option<String>)>,
     last_line: u64,
 }
 
-/// Cap for `Rfc4180Acc::lines`: covers every row of almost all corpus files (54 of 61 feeds
+/// Cap for `Rfc4180Acc::examples`: covers every row of almost all corpus files (54 of 61 feeds
 /// have ≤ 100 affected rows, run 44742222593) while a 6,315-row file stays small.
 pub(crate) const ARC033_MAX_LINES: usize = 100;
 
+/// Longest cell kept per example; a longer one ends with `…` so the reader knows it was cut.
+/// Stream readers pass one character more so the cut can be detected here.
+pub(crate) const ARC033_VALUE_CHARS: usize = 80;
+
+/// Column that names the row's own record, so the planner can say WHICH trip/stop/route the
+/// broken row belongs to. `None` for files without one.
+pub(crate) fn arc033_id_index(headers: &[String], file: &str) -> Option<usize> {
+    let column = match file {
+        "stop_times.txt" | "trips.txt" | "frequencies.txt" => "trip_id",
+        "stops.txt" => "stop_id",
+        "routes.txt" => "route_id",
+        "calendar.txt" | "calendar_dates.txt" => "service_id",
+        "shapes.txt" => "shape_id",
+        "agency.txt" => "agency_id",
+        _ => return None,
+    };
+    headers.iter().position(|h| h == column)
+}
+
+fn arc033_clip(cell: &str) -> String {
+    let mut out: String = cell.chars().take(ARC033_VALUE_CHARS).collect();
+    if cell.chars().nth(ARC033_VALUE_CHARS).is_some() {
+        out.push('…');
+    }
+    out
+}
+
 impl Rfc4180Acc {
     /// Planner evidence for the ARC_033 summary.
-    pub fn details(&self) -> gtfs_core::NoticeDetails {
+    /// `headers` turns each example's column index into its name.
+    pub fn details(&self, headers: &[String]) -> gtfs_core::NoticeDetails {
         let mut d = std::collections::BTreeMap::new();
         d.insert("affected_rows".to_string(), self.rows.to_string());
         d.insert("issue".to_string(), rfc4180_issue_code(self.kind.unwrap_or(RFC4180_BARE_QUOTE)).to_string());
         if let Some(example) = &self.example {
             d.insert("example_value".to_string(), example.clone());
         }
-        if !self.lines.is_empty() {
-            d.insert(
-                "example_lines".to_string(),
-                self.lines.iter().map(u64::to_string).collect::<Vec<_>>().join(", "),
-            );
+        for (i, (line, col, value, id)) in self.examples.iter().enumerate() {
+            d.insert(format!("example_{i}_line"), line.to_string());
+            if let Some(name) = headers.get(*col) {
+                d.insert(format!("example_{i}_field"), name.clone());
+            }
+            d.insert(format!("example_{i}_value"), value.clone());
+            if let Some(id) = id {
+                d.insert(format!("example_{i}_id"), id.clone());
+            }
         }
         d.into()
     }
@@ -611,15 +645,15 @@ pub(crate) fn rfc4180_issue_code(kind: &str) -> &'static str {
 }
 
 impl Rfc4180Acc {
-    pub(crate) fn observe(&mut self, line: u64, kind: &'static str, example: &str) {
+    pub(crate) fn observe(&mut self, line: u64, kind: &'static str, example: &str, col: usize) {
         if self.last_line != line || self.rows == 0 {
             self.last_line = line;
             self.rows += 1;
             if self.first_line.is_none() {
                 self.first_line = Some(line);
             }
-            if self.lines.len() < ARC033_MAX_LINES {
-                self.lines.push(line);
+            if self.examples.len() < ARC033_MAX_LINES {
+                self.examples.push((line, col, arc033_clip(example), None));
             }
         }
         if self.kind.is_none() {
@@ -628,6 +662,15 @@ impl Rfc4180Acc {
         if self.example.is_none() {
             let e: String = example.chars().take(40).collect();
             self.example = Some(e);
+        }
+    }
+
+    /// Stream readers: the full row is known right after `observe`; attach its id.
+    pub(crate) fn attach_id(&mut self, line: u64, id: Option<&str>) {
+        if let (Some(last), Some(id)) = (self.examples.last_mut(), id) {
+            if last.0 == line && last.3.is_none() {
+                last.3 = Some(id.to_string());
+            }
         }
     }
 
@@ -645,11 +688,11 @@ impl Rfc4180Acc {
         if self.example.is_none() {
             self.example = other.example.clone();
         }
-        // Each chunk kept its own first lines, so the union holds the global first ones.
-        self.lines.extend_from_slice(&other.lines);
-        self.lines.sort_unstable();
-        self.lines.dedup();
-        self.lines.truncate(ARC033_MAX_LINES);
+        // Each chunk kept its own first rows, so the union holds the global first ones.
+        self.examples.extend(other.examples.iter().cloned());
+        self.examples.sort_by_key(|e| e.0);
+        self.examples.dedup_by_key(|e| e.0);
+        self.examples.truncate(ARC033_MAX_LINES);
     }
 }
 
@@ -764,7 +807,7 @@ fn tokenize_csv_budgeted(
                     // Example = the cell AS WRITTEN, quotes included. `buf` stopped at the stray
                     // quote and dropped the very part the planner must see (mdb-1271:
                     // `"Gen.a.e.f."nila"-Różana"` was shown as `Gen.a.e.f.`).
-                    rfc.observe(line_no, RFC4180_AFTER_CLOSE, &text[field_start..pos]);
+                    rfc.observe(line_no, RFC4180_AFTER_CLOSE, &text[field_start..pos], record.len());
                 }
                 record.push(SmolStr::new(&buf));
             } else {
@@ -782,7 +825,7 @@ fn tokenize_csv_budgeted(
                     pos += 1;
                 }
                 if bare_quote {
-                    rfc.observe(line_no, RFC4180_BARE_QUOTE, &text[start..pos]);
+                    rfc.observe(line_no, RFC4180_BARE_QUOTE, &text[start..pos], record.len());
                 }
                 record.push(SmolStr::new(&text[start..pos]));
             }
@@ -2800,7 +2843,7 @@ pub fn parse_with_limits(
         // the byte limit.
         let _t = crate::timing::Timer::start(format!("K1::tokenize::{raw_name}"));
         let mut cells_exceeded = false;
-        let (mut records, _, rfc4180) = match tokenize_csv_budgeted(
+        let (mut records, _, mut rfc4180) = match tokenize_csv_budgeted(
             text,
             if stream_mode { Some(0) } else { None },
             &mut cell_budget,
@@ -3030,6 +3073,14 @@ pub fn parse_with_limits(
         let mut rows: Vec<Vec<SmolStr>> = Vec::new();
         let mut arc021_fired = false;
         let mut arc030_fired = false;
+        // ARC_033: each example names its row's own record (trip/stop/route…), read from the
+        // finished row; `records[i]` is line `i + 2`.
+        if let Some(id_col) = arc033_id_index(&headers, &raw_name) {
+            for e in rfc4180.examples.iter_mut() {
+                let row = e.0.checked_sub(2).and_then(|i| records.get(i as usize));
+                e.3 = row.and_then(|r| r.get(id_col)).map(|v| v.to_string());
+            }
+        }
         for (row_idx, row) in records.into_iter().enumerate() {
             let line_num = (row_idx + 2) as u64;
 
@@ -3233,7 +3284,7 @@ pub fn parse_with_limits(
                 ),
                 ARC033_REMEDIATION,
             );
-            summary.details = Some(rfc4180.details());
+            summary.details = Some(rfc4180.details(&headers));
             notices.push(summary);
         }
 

@@ -24,15 +24,6 @@ function visibleValue(value: string | null): string {
   return value.replace(/ /g, '␠').replace(/\t/g, '⇥').replace(/\r?\n/g, '↵');
 }
 
-/** ARC_033: every listed broken row (the engine keeps the first 100), then how many remain. */
-function arc033Lines(n: Notice): string {
-  const listed = (n.details?.example_lines ?? '').split(', ').filter(Boolean);
-  if (listed.length === 0) return n.line != null ? String(n.line) : '—';
-  const rest = Number(n.details?.affected_rows ?? listed.length) - listed.length;
-  const text = listed.join(', ');
-  return rest > 0 ? `${text} ${t('producer.card.ARC_033.more_rows', { n: localizedNumber(String(rest)) })}` : text;
-}
-
 /** STM_051/052/054/055: the boarding setting written on the Flex row and what it means; an
  *  empty cell the spec counts as 0 is shown as such. */
 function flexSetting(n: Notice): { value: string; meaning: string } {
@@ -3378,6 +3369,27 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         action: t('producer.card.STM_008.action'),
       };
     }
+    case 'ARC_033': {
+      const value = n.observed_value ?? '';
+      if (n.line == null || !value) {
+        // Older results carry no per-row examples: keep the general text.
+        return { title: t('producer.card.ARC_033.title'), what: t('producer.card.ARC_033.what'), action: t('producer.card.ARC_033.action') };
+      }
+      const fixed = arc033Fixed(value);
+      const args = {
+        list: dqListLabel(n) || n.file || t('producer.card.unknown_file'),
+        line: String(n.line),
+        column: n.field ? plannerFieldName(n.field) : t('producer.card.unknown_field'),
+        value,
+        fixed: fixed ?? '',
+      };
+      return {
+        title: t('producer.card.ARC_033.title'),
+        context: n.entity_type === 'Trip' ? tripContextText(tripContext(n, result)) : undefined,
+        what: t(fixed ? 'producer.card.ARC_033.what_row' : 'producer.card.ARC_033.what_row_cut', args),
+        action: t('producer.card.ARC_033.action'),
+      };
+    }
     case 'ARC_031':
       return {
         title: t('producer.card.ARC_031.title'),
@@ -6351,7 +6363,7 @@ function technicalDetails(n: Notice, result: ValidationResult): string {
 
 /** Etkilenenler tablosu planlamacının tanıdığı sütunlarla: sefer → hat/yön/kalkış/günler,
  *  durak → ad/kod, takvim → günler. */
-type Cell = string | { html: string };
+type Cell = string | { html: string; cls?: string };
 function affectedColumns(g: RuleGroup, result: ValidationResult): { head: string[]; row: (n: Notice) => Cell[] } {
   const entity = entityColumns(g, result);
   // CAL cards: each row also names the routes running on its calendar(s) by the number riders
@@ -6477,13 +6489,41 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
     };
   }
   if (g.ruleId === 'ARC_033') {
+    // The broken cell wraps (spaces kept) instead of widening the table.
+    const value = (n: Notice): Cell => ({ html: escHtml(n.observed_value || '—'), cls: 'planner-cell-wrap' });
+    const line = (n: Notice) => n.line != null ? String(n.line) : '—';
+    const wrap = (text: string): Cell => ({ html: escHtml(text), cls: 'planner-cell-wrap' });
+    if (g.notices.every(n => n.entity_type === 'Trip')) {
+      return {
+        head: [t('producer.col.route'), t('producer.col.direction'), t('producer.col.departure'), t('producer.col.service'), t('producer.col.row'), t('producer.times.value')],
+        row: n => [
+          badge(n.entity_id ? ni.trip_routes?.[n.entity_id] : undefined),
+          wrap(dash(n.entity_id ? ni.trips?.[n.entity_id] : null)),
+          dash(n.entity_id ? ni.trip_first_dep?.[n.entity_id] : null),
+          wrap(serviceText(n.service_id, result)),
+          line(n),
+          value(n),
+        ],
+      };
+    }
+    if (g.notices.every(n => n.entity_type === 'Stop')) {
+      return {
+        head: [t('producer.col.stop'), t('producer.col.row'), t('producer.col.column'), t('producer.times.value')],
+        row: n => [
+          dash(n.entity_id ? ni.stops?.[n.entity_id] || n.entity_id : null),
+          line(n),
+          dash(n.field ? plannerFieldName(n.field) : null),
+          value(n),
+        ],
+      };
+    }
     return {
-      head: [t('producer.col.record'), t('producer.col.affected_rows'), t('producer.col.example_rows'), t('producer.times.value')],
+      head: [t('producer.col.record'), t('producer.col.row'), t('producer.col.column'), t('producer.times.value')],
       row: n => [
         listLabel(n),
-        dash(n.details?.affected_rows ? localizedNumber(n.details.affected_rows) : null),
-        arc033Lines(n),
-        visibleValue(n.details?.example_value ?? null) || '—',
+        line(n),
+        dash(n.field ? plannerFieldName(n.field) : null),
+        value(n),
       ],
     };
   }
@@ -6839,7 +6879,7 @@ function affectedRows(g: RuleGroup, result: ValidationResult): string {
   const rowCap = ROWS_CAP;
   const visibleRows = g.notices.slice(0, rowCap);
   const rows = visibleRows.map((n, index) => `<tr class="planner-affected-row${index === 0 ? ' selected' : ''}" data-row="${index}" tabindex="0"${index >= ROWS_FIRST ? ' hidden' : ''}>
-    ${cols.row(n).map(v => typeof v === 'string' ? `<td>${escHtml(v)}</td>` : `<td>${v.html}</td>`).join('')}
+    ${cols.row(n).map(v => typeof v === 'string' ? `<td>${escHtml(v)}</td>` : `<td${v.cls ? ` class="${v.cls}"` : ''}>${v.html}</td>`).join('')}
   </tr>`).join('');
   const more = visibleRows.length > ROWS_FIRST
     ? `<button type="button" class="planner-more" data-more-step="${ROWS_STEP}">${t('producer.card.more', { n: Math.min(ROWS_STEP, visibleRows.length - ROWS_FIRST) })}</button>`
@@ -7082,6 +7122,7 @@ function listOf(value: string | undefined): string[] {
 
 /** Özet bildirimi örnek kayıtlarına açar; özetin sayısı (görülen değer) tek kayda ait olmadığı için taşınmaz. */
 function exampleNotices(n: Notice): Notice[] | null {
+  if (n.rule_id === 'ARC_033') return arc033Rows(n);
   if (n.entity_id || !n.details) return null;
   const rows = exampleRows(n);
   if (rows) return rows;
@@ -7094,6 +7135,46 @@ function exampleNotices(n: Notice): Notice[] | null {
     if (ids.length) return ids.map(entity_id => ({ ...n, entity_type, entity_id, observed_value: null, expected_value: null }));
   }
   return null;
+}
+
+const ARC033_TRIP_FILES = new Set(['stop_times.txt', 'trips.txt', 'frequencies.txt']);
+
+/** ARC_033: one row per broken line (`example_<i>_line/field/value`, the engine keeps the first
+ *  100); the cell is shown exactly as written in the file. */
+function arc033Rows(n: Notice): Notice[] | null {
+  const d = n.details ?? {};
+  if (!d.example_0_line) return null;
+  const summary = Object.fromEntries(Object.entries(d).filter(([key]) => !key.startsWith('example_')));
+  const rows: Notice[] = [];
+  for (let i = 0; d[`example_${i}_line`]; i++) {
+    const line = Number(d[`example_${i}_line`]);
+    const id = d[`example_${i}_id`];
+    const entity_type = !id ? n.entity_type : ARC033_TRIP_FILES.has(n.file ?? '') ? 'Trip' as const
+      : n.file === 'stops.txt' ? 'Stop' as const : n.file === 'routes.txt' ? 'Route' as const : n.entity_type;
+    rows.push({
+      ...n,
+      entity_type,
+      entity_id: entity_type === n.entity_type ? n.entity_id : id,
+      service_id: d[`example_${i}_service`] ?? null,
+      line: Number.isFinite(line) ? line : null,
+      field: d[`example_${i}_field`] ?? null,
+      observed_value: d[`example_${i}_value`] ?? null,
+      details: { ...summary },
+    });
+  }
+  return rows;
+}
+
+/** ARC_033: the cell written correctly — quoted, every inner quote doubled. `null` when the
+ *  example was cut (`…`), because the rest of the value is unknown. */
+export function arc033Fixed(cell: string): string | null {
+  if (!cell || cell.endsWith('…')) return null;
+  let inner = cell;
+  if (inner.startsWith('"')) {
+    inner = inner.slice(1);
+    if (inner.endsWith('"')) inner = inner.slice(0, -1);
+  }
+  return `"${inner.replace(/"/g, '""')}"`;
 }
 
 /** Özet bildirimindeki `example_<i>_*` anahtarlarını satır düzeyindeki bildirime çevirir. */

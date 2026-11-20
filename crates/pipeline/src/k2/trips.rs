@@ -864,8 +864,10 @@ pub fn validate_trips_with_limits(
                             let cow_row: Vec<Cow<'_, str>> =
                                 strings.iter().map(|s| Cow::Borrowed(s.as_str())).collect();
                             zip_unclosed |= csv_reader.unclosed;
-                            if let Some((k, ex)) = csv_reader.rfc.take() {
-                                rfc_acc.observe(zip_line, k, &ex);
+                            if let Some((k, ex, col)) = csv_reader.rfc.take() {
+                                rfc_acc.observe(zip_line, k, &ex, col);
+                                let id_col = crate::k1_parse::arc033_id_index(&file.headers, &file.name);
+                                rfc_acc.attach_id(zip_line, id_col.and_then(|i| cow_row.get(i)).map(|v| v.as_ref()));
                             }
                             process(&cow_row, zip_line);
                             zip_line += 1;
@@ -896,8 +898,10 @@ pub fn validate_trips_with_limits(
                 header_skipped = true;
                 continue;
             }
-            if let Some((k, ex)) = scan.rfc.take() {
-                rfc_acc.observe((data_idx + 2) as u64, k, &ex);
+            if let Some((k, ex, col)) = scan.rfc.take() {
+                rfc_acc.observe((data_idx + 2) as u64, k, &ex, col);
+                let id_col = crate::k1_parse::arc033_id_index(&file.headers, &file.name);
+                rfc_acc.attach_id((data_idx + 2) as u64, id_col.and_then(|i| buf.get(i)).map(|v| v.as_ref()));
             }
             process(&buf, (data_idx + 2) as u64);
             data_idx += 1;
@@ -1029,7 +1033,7 @@ pub fn validate_trips_with_limits(
     }
 
     // ARC_033: ONE summary per FILE (lesson from #75: no duplicate validation).
-    if let Some(n) = super::common::arc033_summary(&rfc_acc, &file.name, &mut counter) {
+    if let Some(n) = super::common::arc033_summary(&rfc_acc, &file.name, &file.headers, &mut counter) {
         notices.push(n);
     }
 

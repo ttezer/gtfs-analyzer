@@ -982,6 +982,7 @@ pub fn require_nonempty(
 pub(crate) fn arc033_summary(
     acc: &crate::k1_parse::Rfc4180Acc,
     file: &str,
+    headers: &[String],
     counter: &mut u32,
 ) -> Option<gtfs_core::Notice> {
     if acc.rows == 0 {
@@ -1010,7 +1011,7 @@ pub(crate) fn arc033_summary(
         ),
         "Quote any field value that contains a quotation mark or a comma, and double every quotation mark inside it (\"12\"\" Street\").",
     );
-    summary.details = Some(acc.details());
+    summary.details = Some(acc.details(headers));
     Some(summary)
 }
 

@@ -9,7 +9,7 @@ use std::io::{Cursor, Read};
 use super::common::{get_col, get_col_raw, make_k2_notice, ParseError};
 #[cfg(feature = "parallel")]
 use crate::decompress_guard::{DecompressionLimits, GuardedReader, DEFAULT_DECOMPRESSION_LIMITS};
-use crate::k1_parse::{RawFile, RFC4180_AFTER_CLOSE, RFC4180_BARE_QUOTE};
+use crate::k1_parse::{RawFile, ARC033_VALUE_CHARS, RFC4180_AFTER_CLOSE, RFC4180_BARE_QUOTE};
 
 /// Hard per-entry budget for paths where K2 reopens the ZIP after K1.
 pub(crate) const K2_MAX_STREAM_BYTES: usize = 512 * 1024 * 1024;
@@ -1390,7 +1390,7 @@ fn intern_smolstr(raw: &str, cache: &mut FxHashMap<String, SmolStr>) -> SmolStr 
 /// while `unclosed` is a tokenization error (`ARC_013`, the rest of the file may be swallowed).
 #[derive(Default)]
 pub(super) struct CsvScanState {
-    pub rfc: Option<(&'static str, String)>,
+    pub rfc: Option<(&'static str, String, usize)>,
     /// EOF was reached INSIDE quotes—the record never closed.
     pub unclosed: bool,
 }
@@ -1450,7 +1450,11 @@ pub(super) fn next_csv_record<'a>(
                     .iter()
                     .position(|b| matches!(b, b',' | b'\n' | b'\r'))
                     .map_or(n, |i| *pos + i);
-                st.rfc = Some((RFC4180_AFTER_CLOSE, text[field_start..end].chars().take(40).collect()));
+                st.rfc = Some((
+                    RFC4180_AFTER_CLOSE,
+                    text[field_start..end].chars().take(ARC033_VALUE_CHARS + 1).collect(),
+                    out.len(),
+                ));
             }
             // issue #84: if EOF is reached before a quote closes, the record is INCOMPLETE. The old code
             // silently pushed what it had here ("best-effort"), and the rest of the file disappeared unseen.
@@ -1474,7 +1478,8 @@ pub(super) fn next_csv_record<'a>(
             if bare_quote && st.rfc.is_none() {
                 st.rfc = Some((
                     RFC4180_BARE_QUOTE,
-                    text[start..*pos].chars().take(40).collect(),
+                    text[start..*pos].chars().take(ARC033_VALUE_CHARS + 1).collect(),
+                    out.len(),
                 ));
             }
             out.push(Cow::Borrowed(&text[start..*pos]));
@@ -1541,11 +1546,6 @@ impl TripAgg {
 // Pass-1: count '\n' (including header) → data rows = n - 1.
 // Goal: reserve_exact for all_rows + row_trip → zero reallocations, zero spare capacity.
 // CPU bedeli: Swiss 2170 MB → ~10-20 s ekstra decompression. Memory deterministik.
-/// Short, safe example from raw field bytes—appears in the notice message.
-fn lossy40(bytes: &[u8]) -> String {
-    String::from_utf8_lossy(bytes).chars().take(40).collect()
-}
-
 // ── ZipCsvReader: ZIP entry'den incremental RFC 4180 CSV parse ───────────────
 // #38: Large files (stop_times, trips, calendar_dates) are read row by row from the K2 ZIP.
 // trips and calendar_dates use the same struct too (pub(crate)).
@@ -1561,7 +1561,7 @@ pub(crate) struct ZipCsvReader<R: Read> {
     /// FIRST RFC 4180 violation seen in this record (`ARC_033`). The caller takes it with `take()` and
     /// adds the line number itself. THIS IS THE PRODUCTION PATH: all four streamed files pass their
     /// bodies through this reader.
-    pub(crate) rfc: Option<(&'static str, String)>,
+    pub(crate) rfc: Option<(&'static str, String, usize)>,
     /// Length of the current field when its ARC_033 violation was seen; the rest of the cell is
     /// appended to the example when the field ends, so the example shows the WHOLE cell.
     rfc_tail_from: Option<usize>,
@@ -1661,18 +1661,19 @@ impl<R: Read> ZipCsvReader<R> {
 
     /// Prepares `out[fi]` for writing: clears existing content (CAPACITY PRESERVED),
     /// or adds a new buffer when absent.
-    #[inline(always)]
-    /// Completes a pending ARC_033 example with the rest of the cell, then caps it at 40 chars.
+    /// Completes a pending ARC_033 example with the rest of the cell (one char past the cap, so
+    /// `Rfc4180Acc` can mark a cut).
     fn settle_rfc_example(&mut self, field: &[u8]) {
         let Some(from) = self.rfc_tail_from.take() else {
             return;
         };
-        if let Some((_, example)) = self.rfc.as_mut() {
+        if let Some((_, example, _)) = self.rfc.as_mut() {
             example.push_str(&String::from_utf8_lossy(field.get(from..).unwrap_or(&[])));
-            *example = example.chars().take(40).collect();
+            *example = example.chars().take(ARC033_VALUE_CHARS + 1).collect();
         }
     }
 
+    #[inline(always)]
     fn begin_field(out: &mut Vec<Vec<u8>>, fi: usize) {
         match out.get_mut(fi) {
             Some(f) => f.clear(),
@@ -1825,7 +1826,7 @@ impl<R: Read> ZipCsvReader<R> {
                                 // Cell as written: the quoted part with its quotes; the rest is
                                 // added by `settle_rfc_example` when the field ends.
                                 let head = format!("\"{}\"", String::from_utf8_lossy(&out[fi]));
-                                self.rfc = Some((RFC4180_AFTER_CLOSE, head));
+                                self.rfc = Some((RFC4180_AFTER_CLOSE, head, fi));
                                 self.rfc_tail_from = Some(out[fi].len());
                             }
                             in_quotes = false;
@@ -1854,7 +1855,10 @@ impl<R: Read> ZipCsvReader<R> {
                         // `tokenize_csv` has always treated it as a plain character; both readers now make the SAME
                         // decision (acceptance criterion: equivalent streaming/non-streaming helpers must agree).
                         if self.rfc.is_none() {
-                            self.rfc = Some((RFC4180_BARE_QUOTE, lossy40(&out[fi])));
+                            // The quote and the rest of the cell are appended by
+                            // `settle_rfc_example`; `out[fi]` alone stops before the quote.
+                            self.rfc = Some((RFC4180_BARE_QUOTE, String::from_utf8_lossy(&out[fi]).into_owned(), fi));
+                            self.rfc_tail_from = Some(out[fi].len());
                         }
                         out[fi].push(b);
                     }
@@ -3587,8 +3591,10 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     continue;
                 }
                 st.unclosed |= scan.unclosed;
-                if let Some((k, ex)) = scan.rfc.take() {
-                    st.rfc.observe((data_idx + 2) as u64, k, &ex);
+                if let Some((k, ex, col)) = scan.rfc.take() {
+                    st.rfc.observe((data_idx + 2) as u64, k, &ex, col);
+                    let id_col = crate::k1_parse::arc033_id_index(&file.headers, &file.name);
+                    st.rfc.attach_id((data_idx + 2) as u64, id_col.and_then(|i| buf.get(i)).map(|v| v.as_ref()));
                 }
                 process(&mut st, &buf, (data_idx + 2) as u64);
                 data_idx += 1;
@@ -3729,8 +3735,10 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                                     })
                                                     .collect();
                                                 c.unclosed |= rdr.unclosed;
-                                                if let Some((k, ex)) = rdr.rfc.take() {
-                                                    c.rfc.observe(line, k, &ex);
+                                                if let Some((k, ex, col)) = rdr.rfc.take() {
+                                                    c.rfc.observe(line, k, &ex, col);
+                                                    let id_col = crate::k1_parse::arc033_id_index(&file.headers, &file.name);
+                                                    c.rfc.attach_id(line, id_col.and_then(|i| row.get(i)).map(|v| v.as_ref()));
                                                 }
                                                 process(&mut c, &row, line);
                                                 line += 1;
@@ -3839,8 +3847,10 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                                     })
                                                     .collect();
                                                 c.unclosed |= rdr.unclosed;
-                                                if let Some((k, ex)) = rdr.rfc.take() {
-                                                    c.rfc.observe(line, k, &ex);
+                                                if let Some((k, ex, col)) = rdr.rfc.take() {
+                                                    c.rfc.observe(line, k, &ex, col);
+                                                    let id_col = crate::k1_parse::arc033_id_index(&file.headers, &file.name);
+                                                    c.rfc.attach_id(line, id_col.and_then(|i| row.get(i)).map(|v| v.as_ref()));
                                                 }
                                                 process(&mut c, &row, line);
                                                 line += 1;
@@ -3905,8 +3915,10 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                     })
                                     .collect();
                                 st.unclosed |= csv_reader.unclosed;
-                                if let Some((k, ex)) = csv_reader.rfc.take() {
-                                    st.rfc.observe(zip_line, k, &ex);
+                                if let Some((k, ex, col)) = csv_reader.rfc.take() {
+                                    st.rfc.observe(zip_line, k, &ex, col);
+                                    let id_col = crate::k1_parse::arc033_id_index(&file.headers, &file.name);
+                                    st.rfc.attach_id(zip_line, id_col.and_then(|i| cow_row.get(i)).map(|v| v.as_ref()));
                                 }
                                 process(&mut st, &cow_row, zip_line);
                                 zip_line += 1;
@@ -3954,7 +3966,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
     }
 
     // ARC_033: ONE summary per FILE (chunks were combined with `StChunk::merge`).
-    if let Some(n) = super::common::arc033_summary(&st.rfc, &file.name, &mut st.counter) {
+    if let Some(n) = super::common::arc033_summary(&st.rfc, &file.name, &file.headers, &mut st.counter) {
         st.notices.push(n);
     }
 
@@ -5209,6 +5221,26 @@ mod tests {
         assert!(
             !reader.unclosed,
             "kapanış tırnağından sonraki EOF ARC_013 olmamalı"
+        );
+    }
+
+    #[test]
+    fn zip_csv_reader_keeps_the_whole_arc033_cell_and_its_column() {
+        // Both violations must report the cell AS WRITTEN; the example used to stop at the quote.
+        let mut reader = ZipCsvReader::new(Cursor::new(
+            "a,b,c\n1,\"Hotel \"Sowa\"\",x\n2,y,12\" Street\n".as_bytes(),
+        ));
+        let mut fields = Vec::new();
+        assert!(reader.next_record(&mut fields));
+        assert!(reader.next_record(&mut fields));
+        assert_eq!(
+            reader.rfc.take(),
+            Some((RFC4180_AFTER_CLOSE, "\"Hotel \"Sowa\"\"".to_string(), 1))
+        );
+        assert!(reader.next_record(&mut fields));
+        assert_eq!(
+            reader.rfc.take(),
+            Some((RFC4180_BARE_QUOTE, "12\" Street".to_string(), 2))
         );
     }
 

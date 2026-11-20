@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { buildProducerModel, stopUsage, entityLabel, plannerArea, routeBadge } from '../pages/producer-helpers';
-import { missingMapShapes, plannerFacets, plannerMap, renderProducer } from '../pages/producer';
+import { arc033Fixed, missingMapShapes, plannerFacets, plannerMap, renderProducer } from '../pages/producer';
 import type { FacetCard, FacetFilter } from '../pages/producer';
 import type { ValidationResult, Notice, NameIndex } from '../types';
 import { tMsgForLocale } from '../i18n';
@@ -3361,18 +3361,50 @@ describe('ARC dosya kartları (ARC_002–011)', () => {
       .toContain('<td>Durak listesi</td><td>1</td><td>4</td><td>Durak kodu</td><td>Ş3</td>');
   });
 
-  it('ARC_033 bozuk satırların hepsini, sınırı aşanların sayısını ve hücrenin yazıldığı hâlini gösterir', () => {
-    const all = render(file('ARC_033', 'stops.txt', { line: 153, details: {
-      affected_rows: '5', example_lines: '153, 154, 249, 250, 251', example_value: '"Gen.a.e.f."nila"-Różana"',
+  it('ARC_033 her bozuk satırı ayrı satırda; Ne olmuş seçilen satırı ve doğru yazımı anlatır', () => {
+    const html = render(file('ARC_033', 'stops.txt', { line: 153, details: {
+      affected_rows: '3', issue: 'characters_after_closing_quote', example_value: '"Gen.a.e.f."nila"-Różana"',
+      example_0_line: '153', example_0_field: 'stop_name', example_0_value: '"Gen.a.e.f."nila"-Różana"',
+      example_1_line: '154', example_1_field: 'stop_name', example_1_value: '"Gen.a.e.f."nila"-Różana"',
+      example_2_line: '249', example_2_field: 'stop_name', example_2_value: '"#aziska-"pokutujące Skałki""',
     } }));
-    expect(all).toContain('<td>Durak listesi</td><td>5</td><td>153, 154, 249, 250, 251</td><td>&quot;Gen.a.e.f.&quot;nila&quot;-Różana&quot;</td>');
-    const capped = render(file('ARC_033', 'translations.txt', { line: 2, details: {
-      affected_rows: '6315', example_lines: '2, 3', example_value: '12" Street',
-    } }));
-    expect(capped).toContain('<td>2, 3 +6.313 satır daha</td>');
-    // Older results carry no list: fall back to the first line.
+    expect(html).toContain('<th>Kayıt</th><th>Satır</th><th>Sütun</th><th>Değer</th>');
+    expect(html).toContain('<td>Durak listesi</td><td>153</td><td>Durak adı</td><td class="planner-cell-wrap">&quot;Gen.a.e.f.&quot;nila&quot;-Różana&quot;</td>');
+    expect(html).toContain('<td>Durak listesi</td><td>249</td><td>Durak adı</td>');
+    expect(html.match(/planner-affected-row/g)?.length).toBe(3);
+    // The first row is selected; its own text names the row, column and the corrected cell.
+    expect(html).toContain('Durak listesi, 153. satır, Durak adı sütunu: &quot;Gen.a.e.f.&quot;nila&quot;-Różana&quot; — değerin içindeki tırnak işaretleri ikiye katlanmamış.');
+    expect(html).toContain('Doğru yazımı: &quot;Gen.a.e.f.&quot;&quot;nila&quot;&quot;-Różana&quot;');
+    // Older results carry no rows: one row with the general text.
     expect(render(file('ARC_033', 'stops.txt', { line: 7, details: { affected_rows: '1', example_value: 'a"b' } })))
-      .toContain('<td>1</td><td>7</td>');
+      .toContain('<td>Durak listesi</td><td>7</td><td>—</td>');
+  });
+
+  it('ARC_033 sefer dosyasında satırları hat · yön · kalkış · takvim ile, durak dosyasında durak adıyla gösterir', () => {
+    const n = file('ARC_033', 'stop_times.txt', { line: 16, details: {
+      affected_rows: '2', example_value: 'x',
+      example_0_line: '16', example_0_field: 'stop_headsign', example_0_value: 'A  "B"', example_0_id: 'T1', example_0_service: 'WD',
+      example_1_line: '38', example_1_field: 'stop_headsign', example_1_value: 'A  "B"', example_1_id: 'T2',
+    } });
+    const ni: NameIndex = { ...emptyNameIndex, trips: { T1: 'Merkez', T2: 'Liman' }, trip_routes: { T1: 'R1', T2: 'R1' },
+      routes: { R1: '7' }, trip_first_dep: { T1: '10:01', T2: '11:16' } };
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([n], [], [['ARC_033', 1, 1]], true, ni));
+    const html = root.innerHTML;
+    expect(html).toContain('<th>Hat</th><th>Yön</th><th>Sefer başlangıç saati</th><th>Çalışma günleri</th><th>Satır</th><th>Değer</th>');
+    expect(html).toContain('<td class="planner-cell-wrap">Merkez</td><td>10:01</td>');
+    expect(html).toContain('<td>16</td><td class="planner-cell-wrap">A  &quot;B&quot;</td>');
+    const stops = render(file('ARC_033', 'stops.txt', { line: 153, details: {
+      affected_rows: '1', example_0_line: '153', example_0_field: 'stop_name', example_0_value: 'a"b', example_0_id: 'S1',
+    } }));
+    expect(stops).toContain('<th>Durak</th><th>Satır</th><th>Sütun</th><th>Değer</th>');
+  });
+
+  it('ARC_033 doğru yazımı tırnaklayıp içteki tırnakları ikiye katlar; kesilmiş değerde üretmez', () => {
+    expect(arc033Fixed('"Gen.a.e.f."nila"-Różana"')).toBe('"Gen.a.e.f.""nila""-Różana"');
+    expect(arc033Fixed('"Bielawa  Hotel "Pod Wielką Sową""')).toBe('"Bielawa  Hotel ""Pod Wielką Sową"""');
+    expect(arc033Fixed('12" Street')).toBe('"12"" Street"');
+    expect(arc033Fixed('"Uzun değer…')).toBeNull();
   });
 
   it('ARC_030 sekmeyi işaretli değerle, ARC_022 satır sayısını gösterir', () => {
