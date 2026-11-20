@@ -13958,6 +13958,12 @@ const STP030_NEAR_M: f64 = 300.0;
 const STP030_CANDIDATES: usize = 5;
 const VAT_NEARBY_ROUTES: usize = 10;
 const VAT003_EXAMPLES: usize = 5;
+/// VAT_003: schedules (nearest by departure, same pattern) whose median is the expected duration.
+const VAT003_LOCAL_K: usize = 6;
+/// VAT_003: other schedules of the pattern needed at the same duration for it to count as planned.
+const VAT003_SUPPORT_MIN: usize = 2;
+/// VAT_003: duration tolerance for that support (GTFS times are often minute-rounded).
+const VAT003_SUPPORT_TOL_SECS: u32 = 60;
 const VAT005_CLUSTERS: usize = 5;
 const VAT005_NEAREST_PROBE: usize = 20;
 const VAT006_OTHERS: usize = 5;
@@ -14378,12 +14384,9 @@ fn check_vat_analytics(
             }
         }
 
-        // Intra-day (peak/off-peak) deseasonalization: measure duration's deviation from the
-        // expected value for its departure HOUR. If an hour has ≥BUCKET_MIN_TRIPS, use that
-        // hour's median; otherwise fall back to the pattern-global median (avoids data starvation
-        // in sparse hours). Robust-z is now on the residual; the minimum-minute floor is
-        // complementary (prevents flagging small deviations with tiny MAD). See issue #24.
-        const BUCKET_MIN_TRIPS: usize = 5;
+        // Intra-day deseasonalization (issue #24): the expected duration is the median of the
+        // nearest schedules by departure (VAT003_LOCAL_K), so peak/off-peak and gradual drift are
+        // followed; robust-z is on the residual and the minimum-minute floor is complementary.
         // Operational minimum deviation: residuals smaller than this (intra-day noise) are never flagged.
         // Deseasonalization compresses residuals, making σ alone overly sensitive; this floor acts
         // as an AND gate that filters small deviations (the issue #24 contributor's "minimum-minute
@@ -14430,41 +14433,45 @@ fn check_vat_analytics(
                 continue;
             }
 
-            // Coarse time bands (instead of hourly): capture intra-day structure without starving
-            // buckets of data (the contributor's "coarse buckets degrade more gracefully" note).
-            let band = |dep: u32| -> u32 {
-                // % 24: banding uses the trip's FIRST departure. If a feed writes a cross-midnight
-                // trip's first departure as 24:xx+ (≥86400 sec, valid GTFS), raw hours would put it
-                // in the evening (band 4) instead of the night band (band 0); % 24 maps it correctly.
-                // NOTE: normalize_service_day does not shift the FIRST stop (it starts at offset 0),
-                // so this applies only when the feed itself writes a 24:xx first departure (defensive;
-                // no-op for feeds such as Toei that write 00:xx). See issue #26.
-                match (dep / 3600) % 24 {
-                    0..=5 => 0,   // night / early (24:xx, 25:xx… map here)
-                    6..=9 => 1,   // morning peak
-                    10..=15 => 2, // daytime
-                    16..=19 => 3, // evening peak
-                    _ => 4,       // evening / night (20:00–23:59)
-                }
+            // Expected duration = median of the same pattern's NEAREST schedules by departure
+            // (leave-one-out, both sides, no fixed time bands). Coarse bands (05/06–09/10–15/…)
+            // compared a trip with schedules hours away: a route drifting 45 → 53 → 60 min over
+            // the day had its 11:00 45-min trip flagged as "8 min short" against a 53-min band
+            // median while every neighbour also ran 45 (2026-11-20, two-round review with three
+            // external models and a synthetic + corpus experiment; see the rule card).
+            // Distance on the 24-hour clock: a 24:30 (service-day) departure is 00:30, i.e. next to
+            // the 02:00 night trips, not to the 21:00 evening ones (issue #26).
+            let clock_gap = |a: u32, b: u32| {
+                let g = (a % 86_400).abs_diff(b % 86_400);
+                g.min(86_400 - g)
             };
-            // Dense bands (≥BUCKET_MIN_TRIPS) use their own median; sparse bands fall back to global.
-            let mut by_band: FxHashMap<u32, Vec<u32>> = FxHashMap::default();
-            for &(_, d, dep, _, _) in &durs {
-                by_band.entry(band(dep)).or_default().push(d);
-            }
-            let mut band_med: FxHashMap<u32, f64> = FxHashMap::default();
-            for (b, mut bv) in by_band {
-                if bv.len() >= BUCKET_MIN_TRIPS {
-                    bv.sort_unstable();
-                    band_med.insert(b, bv[bv.len() / 2] as f64);
-                }
-            }
-            let reference = |dep: u32| band_med.get(&band(dep)).copied().unwrap_or(med_all);
+            let refs: Vec<f64> = durs
+                .iter()
+                .enumerate()
+                .map(|(i, &(_, _, dep, _, _))| {
+                    let mut near: Vec<(u32, u32, &str)> = durs
+                        .iter()
+                        .enumerate()
+                        .filter(|&(j, _)| j != i)
+                        .map(|(_, o)| (clock_gap(o.2, dep), o.1, o.0))
+                        .collect();
+                    near.sort_unstable();
+                    let mut v: Vec<u32> = near.iter().take(VAT003_LOCAL_K).map(|x| x.1).collect();
+                    v.sort_unstable();
+                    let n = v.len();
+                    if n % 2 == 1 {
+                        v[n / 2] as f64
+                    } else {
+                        (v[n / 2 - 1] as f64 + v[n / 2] as f64) / 2.0
+                    }
+                })
+                .collect();
 
-            // residual = duration − hour-based expected value; MAD is computed on residuals.
+            // residual = duration − local expected value; MAD is computed on residuals.
             let mut res: Vec<f64> = durs
                 .iter()
-                .map(|&(_, d, dep, _, _)| d as f64 - reference(dep))
+                .zip(&refs)
+                .map(|(&(_, d, _, _, _), r)| d as f64 - r)
                 .collect();
             res.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
             let med_res = res[res.len() / 2];
@@ -14474,8 +14481,8 @@ fn check_vat_analytics(
 
             // Residual-z threshold (config; default 3.5 — issue #24, tightens deseasonalized residuals).
             let sigma = config.duration_outlier_sigma;
-            for &(trip_id, dur, dep_secs, route, repeats) in &durs {
-                let ref_med = reference(dep_secs);
+            for (idx, &(trip_id, dur, dep_secs, route, repeats)) in durs.iter().enumerate() {
+                let ref_med = refs[idx];
                 let residual = dur as f64 - ref_med;
                 // Both conditions together (AND): (1) operationally meaningful deviation (≥ floor),
                 // (2) statistical outlier (residual > σ·MAD). If mad_r≈0 (residuals are identical),
@@ -14483,6 +14490,18 @@ fn check_vat_analytics(
                 let mag_ok = residual.abs() >= RESIDUAL_FLOOR_SECS;
                 let stat_ok = mad_r < 1.0 || residual.abs() > sigma * mad_r;
                 if !(mag_ok && stat_ok) {
+                    continue;
+                }
+                // A duration that other schedules of the same pattern also run (±60 s, at least
+                // two besides this one, anywhere in the day) is a planned variant — e.g. trips
+                // alternating 47/53 min, or a 2-hourly long variant — not an outlier. Known
+                // limit: the same wrong duration copied onto ≥3 schedules supports itself.
+                let support = durs
+                    .iter()
+                    .enumerate()
+                    .filter(|&(j, o)| j != idx && o.1.abs_diff(dur) <= VAT003_SUPPORT_TOL_SECS)
+                    .count();
+                if support >= VAT003_SUPPORT_MIN {
                     continue;
                 }
 
@@ -23358,6 +23377,121 @@ mod tests {
         );
     }
 
+    /// VAT_003 scenario feed: each scenario is its own route and stop pair (its own pattern);
+    /// `trips` are (departure seconds, duration minutes). Returns flagged trip ids per scenario.
+    fn vat003_flags(scenarios: &[(&str, Vec<(u32, u32)>)]) -> std::collections::HashMap<String, usize> {
+        let mut trips_vec = Vec::new();
+        let mut sts = Vec::new();
+        let mut stops = Vec::new();
+        let mut routes = Vec::new();
+        for (k, (name, trips)) in scenarios.iter().enumerate() {
+            routes.push(route(name, 3));
+            let (a, b) = (format!("{name}_A"), format!("{name}_B"));
+            stops.push(stop(&a, 41.0 + k as f64 * 0.05, 29.0));
+            stops.push(stop(&b, 41.0 + k as f64 * 0.05, 29.1));
+            for (i, &(dep, min)) in trips.iter().enumerate() {
+                let tid = format!("{name}#{i:02}");
+                trips_vec.push(trip(&tid, name));
+                let arr = dep + min * 60;
+                let hms = |x: u32| (x / 3600, x % 3600 / 60, x % 60);
+                sts.push(stoptime(&tid, 1, &a, hms(dep), hms(dep), 2));
+                sts.push(stoptime(&tid, 2, &b, hms(arr), hms(arr), 3));
+            }
+        }
+        let r = crate::k2::EntityRecords {
+            stops,
+            routes,
+            trips: trips_vec,
+            trip_interns: take_ti(),
+            stop_times: sts,
+            ..Default::default()
+        };
+        let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
+        let mut out = std::collections::HashMap::new();
+        for n in result.notices.iter().filter(|n| n.rule_id == "VAT_003") {
+            let id = n.entity_id.as_deref().unwrap_or_default();
+            *out.entry(id.split('#').next().unwrap_or_default().to_string()).or_insert(0) += 1;
+        }
+        out
+    }
+
+    /// 06:00–21:30 every 30 min (32 schedules), durations from `f(departure)`.
+    fn vat003_day(f: impl Fn(u32) -> u32) -> Vec<(u32, u32)> {
+        (0..32).map(|i| 6 * 3600 + i * 1800).map(|d| (d, f(d))).collect()
+    }
+
+    fn vat003_with(mut v: Vec<(u32, u32)>, at: &[(u32, u32)]) -> Vec<(u32, u32)> {
+        for &(dep, min) in at {
+            if let Some(x) = v.iter_mut().find(|x| x.0 == dep) {
+                x.1 = min;
+            }
+        }
+        v
+    }
+
+    #[test]
+    fn vat_003_planned_variants_are_quiet_and_single_errors_are_found() {
+        // Scenario set from the 2026-11-20 experiment (local reference + planned-variant
+        // support). H(h, m) = seconds.
+        let h = |hh: u32, mm: u32| hh * 3600 + mm * 60;
+        let drift = |d: u32| if d < h(12, 0) { 45 } else if d < h(15, 0) { 50 } else { 60 };
+        let flat = |_: u32| 45;
+        let scenarios = vec![
+            // Planned structure: nothing to report.
+            ("ALT", vat003_day(|d| if (d / 1800) % 2 == 0 { 47 } else { 53 })),
+            ("DRIFT", vat003_day(drift)),
+            ("STEP", vat003_day(|d| if d < h(13, 0) { 45 } else { 65 })),
+            // The screenshot case: a band median of 53 against neighbours that all run 45.
+            ("NEIGHBOURS", vat003_day(|d| if d < h(13, 0) { 45 } else if d < h(16, 0) { 60 } else { 53 })),
+            // Single errors: found.
+            ("P10", vat003_with(vat003_day(flat), &[(h(11, 0), 55)])),
+            ("M30", vat003_with(vat003_day(flat), &[(h(11, 0), 15)])),
+            ("DRIFT_ERR", vat003_with(vat003_day(drift), &[(h(13, 0), 70)])),
+            ("COPY2", vat003_with(vat003_day(flat), &[(h(11, 0), 75), (h(11, 30), 75)])),
+            ("SPARSE", vec![(h(8, 0), 45), (h(10, 0), 45), (h(12, 0), 65), (h(14, 0), 45), (h(16, 0), 45), (h(18, 0), 45)]),
+        ];
+        let got = vat003_flags(&scenarios);
+        let n = |k: &str| got.get(k).copied().unwrap_or(0);
+        for quiet in ["ALT", "DRIFT", "STEP", "NEIGHBOURS"] {
+            assert_eq!(n(quiet), 0, "{quiet}: planned structure must not be flagged ({got:?})");
+        }
+        for (k, want) in [("P10", 1), ("M30", 1), ("DRIFT_ERR", 1), ("COPY2", 2), ("SPARSE", 1)] {
+            assert_eq!(n(k), want, "{k}: single errors must be found ({got:?})");
+        }
+    }
+
+    #[test]
+    fn vat_003_after_midnight_departures_are_compared_with_night_trips() {
+        // Issue #26 with the local reference: 24:15 is 00:15 on the clock, so its neighbours are
+        // the 01:00–02:30 night trips (20–38 min), not the 20:00–21:30 evening ones (50–68 min).
+        // Durations step by 2 min so no duration has support and only the reference decides;
+        // compared on the service-day line the owl trips would be "~46 min short".
+        let h = |hh: u32, mm: u32| hh * 3600 + mm * 60;
+        let night = (0..10u32).map(|i| (h(1, 10 * i), 20 + 2 * i));
+        let evening = (0..10u32).map(|i| (h(20, 10 * i), 50 + 2 * i));
+        let owl = [(h(24, 15), 17), (h(24, 45), 15)];
+        let all: Vec<(u32, u32)> = night.chain(evening).chain(owl).collect();
+        let got = vat003_flags(&[("OWL", all)]);
+        assert_eq!(got.get("OWL").copied().unwrap_or(0), 0, "owl trips are normal night trips ({got:?})");
+    }
+
+    #[test]
+    fn vat_003_duration_of_another_profile_is_a_known_limit() {
+        // Documented limits (rule card): a wrong duration that ≥3 schedules share, or that equals
+        // another legitimate profile's duration, counts as a planned variant and is not reported.
+        // Only the total trip duration is seen, so these cannot be told apart from real variants.
+        let h = |hh: u32, mm: u32| hh * 3600 + mm * 60;
+        let flat = |_: u32| 45;
+        let profile = |d: u32| if d < h(9, 0) || d >= h(18, 0) { 45 } else { 60 };
+        let scenarios = vec![
+            ("COPY3", vat003_with(vat003_day(flat), &[(h(11, 0), 75), (h(11, 30), 75), (h(12, 0), 75)])),
+            ("COLLIDE", vat003_with(vat003_day(profile), &[(h(13, 0), 45)])),
+        ];
+        let got = vat003_flags(&scenarios);
+        assert_eq!(got.get("COPY3").copied().unwrap_or(0), 0, "{got:?}");
+        assert_eq!(got.get("COLLIDE").copied().unwrap_or(0), 0, "{got:?}");
+    }
+
     #[test]
     fn vat_003_owl_trips_banded_by_clock_time_not_service_day() {
         // Issue #26: trips crossing midnight (owl trips) are encoded as 24:xx+ in service-day
@@ -23414,10 +23548,13 @@ mod tests {
                 3,
             ));
         }
-        // Owl event: 24:35 departure, 40 minutes — ABNORMAL for the night band.
+        // Owl event: 24:35 departure, 60 minutes — ABNORMAL for the night trips. (It was 40
+        // minutes before the local-reference rewrite; 40 is the evening schedules' duration, so
+        // the planned-variant support now treats it as a known profile: that collision is the
+        // rule's documented limit, see `vat_003_duration_of_another_profile_is_a_known_limit`.)
         trips_vec.push(trip("WINC", "R1"));
         sts.push(stoptime("WINC", 1, "A", (24, 35, 0), (24, 35, 0), 2));
-        sts.push(stoptime("WINC", 2, "B", (25, 15, 0), (25, 15, 0), 3));
+        sts.push(stoptime("WINC", 2, "B", (25, 35, 0), (25, 35, 0), 3));
         let r = crate::k2::EntityRecords {
             stops: vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             routes: vec![route("R1", 3)],

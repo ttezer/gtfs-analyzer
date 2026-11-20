@@ -4911,7 +4911,7 @@
     },
     "VAT_003": {
       "title": "Durée très différente des courses similaires",
-      "what": "Par rapport aux courses du même trajet, celle-ci est anormalement longue ou courte. Information seulement.",
+      "what": "Par rapport aux courses du même trajet qui partent le plus près dans le temps, celle-ci est anormalement longue ou courte. Une durée que d’autres courses du trajet ont aussi compte comme une différence prévue et n’est pas signalée. Information seulement.",
       "action": "S’il y a une raison (pointe, autre véhicule), c’est normal ; sinon vérifiez les horaires."
     },
     "VAT_005": {

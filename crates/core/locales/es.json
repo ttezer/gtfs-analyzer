@@ -2972,7 +2972,7 @@
     },
     "VAT_003": {
       "title": "Duración del viaje muy distinta a la de viajes similares",
-      "what": "En comparación con los viajes del mismo recorrido, este viaje es inusualmente largo o corto. Es solo informativo.",
+      "what": "En comparación con los viajes del mismo recorrido que salen más cerca en el tiempo, este viaje es inusualmente largo o corto. Una duración que también tienen otros viajes del recorrido cuenta como una diferencia planificada y no se señala. Es solo informativo.",
       "action": "Si hay un motivo, como el tráfico en hora punta o un vehículo distinto, está bien; si no, revise los horarios del viaje."
     },
     "VAT_005": {

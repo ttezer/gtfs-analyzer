@@ -6610,7 +6610,7 @@
     },
     "VAT_003": {
       "title": "Seferin süresi benzerlerinden çok farklı",
-      "what": "Aynı güzergâhtaki seferlere göre bu seferin süresi olağandışı uzun ya da kısa. Bilgi amaçlıdır.",
+      "what": "Kalkış saati en yakın, aynı güzergâhtaki seferlere göre bu seferin süresi olağandışı uzun ya da kısa. Aynı süre güzergâhtaki başka seferlerde de varsa planlı bir fark sayılır ve işaretlenmez. Bilgi amaçlıdır.",
       "action": "Yoğun saat veya farklı araç gibi bir nedeni varsa sorun yok; yoksa sefer saatlerini kontrol edin."
     },
     "VAT_005": {

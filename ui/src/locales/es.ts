@@ -1740,7 +1740,7 @@ const es: { ui: Record<string, string> } = {
     "producer.card.VAT_002.what": "Cuatro o más líneas sirven esta parada, pero no hay ningún transbordo definido. Es solo informativo.",
     "producer.card.VAT_002.action": "Si se necesita un tiempo o una regla de transbordo concretos, añada información de transbordo; si no, no hace falta hacer nada.",
     "producer.card.VAT_003.title": "Duración del viaje muy distinta a la de viajes similares",
-    "producer.card.VAT_003.what": "En comparación con los viajes del mismo recorrido, este viaje es inusualmente largo o corto. Es solo informativo.",
+    "producer.card.VAT_003.what": "En comparación con los viajes del mismo recorrido que salen más cerca en el tiempo, este viaje es inusualmente largo o corto. Una duración que también tienen otros viajes del recorrido cuenta como una diferencia planificada y no se señala. Es solo informativo.",
     "producer.card.VAT_003.action": "Si hay un motivo, como el tráfico en hora punta o un vehículo distinto, está bien; si no, revise los horarios del viaje.",
     "producer.card.VAT_005.title": "Grupo de paradas aislado de la red",
     "producer.card.VAT_005.what": "Algunas paradas no están conectadas por viajes con el resto de la red; forman una isla.",

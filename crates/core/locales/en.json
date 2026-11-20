@@ -5499,7 +5499,7 @@
     },
     "VAT_003": {
       "title": "Trip duration very different from similar trips",
-      "what": "Compared with trips on the same path, this trip is unusually long or short. This is for information.",
+      "what": "Compared with the trips on the same path that leave closest in time, this trip is unusually long or short. A duration that other trips on the path also have counts as a planned difference and is not flagged. This is for information.",
       "action": "If there is a reason such as peak traffic or a different vehicle this is fine; otherwise check the trip times."
     },
     "VAT_005": {

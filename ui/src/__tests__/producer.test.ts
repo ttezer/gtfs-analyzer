@@ -1272,7 +1272,7 @@ describe('Üretici kartı görünümü', () => {
     // VAT_003: the trip, its duration against the same path's trips, a table of them; the trip drawn.
     out = render(notice('a', 'VAT_003', 'LOW', { entity_type: 'Trip', entity_id: 'T1',
       details: { duration_min: '40', expected_min: '10', departure: '06:00:00', pattern_trips: '6', example_0_trip_id: 'X1', example_0_departure: '05:54:00', example_0_minutes: '10' } }));
-    expect(out.html).toContain('10 hattının „Çarşı“ yönündeki 06:00 kalkışlı seferi 40 dk sürüyor; aynı güzergâhtaki seferler bu saatlerde yaklaşık 10 dk sürüyor, bu sefer 30 dk daha uzun.');
+    expect(out.html).toContain('10 hattının „Çarşı“ yönündeki 06:00 kalkışlı seferi 40 dk sürüyor; aynı güzergâhta kalkış saati en yakın seferler yaklaşık 10 dk sürüyor, bu sefer 30 dk daha uzun.');
     expect(out.html).toContain('<tr><td>05:54</td><td>10 dk</td></tr><tr class="bad"><td>06:00</td><td>40 dk</td></tr>');
     expect(out.html).toContain('Haritadaki sefer: 10 · Çarşı yönü · 06:00 — durak sırası');
 

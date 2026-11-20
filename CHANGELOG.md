@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **VAT_003 (trip duration outlier) no longer flags planned timetable variants.** The expected duration is now the median of the same pattern's six nearest schedules by departure (on the 24-hour clock) instead of a fixed time-band median, and a duration that at least two other schedules of the pattern also run (±60 s) counts as a planned variant. Before, a route alternating 47/53 min or drifting 45 → 60 min over the day had its shorter trips flagged against a band median (mdb-1090: 23,310 findings, most of them such variants). Measured: mdb-1090 23,310 → 2,673, mdb-778 2,101 → 81; other rules and scores unchanged; single errors (+5 to +30, −15, −30 min, after midnight, sparse patterns) are still found. Known limits, documented in the rule card and tests: the same wrong duration copied onto three or more schedules, or equal to another legitimate profile's duration, is not reported.
+
 ### Fixed
 
 - **Browser memory on very large feeds.** In WebAssembly the streamed `stop_times.txt` and `shapes.txt` row buffers grew by doubling (ZIP-declared sizes are not trusted for capacity), and WASM memory never shrinks, so every doubling's old and new copy stayed in the memory size; mdb-2014 reached ~15 GB in the browser. The browser engine now counts the entry's real lines first (through the same decompression guard) and sizes the buffers once. Measured on mdb-2393: shapes step peak 5.29 → 2.73 GB, reports identical. Native builds are unchanged. K7 also no longer builds the raw and trimmed identity sets for whitespace-derivative suppression when the feed has no `DQ_016` finding, where that step cannot change anything (mdb-2014: ~2.2 GB of WASM memory). The report's shape count no longer collects every shape point into a set sized for the point count (mdb-2014: ~2.2 GB transient for 89.7M points); it marks the interned shape indices instead.
