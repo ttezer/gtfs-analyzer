@@ -4767,6 +4767,23 @@ fn arc033_flags_characters_after_a_closing_quote() {
 }
 
 #[test]
+fn arc033_example_shows_the_whole_cell_as_written() {
+    // mdb-1271: `"Gen.a.e.f."nila"-Różana"` was reported as `Gen.a.e.f.` — the example stopped
+    // at the stray quote and hid exactly the part the planner must fix.
+    let feed = arc033_feed(
+        "stop_id,stop_name,stop_lat,stop_lon\nS1,\"Gen.a.e.f.\"nila\"-Różana\",41.0,29.0\nS2,Stop2,41.1,29.1\n",
+    );
+    match run(&feed) {
+        ValidateResult::Ok(vr) => {
+            let n = vr.notices.iter().find(|n| n.rule_id == "ARC_033").expect("ARC_033 bekleniyor");
+            let example = n.details.as_ref().and_then(|d| d.get("example_value")).cloned();
+            assert_eq!(example.as_deref(), Some("\"Gen.a.e.f.\"nila\"-Różana\""));
+        }
+        other => panic!("Ok beklendi: {other:?}"),
+    }
+}
+
+#[test]
 fn arc033_silent_on_correctly_escaped_quotes() {
     // 🔴 FALSE-POSITIVE GUARD. When parsed, this row produces the value `12" Street` —
     // the SAME value as the violating form. If the rule inspected the value, it would fire here

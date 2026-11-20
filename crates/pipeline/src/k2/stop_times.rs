@@ -1417,6 +1417,7 @@ pub(super) fn next_csv_record<'a>(
         if bytes[*pos] == b'"' {
             // OOM fix Plan E: quoted fields are RARE (almost absent in stop_times)—owned String.
             // Unquoted fields (the main path) are BORROWED from raw text as &str (NO alloc).
+            let field_start = *pos;
             *pos += 1;
             let mut buf = String::new();
             let mut closed_quote = false;
@@ -1441,8 +1442,15 @@ pub(super) fn next_csv_record<'a>(
                 }
             }
             // RFC 4180: a delimiter must follow a closing quote.
+            // Example = the cell AS WRITTEN (quotes included) up to the next delimiter; `buf`
+            // stops at the stray quote and hides it. Only the example is read further; `*pos`
+            // and the parsed value keep their old behavior.
             if *pos < n && !matches!(bytes[*pos], b',' | b'\n' | b'\r') && st.rfc.is_none() {
-                st.rfc = Some((RFC4180_AFTER_CLOSE, buf.chars().take(40).collect()));
+                let end = bytes[*pos..]
+                    .iter()
+                    .position(|b| matches!(b, b',' | b'\n' | b'\r'))
+                    .map_or(n, |i| *pos + i);
+                st.rfc = Some((RFC4180_AFTER_CLOSE, text[field_start..end].chars().take(40).collect()));
             }
             // issue #84: if EOF is reached before a quote closes, the record is INCOMPLETE. The old code
             // silently pushed what it had here ("best-effort"), and the rest of the file disappeared unseen.
@@ -1554,6 +1562,9 @@ pub(crate) struct ZipCsvReader<R: Read> {
     /// adds the line number itself. THIS IS THE PRODUCTION PATH: all four streamed files pass their
     /// bodies through this reader.
     pub(crate) rfc: Option<(&'static str, String)>,
+    /// Length of the current field when its ARC_033 violation was seen; the rest of the cell is
+    /// appended to the example when the field ends, so the example shows the WHOLE cell.
+    rfc_tail_from: Option<usize>,
     /// issue #84: EOF was reached INSIDE quotes → the record never closed (`ARC_013`).
     pub(crate) unclosed: bool,
     max_bytes: Option<usize>,
@@ -1577,6 +1588,7 @@ impl<R: Read> ZipCsvReader<R> {
             filled: 0,
             pending: None,
             rfc: None,
+            rfc_tail_from: None,
             unclosed: false,
             max_bytes: None,
             bytes_read: 0,
@@ -1650,6 +1662,17 @@ impl<R: Read> ZipCsvReader<R> {
     /// Prepares `out[fi]` for writing: clears existing content (CAPACITY PRESERVED),
     /// or adds a new buffer when absent.
     #[inline(always)]
+    /// Completes a pending ARC_033 example with the rest of the cell, then caps it at 40 chars.
+    fn settle_rfc_example(&mut self, field: &[u8]) {
+        let Some(from) = self.rfc_tail_from.take() else {
+            return;
+        };
+        if let Some((_, example)) = self.rfc.as_mut() {
+            example.push_str(&String::from_utf8_lossy(field.get(from..).unwrap_or(&[])));
+            *example = example.chars().take(40).collect();
+        }
+    }
+
     fn begin_field(out: &mut Vec<Vec<u8>>, fi: usize) {
         match out.get_mut(fi) {
             Some(f) => f.clear(),
@@ -1737,6 +1760,7 @@ impl<R: Read> ZipCsvReader<R> {
         // Close the field and prepare the next one.
         macro_rules! commit {
             () => {{
+                self.settle_rfc_example(&out[fi]);
                 fi += 1;
                 Self::begin_field(out, fi);
             }};
@@ -1744,6 +1768,7 @@ impl<R: Read> ZipCsvReader<R> {
         // Finish the record: used field count is fi + 1 (the final field is not closed yet).
         macro_rules! finish {
             () => {{
+                self.settle_rfc_example(&out[fi]);
                 fi += 1;
                 out.truncate(fi);
                 self.records_seen = self.records_seen.saturating_add(1);
@@ -1797,7 +1822,11 @@ impl<R: Read> ZipCsvReader<R> {
                             // RFC 4180: a delimiter must follow a closing quote. If it does not, the quote inside
                             // the field was not escaped → ARC_033.
                             if self.rfc.is_none() {
-                                self.rfc = Some((RFC4180_AFTER_CLOSE, lossy40(&out[fi])));
+                                // Cell as written: the quoted part with its quotes; the rest is
+                                // added by `settle_rfc_example` when the field ends.
+                                let head = format!("\"{}\"", String::from_utf8_lossy(&out[fi]));
+                                self.rfc = Some((RFC4180_AFTER_CLOSE, head));
+                                self.rfc_tail_from = Some(out[fi].len());
                             }
                             in_quotes = false;
                             self.pending = Some(other);

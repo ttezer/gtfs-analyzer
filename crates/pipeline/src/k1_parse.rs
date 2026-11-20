@@ -686,6 +686,7 @@ fn tokenize_csv_budgeted(
         loop {
             if bytes[pos] == b'"' {
                 // Quoted field — converting to SmolStr requires a temporary String.
+                let field_start = pos;
                 pos += 1;
                 let mut buf = String::new();
                 let mut closed = false;
@@ -716,7 +717,6 @@ fn tokenize_csv_budgeted(
                 // inside the field was NOT ESCAPED (`"Broadway"Ave`). Until now the tokenizer
                 // silently split the record here — and data was lost.
                 if pos < n && !matches!(bytes[pos], b',' | b'\n' | b'\r') {
-                    rfc.observe(line_no, RFC4180_AFTER_CLOSE, &buf);
                     // 🔴 The remaining text is appended to the SAME field; no NEW field is opened.
                     //
                     // The old behavior closed the field here and split a cell such as
@@ -726,7 +726,7 @@ fn tokenize_csv_budgeted(
                     // finding that "route_id is required" for `RTS_031` — exactly the 7 rows
                     // counted by ARC_033.
                     //
-                    // The violation is still reported (by the `observe` above); what changes is
+                    // The violation is still reported (by the `observe` below); what changes is
                     // that the violation does NOT CORRUPT THE DATA. Python's `csv` module uses
                     // the same tolerance.
                     while pos < n && !matches!(bytes[pos], b',' | b'\n' | b'\r') {
@@ -740,6 +740,10 @@ fn tokenize_csv_budgeted(
                             pos += ch.len_utf8();
                         }
                     }
+                    // Example = the cell AS WRITTEN, quotes included. `buf` stopped at the stray
+                    // quote and dropped the very part the planner must see (mdb-1271:
+                    // `"Gen.a.e.f."nila"-Różana"` was shown as `Gen.a.e.f.`).
+                    rfc.observe(line_no, RFC4180_AFTER_CLOSE, &text[field_start..pos]);
                 }
                 record.push(SmolStr::new(&buf));
             } else {
