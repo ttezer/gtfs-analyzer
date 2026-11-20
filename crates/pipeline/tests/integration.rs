@@ -4780,37 +4780,41 @@ fn arc033_example_shows_the_whole_cell_as_written() {
             assert_eq!(example.as_deref(), Some("\"Gen.a.e.f.\"nila\"-Różana\""));
             // The row names its own stop, so the planner can say WHICH stop is broken.
             let d = n.details.as_ref().expect("details");
-            assert_eq!(d.get("example_0_id").map(String::as_str), Some("S1"));
-            assert_eq!(d.get("example_0_value").map(String::as_str), Some("\"Gen.a.e.f.\"nila\"-Różana\""));
+            assert_eq!(d.get("group_0_value").map(String::as_str), Some("\"Gen.a.e.f.\"nila\"-Różana\""));
+            // A broken stop_name in stops.txt names its own stop.
+            assert_eq!(d.get("group_0_stop").map(String::as_str), Some("S1"));
         }
         other => panic!("Ok beklendi: {other:?}"),
     }
 }
 
 #[test]
-fn arc033_lists_broken_lines_up_to_the_cap() {
-    // The summary must say WHERE every broken row is, not only the first one; past the cap
-    // `affected_rows` still counts them all.
+fn arc033_groups_rows_by_value() {
+    // A planner fixes a VALUE once: 15 rows of one broken name are one group (all counted, first
+    // 10 lines kept), 2 rows of another are a second group; the largest group comes first.
     let mut stops = String::from("stop_id,stop_name,stop_lat,stop_lon\n");
-    for i in 1..=105 {
-        let name = if i % 2 == 0 { format!("{i}\" Street") } else { format!("Stop{i}") };
+    for i in 1..=17 {
+        let name = if i <= 2 { "Main\" St" } else { "12\" Street" };
         stops.push_str(&format!("S{i},{name},41.0,29.0\n"));
     }
     match run(&arc033_feed(&stops)) {
         ValidateResult::Ok(vr) => {
             let n = vr.notices.iter().find(|n| n.rule_id == "ARC_033").expect("ARC_033 bekleniyor");
             let d = n.details.as_ref().expect("details");
-            assert_eq!(d.get("affected_rows").map(String::as_str), Some("52"));
-            // One row per broken line: line (header = 1), column name, cell as written.
-            assert_eq!(d.get("example_0_line").map(String::as_str), Some("3"));
-            assert_eq!(d.get("example_0_field").map(String::as_str), Some("stop_name"));
-            assert_eq!(d.get("example_0_value").map(String::as_str), Some("2\" Street"));
-            assert_eq!(d.get("example_1_line").map(String::as_str), Some("5"));
-            assert_eq!(d.get("example_51_line").map(String::as_str), Some("105"));
-            assert!(d.get("example_52_line").is_none());
+            let get = |k: &str| d.get(k).map(String::as_str);
+            assert_eq!(get("affected_rows"), Some("17"));
+            assert_eq!(get("group_0_value"), Some("12\" Street"));
+            assert_eq!(get("group_0_rows"), Some("15"));
+            assert_eq!(get("group_0_field"), Some("stop_name"));
+            assert_eq!(get("group_0_lines"), Some("4, 5, 6, 7, 8, 9, 10, 11, 12, 13"), "ilk 10 satır");
+            assert_eq!(get("group_0_ids").map(|v| v.split(',').count()), Some(15), "durakların hepsi");
+            assert_eq!(get("group_1_value"), Some("Main\" St"));
+            assert_eq!(get("group_1_rows"), Some("2"));
+            assert!(get("group_2_value").is_none());
         }
         other => panic!("Ok beklendi: {other:?}"),
     }
+    // Past 100 distinct values the rest is counted, not grouped.
     let mut big = String::from("stop_id,stop_name,stop_lat,stop_lon\n");
     for i in 1..=150 {
         big.push_str(&format!("S{i},{i}\" Street,41.0,29.0\n"));
@@ -4820,8 +4824,42 @@ fn arc033_lists_broken_lines_up_to_the_cap() {
             let n = vr.notices.iter().find(|n| n.rule_id == "ARC_033").expect("ARC_033 bekleniyor");
             let d = n.details.as_ref().expect("details");
             assert_eq!(d.get("affected_rows").map(String::as_str), Some("150"));
-            assert_eq!(d.get("example_99_line").map(String::as_str), Some("101"), "ilk 100 satır (2..101) kalmalı");
-            assert!(d.get("example_100_line").is_none(), "liste 100'de kesilmeli");
+            assert!(d.get("group_99_value").is_some());
+            assert!(d.get("group_100_value").is_none(), "en çok 100 değer");
+            assert_eq!(d.get("ungrouped_rows").map(String::as_str), Some("50"));
+        }
+        other => panic!("Ok beklendi: {other:?}"),
+    }
+}
+
+#[test]
+fn arc033_headsign_that_is_a_stop_name_names_the_stop_and_routes() {
+    // mdb-1151: the export writes each stop's name into stop_headsign and leaves its quotes
+    // unescaped; the planner must fix that ONE stop name, so the group names the stop and routes.
+    let mut files = base_files();
+    let stops: &'static [u8] = b"stop_id,stop_name,stop_lat,stop_lon\nS1,Hotel Sowa,41.0,29.0\nS2,Stop2,41.1,29.1\n";
+    let st: &'static [u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\n\
+        T1,08:00:00,08:00:00,S1,1,\"Hotel \"Sowa\"\"\nT1,08:10:00,08:10:00,S2,2,\"Sto\"p2\"\n";
+    for slot in files.iter_mut() {
+        match slot.0 {
+            "stops.txt" => slot.1 = stops,
+            "stop_times.txt" => slot.1 = st,
+            _ => {}
+        }
+    }
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let n = vr.notices.iter().find(|n| n.rule_id == "ARC_033").expect("ARC_033 bekleniyor");
+            let d = n.details.as_ref().expect("details");
+            let value_of = |stop: &str| (0..2).find(|i| d.get(&format!("group_{i}_stop")).map(String::as_str) == Some(stop));
+            let i = value_of("S1").expect("Hotel Sowa durağı adıyla eşleşmeli");
+            assert_eq!(d.get(&format!("group_{i}_routes")).map(String::as_str), Some("R1"));
+            assert_eq!(d.get(&format!("group_{i}_trip")).map(String::as_str), Some("T1"));
+            assert!(d.get(&format!("group_{i}_ids")).is_none(), "sefer listesi çıktıya yazılmaz");
+            // `"Sto"p2"` is "Stop2" once the quotes are set aside: it names S2 too. Both rows
+            // count — line 2 used to be swallowed by K1's header-only pass (1-row summary).
+            assert!(value_of("S2").is_some(), "tırnaklar dışında aynı ad eşleşir");
+            assert_eq!(d.get("affected_rows").map(String::as_str), Some("2"));
         }
         other => panic!("Ok beklendi: {other:?}"),
     }
@@ -4834,7 +4872,7 @@ fn arc033_marks_a_cut_cell() {
     match run(&arc033_feed(&stops)) {
         ValidateResult::Ok(vr) => {
             let n = vr.notices.iter().find(|n| n.rule_id == "ARC_033").expect("ARC_033 bekleniyor");
-            let v = n.details.as_ref().and_then(|d| d.get("example_0_value")).cloned().unwrap_or_default();
+            let v = n.details.as_ref().and_then(|d| d.get("group_0_value")).cloned().unwrap_or_default();
             assert_eq!(v.chars().count(), 81, "80 karakter + …: {v}");
             assert!(v.ends_with('…'), "kesilen hücre … ile bitmeli: {v}");
         }
@@ -4927,8 +4965,8 @@ fn arc033_covers_streamed_files_too() {
                 n.rule_id == "ARC_033"
                     && n.entity_id.as_deref() == Some("trips.txt")
                     // The stream reader must keep the whole cell, quote included, and its column.
-                    && d.and_then(|d| d.get("example_0_value")).map(String::as_str) == Some("5\" Line")
-                    && d.and_then(|d| d.get("example_0_field")).map(String::as_str) == Some("trip_headsign")
+                    && d.and_then(|d| d.get("group_0_value")).map(String::as_str) == Some("5\" Line")
+                    && d.and_then(|d| d.get("group_0_field")).map(String::as_str) == Some("trip_headsign")
             }),
             "akış modundaki trips.txt için de ARC_033 çıkmalı, hücre tam ve sütun adıyla"
         ),

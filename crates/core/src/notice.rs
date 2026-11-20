@@ -99,6 +99,13 @@ impl NoticeDetails {
             .map(|index| &self.0[index].1)
     }
 
+    pub fn remove(&mut self, key: &str) -> Option<String> {
+        self.0
+            .binary_search_by(|(existing, _)| detail_key(*existing).cmp(key))
+            .ok()
+            .map(|index| self.0.remove(index).1)
+    }
+
     pub fn contains_key(&self, key: &str) -> bool {
         self.get(key).is_some()
     }

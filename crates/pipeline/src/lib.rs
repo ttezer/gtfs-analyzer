@@ -2517,7 +2517,7 @@ pub fn aggregate_feed_level_notices(
         let _t = crate::timing::Timer::start("aggregate::calendar_usage");
         annotate_calendar_usage(all, records);
     }
-    annotate_arc033_services(all, records);
+    annotate_arc033_groups(all, records);
     {
         let _t = crate::timing::Timer::start("aggregate::stop_context");
         annotate_stop_context(all, records);
@@ -3328,42 +3328,79 @@ const CALENDAR_USAGE_RULES: [&str; 32] = [
     "CAL_017", "CAL_018", "CAL_021", "CAL_023", "CAL_024", "CAL_025", "OPR_011", "OPR_012",
     "OPR_016", "TRP_023", "TRP_026", "CLD_002", "CLD_004", "CLD_005", "CLD_006", "CLD_007",
 ];
-/// ARC_033 rows of trip files name their trip (`example_<i>_id`); add the trip's calendar
-/// (`example_<i>_service`) so the planner card can show route · direction · departure · calendar.
+/// ARC_033 groups (one per distinct broken value) carry their rows' record ids. Here:
+/// - trip files: the trips become `group_<i>_routes` (most rows first) and one `group_<i>_trip`
+///   for the map; the id list itself is dropped.
+/// - `group_<i>_stop` is kept only when the broken value IS that stop's name (quotes and spacing
+///   aside): the planner then fixes ONE stop name, not hundreds of rows (mdb-1151: a stop name
+///   with quotes repeated as stop_headsign on 216 rows). In stops.txt a broken stop_name names
+///   its own stop.
+///
 /// Details only: counts, texts and severities are unchanged.
-fn annotate_arc033_services(all: &mut [gtfs_core::Notice], records: &EntityRecords) {
-    use rustc_hash::{FxHashMap, FxHashSet};
-    let is_trip_file = |n: &gtfs_core::Notice| {
-        n.rule_id == "ARC_033"
-            && matches!(n.file.as_deref(), Some("stop_times.txt" | "trips.txt" | "frequencies.txt"))
-    };
-    let wanted: FxHashSet<String> = all
-        .iter()
-        .filter(|n| is_trip_file(n))
-        .filter_map(|n| n.details.as_ref())
-        .flat_map(|d| d.iter().filter(|(k, _)| k.ends_with("_id") && k.starts_with("example_")).map(|(_, v)| v.clone()))
-        .collect();
-    if wanted.is_empty() {
+fn annotate_arc033_groups(all: &mut [gtfs_core::Notice], records: &EntityRecords) {
+    use rustc_hash::FxHashMap;
+    if !all.iter().any(|n| n.rule_id == "ARC_033") {
         return;
     }
-    let ti = &records.trip_interns;
-    let service_of: FxHashMap<&str, &str> = records
-        .trips
+    let norm = |s: &str| s.replace('"', "").split_whitespace().collect::<Vec<_>>().join(" ");
+    let stop_names: FxHashMap<&str, &str> = records
+        .stops
         .iter()
-        .filter(|t| wanted.contains(t.trip_id.as_str()))
-        .map(|t| (t.trip_id.as_str(), ti.service_id(t)))
+        .filter_map(|s| s.stop_name.as_deref().map(|n| (s.stop_id.as_str(), n)))
         .collect();
-    for n in all.iter_mut().filter(|n| is_trip_file(n)) {
+    let ti = &records.trip_interns;
+    let route_of: FxHashMap<&str, &str> = if all.iter().any(|n| {
+        n.rule_id == "ARC_033" && matches!(n.file.as_deref(), Some("stop_times.txt" | "trips.txt" | "frequencies.txt"))
+    }) {
+        records.trips.iter().map(|t| (t.trip_id.as_str(), ti.route_id(t))).collect()
+    } else {
+        FxHashMap::default()
+    };
+    for n in all.iter_mut().filter(|n| n.rule_id == "ARC_033") {
+        let trip_file = matches!(n.file.as_deref(), Some("stop_times.txt" | "trips.txt" | "frequencies.txt"));
+        let stops_file = n.file.as_deref() == Some("stops.txt");
         let Some(d) = n.details.as_mut() else { continue };
-        let mut add = Vec::new();
-        for (k, v) in d.iter() {
-            let Some(i) = k.strip_prefix("example_").and_then(|r| r.strip_suffix("_id")) else { continue };
-            if let Some(service) = service_of.get(v.as_str()).filter(|s| !s.is_empty()) {
-                add.push((format!("example_{i}_service"), service.to_string()));
+        for i in 0.. {
+            let Some(value) = d.get(&format!("group_{i}_value")).cloned() else { break };
+            let ids_key = format!("group_{i}_ids");
+            let ids: Vec<String> = d
+                .get(&ids_key)
+                .map(|v| v.split(',').map(str::to_string).collect())
+                .unwrap_or_default();
+            if trip_file {
+                let mut count: FxHashMap<&str, usize> = FxHashMap::default();
+                for id in &ids {
+                    if let Some(r) = route_of.get(id.as_str()).filter(|r| !r.is_empty()) {
+                        *count.entry(r).or_default() += 1;
+                    }
+                }
+                let mut routes: Vec<(&str, usize)> = count.into_iter().collect();
+                routes.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(b.0)));
+                if !routes.is_empty() {
+                    d.insert(
+                        format!("group_{i}_routes"),
+                        routes.iter().map(|(r, _)| *r).collect::<Vec<_>>().join(","),
+                    );
+                }
+                if let Some(first) = ids.first() {
+                    d.insert(format!("group_{i}_trip"), first.clone());
+                }
+                d.remove(&ids_key);
             }
-        }
-        for (k, v) in add {
-            d.insert(k, v);
+            let field = d.get(&format!("group_{i}_field")).cloned().unwrap_or_default();
+            let stop_key = format!("group_{i}_stop");
+            if stops_file && field == "stop_name" {
+                if let Some(first) = ids.first() {
+                    d.insert(stop_key, first.clone());
+                }
+            } else if let Some(stop) = d.get(&stop_key).cloned() {
+                let same = stop_names
+                    .get(stop.as_str())
+                    .is_some_and(|name| !value.ends_with('…') && norm(name) == norm(&value));
+                if !same {
+                    d.remove(&stop_key);
+                }
+            }
         }
     }
 }

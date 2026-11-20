@@ -3593,8 +3593,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 st.unclosed |= scan.unclosed;
                 if let Some((k, ex, col)) = scan.rfc.take() {
                     st.rfc.observe((data_idx + 2) as u64, k, &ex, col);
-                    let id_col = crate::k1_parse::arc033_id_index(&file.headers, &file.name);
-                    st.rfc.attach_id((data_idx + 2) as u64, id_col.and_then(|i| buf.get(i)).map(|v| v.as_ref()));
+                    st.rfc.attach_row((data_idx + 2) as u64, &buf, &file.headers, &file.name);
                 }
                 process(&mut st, &buf, (data_idx + 2) as u64);
                 data_idx += 1;
@@ -3737,8 +3736,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                                 c.unclosed |= rdr.unclosed;
                                                 if let Some((k, ex, col)) = rdr.rfc.take() {
                                                     c.rfc.observe(line, k, &ex, col);
-                                                    let id_col = crate::k1_parse::arc033_id_index(&file.headers, &file.name);
-                                                    c.rfc.attach_id(line, id_col.and_then(|i| row.get(i)).map(|v| v.as_ref()));
+                                                    c.rfc.attach_row(line, &row, &file.headers, &file.name);
                                                 }
                                                 process(&mut c, &row, line);
                                                 line += 1;
@@ -3849,8 +3847,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                                 c.unclosed |= rdr.unclosed;
                                                 if let Some((k, ex, col)) = rdr.rfc.take() {
                                                     c.rfc.observe(line, k, &ex, col);
-                                                    let id_col = crate::k1_parse::arc033_id_index(&file.headers, &file.name);
-                                                    c.rfc.attach_id(line, id_col.and_then(|i| row.get(i)).map(|v| v.as_ref()));
+                                                    c.rfc.attach_row(line, &row, &file.headers, &file.name);
                                                 }
                                                 process(&mut c, &row, line);
                                                 line += 1;
@@ -3917,8 +3914,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                 st.unclosed |= csv_reader.unclosed;
                                 if let Some((k, ex, col)) = csv_reader.rfc.take() {
                                     st.rfc.observe(zip_line, k, &ex, col);
-                                    let id_col = crate::k1_parse::arc033_id_index(&file.headers, &file.name);
-                                    st.rfc.attach_id(zip_line, id_col.and_then(|i| cow_row.get(i)).map(|v| v.as_ref()));
+                                    st.rfc.attach_row(zip_line, &cow_row, &file.headers, &file.name);
                                 }
                                 process(&mut st, &cow_row, zip_line);
                                 zip_line += 1;

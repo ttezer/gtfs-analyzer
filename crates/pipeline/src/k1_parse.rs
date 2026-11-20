@@ -564,17 +564,41 @@ pub(crate) struct Rfc4180Acc {
     pub example: Option<String>,
     /// Violation type — two separate spec sentences (see the `ARC_033` card).
     pub kind: Option<&'static str>,
-    /// First `ARC033_MAX_LINES` broken rows, ascending: (line, column index, cell as written,
-    /// the row's own id — trip/stop/route… see `arc033_id_index`). The planner lists every row
-    /// with its trip (route, direction, departure) or stop; one example alone made the publisher
-    /// fix them one round at a time.
-    pub examples: Vec<(u64, usize, String, Option<String>)>,
+    /// Broken rows grouped by (column, cell as written). A planner fixes a VALUE once — e.g. a
+    /// stop name with quotes repeated on 216 stop_times rows — not 216 rows one by one.
+    pub groups: Vec<Arc033Group>,
+    group_index: rustc_hash::FxHashMap<(usize, String), usize>,
+    /// Rows past `ARC033_MAX_GROUPS` distinct values: counted in `rows`, not grouped.
+    pub ungrouped_rows: u64,
+    /// (line, group) of every grouped row, so the K1 tokenizer — which sees the row before it is
+    /// complete — can attach row context afterwards (`attach_rows`).
+    row_groups: Vec<(u64, usize)>,
+    last_group: Option<usize>,
     last_line: u64,
 }
 
-/// Cap for `Rfc4180Acc::examples`: covers every row of almost all corpus files (54 of 61 feeds
-/// have ≤ 100 affected rows, run 44742222593) while a 6,315-row file stays small.
-pub(crate) const ARC033_MAX_LINES: usize = 100;
+/// One distinct broken value.
+#[derive(Default, Clone)]
+pub(crate) struct Arc033Group {
+    pub col: usize,
+    pub value: String,
+    pub rows: u64,
+    /// First `ARC033_GROUP_LINES` lines (header = 1), ascending.
+    pub lines: Vec<u64>,
+    /// Distinct ids of the rows' own records (trip/stop/route…), first `ARC033_GROUP_IDS`.
+    pub ids: Vec<String>,
+    /// Stop of the first row (stop_times only), to tell a stop name repeated as a headsign.
+    pub stop: Option<String>,
+}
+
+/// Distinct values kept per file (the card lists one row per value).
+pub(crate) const ARC033_MAX_GROUPS: usize = 100;
+/// Line numbers kept per value (technical details only).
+pub(crate) const ARC033_GROUP_LINES: usize = 10;
+/// Record ids kept per value; enough to name every route of a repeated stop name.
+pub(crate) const ARC033_GROUP_IDS: usize = 500;
+/// `row_groups` bound; past it K1 rows simply get no context.
+const ARC033_ROW_GROUPS: usize = 200_000;
 
 /// Longest cell kept per example; a longer one ends with `…` so the reader knows it was cut.
 /// Stream readers pass one character more so the cut can be detected here.
@@ -613,15 +637,28 @@ impl Rfc4180Acc {
         if let Some(example) = &self.example {
             d.insert("example_value".to_string(), example.clone());
         }
-        for (i, (line, col, value, id)) in self.examples.iter().enumerate() {
-            d.insert(format!("example_{i}_line"), line.to_string());
-            if let Some(name) = headers.get(*col) {
-                d.insert(format!("example_{i}_field"), name.clone());
+        // Largest group first: the value that breaks the most rows is the first thing to fix.
+        let mut order: Vec<&Arc033Group> = self.groups.iter().collect();
+        order.sort_by(|a, b| b.rows.cmp(&a.rows).then(a.lines.first().cmp(&b.lines.first())));
+        for (i, g) in order.iter().enumerate() {
+            d.insert(format!("group_{i}_value"), g.value.clone());
+            if let Some(name) = headers.get(g.col) {
+                d.insert(format!("group_{i}_field"), name.clone());
             }
-            d.insert(format!("example_{i}_value"), value.clone());
-            if let Some(id) = id {
-                d.insert(format!("example_{i}_id"), id.clone());
+            d.insert(format!("group_{i}_rows"), g.rows.to_string());
+            d.insert(
+                format!("group_{i}_lines"),
+                g.lines.iter().map(u64::to_string).collect::<Vec<_>>().join(", "),
+            );
+            if !g.ids.is_empty() {
+                d.insert(format!("group_{i}_ids"), g.ids.join(","));
             }
+            if let Some(stop) = &g.stop {
+                d.insert(format!("group_{i}_stop"), stop.clone());
+            }
+        }
+        if self.ungrouped_rows > 0 {
+            d.insert("ungrouped_rows".to_string(), self.ungrouped_rows.to_string());
         }
         d.into()
     }
@@ -652,8 +689,29 @@ impl Rfc4180Acc {
             if self.first_line.is_none() {
                 self.first_line = Some(line);
             }
-            if self.examples.len() < ARC033_MAX_LINES {
-                self.examples.push((line, col, arc033_clip(example), None));
+            let key = (col, arc033_clip(example));
+            let gi = match self.group_index.get(&key) {
+                Some(&gi) => Some(gi),
+                None if self.groups.len() < ARC033_MAX_GROUPS => {
+                    self.groups.push(Arc033Group { col, value: key.1.clone(), ..Default::default() });
+                    self.group_index.insert(key, self.groups.len() - 1);
+                    Some(self.groups.len() - 1)
+                }
+                None => None,
+            };
+            self.last_group = gi;
+            match gi {
+                Some(gi) => {
+                    let g = &mut self.groups[gi];
+                    g.rows += 1;
+                    if g.lines.len() < ARC033_GROUP_LINES {
+                        g.lines.push(line);
+                    }
+                    if self.row_groups.len() < ARC033_ROW_GROUPS {
+                        self.row_groups.push((line, gi));
+                    }
+                }
+                None => self.ungrouped_rows += 1,
             }
         }
         if self.kind.is_none() {
@@ -665,12 +723,45 @@ impl Rfc4180Acc {
         }
     }
 
-    /// Stream readers: the full row is known right after `observe`; attach its id.
-    pub(crate) fn attach_id(&mut self, line: u64, id: Option<&str>) {
-        if let (Some(last), Some(id)) = (self.examples.last_mut(), id) {
-            if last.0 == line && last.3.is_none() {
-                last.3 = Some(id.to_string());
+    /// Stream readers: the full row is known right after `observe`; attach its record id and
+    /// (stop_times) its stop to the row's group.
+    pub(crate) fn attach_row<T: AsRef<str>>(&mut self, line: u64, row: &[T], headers: &[String], file: &str) {
+        if self.last_line != line {
+            return;
+        }
+        let Some(gi) = self.last_group else { return };
+        let id = arc033_id_index(headers, file).and_then(|i| row.get(i)).map(|v| v.as_ref());
+        let stop = (file == "stop_times.txt")
+            .then(|| headers.iter().position(|h| h == "stop_id"))
+            .flatten()
+            .and_then(|i| row.get(i))
+            .map(|v| v.as_ref());
+        self.attach_group(gi, id, stop);
+    }
+
+    fn attach_group(&mut self, gi: usize, id: Option<&str>, stop: Option<&str>) {
+        let g = &mut self.groups[gi];
+        if let Some(id) = id.filter(|s| !s.is_empty()) {
+            if g.ids.len() < ARC033_GROUP_IDS && !g.ids.iter().any(|x| x == id) {
+                g.ids.push(id.to_string());
             }
+        }
+        if g.stop.is_none() {
+            g.stop = stop.filter(|s| !s.is_empty()).map(str::to_string);
+        }
+    }
+
+    /// K1: the tokenizer saw each broken row before it was complete; attach context from the
+    /// finished rows (`records[i]` is line `i + 2`).
+    pub(crate) fn attach_rows(&mut self, records: &[Vec<SmolStr>], headers: &[String], file: &str) {
+        let pending = std::mem::take(&mut self.row_groups);
+        let id_col = arc033_id_index(headers, file);
+        let stop_col = (file == "stop_times.txt").then(|| headers.iter().position(|h| h == "stop_id")).flatten();
+        for (line, gi) in pending {
+            let Some(row) = line.checked_sub(2).and_then(|i| records.get(i as usize)) else { continue };
+            let id = id_col.and_then(|c| row.get(c)).map(|v| v.as_str());
+            let stop = stop_col.and_then(|c| row.get(c)).map(|v| v.as_str());
+            self.attach_group(gi, id, stop);
         }
     }
 
@@ -688,11 +779,34 @@ impl Rfc4180Acc {
         if self.example.is_none() {
             self.example = other.example.clone();
         }
-        // Each chunk kept its own first rows, so the union holds the global first ones.
-        self.examples.extend(other.examples.iter().cloned());
-        self.examples.sort_by_key(|e| e.0);
-        self.examples.dedup_by_key(|e| e.0);
-        self.examples.truncate(ARC033_MAX_LINES);
+        self.ungrouped_rows += other.ungrouped_rows;
+        for og in &other.groups {
+            let key = (og.col, og.value.clone());
+            match self.group_index.get(&key) {
+                Some(&gi) => {
+                    let g = &mut self.groups[gi];
+                    g.rows += og.rows;
+                    // Each chunk kept its own first lines, so the union holds the global first ones.
+                    g.lines.extend_from_slice(&og.lines);
+                    g.lines.sort_unstable();
+                    g.lines.dedup();
+                    g.lines.truncate(ARC033_GROUP_LINES);
+                    for id in &og.ids {
+                        if g.ids.len() < ARC033_GROUP_IDS && !g.ids.contains(id) {
+                            g.ids.push(id.clone());
+                        }
+                    }
+                    if g.stop.is_none() {
+                        g.stop = og.stop.clone();
+                    }
+                }
+                None if self.groups.len() < ARC033_MAX_GROUPS => {
+                    self.groups.push(og.clone());
+                    self.group_index.insert(key, self.groups.len() - 1);
+                }
+                None => self.ungrouped_rows += og.rows,
+            }
+        }
     }
 }
 
@@ -3073,14 +3187,8 @@ pub fn parse_with_limits(
         let mut rows: Vec<Vec<SmolStr>> = Vec::new();
         let mut arc021_fired = false;
         let mut arc030_fired = false;
-        // ARC_033: each example names its row's own record (trip/stop/route…), read from the
-        // finished row; `records[i]` is line `i + 2`.
-        if let Some(id_col) = arc033_id_index(&headers, &raw_name) {
-            for e in rfc4180.examples.iter_mut() {
-                let row = e.0.checked_sub(2).and_then(|i| records.get(i as usize));
-                e.3 = row.and_then(|r| r.get(id_col)).map(|v| v.to_string());
-            }
-        }
+        // ARC_033: attach each broken row's record (trip/stop/route…) from the finished rows.
+        rfc4180.attach_rows(&records, &headers, &raw_name);
         for (row_idx, row) in records.into_iter().enumerate() {
             let line_num = (row_idx + 2) as u64;
 
@@ -3262,7 +3370,10 @@ pub fn parse_with_limits(
         // ARC_033: RFC 4180 quote violation — ONE summary per FILE (ARC_032 pattern).
         // Emit here, NOT in K2: the decision is made by the tokenizer, and the parsed value seen
         // by K2 CANNOT SHOW the violation (see the `Rfc4180Acc` doc).
-        if rfc4180.rows > 0 {
+        // Stream files: K2 reads the body and reports it. The header-only tokenization above still
+        // reads the FIRST data row before its row limit applies, so a broken line 2 used to emit a
+        // 1-row summary here that replaced K2's full one. Only a broken header is K1's.
+        if rfc4180.rows > 0 && (!stream_mode || rfc4180.first_line == Some(1)) {
             let kind = rfc4180.kind.unwrap_or(RFC4180_BARE_QUOTE);
             let example = rfc4180.example.clone().unwrap_or_default();
             let mut summary = make_notice(

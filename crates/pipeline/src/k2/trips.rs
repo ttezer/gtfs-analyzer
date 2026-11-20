@@ -866,8 +866,7 @@ pub fn validate_trips_with_limits(
                             zip_unclosed |= csv_reader.unclosed;
                             if let Some((k, ex, col)) = csv_reader.rfc.take() {
                                 rfc_acc.observe(zip_line, k, &ex, col);
-                                let id_col = crate::k1_parse::arc033_id_index(&file.headers, &file.name);
-                                rfc_acc.attach_id(zip_line, id_col.and_then(|i| cow_row.get(i)).map(|v| v.as_ref()));
+                                rfc_acc.attach_row(zip_line, &cow_row, &file.headers, &file.name);
                             }
                             process(&cow_row, zip_line);
                             zip_line += 1;
@@ -900,8 +899,7 @@ pub fn validate_trips_with_limits(
             }
             if let Some((k, ex, col)) = scan.rfc.take() {
                 rfc_acc.observe((data_idx + 2) as u64, k, &ex, col);
-                let id_col = crate::k1_parse::arc033_id_index(&file.headers, &file.name);
-                rfc_acc.attach_id((data_idx + 2) as u64, id_col.and_then(|i| buf.get(i)).map(|v| v.as_ref()));
+                rfc_acc.attach_row((data_idx + 2) as u64, &buf, &file.headers, &file.name);
             }
             process(&buf, (data_idx + 2) as u64);
             data_idx += 1;

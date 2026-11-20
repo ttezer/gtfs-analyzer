@@ -728,8 +728,7 @@ pub fn validate_shapes_with_limits(
                             zip_unclosed |= rdr.unclosed;
                             if let Some((k, ex, col)) = rdr.rfc.take() {
                                 rfc_acc.observe(line, k, &ex, col);
-                                let id_col = crate::k1_parse::arc033_id_index(&file.headers, &file.name);
-                                rfc_acc.attach_id(line, id_col.and_then(|i| row.get(i)).map(|v| v.as_ref()));
+                                rfc_acc.attach_row(line, &row, &file.headers, &file.name);
                             }
                             process(&row, line);
                             line += 1;
@@ -762,8 +761,7 @@ pub fn validate_shapes_with_limits(
                 }
                 if let Some((k, ex, col)) = scan.rfc.take() {
                     rfc_acc.observe((data_idx + 2) as u64, k, &ex, col);
-                    let id_col = crate::k1_parse::arc033_id_index(&file.headers, &file.name);
-                    rfc_acc.attach_id((data_idx + 2) as u64, id_col.and_then(|i| buf.get(i)).map(|v| v.as_ref()));
+                    rfc_acc.attach_row((data_idx + 2) as u64, &buf, &file.headers, &file.name);
                 }
                 process(&buf, (data_idx + 2) as u64);
                 data_idx += 1;

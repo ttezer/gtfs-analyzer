@@ -3370,24 +3370,30 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       };
     }
     case 'ARC_033': {
+      const d = n.details ?? {};
       const value = n.observed_value ?? '';
-      if (n.line == null || !value) {
-        // Older results carry no per-row examples: keep the general text.
+      if (!d.rows || !value) {
+        // Older results carry no groups: keep the general text.
         return { title: t('producer.card.ARC_033.title'), what: t('producer.card.ARC_033.what'), action: t('producer.card.ARC_033.action') };
       }
-      const fixed = arc033Fixed(value);
+      const routeIds = (d.routes ?? '').split(',').filter(Boolean);
+      const routes = routeIds.map(id => result.name_index.routes?.[id] || id).join(', ');
       const args = {
         list: dqListLabel(n) || n.file || t('producer.card.unknown_file'),
-        line: String(n.line),
         column: n.field ? plannerFieldName(n.field) : t('producer.card.unknown_field'),
-        value,
-        fixed: fixed ?? '',
+        // The name as the planner typed it: without the CSV's outer quotes (the table keeps them).
+        value: value.length > 1 && value.startsWith('"') && value.endsWith('"') ? value.slice(1, -1) : value,
+        rows: localizedNumber(d.rows),
+        stop: n.entity_type === 'Stop' && n.entity_id ? result.name_index.stops?.[n.entity_id] || n.entity_id : '',
+        stops: localizedNumber(String((d.ids ?? '').split(',').filter(Boolean).length || 1)),
       };
+      const kind = n.entity_type !== 'Stop' ? 'value' : n.file === 'stops.txt' ? 'stop_list' : 'stop';
+      const what = t(`producer.card.ARC_033.what_${kind}`, args)
+        + (routes ? ` ${t('producer.card.ARC_033.what_routes', { routes })}` : '');
       return {
         title: t('producer.card.ARC_033.title'),
-        context: n.entity_type === 'Trip' ? tripContextText(tripContext(n, result)) : undefined,
-        what: t(fixed ? 'producer.card.ARC_033.what_row' : 'producer.card.ARC_033.what_row_cut', args),
-        action: t('producer.card.ARC_033.action'),
+        what,
+        action: t(`producer.card.ARC_033.action_${kind}`, args),
       };
     }
     case 'ARC_031':
@@ -6489,41 +6495,27 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
     };
   }
   if (g.ruleId === 'ARC_033') {
-    // The broken cell wraps (spaces kept) instead of widening the table.
-    const value = (n: Notice): Cell => ({ html: escHtml(n.observed_value || '—'), cls: 'planner-cell-wrap' });
-    const line = (n: Notice) => n.line != null ? String(n.line) : '—';
+    // One row per broken value: where to fix it (the stop, or the list and column), the routes it
+    // touches, how many rows it breaks, and the value as written (wraps, spaces kept).
     const wrap = (text: string): Cell => ({ html: escHtml(text), cls: 'planner-cell-wrap' });
-    if (g.notices.every(n => n.entity_type === 'Trip')) {
-      return {
-        head: [t('producer.col.route'), t('producer.col.direction'), t('producer.col.departure'), t('producer.col.service'), t('producer.col.row'), t('producer.times.value')],
-        row: n => [
-          badge(n.entity_id ? ni.trip_routes?.[n.entity_id] : undefined),
-          wrap(dash(n.entity_id ? ni.trips?.[n.entity_id] : null)),
-          dash(n.entity_id ? ni.trip_first_dep?.[n.entity_id] : null),
-          wrap(serviceText(n.service_id, result)),
-          line(n),
-          value(n),
-        ],
-      };
-    }
-    if (g.notices.every(n => n.entity_type === 'Stop')) {
-      return {
-        head: [t('producer.col.stop'), t('producer.col.row'), t('producer.col.column'), t('producer.times.value')],
-        row: n => [
-          dash(n.entity_id ? ni.stops?.[n.entity_id] || n.entity_id : null),
-          line(n),
-          dash(n.field ? plannerFieldName(n.field) : null),
-          value(n),
-        ],
-      };
-    }
+    const where = (n: Notice): string => n.entity_type === 'Stop' && n.entity_id
+      ? ni.stops?.[n.entity_id] || n.entity_id
+      : `${listLabel(n)} · ${n.field ? plannerFieldName(n.field) : '—'}`;
+    const routes = (n: Notice): Cell => {
+      const ids = (n.details?.routes ?? '').split(',').filter(Boolean);
+      if (!ids.length) return '—';
+      const shown = ids.slice(0, 6).map(id => routeBadgeHtml(id, result)).join(' ');
+      return { html: ids.length > 6 ? `${shown} +${ids.length - 6}` : shown };
+    };
+    const withRoutes = g.notices.some(n => n.details?.routes);
     return {
-      head: [t('producer.col.record'), t('producer.col.row'), t('producer.col.column'), t('producer.times.value')],
+      head: [t('producer.card.ARC_033.col_where'), ...(withRoutes ? [t('producer.col.route')] : []), t('producer.col.affected_rows'), t('producer.times.value')],
       row: n => [
-        listLabel(n),
-        line(n),
-        dash(n.field ? plannerFieldName(n.field) : null),
-        value(n),
+        wrap(where(n)),
+        ...(withRoutes ? [routes(n)] : []),
+        // Older results carry no groups: the file summary with its first example.
+        localizedNumber(n.details?.rows ?? n.details?.affected_rows ?? '1'),
+        wrap((n.details?.rows ? n.observed_value : n.details?.example_value) || '—'),
       ],
     };
   }
@@ -6884,7 +6876,7 @@ function affectedRows(g: RuleGroup, result: ValidationResult): string {
   const more = visibleRows.length > ROWS_FIRST
     ? `<button type="button" class="planner-more" data-more-step="${ROWS_STEP}">${t('producer.card.more', { n: Math.min(ROWS_STEP, visibleRows.length - ROWS_FIRST) })}</button>`
     : '';
-  const cap = g.count > visibleRows.length
+  const cap = g.count > visibleRows.length && !(g.ruleId === 'ARC_033' && g.notices[0]?.details?.rows && !g.notices[0]?.details?.ungrouped_rows)
     ? `<p class="planner-capnote">${escHtml(t('producer.card.cap', { n: (g.count - visibleRows.length).toLocaleString(getLocale()) }))}</p>`
     : '';
   return `<div class="planner-affected">
@@ -7137,44 +7129,38 @@ function exampleNotices(n: Notice): Notice[] | null {
   return null;
 }
 
-const ARC033_TRIP_FILES = new Set(['stop_times.txt', 'trips.txt', 'frequencies.txt']);
-
-/** ARC_033: one row per broken line (`example_<i>_line/field/value`, the engine keeps the first
- *  100); the cell is shown exactly as written in the file. */
+/** ARC_033: one row per distinct broken VALUE (`group_<i>_*`, largest first). The planner fixes
+ *  a value once — e.g. one stop name repeated as a headsign on 216 rows — not row by row. A group
+ *  whose value is a stop's name names that stop (`group_<i>_stop`); trip files name their routes. */
 function arc033Rows(n: Notice): Notice[] | null {
   const d = n.details ?? {};
-  if (!d.example_0_line) return null;
-  const summary = Object.fromEntries(Object.entries(d).filter(([key]) => !key.startsWith('example_')));
+  if (!d.group_0_value) return null;
+  const summary = Object.fromEntries(Object.entries(d).filter(([key]) => !key.startsWith('group_')));
   const rows: Notice[] = [];
-  for (let i = 0; d[`example_${i}_line`]; i++) {
-    const line = Number(d[`example_${i}_line`]);
-    const id = d[`example_${i}_id`];
-    const entity_type = !id ? n.entity_type : ARC033_TRIP_FILES.has(n.file ?? '') ? 'Trip' as const
-      : n.file === 'stops.txt' ? 'Stop' as const : n.file === 'routes.txt' ? 'Route' as const : n.entity_type;
+  for (let i = 0; d[`group_${i}_value`]; i++) {
+    const at = (key: string) => d[`group_${i}_${key}`];
+    const stop = at('stop');
+    const trip = at('trip');
+    const lines = (at('lines') ?? '').split(', ').filter(Boolean);
+    const first = Number(lines[0]);
     rows.push({
       ...n,
-      entity_type,
-      entity_id: entity_type === n.entity_type ? n.entity_id : id,
-      service_id: d[`example_${i}_service`] ?? null,
-      line: Number.isFinite(line) ? line : null,
-      field: d[`example_${i}_field`] ?? null,
-      observed_value: d[`example_${i}_value`] ?? null,
-      details: { ...summary },
+      entity_type: stop ? 'Stop' : trip ? 'Trip' : n.entity_type,
+      entity_id: stop || trip || n.entity_id,
+      line: Number.isFinite(first) && lines.length ? first : null,
+      field: at('field') ?? null,
+      observed_value: at('value') ?? null,
+      details: {
+        ...summary,
+        rows: at('rows') ?? '1',
+        lines: at('lines') ?? '',
+        ...(at('routes') ? { routes: at('routes') as string } : {}),
+        ...(at('ids') ? { ids: at('ids') as string } : {}),
+        ...(stop ? { stop_id: stop } : {}),
+      },
     });
   }
   return rows;
-}
-
-/** ARC_033: the cell written correctly — quoted, every inner quote doubled. `null` when the
- *  example was cut (`…`), because the rest of the value is unknown. */
-export function arc033Fixed(cell: string): string | null {
-  if (!cell || cell.endsWith('…')) return null;
-  let inner = cell;
-  if (inner.startsWith('"')) {
-    inner = inner.slice(1);
-    if (inner.endsWith('"')) inner = inner.slice(0, -1);
-  }
-  return `"${inner.replace(/"/g, '""')}"`;
 }
 
 /** Özet bildirimindeki `example_<i>_*` anahtarlarını satır düzeyindeki bildirime çevirir. */
