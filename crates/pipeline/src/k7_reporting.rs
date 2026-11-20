@@ -1852,12 +1852,23 @@ fn build_metrics(
     file_stats: Vec<FileInfo>,
     coverage_complete: bool,
 ) -> FeedMetrics {
-    let shape_count = records
-        .shapes
-        .iter()
-        .map(|s| records.shape_interns.id(s))
-        .collect::<FxHashSet<_>>()
-        .len() as u32;
+    // Distinct shape ids among the points. Ids are interned (one index per distinct string),
+    // so mark indices instead of collecting `&str`s into a set: `collect` reserved the set for
+    // the POINT count (89.7M on mdb-2014, ~2.2 GB transient) for a few hundred thousand ids.
+    let shape_count = {
+        let mut seen = vec![false; records.shape_interns.len().max(1)];
+        let mut n = 0u32;
+        for s in &records.shapes {
+            // An index outside the table reads as "" like index 0, so it counts as index 0.
+            let i = s.shape_idx() as usize;
+            let slot = &mut seen[if i < records.shape_interns.len() { i } else { 0 }];
+            if !*slot {
+                *slot = true;
+                n += 1;
+            }
+        }
+        n
+    };
 
     let all_dates: FxHashSet<u32> = derived
         .calendar_bitmap
@@ -1996,6 +2007,31 @@ fn build_metrics(
 mod tests {
     use super::*;
     use gtfs_core::EntityType;
+
+    #[test]
+    fn shape_count_counts_distinct_shape_ids() {
+        use crate::k2::shapes::{ShapeInternTable, ShapePointRecord};
+        let mut ti = ShapeInternTable::new();
+        let a = ti.intern("A");
+        let b = ti.intern("B");
+        let p = |idx: u32| ShapePointRecord::new(idx, Some(1.0), Some(1.0), Some(1), None, 2);
+        // A, B repeated; one point with an empty id (0) and one outside the table: both read
+        // as "", so together they are ONE more id.
+        let mut records = crate::k2::EntityRecords {
+            shapes: vec![p(a), p(a), p(b), p(a), p(0), p(99)],
+            shape_interns: ti,
+            ..Default::default()
+        };
+        let m = build_metrics(&[], &records, &crate::k5_derived::DerivedData::default(), vec![], true);
+        assert_eq!(m.shape_count, 3);
+        records.shapes.truncate(4);
+        let m = build_metrics(&[], &records, &crate::k5_derived::DerivedData::default(), vec![], true);
+        assert_eq!(m.shape_count, 2);
+        // Only an out-of-table index: it still reads as "" and counts once.
+        records.shapes = vec![p(a), p(99)];
+        let m = build_metrics(&[], &records, &crate::k5_derived::DerivedData::default(), vec![], true);
+        assert_eq!(m.shape_count, 2);
+    }
 
     fn notice(id: &str, rule_id: &str, severity: Severity, class: RuleClass) -> Notice {
         Notice {
