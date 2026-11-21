@@ -3386,6 +3386,16 @@ describe('ARC dosya kartları (ARC_002–011)', () => {
     expect(html).not.toContain('listede yok');
   });
 
+  it('ARC_033 tırnak sonrası boşlukta boşlukları görünür yapar ve dolguyu anlatır', () => {
+    const html = render(file('ARC_033', 'shapes.txt', { line: 10422, details: {
+      affected_rows: '999', group_0_value: '"50"   ', group_0_field: 'shape_dist_traveled', group_0_rows: '999',
+      group_0_lines: '10422', group_0_issue: 'spaces_after_closing_quote',
+    } }));
+    expect(html).toContain('<td>999</td><td class="planner-cell-wrap">&quot;50&quot;␠␠␠</td>');
+    expect(html).toContain('999 satırda, kapanış tırnağından sonra satır sonuna kadar boşluk var');
+    expect(html).toContain('satır sonundaki boşlukları silmesini sağlayın');
+  });
+
   it('ARC_033 durak adı olmayan değerde listeyi ve sütunu söyler; eski sonuçta genel metne düşer', () => {
     const html = render(file('ARC_033', 'routes.txt', { line: 3, details: {
       affected_rows: '1', group_0_value: '"A"B', group_0_field: 'route_long_name', group_0_rows: '1', group_0_lines: '3',

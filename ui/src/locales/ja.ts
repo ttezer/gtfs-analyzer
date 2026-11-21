@@ -188,6 +188,8 @@ const ja: LocaleShape = {
     'producer.card.ARC_033.what_stop': "停留所「{stop}」の名前がシステム上で引用符付きで登録されています: {value}。出力ソフトがこの名前を{list}の「{column}」に書き出す際に引用符を正しく処理していないため、この停留所が現れる{rows}行が不正になっています。",
     'producer.card.ARC_033.what_stop_list': "{list}で{stops}件の停留所名に引用符が含まれています: {value}。出力ソフトが引用符を正しく処理していないため、{rows}行が不正です。",
     'producer.card.ARC_033.what_value': "{list}の「{column}」にある値 {value} が{rows}行に現れます。値の中の引用符が正しく処理されていません。",
+    'producer.card.ARC_033.what_trailing': "{list}の「{column}」で、{rows}行の閉じ引用符の後ろに行末まで空白があります（例: {value}）。値自体は正しいですが、閉じ引用符の後ろにはカンマか行末しか置けません。",
+    'producer.card.ARC_033.action_trailing': "出力ソフトが項目を空白で埋めず、行末の空白を削除するようにしてください。手作業で直す場合は、これらの行の末尾の空白を削除してください。",
     'producer.card.ARC_033.what_routes': "影響する路線: {routes}。",
     'producer.card.ARC_033.action_stop': "すぐに: システムで停留所「{stop}」の名前から半角の引用符を外すか、„ ” に置き換えてください。次回の出力で{rows}行すべてが直ります。恒久対策: 名前の引用符が正しく出力されないことを出力ソフトの提供元に伝えてください。そうしないと、引用符を含む新しい名前で同じ問題が起きます。",
     'producer.card.ARC_033.action_stop_list': "すぐに: システムでこれらの停留所名から半角の引用符を外すか、„ ” に置き換えてください。恒久対策: 名前の引用符が正しく出力されないことを出力ソフトの提供元に伝えてください。",

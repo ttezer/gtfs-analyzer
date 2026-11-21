@@ -589,6 +589,16 @@ pub(crate) struct Arc033Group {
     pub ids: Vec<String>,
     /// Stop of the first row (stop_times only), to tell a stop name repeated as a headsign.
     pub stop: Option<String>,
+    /// Only blanks follow the closing quote (`"100"␠␠␠`): fixed-width padding. Every value is
+    /// different but the fault is the same, so such rows are grouped by COLUMN, not by value.
+    pub trailing_space: bool,
+}
+
+/// `"…"` followed only by blanks: the value itself is fine, the padding breaks RFC 4180.
+fn arc033_trailing_space(cell: &str) -> bool {
+    let Some(end) = cell.rfind('"') else { return false };
+    let tail = &cell[end + 1..];
+    cell.starts_with('"') && end > 0 && !tail.is_empty() && tail.chars().all(|c| c == ' ' || c == '\t')
 }
 
 /// Distinct values kept per file (the card lists one row per value).
@@ -656,6 +666,9 @@ impl Rfc4180Acc {
             if let Some(stop) = &g.stop {
                 d.insert(format!("group_{i}_stop"), stop.clone());
             }
+            if g.trailing_space {
+                d.insert(format!("group_{i}_issue"), "spaces_after_closing_quote".to_string());
+            }
         }
         if self.ungrouped_rows > 0 {
             d.insert("ungrouped_rows".to_string(), self.ungrouped_rows.to_string());
@@ -689,11 +702,14 @@ impl Rfc4180Acc {
             if self.first_line.is_none() {
                 self.first_line = Some(line);
             }
-            let key = (col, arc033_clip(example));
+            let trailing_space = kind == RFC4180_AFTER_CLOSE && arc033_trailing_space(example);
+            let value = arc033_clip(example);
+            // Padding rows share one group per column ("\0" cannot occur in a cell value).
+            let key = (col, if trailing_space { "\0trailing_space".to_string() } else { value.clone() });
             let gi = match self.group_index.get(&key) {
                 Some(&gi) => Some(gi),
                 None if self.groups.len() < ARC033_MAX_GROUPS => {
-                    self.groups.push(Arc033Group { col, value: key.1.clone(), ..Default::default() });
+                    self.groups.push(Arc033Group { col, value, trailing_space, ..Default::default() });
                     self.group_index.insert(key, self.groups.len() - 1);
                     Some(self.groups.len() - 1)
                 }
@@ -781,7 +797,7 @@ impl Rfc4180Acc {
         }
         self.ungrouped_rows += other.ungrouped_rows;
         for og in &other.groups {
-            let key = (og.col, og.value.clone());
+            let key = (og.col, if og.trailing_space { "\0trailing_space".to_string() } else { og.value.clone() });
             match self.group_index.get(&key) {
                 Some(&gi) => {
                     let g = &mut self.groups[gi];

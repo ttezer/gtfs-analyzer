@@ -3387,7 +3387,9 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         stop: n.entity_type === 'Stop' && n.entity_id ? result.name_index.stops?.[n.entity_id] || n.entity_id : '',
         stops: localizedNumber(String((d.ids ?? '').split(',').filter(Boolean).length || 1)),
       };
-      const kind = n.entity_type !== 'Stop' ? 'value' : n.file === 'stops.txt' ? 'stop_list' : 'stop';
+      const kind = d.group_issue === 'spaces_after_closing_quote' ? 'trailing'
+        : n.entity_type !== 'Stop' ? 'value' : n.file === 'stops.txt' ? 'stop_list' : 'stop';
+      if (kind === 'trailing') args.value = arc033Shown(n);
       const what = t(`producer.card.ARC_033.what_${kind}`, args)
         + (routes ? ` ${t('producer.card.ARC_033.what_routes', { routes })}` : '');
       return {
@@ -6515,7 +6517,7 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
         ...(withRoutes ? [routes(n)] : []),
         // Older results carry no groups: the file summary with its first example.
         localizedNumber(n.details?.rows ?? n.details?.affected_rows ?? '1'),
-        wrap((n.details?.rows ? n.observed_value : n.details?.example_value) || '—'),
+        wrap(arc033Shown(n) || '—'),
       ],
     };
   }
@@ -7129,6 +7131,13 @@ function exampleNotices(n: Notice): Notice[] | null {
   return null;
 }
 
+/** ARC_033: the value as shown to the planner. Padding after the closing quote is invisible
+ *  on screen, so spaces and tabs are marked (`"100"␠␠␠`). */
+function arc033Shown(n: Notice): string {
+  const value = (n.details?.rows ? n.observed_value : n.details?.example_value) ?? '';
+  return n.details?.group_issue === 'spaces_after_closing_quote' ? visibleValue(value) : value;
+}
+
 /** ARC_033: one row per distinct broken VALUE (`group_<i>_*`, largest first). The planner fixes
  *  a value once — e.g. one stop name repeated as a headsign on 216 rows — not row by row. A group
  *  whose value is a stop's name names that stop (`group_<i>_stop`); trip files name their routes. */
@@ -7157,6 +7166,7 @@ function arc033Rows(n: Notice): Notice[] | null {
         ...(at('routes') ? { routes: at('routes') as string } : {}),
         ...(at('ids') ? { ids: at('ids') as string } : {}),
         ...(stop ? { stop_id: stop } : {}),
+        ...(at('issue') ? { group_issue: at('issue') as string } : {}),
       },
     });
   }

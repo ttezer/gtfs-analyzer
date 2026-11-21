@@ -4833,6 +4833,31 @@ fn arc033_groups_rows_by_value() {
 }
 
 #[test]
+fn arc033_groups_padding_after_the_closing_quote_by_column() {
+    // mdb-213: `"100"␠␠␠` — every value differs, the fault (blanks after the closing quote) is
+    // the same, so all rows form ONE group per column instead of one group per value.
+    let mut stops = String::from("stop_id,stop_name,stop_lat,stop_lon\n");
+    for i in 1..=4 {
+        stops.push_str(&format!("S{i},\"Stop{i}\"   ,41.0,29.0\n"));
+    }
+    stops.push_str("S5,\"Main \"X\"\",41.0,29.0\n");
+    match run(&arc033_feed(&stops)) {
+        ValidateResult::Ok(vr) => {
+            let n = vr.notices.iter().find(|n| n.rule_id == "ARC_033").expect("ARC_033 bekleniyor");
+            let d = n.details.as_ref().expect("details");
+            let get = |k: &str| d.get(k).map(String::as_str);
+            assert_eq!(get("affected_rows"), Some("5"));
+            assert_eq!(get("group_0_rows"), Some("4"), "dolgulu satırlar tek grup");
+            assert_eq!(get("group_0_issue"), Some("spaces_after_closing_quote"));
+            assert_eq!(get("group_0_value"), Some("\"Stop1\"   "));
+            assert_eq!(get("group_1_rows"), Some("1"));
+            assert!(get("group_1_issue").is_none(), "içteki tırnak ayrı tür");
+        }
+        other => panic!("Ok beklendi: {other:?}"),
+    }
+}
+
+#[test]
 fn arc033_headsign_that_is_a_stop_name_names_the_stop_and_routes() {
     // mdb-1151: the export writes each stop's name into stop_headsign and leaves its quotes
     // unescaped; the planner must fix that ONE stop name, so the group names the stop and routes.
