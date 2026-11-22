@@ -799,7 +799,7 @@ jobs:
           python3 -m venv .ci-python-venv
           . .ci-python-venv/bin/activate
           python -m pip install dist/*.whl
-          python -m unittest discover -s tests -p 'test_python_api.py' -v
+          python -m unittest discover -s tests -p 'test_python_*.py' -v
 
   # GitHub Pages deploy — only on a push to main. Deploy the ui/dist artifact produced by
   # build-wasm from a fresh checkout (no committed dist; drift is impossible).

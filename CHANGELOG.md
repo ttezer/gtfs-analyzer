@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Python: `python -m gtfs_analyzer.summary <feed.zip>`** prints a compact JSON summary of a validation (verdict, scores, R9 priorities in engine order with a few examples each, per-rule counts) without recomputing anything; exit 0 summary, 2 fatal, 4 input error. `--expect-version` adds a `version_warning` on mismatch. This moves the Claude plugin's `analyze.py` into the package, because the Claude plugin directory no longer accepts scripts from unverified organizations; the plugin will call this command once it pins the next engine release.
+
 ### Changed
 
 - **VAT_003 (trip duration outlier) no longer flags planned timetable variants.** The expected duration is now the median of the same pattern's six nearest schedules by departure (on the 24-hour clock) instead of a fixed time-band median, and a duration that at least two other schedules of the pattern also run (±60 s) counts as a planned variant. Before, a route alternating 47/53 min or drifting 45 → 60 min over the day had its shorter trips flagged against a band median (mdb-1090: 23,310 findings, most of them such variants). Measured: mdb-1090 23,310 → 2,673, mdb-778 2,101 → 81; other rules and scores unchanged; single errors (+5 to +30, −15, −30 min, after midnight, sparse patterns) are still found. Known limits, documented in the rule card and tests: the same wrong duration copied onto three or more schedules, or equal to another legitimate profile's duration, is not reported.
