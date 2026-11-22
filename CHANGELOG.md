@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-11-22
+
+Highlights. **VAT_003** no longer flags planned timetable variants (mdb-1090 23,310 → 2,673 findings; other rules and scores unchanged). **Memory:** large streamed `stop_times.txt`/`shapes.txt` buffers are sized once or trimmed, shape points are no longer copied, and the CLI memory-maps the feed ZIP (mdb-2014 peak 10.5 → 9.5 GB natively; browser shapes step 5.29 → 2.73 GB on mdb-2393). **Python:** new `python -m gtfs_analyzer.summary` command. `url` 2.5.9 for RUSTSEC-2026-0592. SDK `gtfs-sdk` 0.12.0.
+
 ### Added
 
 - **Python: `python -m gtfs_analyzer.summary <feed.zip>`** prints a compact JSON summary of a validation (verdict, scores, R9 priorities in engine order with a few examples each, per-rule counts) without recomputing anything; exit 0 summary, 2 fatal, 4 input error. `--expect-version` adds a `version_warning` on mismatch. This moves the Claude plugin's `analyze.py` into the package, because the Claude plugin directory no longer accepts scripts from unverified organizations; the plugin will call this command once it pins the next engine release.
@@ -3017,6 +3021,7 @@ filters (R2).
   audit (`cargo audit` blocking; `npm audit` reported, non-blocking).
 - GitHub Pages deploy builds from source to guarantee the live site matches `HEAD`.
 
+[0.22.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.18.0...v0.19.0

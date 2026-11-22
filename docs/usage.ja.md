@@ -170,9 +170,9 @@ gtfs-analyzer rules --rule STM_004 --json --pretty
 
 ```toml
 [dependencies]
-gtfs-pipeline = "0.21.0"
-gtfs-config   = "0.21.0"
-gtfs-core     = "0.21.0"
+gtfs-pipeline = "0.22.0"
+gtfs-config   = "0.22.0"
+gtfs-core     = "0.22.0"
 ```
 
 ```rust
@@ -212,7 +212,7 @@ match validate_bytes(&zip, &config, 20_260_820) {
 
 ## 5. `gtfs-sdk` npm パッケージ
 
-`gtfs-sdk` は v0.21.0 の検証エンジンを型付き JavaScript/TypeScript API として提供します。フィードはローカル WASM で検証され、アプリケーションの外に出ません。
+`gtfs-sdk` は v0.22.0 の検証エンジンを型付き JavaScript/TypeScript API として提供します。フィードはローカル WASM で検証され、アプリケーションの外に出ません。
 
 ```js
 import { validateGtfs } from "gtfs-sdk";
