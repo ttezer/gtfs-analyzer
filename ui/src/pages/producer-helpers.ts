@@ -122,7 +122,7 @@ const FILE_AREA: Record<string, PlannerArea> = {
   'fare_leg_rules.txt': 'ucret', 'fare_leg_join_rules.txt': 'ucret', 'fare_transfer_rules.txt': 'ucret',
   'rider_categories.txt': 'ucret', 'timeframes.txt': 'ucret', 'areas.txt': 'ucret', 'stop_areas.txt': 'ucret',
   'networks.txt': 'ucret', 'route_networks.txt': 'ucret',
-  'agency.txt': 'kurum', 'feed_info.txt': 'kurum', 'attributions.txt': 'kurum', 'translations.txt': 'kurum',
+  'agency.txt': 'kurum', 'feed_info.txt': 'kurum', 'licenses.txt': 'kurum', 'attributions.txt': 'kurum', 'translations.txt': 'kurum',
 };
 
 const ENTITY_AREA: Partial<Record<Notice['entity_type'], PlannerArea>> = {

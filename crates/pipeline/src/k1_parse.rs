@@ -66,6 +66,7 @@ pub(crate) const KNOWN_FILES: &[&str] = &[
     "pathways.txt",
     "levels.txt",
     "feed_info.txt",
+    "licenses.txt",
     "translations.txt",
     "attributions.txt",
     "route_networks.txt",
@@ -2144,6 +2145,11 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
             "feed_version",
             "feed_contact_email",
             "feed_contact_url",
+        ],
+        "licenses.txt" => &[
+            "licensed_table_name",
+            "license_spdx_id",
+            "custom_license_url",
         ],
         "translations.txt" => &[
             "table_name",
@@ -5332,6 +5338,53 @@ mod tests {
                     .any(|n| n.rule_id == "ARC_007" && n.file.as_deref() == Some(f)),
                 "ARC_007 notice bekleniyor: {f}"
             );
+        }
+    }
+
+    #[test]
+    fn licenses_file_uses_known_optional_file_checks() {
+        let base: &[(&str, &[u8])] = &[
+            ("agency.txt", b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt", b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt", b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt", b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt", b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ];
+
+        for (content, empty) in [
+            (b"".as_slice(), true),
+            (b"licensed_table_name,license_spdx_id,custom_license_url\n".as_slice(), true),
+            (b"licensed_table_name,license_spdx_id,custom_license_url,extra\n,CC0-1.0,,x\n".as_slice(), false),
+        ] {
+            let mut files = base.to_vec();
+            files.push(("licenses.txt", content));
+            let result = parse(&zip_with_files(&files)).unwrap();
+            assert!(!result.notices.iter().any(|n| {
+                n.rule_id == "ARC_007" && n.file.as_deref() == Some("licenses.txt")
+            }));
+            assert_eq!(
+                result.notices.iter().any(|n| {
+                    n.rule_id == "ARC_009" && n.file.as_deref() == Some("licenses.txt")
+                }),
+                empty
+            );
+            assert!(!result.notices.iter().any(|n| {
+                n.rule_id == "ARC_025" && n.file.as_deref() == Some("licenses.txt")
+            }));
+            if !empty {
+                assert!(result.files.contains_key("licenses.txt"));
+                assert!(result.notices.iter().any(|n| {
+                    n.rule_id == "ARC_017"
+                        && n.file.as_deref() == Some("licenses.txt")
+                        && n.field.as_deref() == Some("extra")
+                }));
+                assert!(!result.notices.iter().any(|n| {
+                    n.rule_id == "ARC_017"
+                        && n.file.as_deref() == Some("licenses.txt")
+                        && n.field.as_deref() == Some("custom_license_url")
+                }));
+            }
         }
     }
 

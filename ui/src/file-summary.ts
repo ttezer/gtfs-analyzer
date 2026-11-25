@@ -16,7 +16,7 @@ export const GTFS_SPEC_FILES = [
   'areas.txt', 'stop_areas.txt', 'networks.txt', 'route_networks.txt',
   'shapes.txt', 'frequencies.txt', 'transfers.txt', 'pathways.txt', 'levels.txt',
   'location_groups.txt', 'location_group_stops.txt', 'locations.geojson',
-  'booking_rules.txt', 'translations.txt', 'feed_info.txt', 'attributions.txt',
+  'booking_rules.txt', 'translations.txt', 'feed_info.txt', 'licenses.txt', 'attributions.txt',
 ] as const;
 
 const GTFS_SPEC_FILE_SET = new Set<string>(GTFS_SPEC_FILES);

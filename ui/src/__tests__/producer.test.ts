@@ -2344,6 +2344,7 @@ describe('Planlamacı alanı ve hat rengi', () => {
   it('iş alanını kural önekine değil bildirimin dosyasına göre seçer', () => {
     expect(plannerArea('STM_002', notice('a', 'STM_002', 'CRITICAL', { file: 'stop_times.txt', entity_type: 'Stop' }))).toBe('tarife');
     expect(plannerArea('RTS_005', notice('a', 'RTS_005', 'MEDIUM', { file: 'routes.txt', entity_type: 'Route' }))).toBe('hat');
+    expect(plannerArea('LIC_001', notice('a', 'LIC_001', 'CRITICAL', { file: 'licenses.txt', entity_type: 'Row' }))).toBe('kurum');
     expect(plannerArea('CAL_014', notice('a', 'CAL_014', 'MEDIUM', { entity_type: 'Service' }))).toBe('takvim');
     expect(plannerArea('ARC_025', notice('a', 'ARC_025', 'CRITICAL', { file: 'stops.txt', entity_type: 'File' }))).toBe('teknik');
     expect(plannerArea('DQ_016', notice('a', 'DQ_016', 'MEDIUM', { entity_type: 'Feed' }))).toBe('teknik');

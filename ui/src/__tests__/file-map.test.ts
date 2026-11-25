@@ -176,6 +176,7 @@ describe('file summaries', () => {
     });
     const calendar = summaries.find((summary) => summary.name === 'calendar.txt');
     const shapes = summaries.find((summary) => summary.name === 'shapes.txt');
+    const licenses = summaries.find((summary) => summary.name === 'licenses.txt');
 
     expect(calendar?.notices).toHaveLength(3);
     expect(calendar?.severityCounts.MEDIUM).toBe(2);
@@ -183,6 +184,9 @@ describe('file summaries', () => {
     expect(calendar?.worstSeverity).toBe('MEDIUM');
     expect(calendar?.missing).toBe(false);
     expect(shapes?.missing).toBe(true);
+    expect(licenses?.missing).toBe(true);
+    expect(licenses?.unknown).toBe(false);
+    expect(licenses?.required).toBe(false);
   });
 
   it('orders rule groups by severity before occurrence count', () => {
