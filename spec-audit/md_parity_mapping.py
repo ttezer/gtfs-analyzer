@@ -1032,6 +1032,29 @@ MAPPED_DIVERGENCE_DECISIONS = {
         "All 33 feeds carrying this code are the same wrapped-root population as "
         "missing_required_file, and none emit ARC_008. Same cause, same decision.",
     ),
+    # ── mdb-1077 (OpenOV) against MobilityData 8.0.1, 2026-11-25 ─────────────
+    "duplicate_route_name": (
+        "scope-difference",
+        "RTS_019 compares route names case-insensitively (rule card decision); MobilityData "
+        "compares them exactly. mdb-1077: all 53 MobilityData pairs are ours too; the one extra "
+        "pair is 165823 'Lochem West - Station' / 165940 'Lochem west - Station', which riders "
+        "see as the same name.",
+    ),
+    "fast_travel_between_far_stops": (
+        "tolerance-by-design",
+        "STM_061 uses a 120 km/h bus limit where MobilityData uses 150 (user decision "
+        "2026-11-13), and groups trips by route, direction and stop pair. mdb-1077: the trip "
+        "counts in our 101 notices sum to 2,949 against MobilityData's 2,623 trip notices; the "
+        "stricter limit is expected to add trips.",
+    ),
+    "stop_too_far_from_shape": (
+        "tolerance-by-design",
+        "SHP_012 reports one notice per shape with its far stops; MobilityData one per "
+        "(shape, stop). Rail routes use 200 m instead of 100 m (rule card: station coordinates "
+        "sit on the platform or building, the shape on the track). mdb-1077 with the CLI "
+        "uncapped: 845 shapes, 1,244 (shape, stop) pairs against MobilityData's 1,251; of its "
+        "1,000 sample pairs we lack 17, all route_type 2 at 102-184 m.",
+    ),
 }
 
 
