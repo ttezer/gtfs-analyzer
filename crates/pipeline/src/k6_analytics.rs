@@ -4085,6 +4085,22 @@ fn check_calendar_analytics(
     ctr: &mut u32,
 ) {
     let ti_cal = &records.trip_interns;
+    // A service defined only in calendar_dates.txt must not be reported against calendar.txt,
+    // which may not even exist in the feed (mdb-1077 ships calendar_dates.txt alone).
+    let base_calendar_ids: HashSet<&str> =
+        records.calendars.iter().map(|c| c.service_id.as_str()).collect();
+    let service_file = |ids: &[&str]| -> &'static str {
+        if !ids.is_empty() && ids.iter().all(|id| !base_calendar_ids.contains(id)) {
+            "calendar_dates.txt"
+        } else {
+            "calendar.txt"
+        }
+    };
+    let feed_calendar_file = if records.calendars.is_empty() {
+        "calendar_dates.txt"
+    } else {
+        "calendar.txt"
+    };
     let future_only_jp_date = gtfs_jp_future_only_date(records, derived, today_yyyymmdd);
     // CAL_021: how many trips use each service.
     let mut service_trip_counts: HashMap<&str, u32> = HashMap::new();
@@ -4170,7 +4186,7 @@ fn check_calendar_analytics(
                 EntityType::Service,
                 Some(service_id.clone()),
                 Some(service_id.clone()),
-                "calendar.txt",
+                service_file(&[service_id.as_str()]),
                 None,
                 None,
                 Some(observed),
@@ -4232,7 +4248,7 @@ fn check_calendar_analytics(
                         EntityType::Service,
                         Some(service_id.clone()),
                         Some(service_id.clone()),
-                        "calendar.txt",
+                        service_file(&[service_id.as_str()]),
                         None,
                         None,
                         Some(format!("0 / {n}")),
@@ -4277,7 +4293,7 @@ fn check_calendar_analytics(
                 EntityType::Feed,
                 Some(entity.clone()),
                 None,
-                "calendar.txt",
+                service_file(&svcs),
                 None,
                 None,
                 Some(format!("{gap_days}")),
@@ -4292,7 +4308,7 @@ fn check_calendar_analytics(
                 EntityType::Feed,
                 Some(entity.clone()),
                 None,
-                "calendar.txt",
+                service_file(&svcs),
                 None,
                 None,
                 Some(format!("{gap_days}")),
@@ -4409,7 +4425,7 @@ fn check_calendar_analytics(
                     EntityType::Service,
                     Some(service_id.to_string()),
                     Some(service_id.to_string()),
-                    "calendar.txt",
+                    service_file(&[service_id]),
                     None,
                     Some("feed_start_date|feed_end_date"),
                     Some(format!("{first}..{last}")),
@@ -4497,7 +4513,7 @@ fn check_calendar_analytics(
                     yyyymmdd_to_jdn(first).saturating_sub(yyyymmdd_to_jdn(today_yyyymmdd));
                 let mut notice = k6_notice(
                     ctr, "CAL_015", EntityType::Feed,
-                    None, None, "calendar.txt", None, None,
+                    None, None, feed_calendar_file, None, None,
                     Some(format!("{first}")), Some(format!("≤ {today_yyyymmdd}")),
                     format!("The feed's earliest service date is {first}; that date has not come yet — no trips exist for today."),
                     "Review the feed publishing schedule or fix calendar.txt.",
@@ -4575,7 +4591,7 @@ fn check_calendar_analytics(
                 notices.push(k6_notice(
                     ctr, "CAL_017", EntityType::Service,
                     Some(service_id.to_string()), Some(service_id.to_string()),
-                    "calendar.txt", None, Some("start_date"),
+                    service_file(&[service_id]), None, Some(if service_file(&[service_id]) == "calendar.txt" { "start_date" } else { "date" }),
                     Some(format!("{min_svc}")), Some(format!("≤ {today_yyyymmdd}")),
                     format!("Calendar '{service_id}' has not started yet; the earliest active date is {min_svc}. No service in the feed is active today."),
                     "Review the calendar start date or calendar_dates.txt entries.",
@@ -4598,9 +4614,9 @@ fn check_calendar_analytics(
                 EntityType::Feed,
                 Some(format!("{max_svc}")),
                 None,
-                "calendar.txt",
+                service_file(&svcs),
                 None,
-                Some("end_date"),
+                Some(if service_file(&svcs) == "calendar.txt" { "end_date" } else { "date" }),
                 Some(format!("{max_svc}")),
                 Some(format!("≥ {today_yyyymmdd}")),
                 msg,
@@ -4628,7 +4644,7 @@ fn check_calendar_analytics(
             if last_jdn > far_future_jdn {
                 let mut notice = k6_notice(
                     ctr, "CAL_016", EntityType::Feed,
-                    None, None, "calendar.txt", None, None,
+                    None, None, feed_calendar_file, None, None,
                     Some(format!("{last}")), Some("≤ +2 years".to_string()),
                     format!("The feed's latest service date is {last} — more than 2 years from today; this data may be broken."),
                     "Limit the service calendar to a realistic end date.",
@@ -17457,6 +17473,39 @@ mod tests {
             v.iter().any(|n| n.rule_id == "PTH_013"),
             "dik rotalı istasyon PTH_013 üretmeli"
         );
+    }
+
+    #[test]
+    fn calendar_dates_only_service_is_reported_against_calendar_dates() {
+        // mdb-1077 ships calendar_dates.txt without calendar.txt; findings must not name a
+        // file that is absent from the feed.
+        use crate::k5_derived::CalendarBitmap;
+        let active = |dates: &[u32]| dates.iter().copied().collect::<HashSet<u32>>();
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [
+                    ("DATES".to_string(), active(&[20251201, 20251215])),
+                    ("BASE".to_string(), active(&[20251201, 20251215])),
+                ]
+                .into_iter()
+                .collect(),
+            },
+            ..Default::default()
+        };
+        let dates_only = crate::k2::EntityRecords::default();
+        let result = analyze(&dates_only, &derived, &default_config(), 20260514);
+        let cal013 = result.notices.iter().find(|n| n.rule_id == "CAL_013").unwrap();
+        assert_eq!(cal013.file.as_deref(), Some("calendar_dates.txt"));
+        assert_eq!(cal013.field.as_deref(), Some("date"));
+
+        let with_base = crate::k2::EntityRecords {
+            calendars: vec![cal_rec("BASE", all_days(), (2025, 1, 1), (2025, 12, 31))],
+            ..Default::default()
+        };
+        let result = analyze(&with_base, &derived, &default_config(), 20260514);
+        let cal013 = result.notices.iter().find(|n| n.rule_id == "CAL_013").unwrap();
+        assert_eq!(cal013.file.as_deref(), Some("calendar.txt"));
+        assert_eq!(cal013.field.as_deref(), Some("end_date"));
     }
 
     #[test]
