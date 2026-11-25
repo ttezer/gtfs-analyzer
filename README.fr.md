@@ -4,7 +4,7 @@
 
 [![Ouvrir l’application](https://img.shields.io/badge/Ouvrir%20l%27application-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20100%20%25-c8102e?style=flat)](https://www.gtfs.jp/)
-[![Nombre de règles](https://img.shields.io/badge/r%C3%A8gles-621-blue?style=flat)](RULES.fr.md)
+[![Nombre de règles](https://img.shields.io/badge/r%C3%A8gles-630-blue?style=flat)](RULES.fr.md)
 ![Couverture de la spécification GTFS](https://img.shields.io/badge/Sp%C3%A9cification%20GTFS-97.2%25-007ec6?style=flat)
 [![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
@@ -12,7 +12,7 @@
 [![Plugin Claude](https://img.shields.io/badge/Plugin%20Claude-GTFS%20Validator-d97757?style=flat&logo=claude&logoColor=white)](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-yellow?style=flat)](LICENSE)
 
-**GTFS Validator & Analyzer** est un **validateur GTFS** open source qui contrôle les fichiers GTFS et analyse la qualité des jeux de données. Un `.zip` téléversé dans l’application web n’est jamais envoyé à un serveur ; la validation s’exécute sur l’appareil de l’utilisateur avec **WebAssembly**. Le même moteur de **621 règles** est accessible de huit façons :
+**GTFS Validator & Analyzer** est un **validateur GTFS** open source qui contrôle les fichiers GTFS et analyse la qualité des jeux de données. Un `.zip` téléversé dans l’application web n’est jamais envoyé à un serveur ; la validation s’exécute sur l’appareil de l’utilisateur avec **WebAssembly**. Le même moteur de **630 règles** est accessible de huit façons :
 
 | Voie | Idéal pour |
 |---|---|
@@ -27,7 +27,7 @@
 
 ## Fonctionnalités clés
 
-- **621 règles de validation et d’analyse**, en 38 groupes ; **97,2 %** des exigences mesurables de la spécification GTFS sont couvertes et **les 300 atomes** de l’inventaire des champs portent au moins un ancrage Spec. Liste complète : [`RULES.fr.md`](RULES.fr.md).
+- **630 règles de validation et d’analyse**, en 39 groupes ; **97,2 %** des exigences mesurables de la spécification GTFS sont couvertes et **les 300 atomes** de l’inventaire des champs portent au moins un ancrage Spec. Liste complète : [`RULES.fr.md`](RULES.fr.md).
 - **Exécution locale :** le navigateur, la CLI, les bibliothèques et les paquets npm/Python traitent le jeu de données sur votre propre appareil.
 - **Qualité et exploitation au-delà de la conformité Spec :** segments de vitesse anormaux, incohérences de fréquence, arrêts isolés, interruptions de service, topologie du réseau.
 - **Quatre classes, cinq niveaux de gravité :** chaque constat est étiqueté Spec · Interop · Quality · Analytics et Critique → Info ; des milliers de constats se filtrent et se priorisent.
@@ -74,7 +74,7 @@ Chaque version est exécutée sur **l’intégralité du catalogue GTFS Schedule
 | Analyse terminée | **4 449** (sans échec) |
 | Rapport partiel (fichier cassé/manquant ignoré sans risque) | 76 |
 | Pays | 95 |
-| Règles déclenchées | 423 / 621 |
+| Règles déclenchées | 423 / 621 (mesure précédente) |
 | Durée médiane par jeu | **0,05 s** (p90 1,1 s) |
 | Mémoire maximale médiane par jeu | **15 MB** (p90 149 Mo) |
 | Durée totale | 86,7 min |
@@ -120,7 +120,7 @@ Les tables de ces jeux de données sont elles aussi énormes ; chaque ligne est 
 | Grande-Bretagne entière (BODS, `mdb-2014`) | **69,5 millions** | 1,76 million | **89,7 millions** | 278 k | — | 6 min 36 s |
 | Tchéquie (`mdb-2904`) | 9,6 millions | 494 k | — | **4,4 millions** | — | 58 s |
 
-Les 29,3 millions de lignes `stop_times` de Buenos Aires sont validées avec les 621 règles en 53 secondes : environ **548 000 lignes par seconde**.
+Une version antérieure à 621 règles a validé les 29,3 millions de lignes `stop_times` de Buenos Aires en 53 secondes : environ **548 000 lignes par seconde**.
 
 Le jeu BODS pour toute la Grande-Bretagne, le jeu DELFI pour toute l’Allemagne et deux jeux régionaux de Nouvelle-Aquitaine (77 et 83 Mo) font partie des jeux que le `gtfs-validator` de MobilityData a interrompus sur une erreur interne lors de cette exécution ; GTFS Analyzer les a validés tous les quatre jusqu’au bout.
 
@@ -329,6 +329,7 @@ Chaque règle est codée `GROUPE_NNN`. Les groupes suivent les limites des fichi
 | **FAR** | `fare_attributes.txt` | Définition des tarifs, devise et moyen de paiement |
 | **FRL** | `fare_rules.txt` | Règles tarifaires par ligne et par zone |
 | **FIN** | `feed_info.txt` | Informations sur l’éditeur, langue, dates de validité |
+| **LIC** | `licenses.txt` | Déclarations de licence du flux et des tables |
 | **PTH** | `pathways.txt` | Réseau de cheminements en station et connexions d’accessibilité |
 | **LVL** | `levels.txt` | Niveaux de station et relations ascenseur/escalier |
 | **TRN** | `translations.txt` | Traductions de champs et cohérence linguistique |
@@ -417,7 +418,7 @@ gtfs-validator/
 │   ├── config/     # Types de configuration
 │   ├── core/       # Structures de données partagées et modèle de résultat
 │   ├── pipeline/   # Pipeline de validation (étapes k1–k7)
-│   ├── rules/      # Définition des règles et registre (621 règles, 38 groupes)
+│   ├── rules/      # Définition des règles et registre (630 règles, 39 groupes)
 │   └── wasm/       # Sortie WASM wasm-bindgen
 ├── spec-audit/     # Table des champs générée depuis la spécification (barrière d’ancrage)
 └── ui/             # Interface Vite + TypeScript

@@ -3615,6 +3615,10 @@ pub fn parse_with_limits(
         ));
     }
 
+    if let Some(licenses) = raw_files.get("licenses.txt") {
+        validate_licenses(licenses, &present_files, &mut notices, &mut counter);
+    }
+
     Ok(K1Result {
         files: raw_files,
         notices,
@@ -3626,6 +3630,215 @@ pub fn parse_with_limits(
         geojson_geometries,
         custom_file_headers,
     })
+}
+
+fn validate_licenses(
+    file: &RawFile,
+    present_files: &HashSet<String>,
+    notices: &mut Vec<Notice>,
+    counter: &mut u32,
+) {
+    let column = |name| file.headers.iter().position(|header| header == name);
+    let table_col = column("licensed_table_name");
+    let spdx_col = column("license_spdx_id");
+    let url_col = column("custom_license_url");
+    let mut exact_keys: HashMap<&str, u64> = HashMap::new();
+    let mut comparable_keys: HashMap<String, (&str, u64)> = HashMap::new();
+    let mut has_feed_license = false;
+
+    for (index, row) in file.rows.iter().enumerate() {
+        let line = (index + 2) as u64;
+        let value = |column: Option<usize>| {
+            column
+                .and_then(|i| row.get(i))
+                .map(|v| v.as_str())
+                .unwrap_or("")
+        };
+        let table = value(table_col).trim();
+        let spdx = value(spdx_col);
+        let url = value(url_col);
+        let has_spdx = !spdx.trim().is_empty();
+        let has_url = !url.trim().is_empty();
+        if table.is_empty() {
+            has_feed_license = true;
+        }
+
+        let issue = match (has_spdx, has_url) {
+            (false, false) => Some((
+                "LIC_001",
+                "Neither license_spdx_id nor custom_license_url is set.",
+                "Fill in exactly one license field.",
+            )),
+            (true, true) => Some((
+                "LIC_002",
+                "Both license_spdx_id and custom_license_url are set.",
+                "Keep exactly one license field.",
+            )),
+            _ => None,
+        };
+        if let Some((id, message, remediation)) = issue {
+            notices.push(make_notice(
+                counter,
+                id,
+                EntityType::Row,
+                Some(table.to_string()),
+                Some(&file.name),
+                Some(line),
+                Some("license_spdx_id|custom_license_url"),
+                None,
+                message.to_string(),
+                remediation,
+            ));
+        }
+
+        let spdx_id = spdx.trim();
+        let is_expression = spdx_id.contains(['(', ')'])
+            || spdx_id.split_whitespace().any(|token| {
+                token.eq_ignore_ascii_case("AND")
+                    || token.eq_ignore_ascii_case("OR")
+                    || token.eq_ignore_ascii_case("WITH")
+            });
+        if has_spdx && !is_expression && !crate::spdx_ids::contains(spdx_id) {
+            notices.push(make_notice(
+                counter,
+                "LIC_007",
+                EntityType::Row,
+                Some(table.to_string()),
+                Some(&file.name),
+                Some(line),
+                Some("license_spdx_id"),
+                Some(spdx_id.to_string()),
+                format!(
+                    "License identifier is not in SPDX License List {}.",
+                    crate::spdx_ids::VERSION
+                ),
+                "Use an identifier from the pinned SPDX License List or provide custom_license_url.",
+            ));
+        }
+
+        if let Some(&first) = exact_keys.get(table) {
+            notices.push(make_notice(
+                counter,
+                "LIC_004",
+                EntityType::Row,
+                Some(table.to_string()),
+                Some(&file.name),
+                Some(line),
+                Some("licensed_table_name"),
+                Some(table.to_string()),
+                format!("licensed_table_name repeats the value on line {first}."),
+                "Use each licensed_table_name only once.",
+            ));
+        } else {
+            exact_keys.insert(table, line);
+            let comparable = if table.eq_ignore_ascii_case("locations")
+                || table.eq_ignore_ascii_case("locations.geojson")
+            {
+                "locations".to_string()
+            } else {
+                table.to_ascii_lowercase()
+            };
+            if let Some(&(first_value, first_line)) = comparable_keys.get(&comparable) {
+                notices.push(make_notice(counter, "LIC_008", EntityType::Row, Some(table.to_string()),
+                    Some(&file.name), Some(line), Some("licensed_table_name"), Some(table.to_string()),
+                    format!("licensed_table_name conflicts with '{first_value}' on line {first_line} when compared without case or the locations alias."),
+                    "Use one spelling for each licensed table and remove the duplicate row."));
+            } else {
+                comparable_keys.insert(comparable, (table, line));
+            }
+        }
+
+        if !table.is_empty() {
+            let known_filename = KNOWN_FILES
+                .iter()
+                .find(|name| {
+                    !name.ends_with("_jp.txt")
+                        && name
+                            .strip_suffix(".txt")
+                            .is_some_and(|stem| stem.eq_ignore_ascii_case(table))
+                })
+                .map(|name| (*name).to_string());
+            let filename = if table.eq_ignore_ascii_case("locations")
+                || table.eq_ignore_ascii_case("locations.geojson")
+            {
+                Some("locations.geojson".to_string())
+            } else {
+                known_filename
+            };
+            if let Some(filename) = filename {
+                if !present_files.contains(&filename) {
+                    notices.push(make_notice(
+                        counter,
+                        "LIC_005",
+                        EntityType::Row,
+                        Some(table.to_string()),
+                        Some(&file.name),
+                        Some(line),
+                        Some("licensed_table_name"),
+                        Some(table.to_string()),
+                        format!(
+                            "'{filename}' is named in licenses.txt but is absent from this feed."
+                        ),
+                        "Remove the unused table-specific license or include the table.",
+                    ));
+                }
+            } else {
+                let (message, remediation) = if table.to_ascii_lowercase().ends_with(".txt") {
+                    (
+                        format!("licensed_table_name '{table}' includes the .txt extension."),
+                        "Remove the .txt extension from licensed_table_name.",
+                    )
+                } else {
+                    (
+                        format!("'{table}' is not a known GTFS table name."),
+                        "Use a GTFS file name without its .txt extension.",
+                    )
+                };
+                notices.push(make_notice(
+                    counter,
+                    "LIC_003",
+                    EntityType::Row,
+                    Some(table.to_string()),
+                    Some(&file.name),
+                    Some(line),
+                    Some("licensed_table_name"),
+                    Some(table.to_string()),
+                    message,
+                    remediation,
+                ));
+            }
+        }
+
+        if has_url && !crate::k2::common::looks_like_url(url) {
+            notices.push(make_notice(
+                counter,
+                "LIC_009",
+                EntityType::Row,
+                Some(table.to_string()),
+                Some(&file.name),
+                Some(line),
+                Some("custom_license_url"),
+                Some(url.to_string()),
+                "custom_license_url is not a valid URL.".to_string(),
+                "Use a valid http/https URL for custom_license_url.",
+            ));
+        }
+    }
+
+    if !file.rows.is_empty() && !has_feed_license {
+        notices.push(make_notice(
+            counter,
+            "LIC_006",
+            EntityType::Feed,
+            None,
+            Some(&file.name),
+            None,
+            None,
+            None,
+            "licenses.txt has table-specific licenses but no feed-wide license.".to_string(),
+            "Add a row with an empty licensed_table_name to state the default license.",
+        ));
+    }
 }
 
 // ── locations.geojson validation ─────────────────────────────────────────────
@@ -5386,6 +5599,68 @@ mod tests {
                 }));
             }
         }
+    }
+
+    #[test]
+    fn licenses_rules_distinguish_spec_interop_and_quality_findings() {
+        let files: &[(&str, &[u8])] = &[
+            ("agency.txt", b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt", b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt", b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt", b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt", b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+            ("licenses.txt", b"licensed_table_name,license_spdx_id,custom_license_url\nstop_times,,\nroutes,MIT,https://example.com\nstops.txt,MIT,\nroutes,MIT,\nshapes,MIT,\nRoutes,MIT,\nagency,,invalid\n"),
+        ];
+        let result = parse(&zip_with_files(files)).unwrap();
+        for id in ["LIC_001", "LIC_002", "LIC_003", "LIC_004", "LIC_005", "LIC_006", "LIC_008", "LIC_009"] {
+            assert!(result.notices.iter().any(|n| n.rule_id == id), "{id} should fire");
+        }
+        let extension = result.notices.iter().find(|n| n.rule_id == "LIC_003").unwrap();
+        assert!(extension.remediation.contains("Remove the .txt extension"));
+
+        let valid: Vec<(&str, &[u8])> = files.iter().map(|&(name, data)| {
+            if name == "licenses.txt" {
+                (name, b"licensed_table_name,license_spdx_id,custom_license_url\n,CC0-1.0,\nroutes,,https://example.com/license\n".as_slice())
+            } else {
+                (name, data)
+            }
+        }).collect();
+        let result = parse(&zip_with_files(&valid)).unwrap();
+        assert!(!result.notices.iter().any(|n| n.rule_id.starts_with("LIC_")));
+    }
+
+    #[test]
+    fn licenses_blank_key_and_locations_alias_are_checked_separately() {
+        let zip = zip_with_files(&[
+            ("agency.txt", b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt", b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt", b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt", b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt", b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+            ("licenses.txt", b"licensed_table_name,license_spdx_id,custom_license_url\n,MIT,\n,CC0-1.0,\n ,Apache-2.0,\nlocations,MIT,\nlocations.geojson,CC0-1.0,\nShapes,MIT,\n routes,MIT,\n"),
+        ]);
+        let result = parse(&zip).unwrap();
+        assert_eq!(result.notices.iter().filter(|n| n.rule_id == "LIC_004").count(), 2);
+        assert_eq!(result.notices.iter().filter(|n| n.rule_id == "LIC_008").count(), 1);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "LIC_003"));
+    }
+
+    #[test]
+    fn licenses_unknown_simple_spdx_id_uses_pinned_list() {
+        let zip = zip_with_files(&[(
+            "licenses.txt",
+            b"licensed_table_name,license_spdx_id,custom_license_url\n,Not-A-Real-SPDX-ID,\nroutes,MIT,\nstops,AGPL-1.0,\ntrips,MIT OR Not-A-Real-SPDX-ID,\nshapes,(Not-A-Real-SPDX-ID),\nagency,MIT WITH Not-A-Real-SPDX-ID,\nstop_times,MIT AND Not-A-Real-SPDX-ID,\nfrequencies,mit,\ncalendar,cc-by-4.0,\n",
+        )]);
+        let result = parse(&zip).unwrap();
+        let findings: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "LIC_007").collect();
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].line, Some(2));
+        assert_eq!(findings[0].observed_value.as_deref(), Some("Not-A-Real-SPDX-ID"));
+        assert_eq!(findings[0].severity, Severity::Bilgi);
+        assert_eq!(findings[0].rule_class, gtfs_core::RuleClass::Quality);
+        assert!(findings[0].message.contains("3.29.0"));
     }
 
     #[test]

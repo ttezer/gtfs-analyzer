@@ -1305,6 +1305,29 @@
         }
       ]
     },
+    "licenses.txt": {
+      "presence": "Optional",
+      "primary_key": [
+        "licensed_table_name"
+      ],
+      "fields": [
+        {
+          "name": "licensed_table_name",
+          "type": "Text",
+          "presence": "Optional"
+        },
+        {
+          "name": "license_spdx_id",
+          "type": "SPDX ID",
+          "presence": "Conditionally Forbidden"
+        },
+        {
+          "name": "custom_license_url",
+          "type": "URL",
+          "presence": "Conditionally Forbidden"
+        }
+      ]
+    },
     "attributions.txt": {
       "presence": "Optional",
       "primary_key": [

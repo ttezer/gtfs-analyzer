@@ -351,6 +351,15 @@ const STOP_NAME_STOPS: &str = "stop_id,stop_name,stop_lat,stop_lon,location_type
 /// rule_id → triggering fixture. Filled incrementally; every row is real runtime proof.
 fn fixtures() -> Vec<Fixture> {
     vec![
+        fx("LIC_001", vec![("licenses.txt", "licensed_table_name,license_spdx_id,custom_license_url\nroutes,,\n")]),
+        fx("LIC_002", vec![("licenses.txt", "licensed_table_name,license_spdx_id,custom_license_url\n,MIT,https://example.com/license\n")]),
+        fx("LIC_003", vec![("licenses.txt", "licensed_table_name,license_spdx_id,custom_license_url\nstops.txt,MIT,\n")]),
+        fx("LIC_004", vec![("licenses.txt", "licensed_table_name,license_spdx_id,custom_license_url\n,MIT,\n,CC0-1.0,\n")]),
+        fx("LIC_005", vec![("licenses.txt", "licensed_table_name,license_spdx_id,custom_license_url\nshapes,MIT,\n")]),
+        fx("LIC_006", vec![("licenses.txt", "licensed_table_name,license_spdx_id,custom_license_url\nroutes,MIT,\n")]),
+        fx("LIC_007", vec![("licenses.txt", "licensed_table_name,license_spdx_id,custom_license_url\n,Not-A-Real-SPDX-ID,\n")]),
+        fx("LIC_008", vec![("licenses.txt", "licensed_table_name,license_spdx_id,custom_license_url\nroutes,MIT,\nRoutes,CC0-1.0,\n")]),
+        fx("LIC_009", vec![("licenses.txt", "licensed_table_name,license_spdx_id,custom_license_url\n,,invalid-url\n")]),
         // ── #28 Grup 1: ham-byte (ARC_002/003) + config-override (OPR_021/022/023) ──
         fx_raw("ARC_002", vec![("feed_info.txt", BAD_UTF8_FEED_INFO)]),
         fx_raw("ARC_003", vec![("feed_info.txt", BAD_UTF8_FEED_INFO)]),

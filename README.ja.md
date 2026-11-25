@@ -4,7 +4,7 @@
 
 [![アプリを開く](https://img.shields.io/badge/%E3%82%A2%E3%83%97%E3%83%AA%E3%82%92%E9%96%8B%E3%81%8F-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20100%25-c8102e?style=flat)](https://www.gtfs.jp/)
-[![ルール数](https://img.shields.io/badge/rules-621-blue?style=flat)](RULES.ja.md)
+[![ルール数](https://img.shields.io/badge/rules-630-blue?style=flat)](RULES.ja.md)
 ![GTFS Spec カバレッジ](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
 [![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
@@ -12,7 +12,7 @@
 [![Claude プラグイン](https://img.shields.io/badge/Claude%20%E3%83%97%E3%83%A9%E3%82%B0%E3%82%A4%E3%83%B3-GTFS%20Validator-d97757?style=flat&logo=claude&logoColor=white)](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)
 [![License MIT](https://img.shields.io/badge/%E3%83%A9%E3%82%A4%E3%82%BB%E3%83%B3%E3%82%B9-MIT-yellow?style=flat)](LICENSE)
 
-**GTFS Validator & Analyzer** は、GTFS ファイルを検証し、フィードの品質を分析するオープンソースの **GTFS バリデーター**です。Web アプリにアップロードした `.zip` はサーバーに送信されず、検証は **WebAssembly** によりユーザーの端末で実行されます。同じ **621 ルール**のエンジンに 8 つの方法でアクセスできます：
+**GTFS Validator & Analyzer** は、GTFS ファイルを検証し、フィードの品質を分析するオープンソースの **GTFS バリデーター**です。Web アプリにアップロードした `.zip` はサーバーに送信されず、検証は **WebAssembly** によりユーザーの端末で実行されます。同じ **630 ルール**のエンジンに 8 つの方法でアクセスできます：
 
 | 方法 | 用途 |
 |---|---|
@@ -27,7 +27,7 @@
 
 ## 主な特長
 
-- **621 の検証・分析ルール**（38 グループ）。GTFS 仕様の測定可能な規定の **97.2%** をカバーし、フィールド台帳の **300 の要素すべて**に少なくとも 1 つの Spec の根拠があります。全リスト：[`RULES.ja.md`](RULES.ja.md)。
+- **630 の検証・分析ルール**（39 グループ）。GTFS 仕様の測定可能な規定の **97.2%** をカバーし、フィールド台帳の **300 の要素すべて**に少なくとも 1 つの Spec の根拠があります。全リスト：[`RULES.ja.md`](RULES.ja.md)。
 - **ローカルで動作：** ブラウザ、CLI、ライブラリ、npm/Python パッケージはフィードをご自身の端末で処理します。
 - **仕様準拠を超えた品質・運行分析：** 異常な速度区間、運行頻度の不整合、孤立した停留所、運行の空白、ネットワーク構造。
 - **4 つのクラス、5 つの重大度：** すべての検出結果に Spec · Interop · Quality · Analytics と 致命的 → 情報 が付き、数千件の結果を絞り込み、優先順位を付けられます。
@@ -74,7 +74,7 @@ Web アプリの **プランナー向け** ページは、同じ分析結果を�
 | 解析完了 | **4,449** （失敗なし） |
 | 部分レポート（壊れた/欠けたファイルを安全にスキップ） | 76 |
 | 国 | 95 |
-| 発火したルール | 423 / 621 |
+| 発火したルール | 423 / 621（以前の測定） |
 | フィードあたりの中央値時間 | **0.05 秒** (p90 1.1 秒) |
 | フィードあたりのピークメモリ中央値 | **15 MB** (p90 149 MB) |
 | 合計時間 | 86.7 分 |
@@ -120,7 +120,7 @@ Web アプリの **プランナー向け** ページは、同じ分析結果を�
 | イギリス全国（BODS、`mdb-2014`） | **6,950 万** | 176 万 | **8,970 万** | 27.8 万 | — | 6 分 36 秒 |
 | チェコ（`mdb-2904`） | 960 万 | 49.4 万 | — | **440 万** | — | 58 秒 |
 
-ブエノスアイレスの 2,930 万行の `stop_times` は、621 ルールすべてとともに 53 秒で検証されます。毎秒およそ **54.8 万行**です。
+以前の 621 ルール版では、ブエノスアイレスの 2,930 万行の `stop_times` を 53 秒で検証しました。毎秒およそ **54.8 万行**です。
 
 イギリス全国の BODS フィード、ドイツ全国の DELFI フィード、ヌーヴェル＝アキテーヌの 2 つの地域フィード（77 MB と 83 MB）は、この実行で MobilityData の `gtfs-validator` が内部エラーで途中終了したフィードです。GTFS Analyzer は 4 つとも最後まで検証しました。
 
@@ -329,6 +329,7 @@ GTFS-JP フィードの場合、**JPN** グループのルールは公式の [GT
 | **FAR** | `fare_attributes.txt` | 運賃定義、通貨、支払方法 |
 | **FRL** | `fare_rules.txt` | 路線・ゾーンベースの運賃ルール |
 | **FIN** | `feed_info.txt` | フィード発行者情報、言語、有効期間 |
+| **LIC** | `licenses.txt` | フィード全体およびファイル別のライセンス宣言 |
 | **PTH** | `pathways.txt` | 駅構内の通路ネットワークとアクセシビリティ接続 |
 | **LVL** | `levels.txt` | 駅のフロアとエレベーター・階段の関係 |
 | **TRN** | `translations.txt` | フィールドの翻訳と言語の一貫性 |
@@ -417,7 +418,7 @@ gtfs-validator/
 │   ├── config/     # 設定型
 │   ├── core/       # 共有データ構造と結果モデル
 │   ├── pipeline/   # 検証パイプライン（k1〜k7 ステージ）
-│   ├── rules/      # ルール定義とレジストリ（621 ルール、38 グループ）
+│   ├── rules/      # ルール定義とレジストリ（630 ルール、39 グループ）
 │   └── wasm/       # wasm-bindgen WASM 出力
 ├── spec-audit/     # 仕様から生成したフィールド表（アンカー検査）
 └── ui/             # Vite + TypeScript フロントエンド

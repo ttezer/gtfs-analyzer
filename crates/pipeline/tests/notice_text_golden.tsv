@@ -43,6 +43,7 @@ en	ARC_006	Optional GTFS file present	Optional file present: 'fare_transfer_rule
 en	ARC_006	Optional GTFS file present	Optional file present: 'feed_info.txt'.	Informational notice; no action required.
 en	ARC_006	Optional GTFS file present	Optional file present: 'frequencies.txt'.	Informational notice; no action required.
 en	ARC_006	Optional GTFS file present	Optional file present: 'levels.txt'.	Informational notice; no action required.
+en	ARC_006	Optional GTFS file present	Optional file present: 'licenses.txt'.	Informational notice; no action required.
 en	ARC_006	Optional GTFS file present	Optional file present: 'location_group_stops.txt'.	Informational notice; no action required.
 en	ARC_006	Optional GTFS file present	Optional file present: 'location_groups.txt'.	Informational notice; no action required.
 en	ARC_006	Optional GTFS file present	Optional file present: 'networks.txt'.	Informational notice; no action required.
@@ -209,6 +210,14 @@ en	ARC_011	File size (info)	'levels.txt' size: 28 bytes.	Informational notice; n
 en	ARC_011	File size (info)	'levels.txt' size: 31 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'levels.txt' size: 326 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'levels.txt' size: 44 bytes.	Informational notice; no action required.
+en	ARC_011	File size (info)	'licenses.txt' size: 64 bytes.	Informational notice; no action required.
+en	ARC_011	File size (info)	'licenses.txt' size: 67 bytes.	Informational notice; no action required.
+en	ARC_011	File size (info)	'licenses.txt' size: 69 bytes.	Informational notice; no action required.
+en	ARC_011	File size (info)	'licenses.txt' size: 70 bytes.	Informational notice; no action required.
+en	ARC_011	File size (info)	'licenses.txt' size: 71 bytes.	Informational notice; no action required.
+en	ARC_011	File size (info)	'licenses.txt' size: 76 bytes.	Informational notice; no action required.
+en	ARC_011	File size (info)	'licenses.txt' size: 83 bytes.	Informational notice; no action required.
+en	ARC_011	File size (info)	'licenses.txt' size: 88 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'location_group_stops.txt' size: 30 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'location_group_stops.txt' size: 31 bytes.	Informational notice; no action required.
 en	ARC_011	File size (info)	'location_group_stops.txt' size: 35 bytes.	Informational notice; no action required.
@@ -978,6 +987,15 @@ en	JPN_031	GTFS-JP: zone_id missing at a stop served by zone-based fares	GTFS-JP
 en	JPN_032	GTFS-JP V3: agency_id is not in Corporate Number format	In GTFS-JP V3 agency_id must be in 法人番号 form: '1' does not meet the 13-digit ASCII body.	Use 13 ASCII digits for agency_id; append an underscore and non-empty branch id only when needed.
 en	JPN_032	GTFS-JP V3: agency_id is not in Corporate Number format	In GTFS-JP V3 agency_id must be in 法人番号 form: 'A-1' does not meet the 13-digit ASCII body.	Use 13 ASCII digits for agency_id; append an underscore and non-empty branch id only when needed.
 en	JPN_033	GTFS-JP: reserved jp namespace used by a custom file or field	GTFS-JP reserved namespace: custom file 'custom_jp.txt' uses the reserved suffix.	Rename the custom file or field so it does not use the GTFS-JP reserved jp prefix or suffix.
+en	LIC_001	License value missing	Neither license field is filled in this licenses.txt row.	Fill in one license SPDX ID or custom license URL.
+en	LIC_002	Two license values supplied	Both license fields are filled in this licenses.txt row.	Keep only one license field.
+en	LIC_003	Unknown licensed table	The table name does not identify a known GTFS file.	Use a GTFS file name without the .txt extension.
+en	LIC_004	Duplicate licensed table	The same table has more than one license row.	Keep one license row for each table.
+en	LIC_005	Licensed table absent	A table named in licenses.txt is absent from the feed.	Remove the unused license row or include the table.
+en	LIC_006	Feed license missing	Only table-specific licenses are listed.	Add a row with an empty licensed_table_name for the feed-wide license.
+en	LIC_007	SPDX license identifier not listed	The identifier is absent from SPDX License List 3.29.0.	Choose a listed ID or enter a custom license URL.
+en	LIC_008	Licensed table spelling conflicts	Two table names differ only in case or use the locations alias.	Use one spelling and remove the duplicate license row.
+en	LIC_009	Custom license URL invalid	The custom license URL is not a valid web address.	Use a complete http or https URL.
 en	LOC_001	Unknown or invalid geometry type in locations.geojson	'locations.geojson' feature 1 has an invalid geometry type: 'Point'. GTFS Flex supports only Polygon and MultiPolygon.	Ensure locations.geojson contains only Polygon or MultiPolygon feature geometries.
 en	LOC_002	Feature has null or missing geometry	'locations.geojson' feature 1: geometry is null or missing — GTFS Flex requires it.	Add a valid Polygon or MultiPolygon geometry to each feature in locations.geojson.
 en	LOC_003	Feature missing required 'id' property	'locations.geojson' feature 1: the 'id' property is missing — it is required for the stop_times cross reference.	Add a unique "id" property to each feature that matches the location_id referenced in stop_times.txt.
@@ -1698,6 +1716,7 @@ fr	ARC_006	Fichier GTFS optionnel présent	Fichier GTFS optionnel présent : �
 fr	ARC_006	Fichier GTFS optionnel présent	Fichier GTFS optionnel présent : « feed_info.txt ».	Signalement informatif ; aucune action requise.
 fr	ARC_006	Fichier GTFS optionnel présent	Fichier GTFS optionnel présent : « frequencies.txt ».	Signalement informatif ; aucune action requise.
 fr	ARC_006	Fichier GTFS optionnel présent	Fichier GTFS optionnel présent : « levels.txt ».	Signalement informatif ; aucune action requise.
+fr	ARC_006	Fichier GTFS optionnel présent	Fichier GTFS optionnel présent : « licenses.txt ».	Signalement informatif ; aucune action requise.
 fr	ARC_006	Fichier GTFS optionnel présent	Fichier GTFS optionnel présent : « location_group_stops.txt ».	Signalement informatif ; aucune action requise.
 fr	ARC_006	Fichier GTFS optionnel présent	Fichier GTFS optionnel présent : « location_groups.txt ».	Signalement informatif ; aucune action requise.
 fr	ARC_006	Fichier GTFS optionnel présent	Fichier GTFS optionnel présent : « networks.txt ».	Signalement informatif ; aucune action requise.
@@ -1864,6 +1883,14 @@ fr	ARC_011	Taille du fichier (info)	Fichier « levels.txt » : 28 bytes.	S
 fr	ARC_011	Taille du fichier (info)	Fichier « levels.txt » : 31 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « levels.txt » : 326 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « levels.txt » : 44 bytes.	Signalement informatif ; aucune action requise.
+fr	ARC_011	Taille du fichier (info)	Fichier « licenses.txt » : 64 bytes.	Signalement informatif ; aucune action requise.
+fr	ARC_011	Taille du fichier (info)	Fichier « licenses.txt » : 67 bytes.	Signalement informatif ; aucune action requise.
+fr	ARC_011	Taille du fichier (info)	Fichier « licenses.txt » : 69 bytes.	Signalement informatif ; aucune action requise.
+fr	ARC_011	Taille du fichier (info)	Fichier « licenses.txt » : 70 bytes.	Signalement informatif ; aucune action requise.
+fr	ARC_011	Taille du fichier (info)	Fichier « licenses.txt » : 71 bytes.	Signalement informatif ; aucune action requise.
+fr	ARC_011	Taille du fichier (info)	Fichier « licenses.txt » : 76 bytes.	Signalement informatif ; aucune action requise.
+fr	ARC_011	Taille du fichier (info)	Fichier « licenses.txt » : 83 bytes.	Signalement informatif ; aucune action requise.
+fr	ARC_011	Taille du fichier (info)	Fichier « licenses.txt » : 88 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « location_group_stops.txt » : 30 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « location_group_stops.txt » : 31 bytes.	Signalement informatif ; aucune action requise.
 fr	ARC_011	Taille du fichier (info)	Fichier « location_group_stops.txt » : 35 bytes.	Signalement informatif ; aucune action requise.
@@ -2567,6 +2594,15 @@ fr	JPN_031	GTFS-JP : zone_id absent à un arrêt desservi par une tarification z
 fr	JPN_032	GTFS-JP V3 : agency_id n’a pas le format du numéro d’entreprise	Dans GTFS-JP V3, agency_id « 1 » n’a pas le format de numéro d’entreprise à 13 chiffres.	Utilisez 13 chiffres ASCII pour agency_id ; ajoutez si nécessaire un identifiant de branche non vide après un underscore.
 fr	JPN_032	GTFS-JP V3 : agency_id n’a pas le format du numéro d’entreprise	Dans GTFS-JP V3, agency_id « A-1 » n’a pas le format de numéro d’entreprise à 13 chiffres.	Utilisez 13 chiffres ASCII pour agency_id ; ajoutez si nécessaire un identifiant de branche non vide après un underscore.
 fr	JPN_033	GTFS-JP : espace de noms jp réservé utilisé par un fichier ou champ personnalisé	Un fichier ou champ personnalisé utilise l’espace de noms réservé par GTFS-JP : « custom_jp.txt ».	Renommez le fichier ou le champ personnalisé afin de ne pas utiliser le préfixe ou suffixe jp réservé par GTFS-JP.
+fr	LIC_001	Licence manquante	Les deux champs de licence de cette ligne sont vides.	Renseignez un identifiant SPDX ou une URL de licence personnalisée.
+fr	LIC_002	Deux licences indiquées	Les deux champs de licence de cette ligne sont remplis.	Conservez un seul champ de licence.
+fr	LIC_003	Table sous licence inconnue	Le nom ne correspond à aucun fichier GTFS connu.	Utilisez le nom du fichier GTFS sans extension .txt.
+fr	LIC_004	Table sous licence en double	Plusieurs lignes de licence désignent la même table.	Gardez une seule ligne par table.
+fr	LIC_005	Table sous licence absente	La table indiquée dans licenses.txt est absente du flux.	Retirez la ligne ou ajoutez la table.
+fr	LIC_006	Licence du flux absente	Seules des licences propres aux tables sont indiquées.	Ajoutez une ligne avec licensed_table_name vide.
+fr	LIC_007	Identifiant SPDX absent de la liste	Cet identifiant ne figure pas dans la liste SPDX 3.29.0.	Choisissez un identifiant listé ou indiquez une URL de licence personnalisée.
+fr	LIC_008	Noms de table en conflit	Deux noms ne diffèrent que par la casse ou un alias de locations.	Unifiez le nom et retirez la ligne en double.
+fr	LIC_009	URL de licence invalide	La licence personnalisée ne contient pas une URL valide.	Utilisez une URL http ou https valide.
 fr	LOC_001	Type de géométrie inconnu ou invalide dans locations.geojson	Type de géométrie invalide dans locations.geojson : « Point ».	Assurez-vous que locations.geojson ne contient que des géométries Polygon ou MultiPolygon.
 fr	LOC_002	L’objet Feature a une géométrie nulle ou absente	L’objet Feature  de locations.geojson a une géométrie nulle ou absente.	Ajoutez une géométrie Polygon ou MultiPolygon valide à chaque objet Feature de locations.geojson.
 fr	LOC_003	L’objet Feature n’a pas la propriété obligatoire « id »	L’objet Feature  de locations.geojson n’a pas la propriété obligatoire « id ».	Ajoutez à chaque objet Feature une propriété « id » unique correspondant au location_id référencé dans stop_times.txt.
@@ -3206,6 +3242,7 @@ ja	ARC_006	オプションのGTFSファイルが存在	オプションのGTFSフ
 ja	ARC_006	オプションのGTFSファイルが存在	オプションのGTFSファイルが存在します：'feed_info.txt'。	情報通知のため対応不要です。
 ja	ARC_006	オプションのGTFSファイルが存在	オプションのGTFSファイルが存在します：'frequencies.txt'。	情報通知のため対応不要です。
 ja	ARC_006	オプションのGTFSファイルが存在	オプションのGTFSファイルが存在します：'levels.txt'。	情報通知のため対応不要です。
+ja	ARC_006	オプションのGTFSファイルが存在	オプションのGTFSファイルが存在します：'licenses.txt'。	情報通知のため対応不要です。
 ja	ARC_006	オプションのGTFSファイルが存在	オプションのGTFSファイルが存在します：'location_group_stops.txt'。	情報通知のため対応不要です。
 ja	ARC_006	オプションのGTFSファイルが存在	オプションのGTFSファイルが存在します：'location_groups.txt'。	情報通知のため対応不要です。
 ja	ARC_006	オプションのGTFSファイルが存在	オプションのGTFSファイルが存在します：'networks.txt'。	情報通知のため対応不要です。
@@ -3372,6 +3409,14 @@ ja	ARC_011	ファイルサイズ（情報）	ファイル'levels.txt'：28 bytes
 ja	ARC_011	ファイルサイズ（情報）	ファイル'levels.txt'：31 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'levels.txt'：326 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'levels.txt'：44 bytes。	情報通知のため対応不要です。
+ja	ARC_011	ファイルサイズ（情報）	ファイル'licenses.txt'：64 bytes。	情報通知のため対応不要です。
+ja	ARC_011	ファイルサイズ（情報）	ファイル'licenses.txt'：67 bytes。	情報通知のため対応不要です。
+ja	ARC_011	ファイルサイズ（情報）	ファイル'licenses.txt'：69 bytes。	情報通知のため対応不要です。
+ja	ARC_011	ファイルサイズ（情報）	ファイル'licenses.txt'：70 bytes。	情報通知のため対応不要です。
+ja	ARC_011	ファイルサイズ（情報）	ファイル'licenses.txt'：71 bytes。	情報通知のため対応不要です。
+ja	ARC_011	ファイルサイズ（情報）	ファイル'licenses.txt'：76 bytes。	情報通知のため対応不要です。
+ja	ARC_011	ファイルサイズ（情報）	ファイル'licenses.txt'：83 bytes。	情報通知のため対応不要です。
+ja	ARC_011	ファイルサイズ（情報）	ファイル'licenses.txt'：88 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'location_group_stops.txt'：30 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'location_group_stops.txt'：31 bytes。	情報通知のため対応不要です。
 ja	ARC_011	ファイルサイズ（情報）	ファイル'location_group_stops.txt'：35 bytes。	情報通知のため対応不要です。
@@ -4075,6 +4120,15 @@ ja	JPN_031	GTFS-JP：ゾーン運賃の対象停留所に zone_id がない	停�
 ja	JPN_032	GTFS-JP V3：agency_idが法人番号形式ではない	GTFS-JP V3：agency_id「1」は13桁の法人番号形式ではありません。	agency_idには13桁のASCII数字を使用し、必要な場合のみアンダースコアと空でない枝番号を追加してください。
 ja	JPN_032	GTFS-JP V3：agency_idが法人番号形式ではない	GTFS-JP V3：agency_id「A-1」は13桁の法人番号形式ではありません。	agency_idには13桁のASCII数字を使用し、必要な場合のみアンダースコアと空でない枝番号を追加してください。
 ja	JPN_033	GTFS-JP：カスタムファイルまたはフィールドで予約済みjp名前空間を使用	カスタムファイルまたはフィールドでGTFS-JP予約名前空間「custom_jp.txt」が使用されています。	GTFS-JPで予約されているjpの接頭辞または接尾辞を使わない名前に変更してください。
+ja	LIC_001	ライセンス情報がありません	ライセンスの二つの欄がどちらも空です。	SPDX IDまたは独自ライセンスURLの一方を入力してください。
+ja	LIC_002	ライセンス情報が重複	ライセンスの二つの欄が両方入力されています。	一方の欄だけを残してください。
+ja	LIC_003	不明な対象ファイル	指定された名前は既知のGTFSファイルではありません。	.txt拡張子を除いたGTFSファイル名を使用してください。
+ja	LIC_004	対象ファイルが重複	同じファイルに複数のライセンス行があります。	ファイルごとに一行だけ残してください。
+ja	LIC_005	対象ファイルがありません	ライセンスに指定したファイルがフィードにありません。	行を削除するかファイルを追加してください。
+ja	LIC_006	フィード全体のライセンスがありません	個別ファイルのライセンスだけが記載されています。	licensed_table_nameを空にした行を追加してください。
+ja	LIC_007	SPDXライセンスIDが一覧にありません	このIDはSPDXライセンス一覧3.29.0にありません。	一覧にあるIDを選ぶか、独自ライセンスのURLを入力してください。
+ja	LIC_008	対象ファイル名が衝突	大文字小文字またはlocationsの別名だけが異なる行があります。	名前を統一し重複行を削除してください。
+ja	LIC_009	独自ライセンスURLが無効	独自ライセンスのURLが有効ではありません。	有効なhttpまたはhttps URLを入力してください。
 ja	LOC_001	locations.geojsonのジオメトリタイプが無効	locations.geojsonのジオメトリタイプが無効です：'Point'。	locations.geojsonにPolygonまたはMultiPolygonのフィーチャーのみが含まれていることを確認してください。
 ja	LOC_002	フィーチャーのgeometryがnullまたは欠如	locations.geojsonのフィーチャーのgeometryがnullまたは欠如しています。	各フィーチャーに有効なPolygonまたはMultiPolygonジオメトリを追加してください。
 ja	LOC_003	フィーチャーに'id'プロパティが不足	locations.geojsonのフィーチャーに必須の'id'プロパティがありません。	stop_times.txtのlocation_idで参照される一意の"id"プロパティを各フィーチャーに追加してください。
@@ -4715,6 +4769,7 @@ tr	ARC_006	İsteğe bağlı GTFS dosyası mevcut	İsteğe bağlı dosya mevcut: 
 tr	ARC_006	İsteğe bağlı GTFS dosyası mevcut	İsteğe bağlı dosya mevcut: 'feed_info.txt'.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_006	İsteğe bağlı GTFS dosyası mevcut	İsteğe bağlı dosya mevcut: 'frequencies.txt'.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_006	İsteğe bağlı GTFS dosyası mevcut	İsteğe bağlı dosya mevcut: 'levels.txt'.	Bilgi amaçlı; düzeltme gerekmez.
+tr	ARC_006	İsteğe bağlı GTFS dosyası mevcut	İsteğe bağlı dosya mevcut: 'licenses.txt'.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_006	İsteğe bağlı GTFS dosyası mevcut	İsteğe bağlı dosya mevcut: 'location_group_stops.txt'.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_006	İsteğe bağlı GTFS dosyası mevcut	İsteğe bağlı dosya mevcut: 'location_groups.txt'.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_006	İsteğe bağlı GTFS dosyası mevcut	İsteğe bağlı dosya mevcut: 'networks.txt'.	Bilgi amaçlı; düzeltme gerekmez.
@@ -4881,6 +4936,14 @@ tr	ARC_011	Dosya boyutu (bilgi)	'levels.txt' boyutu: 28 bayt.	Bilgi amaçlı; d�
 tr	ARC_011	Dosya boyutu (bilgi)	'levels.txt' boyutu: 31 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'levels.txt' boyutu: 326 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'levels.txt' boyutu: 44 bayt.	Bilgi amaçlı; düzeltme gerekmez.
+tr	ARC_011	Dosya boyutu (bilgi)	'licenses.txt' boyutu: 64 bayt.	Bilgi amaçlı; düzeltme gerekmez.
+tr	ARC_011	Dosya boyutu (bilgi)	'licenses.txt' boyutu: 67 bayt.	Bilgi amaçlı; düzeltme gerekmez.
+tr	ARC_011	Dosya boyutu (bilgi)	'licenses.txt' boyutu: 69 bayt.	Bilgi amaçlı; düzeltme gerekmez.
+tr	ARC_011	Dosya boyutu (bilgi)	'licenses.txt' boyutu: 70 bayt.	Bilgi amaçlı; düzeltme gerekmez.
+tr	ARC_011	Dosya boyutu (bilgi)	'licenses.txt' boyutu: 71 bayt.	Bilgi amaçlı; düzeltme gerekmez.
+tr	ARC_011	Dosya boyutu (bilgi)	'licenses.txt' boyutu: 76 bayt.	Bilgi amaçlı; düzeltme gerekmez.
+tr	ARC_011	Dosya boyutu (bilgi)	'licenses.txt' boyutu: 83 bayt.	Bilgi amaçlı; düzeltme gerekmez.
+tr	ARC_011	Dosya boyutu (bilgi)	'licenses.txt' boyutu: 88 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'location_group_stops.txt' boyutu: 30 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'location_group_stops.txt' boyutu: 31 bayt.	Bilgi amaçlı; düzeltme gerekmez.
 tr	ARC_011	Dosya boyutu (bilgi)	'location_group_stops.txt' boyutu: 35 bayt.	Bilgi amaçlı; düzeltme gerekmez.
@@ -5635,6 +5698,15 @@ tr	JPN_031	GTFS-JP: bölgeye bağlı ücret kullanılan durakta zone_id eksik	GT
 tr	JPN_032	GTFS-JP V3: agency_id Corporate Number biçiminde değil	GTFS-JP V3'te agency_id法人番号 biçiminde olmalı: '1' 13 haneli ASCII gövdeyi karşılamıyor.	agency_id'yi 13 haneli ASCII Corporate Number olarak yazın; gerekiyorsa '_' ile boş olmayan dal kimliği ekleyin.
 tr	JPN_032	GTFS-JP V3: agency_id Corporate Number biçiminde değil	GTFS-JP V3'te agency_id法人番号 biçiminde olmalı: 'A-1' 13 haneli ASCII gövdeyi karşılamıyor.	agency_id'yi 13 haneli ASCII Corporate Number olarak yazın; gerekiyorsa '_' ile boş olmayan dal kimliği ekleyin.
 tr	JPN_033	GTFS-JP: özel dosya veya alan adında ayrılmış jp ad alanı kullanılmış	GTFS-JP reserved namespace: custom file 'custom_jp.txt' uses the reserved suffix.	Özel dosyayı GTFS-JP'ye ayrılmış soneki kullanmayacak şekilde yeniden adlandırın.
+tr	LIC_001	Lisans değeri eksik	Bu lisans satırında iki lisans alanı da boş.	SPDX kimliği veya özel lisans URL alanlarından birini doldurun.
+tr	LIC_002	İki lisans değeri girilmiş	Bu lisans satırında iki lisans alanı da dolu.	Lisans alanlarından yalnızca birini bırakın.
+tr	LIC_003	Lisanslanan tablo adı bilinmiyor	licensed_table_name alanındaki stops.txt değeri .txt uzantısı içeriyor.	GTFS dosya adını .txt uzantısı olmadan yazın.
+tr	LIC_004	Lisanslanan tablo tekrarlanıyor	Aynı tablo için birden fazla lisans satırı var.	Her tablo için tek lisans satırı bırakın.
+tr	LIC_005	Lisanslanan tablo feed içinde yok	Lisans satırındaki tablo feed içinde bulunmuyor.	Kullanılmayan satırı kaldırın veya tabloyu feed içine ekleyin.
+tr	LIC_006	Feed lisansı eksik	Yalnızca tabloya özel lisanslar yazılmış.	Feed geneli lisans için licensed_table_name boş olan bir satır ekleyin.
+tr	LIC_007	SPDX lisans kimliği listede yok	Lisans kimliği SPDX 3.29.0 listesinde bulunmuyor.	Listedeki bir kimliği seçin veya özel lisans URL'si girin.
+tr	LIC_008	Tablo adı yazımı çakışıyor	İki tablo adı yalnızca harf büyüklüğünde veya locations yazımında farklı.	Tek bir yazım kullanın ve tekrar satırını kaldırın.
+tr	LIC_009	Özel lisans URL geçersiz	Özel lisans adresi geçerli bir web adresi değil.	Geçerli bir http veya https URL girin.
 tr	LOC_001	locations.geojson'da bilinmeyen veya geçersiz geometri tipi	'locations.geojson' özellik 1 geçersiz geometri tipi: 'Point'. GTFS Flex yalnızca Polygon ve MultiPolygon destekler.	locations.geojson'da yalnızca Polygon ve MultiPolygon geometrileri kullanın.
 tr	LOC_002	Feature'da geometry null veya eksik	'locations.geojson' özellik 1 için geometry null veya eksik — GTFS Flex gerektiriyor.	Her feature için geçerli bir Polygon veya MultiPolygon geometrisi tanımlayın.
 tr	LOC_003	Feature'da 'id' property eksik	'locations.geojson' özellik 1 için 'id' property eksik — stop_times çapraz referansı için zorunlu.	Her feature'a stop_times.txt'deki location_id değeriyle eşleşen benzersiz bir 'id' ekleyin.

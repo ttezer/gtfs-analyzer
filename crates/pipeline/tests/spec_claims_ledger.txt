@@ -23,3 +23,5 @@
 # Yeniden üretmek: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \
 #   spec_claims_without_a_provision_match_ledger
 
+# Verified against google/transit#607: licensed_table_name is the licenses.txt primary key.
+licenses.txt:licensed_table_name  LIC_004

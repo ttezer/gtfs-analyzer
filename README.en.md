@@ -4,7 +4,7 @@
 
 [![Open App](https://img.shields.io/badge/Open%20App-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20100%25-c8102e?style=flat)](https://www.gtfs.jp/)
-[![Rule count](https://img.shields.io/badge/rules-621-blue?style=flat)](RULES.en.md)
+[![Rule count](https://img.shields.io/badge/rules-630-blue?style=flat)](RULES.en.md)
 ![GTFS Spec coverage](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
 [![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
@@ -12,7 +12,7 @@
 [![Claude plugin](https://img.shields.io/badge/Claude%20plugin-GTFS%20Validator-d97757?style=flat&logo=claude&logoColor=white)](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)
 [![License MIT](https://img.shields.io/badge/license-MIT-yellow?style=flat)](LICENSE)
 
-**GTFS Validator & Analyzer** is an open-source **GTFS validator** that checks GTFS files and analyzes feed quality. A `.zip` uploaded to the web app is never sent to a server; validation runs on the user's device with **WebAssembly**. The same **621-rule** engine is reachable in eight ways:
+**GTFS Validator & Analyzer** is an open-source **GTFS validator** that checks GTFS files and analyzes feed quality. A `.zip` uploaded to the web app is never sent to a server; validation runs on the user's device with **WebAssembly**. The same **630-rule** engine is reachable in eight ways:
 
 | Path | Best for |
 |---|---|
@@ -27,7 +27,7 @@
 
 ## Key Features
 
-- **621 validation and analysis rules** in 38 groups; **97.2%** of the measurable provisions of the GTFS specification are covered, and **all 300 atoms** of the field inventory carry at least one Spec anchor. Full list: [`RULES.en.md`](RULES.en.md).
+- **630 validation and analysis rules** in 39 groups; **97.2%** of the measurable provisions of the GTFS specification are covered, and **all 300 atoms** of the field inventory carry at least one Spec anchor. Full list: [`RULES.en.md`](RULES.en.md).
 - **Runs locally:** the browser, the CLI, the libraries and the npm/Python packages process the feed on your own device.
 - **Quality and operations beyond Spec compliance:** anomalous speed segments, frequency inconsistencies, isolated stops, service gaps, network topology.
 - **Four classes, five severity levels:** every finding is tagged Spec · Interop · Quality · Analytics and Critical → Info, so thousands of findings can be filtered and prioritized.
@@ -74,7 +74,7 @@ Every release is run against **MobilityDatabase's entire GTFS Schedule catalogue
 | Analysis completed | **4,449** (no failures) |
 | Partial report (broken/missing file skipped safely) | 76 |
 | Countries | 95 |
-| Rules triggered | 423 / 621 |
+| Rules triggered | 423 / 621 (previous measurement) |
 | Median time per feed | **0.05 s** (p90 1.1 s) |
 | Median peak memory per feed | **15 MB** (p90 149 MB) |
 | Total time | 86.7 min |
@@ -120,7 +120,7 @@ The tables inside these feeds are huge as well; every row is read and checked:
 | Great Britain-wide (BODS, `mdb-2014`) | **69.5 million** | 1.76 million | **89.7 million** | 278 k | — | 6 min 36 s |
 | Czechia (`mdb-2904`) | 9.6 million | 494 k | — | **4.4 million** | — | 58 s |
 
-Buenos Aires' 29.3 million `stop_times` rows are validated against all 621 rules in 53 seconds: about **548,000 rows per second**.
+A prior 621-rule build validated Buenos Aires' 29.3 million `stop_times` rows in 53 seconds: about **548,000 rows per second**.
 
 The Great Britain-wide BODS feed, the Germany-wide DELFI feed and two regional Nouvelle-Aquitaine feeds (77 and 83 MB) are among the feeds MobilityData's `gtfs-validator` stopped with an internal error in this run; GTFS Analyzer validated all four to the end.
 
@@ -329,6 +329,7 @@ Each rule is coded as `GROUP_NNN`. Groups follow GTFS file and component boundar
 | **FAR** | `fare_attributes.txt` | Fare definitions, currency, and payment method |
 | **FRL** | `fare_rules.txt` | Route- and zone-based fare rules |
 | **FIN** | `feed_info.txt` | Feed publisher information, language, validity dates |
+| **LIC** | `licenses.txt` | Feed-wide and table-specific license declarations |
 | **PTH** | `pathways.txt` | In-station pathway network and accessibility connections |
 | **LVL** | `levels.txt` | Station floors and elevator/stairway relationships |
 | **TRN** | `translations.txt` | Field translations and language consistency |
@@ -417,7 +418,7 @@ gtfs-validator/
 │   ├── config/     # Configuration types
 │   ├── core/       # Shared data structures and result model
 │   ├── pipeline/   # Validation pipeline (k1–k7 stages)
-│   ├── rules/      # Rule definitions and registry (621 rules, 38 groups)
+│   ├── rules/      # Rule definitions and registry (630 rules, 39 groups)
 │   └── wasm/       # wasm-bindgen WASM output
 ├── spec-audit/     # Field table generated from the spec (anchor gate)
 └── ui/             # Vite + TypeScript frontend

@@ -1365,6 +1365,51 @@
       "what": "Un nombre de archivo o campo personalizado usa el prefijo o sufijo \"jp\" reservado para GTFS-JP.",
       "action": "Cambie el nombre del archivo o campo personalizado para que no incluya \"jp\"."
     },
+    "LIC_001": {
+      "title": "Falta la licencia",
+      "what": "Los dos campos de licencia de esta fila están vacíos.",
+      "action": "Indique un ID SPDX o una URL de licencia personalizada."
+    },
+    "LIC_002": {
+      "title": "Hay dos licencias",
+      "what": "Los dos campos de licencia de esta fila están completos.",
+      "action": "Conserve solo un campo de licencia."
+    },
+    "LIC_003": {
+      "title": "Tabla desconocida",
+      "what": "El nombre no corresponde a un archivo GTFS conocido.",
+      "action": "Use el nombre del archivo sin la extensión .txt."
+    },
+    "LIC_004": {
+      "title": "Tabla duplicada",
+      "what": "La misma tabla tiene más de una fila de licencia.",
+      "action": "Deje una sola fila por tabla."
+    },
+    "LIC_005": {
+      "title": "Tabla ausente",
+      "what": "La tabla indicada en licenses.txt no está en el feed.",
+      "action": "Quite la fila o incluya la tabla."
+    },
+    "LIC_006": {
+      "title": "Falta la licencia del feed",
+      "what": "Solo se indican licencias para tablas concretas.",
+      "action": "Añada una fila con licensed_table_name vacío."
+    },
+    "LIC_007": {
+      "title": "ID SPDX ausente de la lista",
+      "what": "El identificador no figura en la lista SPDX 3.29.0.",
+      "action": "Elija un ID de la lista o indique una URL de licencia personalizada."
+    },
+    "LIC_008": {
+      "title": "Nombres de tabla en conflicto",
+      "what": "Dos nombres difieren solo en mayúsculas o en el alias locations.",
+      "action": "Unifique el nombre y quite la fila duplicada."
+    },
+    "LIC_009": {
+      "title": "URL de licencia no válida",
+      "what": "La URL de la licencia personalizada no es válida.",
+      "action": "Use una URL http o https válida."
+    },
     "LOC_001": {
       "title": "Forma del área de servicio no válida",
       "what": "Una de las áreas de servicio a demanda no está dibujada como un área (polígono).",

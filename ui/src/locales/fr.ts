@@ -49,6 +49,33 @@ const fr: LocaleShape = {
     'producer.planner_verdict': "Aucun constat ne bloque la publication ; {n} sujets ci-dessous.",
     'producer.where_to_fix': 'Où corriger',
     'producer.no_findings': 'Aucun sujet à afficher.',
+    "producer.card.LIC_001.title": "Licence manquante",
+    "producer.card.LIC_001.what": "Les deux champs de licence de cette ligne sont vides.",
+    "producer.card.LIC_001.action": "Renseignez un identifiant SPDX ou une URL de licence personnalisée.",
+    "producer.card.LIC_002.title": "Deux licences indiquées",
+    "producer.card.LIC_002.what": "Les deux champs de licence de cette ligne sont remplis.",
+    "producer.card.LIC_002.action": "Conservez un seul champ de licence.",
+    "producer.card.LIC_003.title": "Table sous licence inconnue",
+    "producer.card.LIC_003.what": "Le nom ne correspond à aucun fichier GTFS connu.",
+    "producer.card.LIC_003.action": "Utilisez le nom du fichier GTFS sans extension .txt.",
+    "producer.card.LIC_004.title": "Table sous licence en double",
+    "producer.card.LIC_004.what": "Plusieurs lignes de licence désignent la même table.",
+    "producer.card.LIC_004.action": "Gardez une seule ligne par table.",
+    "producer.card.LIC_005.title": "Table sous licence absente",
+    "producer.card.LIC_005.what": "La table indiquée dans licenses.txt est absente du flux.",
+    "producer.card.LIC_005.action": "Retirez la ligne ou ajoutez la table.",
+    "producer.card.LIC_006.title": "Licence du flux absente",
+    "producer.card.LIC_006.what": "Seules des licences propres aux tables sont indiquées.",
+    "producer.card.LIC_006.action": "Ajoutez une ligne avec licensed_table_name vide.",
+    "producer.card.LIC_007.title": "Identifiant SPDX absent de la liste",
+    "producer.card.LIC_007.what": "Cet identifiant ne figure pas dans la liste SPDX 3.29.0.",
+    "producer.card.LIC_007.action": "Choisissez un identifiant listé ou indiquez une URL de licence personnalisée.",
+    "producer.card.LIC_008.title": "Noms de table en conflit",
+    "producer.card.LIC_008.what": "Deux noms ne diffèrent que par la casse ou un alias de locations.",
+    "producer.card.LIC_008.action": "Unifiez le nom et retirez la ligne en double.",
+    "producer.card.LIC_009.title": "URL de licence invalide",
+    "producer.card.LIC_009.what": "La licence personnalisée ne contient pas une URL valide.",
+    "producer.card.LIC_009.action": "Utilisez une URL http ou https valide.",
     // >>> planlamacı kural metinleri (üretilmiş; kaynak notgit/PLANLAMACI_TERMINOLOJISI_2026-10-25.md)
     'producer.card.AGN_002.title': "L’exploitant n’a pas de nom",
     'producer.card.AGN_002.what': "Un exploitant de la liste n’a pas de nom ; les voyageurs ne voient pas qui assure le service.",
@@ -3703,6 +3730,16 @@ const fr: LocaleShape = {
   } as Record<string, string>,
 
   ruleMessages: {
+    "LIC_001": "Les deux champs de licence de cette ligne sont vides.",
+    "LIC_002": "Les deux champs de licence de cette ligne sont remplis.",
+    "LIC_003": "Le nom ne correspond à aucun fichier GTFS connu.",
+    "LIC_004": "Plusieurs lignes de licence désignent la même table.",
+    "LIC_005": "La table indiquée dans licenses.txt est absente du flux.",
+    "LIC_006": "Seules des licences propres aux tables sont indiquées.",
+    "LIC_007": "Cet identifiant ne figure pas dans la liste SPDX 3.29.0.",
+    "LIC_008": "Deux noms ne diffèrent que par la casse ou un alias de locations.",
+    "LIC_009": "La licence personnalisée ne contient pas une URL valide.",
+
     // ARC
     'ARC_001': 'Impossible d’ouvrir l’archive ZIP.',
     'ARC_002': 'Le fichier « {entity_id} » est illisible en UTF-8.',
@@ -4395,6 +4432,16 @@ const fr: LocaleShape = {
   } as Record<string, string>,
 
   ruleRemediations: {
+    "LIC_001": "Renseignez un identifiant SPDX ou une URL de licence personnalisée.",
+    "LIC_002": "Conservez un seul champ de licence.",
+    "LIC_003": "Utilisez le nom du fichier GTFS sans extension .txt.",
+    "LIC_004": "Gardez une seule ligne par table.",
+    "LIC_005": "Retirez la ligne ou ajoutez la table.",
+    "LIC_006": "Ajoutez une ligne avec licensed_table_name vide.",
+    "LIC_007": "Choisissez un identifiant listé ou indiquez une URL de licence personnalisée.",
+    "LIC_008": "Unifiez le nom et retirez la ligne en double.",
+    "LIC_009": "Utilisez une URL http ou https valide.",
+
     // ARC
     'ARC_020': 'Ajoutez shapes.txt pour la géométrie des lignes et feed_info.txt pour les informations sur l’éditeur.',
     // CAL
@@ -5095,6 +5142,16 @@ const fr: LocaleShape = {
   } as Record<string, string>,
 
   ruleTitles: {
+    "LIC_001": "Licence manquante",
+    "LIC_002": "Deux licences indiquées",
+    "LIC_003": "Table sous licence inconnue",
+    "LIC_004": "Table sous licence en double",
+    "LIC_005": "Table sous licence absente",
+    "LIC_006": "Licence du flux absente",
+    "LIC_007": "Identifiant SPDX absent de la liste",
+    "LIC_008": "Noms de table en conflit",
+    "LIC_009": "URL de licence invalide",
+
     // ARC
     'ARC_001': 'Impossible d’ouvrir l’archive ZIP',
     'ARC_002': 'Fichier illisible en UTF-8',

@@ -13,6 +13,7 @@ pub mod k6_analytics;
 pub mod k7_reporting;
 pub(crate) mod notice_factory;
 pub mod recovery;
+pub(crate) mod spdx_ids;
 pub(crate) mod timing;
 pub mod whitespace_suppression;
 

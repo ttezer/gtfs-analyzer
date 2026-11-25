@@ -1,5 +1,14 @@
 {
   "messages": {
+    "LIC_001": "Les deux champs de licence de cette ligne sont vides.",
+    "LIC_002": "Les deux champs de licence de cette ligne sont remplis.",
+    "LIC_003": "Le nom ne correspond à aucun fichier GTFS connu.",
+    "LIC_004": "Plusieurs lignes de licence désignent la même table.",
+    "LIC_005": "La table indiquée dans licenses.txt est absente du flux.",
+    "LIC_006": "Seules des licences propres aux tables sont indiquées.",
+    "LIC_007": "Cet identifiant ne figure pas dans la liste SPDX 3.29.0.",
+    "LIC_008": "Deux noms ne diffèrent que par la casse ou un alias de locations.",
+    "LIC_009": "La licence personnalisée ne contient pas une URL valide.",
     "ARC_001": "Impossible d’ouvrir l’archive ZIP.",
     "ARC_002": "Le fichier « {entity_id} » est illisible en UTF-8.",
     "ARC_003": "Le fichier « {entity_id} » comporte une erreur d’encodage UTF-8.",
@@ -654,6 +663,15 @@
     "XFL_034": "stop_id est obligatoire dans location_group_stops.txt."
   },
   "remediations": {
+    "LIC_001": "Renseignez un identifiant SPDX ou une URL de licence personnalisée.",
+    "LIC_002": "Conservez un seul champ de licence.",
+    "LIC_003": "Utilisez le nom du fichier GTFS sans extension .txt.",
+    "LIC_004": "Gardez une seule ligne par table.",
+    "LIC_005": "Retirez la ligne ou ajoutez la table.",
+    "LIC_006": "Ajoutez une ligne avec licensed_table_name vide.",
+    "LIC_007": "Choisissez un identifiant listé ou indiquez une URL de licence personnalisée.",
+    "LIC_008": "Unifiez le nom et retirez la ligne en double.",
+    "LIC_009": "Utilisez une URL http ou https valide.",
     "ARC_020": "Ajoutez shapes.txt pour la géométrie des lignes et feed_info.txt pour les informations sur l’éditeur.",
     "CAL_007": "Si l’interruption est intentionnelle, documentez-la avec calendar_dates ; sinon corrigez le calendrier.",
     "CAL_008": "Prévoyez de mettre à jour le jeu de données avant son expiration.",
@@ -1291,6 +1309,15 @@
     "XFL_034": "Rattachez l’enregistrement à un stop_id."
   },
   "titles": {
+    "LIC_001": "Licence manquante",
+    "LIC_002": "Deux licences indiquées",
+    "LIC_003": "Table sous licence inconnue",
+    "LIC_004": "Table sous licence en double",
+    "LIC_005": "Table sous licence absente",
+    "LIC_006": "Licence du flux absente",
+    "LIC_007": "Identifiant SPDX absent de la liste",
+    "LIC_008": "Noms de table en conflit",
+    "LIC_009": "URL de licence invalide",
     "ARC_001": "Impossible d’ouvrir l’archive ZIP",
     "ARC_002": "Fichier illisible en UTF-8",
     "ARC_003": "Erreur d’encodage UTF-8 dans un fichier optionnel",
@@ -3303,6 +3330,51 @@
       "title": "Nom personnalisé utilisant l’espace « jp »",
       "what": "Un fichier ou champ personnalisé utilise le préfixe ou suffixe « jp » réservé à GTFS-JP.",
       "action": "Renommez-le sans « jp »."
+    },
+    "LIC_001": {
+      "title": "Licence manquante",
+      "what": "Les deux champs de licence de cette ligne sont vides.",
+      "action": "Renseignez un identifiant SPDX ou une URL de licence personnalisée."
+    },
+    "LIC_002": {
+      "title": "Deux licences indiquées",
+      "what": "Les deux champs de licence de cette ligne sont remplis.",
+      "action": "Conservez un seul champ de licence."
+    },
+    "LIC_003": {
+      "title": "Table sous licence inconnue",
+      "what": "Le nom ne correspond à aucun fichier GTFS connu.",
+      "action": "Utilisez le nom du fichier GTFS sans extension .txt."
+    },
+    "LIC_004": {
+      "title": "Table sous licence en double",
+      "what": "Plusieurs lignes de licence désignent la même table.",
+      "action": "Gardez une seule ligne par table."
+    },
+    "LIC_005": {
+      "title": "Table sous licence absente",
+      "what": "La table indiquée dans licenses.txt est absente du flux.",
+      "action": "Retirez la ligne ou ajoutez la table."
+    },
+    "LIC_006": {
+      "title": "Licence du flux absente",
+      "what": "Seules des licences propres aux tables sont indiquées.",
+      "action": "Ajoutez une ligne avec licensed_table_name vide."
+    },
+    "LIC_007": {
+      "title": "Identifiant SPDX absent de la liste",
+      "what": "Cet identifiant ne figure pas dans la liste SPDX 3.29.0.",
+      "action": "Choisissez un identifiant listé ou indiquez une URL de licence personnalisée."
+    },
+    "LIC_008": {
+      "title": "Noms de table en conflit",
+      "what": "Deux noms ne diffèrent que par la casse ou un alias de locations.",
+      "action": "Unifiez le nom et retirez la ligne en double."
+    },
+    "LIC_009": {
+      "title": "URL de licence invalide",
+      "what": "La licence personnalisée ne contient pas une URL valide.",
+      "action": "Utilisez une URL http ou https valide."
     },
     "LOC_001": {
       "title": "Forme de zone de service invalide",

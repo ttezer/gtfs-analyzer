@@ -203,6 +203,24 @@ def main() -> int:
                 "primary_key": primary_key_of(section),
                 "fields": fields,
             }
+    # google/transit#607 merged on 2026-11-24. The published gtfs.org HTML can lag
+    # behind the specification repository, so retain this adopted file until it appears there.
+    if "licenses.txt" not in table:
+        license_table = {
+            "presence": "Optional",
+            "primary_key": ["licensed_table_name"],
+            "fields": [
+                {"name": "licensed_table_name", "type": "Text", "presence": "Optional"},
+                {"name": "license_spdx_id", "type": "SPDX ID", "presence": "Conditionally Forbidden"},
+                {"name": "custom_license_url", "type": "URL", "presence": "Conditionally Forbidden"},
+            ],
+        }
+        ordered = {}
+        for name, fields in table.items():
+            ordered[name] = fields
+            if name == "feed_info.txt":
+                ordered["licenses.txt"] = license_table
+        table = ordered
     if len(table) < 25:
         print(f"ERROR: found only {len(table)} files; the spec layout may have changed.",
               file=sys.stderr)

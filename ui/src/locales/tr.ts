@@ -47,6 +47,33 @@ const tr = {
     'producer.planner_verdict': "Yayını engelleyen bulgu yok; {n} konu aşağıda.",
     'producer.where_to_fix': 'Nerede düzeltirsin',
     'producer.no_findings': 'Gösterilecek konu yok.',
+    "producer.card.LIC_001.title": "Lisans değeri eksik",
+    "producer.card.LIC_001.what": "Bu lisans satırında iki lisans alanı da boş.",
+    "producer.card.LIC_001.action": "SPDX kimliği veya özel lisans URL alanlarından birini doldurun.",
+    "producer.card.LIC_002.title": "İki lisans değeri girilmiş",
+    "producer.card.LIC_002.what": "Bu lisans satırında iki lisans alanı da dolu.",
+    "producer.card.LIC_002.action": "Lisans alanlarından yalnızca birini bırakın.",
+    "producer.card.LIC_003.title": "Lisanslanan tablo adı bilinmiyor",
+    "producer.card.LIC_003.what": "Tablo adı bilinen bir GTFS dosyasını göstermiyor.",
+    "producer.card.LIC_003.action": "GTFS dosya adını .txt uzantısı olmadan yazın.",
+    "producer.card.LIC_004.title": "Lisanslanan tablo tekrarlanıyor",
+    "producer.card.LIC_004.what": "Aynı tablo için birden fazla lisans satırı var.",
+    "producer.card.LIC_004.action": "Her tablo için tek lisans satırı bırakın.",
+    "producer.card.LIC_005.title": "Lisanslanan tablo feed içinde yok",
+    "producer.card.LIC_005.what": "Lisans satırındaki tablo feed içinde bulunmuyor.",
+    "producer.card.LIC_005.action": "Kullanılmayan satırı kaldırın veya tabloyu feed içine ekleyin.",
+    "producer.card.LIC_006.title": "Feed lisansı eksik",
+    "producer.card.LIC_006.what": "Yalnızca tabloya özel lisanslar yazılmış.",
+    "producer.card.LIC_006.action": "Feed geneli lisans için licensed_table_name boş olan bir satır ekleyin.",
+    "producer.card.LIC_007.title": "SPDX lisans kimliği listede yok",
+    "producer.card.LIC_007.what": "Lisans kimliği SPDX 3.29.0 listesinde bulunmuyor.",
+    "producer.card.LIC_007.action": "Listedeki bir kimliği seçin veya özel lisans URL'si girin.",
+    "producer.card.LIC_008.title": "Tablo adı yazımı çakışıyor",
+    "producer.card.LIC_008.what": "İki tablo adı yalnızca harf büyüklüğünde veya locations yazımında farklı.",
+    "producer.card.LIC_008.action": "Tek bir yazım kullanın ve tekrar satırını kaldırın.",
+    "producer.card.LIC_009.title": "Özel lisans URL geçersiz",
+    "producer.card.LIC_009.what": "Özel lisans adresi geçerli bir web adresi değil.",
+    "producer.card.LIC_009.action": "Geçerli bir http veya https URL girin.",
     // >>> planlamacı kural metinleri (üretilmiş; kaynak notgit/PLANLAMACI_TERMINOLOJISI_2026-10-25.md)
     'producer.card.AGN_002.title': "İşletmecinin adı yok",
     'producer.card.AGN_002.what': "İşletmeci listesinde adı girilmemiş bir işletmeci var; yolcu kimin işlettiğini göremez.",
@@ -3685,6 +3712,16 @@ const tr = {
   ruleMessages: {} as Record<string, string>,
 
   ruleRemediations: {
+    "LIC_001": "SPDX kimliği veya özel lisans URL alanlarından birini doldurun.",
+    "LIC_002": "Lisans alanlarından yalnızca birini bırakın.",
+    "LIC_003": "GTFS dosya adını .txt uzantısı olmadan yazın.",
+    "LIC_004": "Her tablo için tek lisans satırı bırakın.",
+    "LIC_005": "Kullanılmayan satırı kaldırın veya tabloyu feed içine ekleyin.",
+    "LIC_006": "Feed geneli lisans için licensed_table_name boş olan bir satır ekleyin.",
+    "LIC_007": "Listedeki bir kimliği seçin veya özel lisans URL'si girin.",
+    "LIC_008": "Tek bir yazım kullanın ve tekrar satırını kaldırın.",
+    "LIC_009": "Geçerli bir http veya https URL girin.",
+
     'AGN_002': 'agency_name alanını doldurun.',
     'AGN_005': 'Tüm işleticilerde aynı IANA timezone\'u kullanın.',
     'AGN_006': 'Geçerli bir BCP-47 dil kodu kullanın (örn. tr, en-US); değerin başında veya sonunda boşluk bırakmayın.',
@@ -4210,6 +4247,16 @@ const tr = {
   } as Record<string, string>,
 
   ruleTitles: {
+    "LIC_001": "Lisans değeri eksik",
+    "LIC_002": "İki lisans değeri girilmiş",
+    "LIC_003": "Lisanslanan tablo adı bilinmiyor",
+    "LIC_004": "Lisanslanan tablo tekrarlanıyor",
+    "LIC_005": "Lisanslanan tablo feed içinde yok",
+    "LIC_006": "Feed lisansı eksik",
+    "LIC_007": "SPDX lisans kimliği listede yok",
+    "LIC_008": "Tablo adı yazımı çakışıyor",
+    "LIC_009": "Özel lisans URL geçersiz",
+
     // ARC
     'ARC_001': 'ZIP arşivi açılamadı',
     'ARC_002': 'Dosya UTF-8 ile okunamıyor',
@@ -5272,6 +5319,12 @@ export type LocaleShape = typeof tr;
  * to English (issue #201); messages built with values keep the engine's Turkish text for now.
  */
 export const trMessageTexts: Record<string, Record<string, string>> = {
+  "LIC_007": { "License identifier is not in SPDX License List 3.29.0.": "Lisans kimliği SPDX 3.29.0 listesinde bulunmuyor." },
+  "LIC_001": { "Neither license_spdx_id nor custom_license_url is set.": "Bu lisans satırında iki lisans alanı da boş." },
+  "LIC_002": { "Both license_spdx_id and custom_license_url are set.": "Bu lisans satırında iki lisans alanı da dolu." },
+  "LIC_006": { "licenses.txt has table-specific licenses but no feed-wide license.": "Yalnızca tabloya özel lisanslar yazılmış." },
+  "LIC_009": { "custom_license_url is not a valid URL.": "Özel lisans adresi geçerli bir web adresi değil." },
+
   'AGN_002': {
     'agency_name is required.': 'agency_name zorunludur.',
   },
@@ -5729,6 +5782,14 @@ export const trMessageTexts: Record<string, Record<string, string>> = {
  * message and placed into the Turkish sentence. Same matcher in Rust (`i18n::match_template`).
  */
 export const trMessageTemplates: Record<string, Record<string, string>> = {
+  "LIC_003": {
+    "'{table}' is not a known GTFS table name.": "{table} bilinen bir GTFS dosya adı değil.",
+    "licensed_table_name '{table}' includes the .txt extension.": "licensed_table_name alanındaki {table} değeri .txt uzantısı içeriyor.",
+  },
+  "LIC_004": { "licensed_table_name repeats the value on line {first}.": "Aynı tablo için birden fazla lisans satırı var." },
+  "LIC_005": { "'{filename}' is named in licenses.txt but is absent from this feed.": "Lisans satırındaki tablo feed içinde bulunmuyor." },
+  "LIC_008": { "licensed_table_name conflicts with '{first_value}' on line {first_line} when compared without case or the locations alias.": "İki tablo adı yalnızca harf büyüklüğünde veya locations yazımında farklı." },
+
   '*': {
     '\'{field}\' has a minute/second out of range: {raw}': '\'{field}\' için dakika/saniye aralığı geçersiz: {raw}',
     '\'{field}\' has an invalid day part: {raw}': '\'{field}\' gün bölümü geçersiz: {raw}',

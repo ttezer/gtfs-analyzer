@@ -4,7 +4,7 @@
 
 [![Uygulamayı Aç](https://img.shields.io/badge/Uygulamay%C4%B1%20A%C3%A7-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20%25100-c8102e?style=flat)](https://www.gtfs.jp/)
-[![Kural sayısı](https://img.shields.io/badge/kural-621-blue?style=flat)](RULES.md)
+[![Kural sayısı](https://img.shields.io/badge/kural-630-blue?style=flat)](RULES.md)
 ![GTFS Spec kapsamı](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
 [![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
@@ -13,7 +13,7 @@
 [![Claude eklentisi](https://img.shields.io/badge/Claude%20eklentisi-GTFS%20Validator-d97757?style=flat&logo=claude&logoColor=white)](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)
 [![Lisans MIT](https://img.shields.io/badge/lisans-MIT-yellow?style=flat)](LICENSE)
 
-**GTFS Validator & Analyzer**, GTFS dosyalarını doğrulayan ve feed kalitesini analiz eden açık kaynak bir **GTFS validator**'dür. Web uygulamasına yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama **WebAssembly** ile kullanıcının cihazında çalışır. Aynı **621 kurallı** motora sekiz farklı yoldan erişilir:
+**GTFS Validator & Analyzer**, GTFS dosyalarını doğrulayan ve feed kalitesini analiz eden açık kaynak bir **GTFS validator**'dür. Web uygulamasına yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama **WebAssembly** ile kullanıcının cihazında çalışır. Aynı **630 kurallı** motora sekiz farklı yoldan erişilir:
 
 | Yol | Ne için |
 |---|---|
@@ -28,7 +28,7 @@
 
 ## Önemli Özellikler
 
-- **621 doğrulama ve analiz kuralı**, 38 grupta; GTFS spesifikasyonunun ölçülebilir hükümlerinin **%97,2'si** karşılanır, alan tablosunun **300 atomunun 300'ü** en az bir Spec çapası taşır. Tam liste: [`RULES.md`](RULES.md).
+- **630 doğrulama ve analiz kuralı**, 39 grupta; GTFS spesifikasyonunun ölçülebilir hükümlerinin **%97,2'si** karşılanır, alan tablosunun **300 atomunun 300'ü** en az bir Spec çapası taşır. Tam liste: [`RULES.md`](RULES.md).
 - **Yerel çalışma:** tarayıcı, CLI, kütüphaneler ve npm/Python paketleri feed'i kendi cihazınızda işler.
 - **Spec uyumunun ötesinde kalite ve operasyon analizi:** anormal hız segmentleri, sefer sıklığı tutarsızlıkları, izole duraklar, servis boşlukları, ağ topolojisi.
 - **Dört sınıf, beş önem seviyesi:** her bulgu Spec · Interop · Quality · Analytics sınıfı ve Kritik → Bilgi önemiyle etiketlenir; binlerce bulgu filtrelenip önceliklendirilebilir.
@@ -75,7 +75,7 @@ Her sürüm, **MobilityDatabase'in tüm GTFS Schedule kataloğuna** karşı koş
 | Analizi tamamlanan | **4.449** (hatasız) |
 | Kısmi rapor (bozuk/eksik dosya güvenle atlandı) | 76 |
 | Ülke | 95 |
-| Tetiklenen kural | 423 / 621 |
+| Tetiklenen kural | 423 / 621 (önceki ölçüm) |
 | Medyan süre / feed | **0,05 sn** (p90 1,1 sn) |
 | Medyan tepe bellek / feed | **15 MB** (p90 149 MB) |
 | Toplam süre | 86,7 dk |
@@ -121,7 +121,7 @@ Bu feed'lerin içindeki tablolar da çok büyük; satırların tamamı okunup de
 | İngiltere geneli (BODS, `mdb-2014`) | **69,5 milyon** | 1,76 milyon | **89,7 milyon** | 278 bin | — | 6 dk 36 sn |
 | Çekya (`mdb-2904`) | 9,6 milyon | 494 bin | — | **4,4 milyon** | — | 58 sn |
 
-Buenos Aires'in 29,3 milyon `stop_times` satırı, 621 kuralın tamamıyla birlikte 53 saniyede doğrulanıyor: saniyede yaklaşık **548 bin satır**.
+Önceki 621 kurallı sürüm, Buenos Aires'in 29,3 milyon `stop_times` satırını 53 saniyede doğruladı: saniyede yaklaşık **548 bin satır**.
 
 İngiltere geneli BODS, Almanya geneli DELFI ve Nouvelle-Aquitaine'in iki bölgesel feed'i (77 ve 83 MB), MobilityData'nın `gtfs-validator`'ının bu koşumda iç hatayla yarıda bıraktığı feed'lerdendir; GTFS Analyzer dördünü de sonuna kadar doğruladı.
 
@@ -329,6 +329,7 @@ Her kural `GRUP_NNN` formatında kodlanır. Gruplar GTFS dosya ve bileşen sın�
 | **FAR** | `fare_attributes.txt` | Ücret tanımları, para birimi ve ödeme yöntemi |
 | **FRL** | `fare_rules.txt` | Hat ve bölge bazlı ücret kuralları |
 | **FIN** | `feed_info.txt` | Feed yayıncı bilgisi, dil, geçerlilik tarihleri |
+| **LIC** | `licenses.txt` | Feed ve tablo bazında lisans beyanları |
 | **PTH** | `pathways.txt` | İstasyon içi yol ağı ve erişilebilirlik bağlantıları |
 | **LVL** | `levels.txt` | İstasyon katları ve asansör/merdiven ilişkileri |
 | **TRN** | `translations.txt` | Alan çevirileri ve dil tutarlılığı |
@@ -417,7 +418,7 @@ gtfs-validator/
 │   ├── config/     # Yapılandırma tipleri
 │   ├── core/       # Ortak veri yapıları ve sonuç modeli
 │   ├── pipeline/   # Doğrulama pipeline'ı (k1–k7 aşamaları)
-│   ├── rules/      # Kural tanımları ve registry (621 kural, 38 grup)
+│   ├── rules/      # Kural tanımları ve registry (630 kural, 39 grup)
 │   └── wasm/       # wasm-bindgen WASM çıktısı
 ├── spec-audit/     # Spec'ten üretilen alan tablosu (WP-2 çapa kapısı)
 └── ui/             # Vite + TypeScript frontend

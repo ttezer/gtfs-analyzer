@@ -49,6 +49,33 @@ const en: LocaleShape = {
     'producer.planner_verdict': "No finding blocks publishing; {n} topics below.",
     'producer.where_to_fix': 'Where to fix',
     'producer.no_findings': 'No topics to show.',
+    "producer.card.LIC_001.title": "License value missing",
+    "producer.card.LIC_001.what": "Neither license field is filled in this licenses.txt row.",
+    "producer.card.LIC_001.action": "Fill in one license SPDX ID or custom license URL.",
+    "producer.card.LIC_002.title": "Two license values supplied",
+    "producer.card.LIC_002.what": "Both license fields are filled in this licenses.txt row.",
+    "producer.card.LIC_002.action": "Keep only one license field.",
+    "producer.card.LIC_003.title": "Unknown licensed table",
+    "producer.card.LIC_003.what": "The table name does not identify a known GTFS file.",
+    "producer.card.LIC_003.action": "Use a GTFS file name without the .txt extension.",
+    "producer.card.LIC_004.title": "Duplicate licensed table",
+    "producer.card.LIC_004.what": "The same table has more than one license row.",
+    "producer.card.LIC_004.action": "Keep one license row for each table.",
+    "producer.card.LIC_005.title": "Licensed table absent",
+    "producer.card.LIC_005.what": "A table named in licenses.txt is absent from the feed.",
+    "producer.card.LIC_005.action": "Remove the unused license row or include the table.",
+    "producer.card.LIC_006.title": "Feed license missing",
+    "producer.card.LIC_006.what": "Only table-specific licenses are listed.",
+    "producer.card.LIC_006.action": "Add a row with an empty licensed_table_name for the feed-wide license.",
+    "producer.card.LIC_007.title": "SPDX license identifier not listed",
+    "producer.card.LIC_007.what": "The identifier is absent from SPDX License List 3.29.0.",
+    "producer.card.LIC_007.action": "Choose a listed ID or enter a custom license URL.",
+    "producer.card.LIC_008.title": "Licensed table spelling conflicts",
+    "producer.card.LIC_008.what": "Two table names differ only in case or use the locations alias.",
+    "producer.card.LIC_008.action": "Use one spelling and remove the duplicate license row.",
+    "producer.card.LIC_009.title": "Custom license URL invalid",
+    "producer.card.LIC_009.what": "The custom license URL is not a valid web address.",
+    "producer.card.LIC_009.action": "Use a complete http or https URL.",
     // >>> planlamacı kural metinleri (üretilmiş; kaynak notgit/PLANLAMACI_TERMINOLOJISI_2026-10-25.md)
     'producer.card.AGN_002.title': "The operator has no name",
     'producer.card.AGN_002.what': "An operator in the operator list has no name; riders cannot see who runs the service.",
@@ -3701,6 +3728,16 @@ const en: LocaleShape = {
   } as Record<string, string>,
 
   ruleMessages: {
+    "LIC_001": "Neither license field is filled in this licenses.txt row.",
+    "LIC_002": "Both license fields are filled in this licenses.txt row.",
+    "LIC_003": "The table name does not identify a known GTFS file.",
+    "LIC_004": "The same table has more than one license row.",
+    "LIC_005": "A table named in licenses.txt is absent from the feed.",
+    "LIC_006": "Only table-specific licenses are listed.",
+    "LIC_007": "The identifier is absent from SPDX License List 3.29.0.",
+    "LIC_008": "Two table names differ only in case or use the locations alias.",
+    "LIC_009": "The custom license URL is not a valid web address.",
+
     // ARC
     'ARC_001': 'ZIP archive could not be opened.',
     'ARC_002': "File '{entity_id}' cannot be read as UTF-8.",
@@ -4393,6 +4430,16 @@ const en: LocaleShape = {
   } as Record<string, string>,
 
   ruleRemediations: {
+    "LIC_001": "Fill in one license SPDX ID or custom license URL.",
+    "LIC_002": "Keep only one license field.",
+    "LIC_003": "Use a GTFS file name without the .txt extension.",
+    "LIC_004": "Keep one license row for each table.",
+    "LIC_005": "Remove the unused license row or include the table.",
+    "LIC_006": "Add a row with an empty licensed_table_name for the feed-wide license.",
+    "LIC_007": "Choose a listed ID or enter a custom license URL.",
+    "LIC_008": "Use one spelling and remove the duplicate license row.",
+    "LIC_009": "Use a complete http or https URL.",
+
     // ARC
     'ARC_020': 'Add shapes.txt for route geometry and feed_info.txt for publisher information.',
     // CAL
@@ -5093,6 +5140,16 @@ const en: LocaleShape = {
   } as Record<string, string>,
 
   ruleTitles: {
+    "LIC_001": "License value missing",
+    "LIC_002": "Two license values supplied",
+    "LIC_003": "Unknown licensed table",
+    "LIC_004": "Duplicate licensed table",
+    "LIC_005": "Licensed table absent",
+    "LIC_006": "Feed license missing",
+    "LIC_007": "SPDX license identifier not listed",
+    "LIC_008": "Licensed table spelling conflicts",
+    "LIC_009": "Custom license URL invalid",
+
     // ARC
     'ARC_001': 'ZIP archive could not be opened',
     'ARC_002': 'File cannot be read as UTF-8',

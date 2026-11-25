@@ -1,5 +1,14 @@
 {
   "messages": {
+    "LIC_001": "Neither license field is filled in this licenses.txt row.",
+    "LIC_002": "Both license fields are filled in this licenses.txt row.",
+    "LIC_003": "The table name does not identify a known GTFS file.",
+    "LIC_004": "The same table has more than one license row.",
+    "LIC_005": "A table named in licenses.txt is absent from the feed.",
+    "LIC_006": "Only table-specific licenses are listed.",
+    "LIC_007": "The identifier is absent from SPDX License List 3.29.0.",
+    "LIC_008": "Two table names differ only in case or use the locations alias.",
+    "LIC_009": "The custom license URL is not a valid web address.",
     "ARC_001": "ZIP archive could not be opened.",
     "ARC_002": "File '{entity_id}' cannot be read as UTF-8.",
     "ARC_003": "File '{entity_id}' has a UTF-8 encoding error.",
@@ -1242,6 +1251,15 @@
     "XFL_031"
   ],
   "remediations": {
+    "LIC_001": "Fill in one license SPDX ID or custom license URL.",
+    "LIC_002": "Keep only one license field.",
+    "LIC_003": "Use a GTFS file name without the .txt extension.",
+    "LIC_004": "Keep one license row for each table.",
+    "LIC_005": "Remove the unused license row or include the table.",
+    "LIC_006": "Add a row with an empty licensed_table_name for the feed-wide license.",
+    "LIC_007": "Choose a listed ID or enter a custom license URL.",
+    "LIC_008": "Use one spelling and remove the duplicate license row.",
+    "LIC_009": "Use a complete http or https URL.",
     "ARC_020": "Add shapes.txt for route geometry and feed_info.txt for publisher information.",
     "CAL_007": "If the gap is intentional, document it with calendar_dates; otherwise fix the calendar.",
     "CAL_008": "Plan to update the feed before it expires.",
@@ -1879,6 +1897,15 @@
     "XFL_034": "Attach the row to a stop_id."
   },
   "titles": {
+    "LIC_001": "License value missing",
+    "LIC_002": "Two license values supplied",
+    "LIC_003": "Unknown licensed table",
+    "LIC_004": "Duplicate licensed table",
+    "LIC_005": "Licensed table absent",
+    "LIC_006": "Feed license missing",
+    "LIC_007": "SPDX license identifier not listed",
+    "LIC_008": "Licensed table spelling conflicts",
+    "LIC_009": "Custom license URL invalid",
     "ARC_001": "ZIP archive could not be opened",
     "ARC_002": "File cannot be read as UTF-8",
     "ARC_003": "UTF-8 encoding error in optional file",
@@ -3891,6 +3918,51 @@
       "title": "Custom name uses the \"jp\" namespace",
       "what": "A custom file or field name uses the \"jp\" prefix or suffix reserved for GTFS-JP.",
       "action": "Rename the custom file or field without \"jp\"."
+    },
+    "LIC_001": {
+      "title": "License value missing",
+      "what": "Neither license field is filled in this licenses.txt row.",
+      "action": "Fill in one license SPDX ID or custom license URL."
+    },
+    "LIC_002": {
+      "title": "Two license values supplied",
+      "what": "Both license fields are filled in this licenses.txt row.",
+      "action": "Keep only one license field."
+    },
+    "LIC_003": {
+      "title": "Unknown licensed table",
+      "what": "The table name does not identify a known GTFS file.",
+      "action": "Use a GTFS file name without the .txt extension."
+    },
+    "LIC_004": {
+      "title": "Duplicate licensed table",
+      "what": "The same table has more than one license row.",
+      "action": "Keep one license row for each table."
+    },
+    "LIC_005": {
+      "title": "Licensed table absent",
+      "what": "A table named in licenses.txt is absent from the feed.",
+      "action": "Remove the unused license row or include the table."
+    },
+    "LIC_006": {
+      "title": "Feed license missing",
+      "what": "Only table-specific licenses are listed.",
+      "action": "Add a row with an empty licensed_table_name for the feed-wide license."
+    },
+    "LIC_007": {
+      "title": "SPDX license identifier not listed",
+      "what": "The identifier is absent from SPDX License List 3.29.0.",
+      "action": "Choose a listed ID or enter a custom license URL."
+    },
+    "LIC_008": {
+      "title": "Licensed table spelling conflicts",
+      "what": "Two table names differ only in case or use the locations alias.",
+      "action": "Use one spelling and remove the duplicate license row."
+    },
+    "LIC_009": {
+      "title": "Custom license URL invalid",
+      "what": "The custom license URL is not a valid web address.",
+      "action": "Use a complete http or https URL."
     },
     "LOC_001": {
       "title": "Service area shape invalid",

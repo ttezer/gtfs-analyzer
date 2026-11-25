@@ -48,6 +48,33 @@ const ja: LocaleShape = {
     'producer.planner_verdict': "公開を妨げる指摘はありません。以下に {n} 件の項目があります。",
     'producer.where_to_fix': '修正する場所',
     'producer.no_findings': '表示する項目はありません。',
+    "producer.card.LIC_001.title": "ライセンス情報がありません",
+    "producer.card.LIC_001.what": "ライセンスの二つの欄がどちらも空です。",
+    "producer.card.LIC_001.action": "SPDX IDまたは独自ライセンスURLの一方を入力してください。",
+    "producer.card.LIC_002.title": "ライセンス情報が重複",
+    "producer.card.LIC_002.what": "ライセンスの二つの欄が両方入力されています。",
+    "producer.card.LIC_002.action": "一方の欄だけを残してください。",
+    "producer.card.LIC_003.title": "不明な対象ファイル",
+    "producer.card.LIC_003.what": "指定された名前は既知のGTFSファイルではありません。",
+    "producer.card.LIC_003.action": ".txt拡張子を除いたGTFSファイル名を使用してください。",
+    "producer.card.LIC_004.title": "対象ファイルが重複",
+    "producer.card.LIC_004.what": "同じファイルに複数のライセンス行があります。",
+    "producer.card.LIC_004.action": "ファイルごとに一行だけ残してください。",
+    "producer.card.LIC_005.title": "対象ファイルがありません",
+    "producer.card.LIC_005.what": "ライセンスに指定したファイルがフィードにありません。",
+    "producer.card.LIC_005.action": "行を削除するかファイルを追加してください。",
+    "producer.card.LIC_006.title": "フィード全体のライセンスがありません",
+    "producer.card.LIC_006.what": "個別ファイルのライセンスだけが記載されています。",
+    "producer.card.LIC_006.action": "licensed_table_nameを空にした行を追加してください。",
+    "producer.card.LIC_007.title": "SPDXライセンスIDが一覧にありません",
+    "producer.card.LIC_007.what": "このIDはSPDXライセンス一覧3.29.0にありません。",
+    "producer.card.LIC_007.action": "一覧にあるIDを選ぶか、独自ライセンスのURLを入力してください。",
+    "producer.card.LIC_008.title": "対象ファイル名が衝突",
+    "producer.card.LIC_008.what": "大文字小文字またはlocationsの別名だけが異なる行があります。",
+    "producer.card.LIC_008.action": "名前を統一し重複行を削除してください。",
+    "producer.card.LIC_009.title": "独自ライセンスURLが無効",
+    "producer.card.LIC_009.what": "独自ライセンスのURLが有効ではありません。",
+    "producer.card.LIC_009.action": "有効なhttpまたはhttps URLを入力してください。",
     // >>> planlamacı kural metinleri (üretilmiş; kaynak notgit/PLANLAMACI_TERMINOLOJISI_2026-10-25.md)
     'producer.card.AGN_002.title': "事業者名がありません",
     'producer.card.AGN_002.what': "事業者一覧に名前のない事業者があり、利用者は運行事業者を確認できません。",
@@ -3682,6 +3709,16 @@ const ja: LocaleShape = {
   } as Record<string, string>,
 
   ruleMessages: {
+    "LIC_001": "ライセンスの二つの欄がどちらも空です。",
+    "LIC_002": "ライセンスの二つの欄が両方入力されています。",
+    "LIC_003": "指定された名前は既知のGTFSファイルではありません。",
+    "LIC_004": "同じファイルに複数のライセンス行があります。",
+    "LIC_005": "ライセンスに指定したファイルがフィードにありません。",
+    "LIC_006": "個別ファイルのライセンスだけが記載されています。",
+    "LIC_007": "このIDはSPDXライセンス一覧3.29.0にありません。",
+    "LIC_008": "大文字小文字またはlocationsの別名だけが異なる行があります。",
+    "LIC_009": "独自ライセンスのURLが有効ではありません。",
+
     // ARC
     'ARC_001': 'ZIPアーカイブを開けませんでした。',
     'ARC_002': "ファイル'{entity_id}'をUTF-8として読み取れません。",
@@ -4341,6 +4378,16 @@ const ja: LocaleShape = {
   } as Record<string, string>,
 
   ruleRemediations: {
+    "LIC_001": "SPDX IDまたは独自ライセンスURLの一方を入力してください。",
+    "LIC_002": "一方の欄だけを残してください。",
+    "LIC_003": ".txt拡張子を除いたGTFSファイル名を使用してください。",
+    "LIC_004": "ファイルごとに一行だけ残してください。",
+    "LIC_005": "行を削除するかファイルを追加してください。",
+    "LIC_006": "licensed_table_nameを空にした行を追加してください。",
+    "LIC_007": "一覧にあるIDを選ぶか、独自ライセンスのURLを入力してください。",
+    "LIC_008": "名前を統一し重複行を削除してください。",
+    "LIC_009": "有効なhttpまたはhttps URLを入力してください。",
+
     // ARC
     'ARC_001': 'フィードのZIPファイルが破損していないか確認してください。',
     'ARC_002': 'ファイルをUTF-8エンコードで再保存してください。',
@@ -4981,6 +5028,16 @@ const ja: LocaleShape = {
   } as Record<string, string>,
 
   ruleTitles: {
+    "LIC_001": "ライセンス情報がありません",
+    "LIC_002": "ライセンス情報が重複",
+    "LIC_003": "不明な対象ファイル",
+    "LIC_004": "対象ファイルが重複",
+    "LIC_005": "対象ファイルがありません",
+    "LIC_006": "フィード全体のライセンスがありません",
+    "LIC_007": "SPDXライセンスIDが一覧にありません",
+    "LIC_008": "対象ファイル名が衝突",
+    "LIC_009": "独自ライセンスURLが無効",
+
     // ARC
     'ARC_001': 'ZIPアーカイブを開けません',
     'ARC_002': 'ファイルをUTF-8で読み込めません',
