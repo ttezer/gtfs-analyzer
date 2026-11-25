@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A stop_id that differs from its stops.txt definition only by leading/trailing whitespace no longer makes the feed unpublishable.** `STM_002` (Critical, undefined stop) was still reported in that case, while the same padding on route, trip, service and shape ids had been declared under the file's `DQ_016` root since 2026-09-18. It is now declared there too (`suppressed_derivative_rules`); identities stay raw (#85), and a stop that is missing even after trimming is still `STM_002`. Publishability can change for affected feeds.
 - **Calendar findings no longer name calendar.txt when the service is defined only in calendar_dates.txt.** CAL_007, CAL_010, CAL_012, CAL_013, CAL_014, CAL_015, CAL_016, CAL_017 and CAL_021 had `calendar.txt` hard-coded as their file; a feed shipping calendar_dates.txt alone (mdb-1077) was told to fix a file it does not have. They now report calendar_dates.txt (field `date` for CAL_013/CAL_017) when none of the services involved has a calendar.txt row. Finding counts are unchanged.
 
 ## [0.22.0] - 2026-11-22

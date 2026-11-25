@@ -273,7 +273,7 @@ pub fn suppress_whitespace_derivatives(
 /// never runs on a feed carrying only that rule's finding.
 const JOIN_DERIVATIVE_RULES: &[&str] = &[
     "TRP_011", "TRP_026", "TRP_003", "OPR_011", "CAL_011", "STP_020", "SHP_018", "SHP_019",
-    "XFL_002", "XFL_012", "RTS_016", "OPR_004",
+    "XFL_002", "XFL_012", "RTS_016", "OPR_004", "STM_002",
 ];
 
 /// Mark join-derived notices before feed-level aggregation can erase their entity id.
@@ -323,6 +323,9 @@ struct JoinWhitespace<'a> {
     shape_trips: FxHashMap<&'a str, Vec<&'a str>>,
     st_trip_raw: FxHashSet<&'a str>,
     st_trip_trimmed: FxHashSet<&'a str>,
+    /// stop_id as defined in stops.txt (raw / trimmed) — STM_002
+    stop_defined_raw: FxHashSet<&'a str>,
+    stop_defined_trimmed: FxHashSet<&'a str>,
     /// raw route_id (as written in trips) → trips of that route; route-level rules (2c)
     route_trips: FxHashMap<&'a str, Vec<&'a crate::k2::trips::TripRecord>>,
     service_weekend_raw: FxHashSet<&'a str>,
@@ -430,8 +433,13 @@ impl<'a> JoinWhitespace<'a> {
             .collect();
         st_trip_raw.extend(records.stop_times.iter().map(|r| r.trip_id.as_str()));
 
+        let stop_defined_raw: FxHashSet<&'a str> =
+            records.stops.iter().map(|s| s.stop_id.as_str()).collect();
+
         Self {
             interns: ti,
+            stop_defined_trimmed: trimmed(&stop_defined_raw),
+            stop_defined_raw,
             service_weekend_trimmed: trimmed(&service_weekend_raw),
             service_weekend_raw,
             route_trips,
@@ -562,6 +570,15 @@ impl<'a> JoinWhitespace<'a> {
                 "trips.txt"
             } else {
                 "stop_times.txt"
+            }),
+            // stop_times names a stop that stops.txt defines only with leading/trailing
+            // whitespace (or the reverse): the raw join breaks, the trimmed one holds.
+            "STM_002" => (!self.stop_defined_raw.contains(id)
+                && self.stop_defined_trimmed.contains(id.trim()))
+            .then_some(if padded {
+                "stop_times.txt"
+            } else {
+                "stops.txt"
             }),
             _ => None,
         }

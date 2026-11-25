@@ -5087,13 +5087,18 @@ fn id85_padded_stop_id_does_not_satisfy_a_reference_to_the_bare_id() {
         "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
          T1,08:00:00,08:00:00,A,1\nT1,08:10:00,08:10:00,S2,2\n",
     );
-    match run(&files) {
-        ValidateResult::Ok(vr) => assert!(
-            vr.notices.iter().any(|n| n.rule_id == "STM_002"),
-            "`A` referansı `\" A \"` durağıyla karşılanmamalı → STM_002 (stop_id stops.txt'te yok)"
-        ),
-        other => panic!("Ok beklendi: {other:?}"),
-    }
+    // The raw join still breaks (identity is not trimmed), so STM_002 is born — but since the
+    // trimmed join holds, it is a whitespace derivative: declared under the stops.txt DQ_016
+    // root instead of being reported as a Critical undefined stop (same as TRP_003, 2026-09-18).
+    let (notices, declared) = join_run(&files);
+    assert!(
+        !notices.iter().any(|n| n.rule_id == "STM_002"),
+        "STM_002 is a derivative of the padded stop_id, not a separate finding"
+    );
+    assert!(
+        declared.get("stops.txt").is_some_and(|r| r.contains("STM_002")),
+        "`A` referansı `\" A \"` ile ham eşleşmez; STM_002 stops.txt DQ_016 altında beyan edilmeli: {declared:?}"
+    );
 }
 
 #[test]
@@ -5755,6 +5760,31 @@ fn whitespace_join_service_id_padding_in_calendar_is_declared_at_calendar() {
 /// " T1"` → the trip record appears missing (`XFL_002`) and its shape "has no trips" (`SHP_019`);
 /// `trips.shape_id = " SH2"` → `SH2` appears unused (`SHP_018`).
 /// Truly unused `S3` and truly unrecorded `T3` remain visible.
+/// A stop_id padded in stops.txt (`" S1"`) or in stop_times.txt (`" S2"`) breaks the raw join
+/// while the trimmed join holds: the Critical `STM_002` is a derivative of `DQ_016` and is
+/// declared under the file carrying the whitespace. A genuinely undefined `S9` stays visible.
+#[test]
+fn whitespace_join_stop_id_padding_does_not_report_undefined_stops() {
+    let mut files = base_files();
+    files[1] = (
+        "stops.txt",
+        b"stop_id,stop_name,stop_lat,stop_lon\n S1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\n",
+    );
+    files[4] = (
+        "stop_times.txt",
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00, S2,2\nT1,08:20:00,08:20:00,S9,3\n",
+    );
+    let (notices, declared) = join_run(&files);
+    assert_eq!(entities(&notices, "STM_002"), vec!["S9"], "yalnız gerçekten tanımsız S9");
+    for file in ["stops.txt", "stop_times.txt"] {
+        assert!(
+            declared.get(file).is_some_and(|r| r.contains("STM_002")),
+            "{file}: {declared:?}"
+        );
+    }
+}
+
 #[test]
 fn whitespace_join_stop_trip_and_shape_padding_is_declared_where_it_sits() {
     let mut files = base_files();
