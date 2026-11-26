@@ -381,6 +381,31 @@ fn json_envelope_is_flat_and_tagged_by_status() {
     assert!(json["reports"].is_object());
 }
 
+/// The envelope version and engine provenance are an external contract (the R
+/// package checks `schema_version`): every JSON shape carries them.
+#[test]
+fn json_envelopes_carry_schema_and_engine_version() {
+    let assert_versioned = |json: &serde_json::Value| {
+        assert_eq!(json["schema_version"], 1, "{json}");
+        assert_eq!(json["engine_version"], env!("CARGO_PKG_VERSION"));
+        assert!(json["engine_commit"].as_str().is_some_and(|c| !c.is_empty()));
+    };
+
+    let feed = feed_with_critical();
+    assert_versioned(&json_of(&validate(&feed, &["--json"])));
+    assert_versioned(&json_of(&validate(&feed, &["--compact-json"])));
+
+    let path = std::env::temp_dir().join("gtfs-cli-test-corrupt-versioned.zip");
+    std::fs::write(&path, b"not a zip at all").unwrap();
+    for flag in ["--json", "--compact-json"] {
+        let out = validate(&path, &[flag]);
+        assert_eq!(code(&out), 2);
+        let json = json_of(&out);
+        assert_eq!(json["status"], "fatal");
+        assert_versioned(&json);
+    }
+}
+
 #[test]
 fn compact_json_projects_canonical_summary_without_notice_payload() {
     let feed = feed_with_critical();

@@ -49,7 +49,7 @@ cargo install gtfs-analyzer
 gtfs-analyzer validate feed.zip
 ```
 
-Rust をインストールせずに使う場合：[Releases](https://github.com/ttezer/gtfs-analyzer/releases) からお使いのプラットフォーム向けアーカイブ（`x86_64-linux`、`aarch64-macos`、`x86_64-windows`）をダウンロードし、展開して `gtfs-analyzer` バイナリを `PATH` に配置します。
+Rust をインストールせずに使う場合：[Releases](https://github.com/ttezer/gtfs-analyzer/releases) からお使いのプラットフォーム向けアーカイブ（`x86_64-linux`、`aarch64-macos`、`x86_64-macos`、`x86_64-windows`）をダウンロードし、展開して `gtfs-analyzer` バイナリを `PATH` に配置します。
 
 ```bash
 # Linux / macOS — 最新リリース
@@ -99,11 +99,19 @@ cargo run -p gtfs-analyzer -- validate feed.zip --json
 
 > **Web UI とは件数が異なります。** ブラウザは性能のためルールごとの指摘件数に上限を設けます（実際の合計は `capped_totals` で報告されます）。CLI はこの上限を**適用しません** — 同じフィードでもより多くの notice と、スケーリングされていない R9 影響値が返ります。これは想定どおりの差異であり、両者の件数を直接比較しないでください。
 
+### JSON エンベロープのバージョン
+
+すべての JSON 出力（`--json`、`--compact-json`、致命的エラーのオブジェクト）は、トップ
+レベルに `schema_version`、`engine_version`、`engine_commit` を含みます。
+`schema_version`（現在 `1`）は既存フィールドの削除、名前の変更、意味の変更があった
+場合にのみ上がります。新しいフィールドはバージョンを変えずに追加されることがあります。
+出力を読むプログラムはこの値を確認し、未知のフィールドを受け入れてください。
+
 ### Compact JSON と Web の上限
 
 `--compact-json` は機械的な利用者向けの正規投影です。完全な `--json` レポート
 から個別の `notices` リストと `name_index` テーブルを省略します。トップレベル
-には `status`、`engine`、`engine_version`、`engine_commit`、
+には `status`、`schema_version`、`engine`、`engine_version`、`engine_commit`、
 `validation_date`、`partial`、`analysis`、`reports.r1`、`reports.r5`、
 `reports.r9`、`metrics`、`notice_counts`、`triggered_rule_count` が含まれます。
 `reports.r9.items` の各要素にはルール名、重大度、クラス、メッセージ、修正方法、

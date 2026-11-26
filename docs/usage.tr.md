@@ -51,7 +51,7 @@ cargo install gtfs-analyzer
 gtfs-analyzer validate feed.zip
 ```
 
-Rust kurmadan: [Releases](https://github.com/ttezer/gtfs-analyzer/releases) sayfasından platformunuza uygun arşivi indirin (`x86_64-linux`, `aarch64-macos`, `x86_64-windows`), açın ve `gtfs-analyzer` binary'sini `PATH`'inize koyun.
+Rust kurmadan: [Releases](https://github.com/ttezer/gtfs-analyzer/releases) sayfasından platformunuza uygun arşivi indirin (`x86_64-linux`, `aarch64-macos`, `x86_64-macos`, `x86_64-windows`), açın ve `gtfs-analyzer` binary'sini `PATH`'inize koyun.
 
 ```bash
 # Linux / macOS — en son sürüm
@@ -104,10 +104,18 @@ Feed yolu yerine `-` verilirse ZIP **stdin'den** okunur: `curl -sL <url> | gtfs-
 
 > **Arayüzle sayı farkı:** Tarayıcı, kural başına bulgu örneklerini performans için sınırlar (gerçek toplamlar `capped_totals`'ta bildirilir). CLI bu sınırı **uygulamaz** — aynı feed'de daha çok notice ve sınırlanmamış R9 etki değerleri döner. Fark beklenen davranıştır; iki çıktıyı doğrudan sayı sayı karşılaştırmayın.
 
+### JSON zarf sürümü
+
+Her JSON çıktısı (`--json`, `--compact-json` ve fatal hata nesnesi) üst düzeyde
+`schema_version`, `engine_version` ve `engine_commit` taşır. `schema_version`
+(şu an `1`) yalnız mevcut bir alan kaldırıldığında, adı değiştiğinde veya anlamı
+değiştiğinde artar; yeni alanlar sürüm artmadan eklenebilir. Çıktıyı okuyan programlar
+bu alanı denetlemeli ve tanımadıkları alanları kabul etmelidir.
+
 ### Compact JSON ve web sınırı
 
 `--compact-json`, tam `--json` raporundaki her notice'ı ve `name_index` tablolarını
-taşımayan, makine tüketicileri için kanonik bir projeksiyondur. Üst düzeyde `status`,
+taşımayan, makine tüketicileri için kanonik bir projeksiyondur. Üst düzeyde `status`, `schema_version`,
 `engine`, `engine_version`, `engine_commit`, `validation_date`, `partial`,
 `analysis`, `reports.r1`, `reports.r5`, `reports.r9`, `metrics`,
 `notice_counts` ve `triggered_rule_count` alanlarını içerir. `reports.r9.items`

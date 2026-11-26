@@ -49,7 +49,7 @@ cargo install gtfs-analyzer
 gtfs-analyzer validate feed.zip
 ```
 
-Without installing Rust: download the archive for your platform from [Releases](https://github.com/ttezer/gtfs-analyzer/releases) (`x86_64-linux`, `aarch64-macos`, `x86_64-windows`), unpack it and put the `gtfs-analyzer` binary on your `PATH`.
+Without installing Rust: download the archive for your platform from [Releases](https://github.com/ttezer/gtfs-analyzer/releases) (`x86_64-linux`, `aarch64-macos`, `x86_64-macos`, `x86_64-windows`), unpack it and put the `gtfs-analyzer` binary on your `PATH`.
 
 ```bash
 # Linux / macOS — latest release
@@ -99,11 +99,19 @@ Pass `-` instead of a path to read the ZIP from **stdin**: `curl -sL <url> | gtf
 
 > **Counts differ from the web UI.** The browser caps how many findings it keeps per rule for performance (the real totals are reported in `capped_totals`). The CLI applies **no such cap** — the same feed yields more notices and unscaled R9 impact figures. This is expected; do not compare the two outputs count by count.
 
+### JSON envelope version
+
+Every JSON output (`--json`, `--compact-json`, and the fatal-error object) carries
+`schema_version`, `engine_version` and `engine_commit` at the top level.
+`schema_version` (currently `1`) changes only when an existing field is removed,
+renamed or changes meaning; new fields can appear without a bump. Programs that read the
+output should check it and accept unknown fields.
+
 ### Compact JSON and the web cap
 
 `--compact-json` is the canonical machine-consumer projection: it omits the individual
 `notices` list and `name_index` tables from the full `--json` report. Its top level
-contains `status`, `engine`, `engine_version`, `engine_commit`,
+contains `status`, `schema_version`, `engine`, `engine_version`, `engine_commit`,
 `validation_date`, `partial`, `analysis`, `reports.r1`, `reports.r5`,
 `reports.r9`, `metrics`, `notice_counts`, and `triggered_rule_count`.
 Each `reports.r9.items` entry contains rule title, severity, class, message, remediation,

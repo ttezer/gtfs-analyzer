@@ -601,9 +601,17 @@ fn cap_notices_per_rule(vr: &mut ValidationResult, cap: u32) {
 /// Flat JSON envelope. Deliberately *not* `ValidateResult`'s serde shape: that
 /// one is an externally tagged enum (`{"Ok":{…}}` / `{"Fatal":{…}}`) consumed by
 /// the WASM/UI boundary, which must keep its representation.
+/// Version of the JSON envelope layout (`--json` and `--compact-json`). Bump it only
+/// when an existing field is removed, renamed or changes meaning; adding a field
+/// does not change it. External consumers (the R package among them) check it.
+const JSON_SCHEMA_VERSION: u32 = 1;
+
 #[derive(Serialize)]
 struct JsonOk<'a> {
     status: &'static str,
+    schema_version: u32,
+    engine_version: &'static str,
+    engine_commit: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
     filtered: Option<FilterMeta>,
     #[serde(flatten)]
@@ -613,6 +621,9 @@ struct JsonOk<'a> {
 #[derive(Serialize)]
 struct JsonFatal<'a> {
     status: &'static str,
+    schema_version: u32,
+    engine_version: &'static str,
+    engine_commit: &'static str,
     code: &'a gtfs_core::FatalCode,
     message: &'a str,
     #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
@@ -622,6 +633,7 @@ struct JsonFatal<'a> {
 #[derive(Serialize)]
 struct CompactJsonOk {
     status: &'static str,
+    schema_version: u32,
     engine: &'static str,
     engine_version: String,
     engine_commit: &'static str,
@@ -749,6 +761,9 @@ fn write_json_result(
             ValidateResult::Fatal(err) => {
                 let payload = JsonFatal {
                     status: "fatal",
+                    schema_version: JSON_SCHEMA_VERSION,
+                    engine_version: env!("CARGO_PKG_VERSION"),
+                    engine_commit: provenance::COMMIT,
                     code: &err.code,
                     message: &err.message,
                     params: &err.params,
@@ -766,6 +781,9 @@ fn write_json_result(
                     } else {
                         "ok"
                     },
+                    schema_version: JSON_SCHEMA_VERSION,
+                    engine_version: env!("CARGO_PKG_VERSION"),
+                    engine_commit: provenance::COMMIT,
                     filtered: filter_meta(filters),
                     result: vr,
                 };
@@ -812,6 +830,9 @@ fn render_compact_json(
         ValidateResult::Fatal(err) => {
             let payload = JsonFatal {
                 status: "fatal",
+                schema_version: JSON_SCHEMA_VERSION,
+                engine_version: env!("CARGO_PKG_VERSION"),
+                engine_commit: provenance::COMMIT,
                 code: &err.code,
                 message: &err.message,
                 params: &err.params,
@@ -833,6 +854,7 @@ fn render_compact_json(
                 } else {
                     "ok"
                 },
+                schema_version: JSON_SCHEMA_VERSION,
                 engine: "gtfs-analyzer",
                 engine_version: env!("CARGO_PKG_VERSION").to_owned(),
                 engine_commit: provenance::COMMIT,

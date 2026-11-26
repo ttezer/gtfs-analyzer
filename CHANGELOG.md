@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **`licenses.txt` (GTFS Schedule, google/transit#607).** The optional file is now recognised (no longer `ARC_007` unknown file; `ARC_007` counts drop for feeds that ship it) and validated by nine new `LIC` rules: exactly one of `license_spdx_id` / `custom_license_url` per row (`LIC_001`, `LIC_002`), unknown or `.txt`-suffixed `licensed_table_name` (`LIC_003`), duplicate key including blank feed-wide rows (`LIC_004`), named table absent from the feed (`LIC_005`), no feed-wide row (`LIC_006`), SPDX ID not in the pinned SPDX License List 3.29.0, case-insensitive; values with `AND`/`OR`/`WITH` or parentheses are skipped, `LicenseRef-` IDs are reported (`LIC_007`), case or `locations` alias conflict (`LIC_008`), invalid `custom_license_url` (`LIC_009`). `LIC_001`/`002`/`003` mirror the MobilityData gtfs-validator #2270 notices and `LIC_004`/`008` its `duplicate_key` checks.
+- **CLI JSON envelope version.** `--json`, `--compact-json` and the fatal-error object now carry `schema_version` (currently `1`); `--json` and the fatal object also carry `engine_version` and `engine_commit`, which `--compact-json` already had. The fields are additive: no existing field changes. `schema_version` increases only when a field is removed, renamed or changes meaning.
 
 ### Changed
 

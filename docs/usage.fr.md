@@ -49,7 +49,7 @@ cargo install gtfs-analyzer
 gtfs-analyzer validate feed.zip
 ```
 
-Sans installer Rust : téléchargez l’archive correspondant à votre plateforme depuis [Releases](https://github.com/ttezer/gtfs-analyzer/releases) (`x86_64-linux`, `aarch64-macos`, `x86_64-windows`), décompressez-la et placez le binaire `gtfs-analyzer` dans votre `PATH`.
+Sans installer Rust : téléchargez l’archive correspondant à votre plateforme depuis [Releases](https://github.com/ttezer/gtfs-analyzer/releases) (`x86_64-linux`, `aarch64-macos`, `x86_64-macos`, `x86_64-windows`), décompressez-la et placez le binaire `gtfs-analyzer` dans votre `PATH`.
 
 ```bash
 # Linux / macOS — dernière version
@@ -99,11 +99,19 @@ Passez `-` à la place d’un chemin pour lire le ZIP depuis **stdin** : `curl -
 
 > **Les décomptes diffèrent de ceux de l’interface web.** Le navigateur plafonne le nombre de signalements conservés par règle pour des raisons de performance (les totaux réels figurent dans `capped_totals`). La CLI **n’applique aucun plafond** — le même jeu de données produit davantage de signalements et des chiffres d’impact R9 non réduits. C’est attendu ; ne comparez pas les deux sorties décompte par décompte.
 
+### Version de l’enveloppe JSON
+
+Chaque sortie JSON (`--json`, `--compact-json` et l’objet d’erreur fatale) porte au niveau
+supérieur `schema_version`, `engine_version` et `engine_commit`. `schema_version`
+(actuellement `1`) ne change que lorsqu’un champ existant est supprimé, renommé ou change
+de sens ; de nouveaux champs peuvent apparaître sans changement de version. Les programmes
+qui lisent la sortie doivent la vérifier et accepter les champs inconnus.
+
 ### JSON compact et plafond web
 
 `--compact-json` est la projection canonique destinée aux consommateurs machine : elle
 omet la liste détaillée `notices` et les tables `name_index` du rapport complet
-`--json`. Elle contient au niveau supérieur `status`, `engine`,
+`--json`. Elle contient au niveau supérieur `status`, `schema_version`, `engine`,
 `engine_version`, `engine_commit`, `validation_date`, `partial`, `analysis`,
 `reports.r1`, `reports.r5`, `reports.r9`, `metrics`, `notice_counts` et
 `triggered_rule_count`. Chaque élément de `reports.r9.items` contient le titre, la
