@@ -61,6 +61,10 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
             asset: gtfs-analyzer-aarch64-macos.tar.gz
+          # Intel Macs: native runner so the smoke test below runs the binary itself.
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            asset: gtfs-analyzer-x86_64-macos.tar.gz
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             asset: gtfs-analyzer-x86_64-windows.zip
@@ -138,7 +142,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     # The only job that writes release assets. It runs no build code: it downloads the
-    # three archives built above and uploads them.
+    # four archives built above and uploads them, with their SHA256 checksums.
     permissions:
       contents: write
     steps:
@@ -158,11 +162,14 @@ jobs:
         run: |
           shopt -s nullglob
           assets=(dist/*.tar.gz dist/*.zip)
-          if [ "${#assets[@]}" -ne 3 ]; then
-            echo "expected 3 release archives, found ${#assets[@]}: ${assets[*]}"
+          if [ "${#assets[@]}" -ne 4 ]; then
+            echo "expected 4 release archives, found ${#assets[@]}: ${assets[*]}"
             exit 1
           fi
-          gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
+          # SHA256SUMS: the R package pins these values (r/R/binary.R).
+          (cd dist && sha256sum -- *.tar.gz *.zip > SHA256SUMS)
+          cat dist/SHA256SUMS
+          gh release upload "$RELEASE_TAG" "${assets[@]}" dist/SHA256SUMS --clobber
 
       - name: Publish draft
         env:
