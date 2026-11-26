@@ -1,8 +1,8 @@
-# 8 つの利用方法
+# 9 つの利用方法
 
 🇯🇵 **日本語** · [README に戻る](../README.ja.md)
 
-GTFS Validator & Analyzer の 621 ルールのエンジンには 8 つの方法でアクセスできます。このページでは、それぞれのインストールと使い方を説明します。
+GTFS Validator & Analyzer の 630 ルールのエンジンには 9 つの方法でアクセスできます。このページでは、それぞれのインストールと使い方を説明します。
 
 ## 1. ブラウザ
 
@@ -257,7 +257,30 @@ print(len(result["notices"]))
 `result` は npm SDK や CLI の JSON 出力と同じ基本結果を持ちます。パラメータ、結果の構造、
 エラー型は [`python/README.md`](../python/README.md)（英語）を参照してください。
 
-## 7–8. ChatGPT と Claude
+## 7. R パッケージ
+
+`gtfsanalyzer` パッケージは R から CLI バイナリを実行し、結果をデータフレームで返します。
+Java、Python、Rust のツールチェーンは不要です。
+
+```r
+# install.packages("remotes")
+remotes::install_github("ttezer/gtfs-analyzer", subdir = "r")
+
+library(gtfsanalyzer)
+ga_install()                  # チェックサム検証付きでバイナリをユーザーキャッシュへダウンロード
+res <- ga_analyze("feed.zip")
+res                           # 公開可否、スコア、重大度別の指摘
+summary(res)                  # ルールごとの指摘
+ga_compare("before.zip", "after.zip")   # 時刻表の編集後に何が変わったか
+```
+
+`ga_install()` は SHA256 チェックサムがパッケージに固定されたエンジンのバージョンのみを
+インストールし、`openssl` パッケージがない場合は停止します。自分でビルドまたは
+ダウンロードしたバイナリを使う場合は `GTFS_ANALYZER_BIN=/path/to/gtfs-analyzer` を設定
+してください。終了コード `1`（指摘あり）はエラーではなく、読み込めないフィードでは
+`gtfsanalyzer_fatal` 条件が発生します。詳細：[`r/README.md`](../r/README.md)。
+
+## 8–9. ChatGPT と Claude
 
 インストールと使い方は [README の ChatGPT と Claude の節](../README.ja.md)にあります。
 

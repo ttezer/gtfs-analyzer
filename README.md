@@ -13,7 +13,7 @@
 [![Claude eklentisi](https://img.shields.io/badge/Claude%20eklentisi-GTFS%20Validator-d97757?style=flat&logo=claude&logoColor=white)](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)
 [![Lisans MIT](https://img.shields.io/badge/lisans-MIT-yellow?style=flat)](LICENSE)
 
-**GTFS Validator & Analyzer**, GTFS dosyalarını doğrulayan ve feed kalitesini analiz eden açık kaynak bir **GTFS validator**'dür. Web uygulamasına yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama **WebAssembly** ile kullanıcının cihazında çalışır. Aynı **630 kurallı** motora sekiz farklı yoldan erişilir:
+**GTFS Validator & Analyzer**, GTFS dosyalarını doğrulayan ve feed kalitesini analiz eden açık kaynak bir **GTFS validator**'dür. Web uygulamasına yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama **WebAssembly** ile kullanıcının cihazında çalışır. Aynı **630 kurallı** motora dokuz farklı yoldan erişilir:
 
 | Yol | Ne için |
 |---|---|
@@ -23,6 +23,7 @@
 | **CI/CD** (exit kodu + `--fail-on`) | feed yayına çıkmadan önce pipeline kapısı |
 | **[`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk) npm paketi** | kendi web veya Node uygulamanıza gömmek |
 | **`gtfs-analyzer` Python paketi** (`pip install gtfs-analyzer`) | Python uygulamasına doğrulama gömmek |
+| **`gtfsanalyzer` R paketi** (GitHub, `subdir = "r"`) | R'dan feed doğrulamak ve sefer tablosu sürümlerini karşılaştırmak |
 | **ChatGPT — [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)** | ZIP veya URL'yi sohbet içinde doğrulatmak ve bulguları açıklatmak |
 | **Claude — [GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)** | `/gtfs` ile ZIP, yol veya URL doğrulatmak ve bulguları açıklatmak |
 
@@ -170,7 +171,7 @@ Claude'da [GTFS Validator eklentisini](https://claude.ai/customize/plugins/id/13
 
 ---
 
-## Sekiz Yolu Kullanmak
+## Dokuz Yolu Kullanmak
 
 | Yol | Nasıl başlanır | Ayrıntı |
 |---|---|---|
@@ -180,10 +181,11 @@ Claude'da [GTFS Validator eklentisini](https://claude.ai/customize/plugins/id/13
 | CI/CD | `--fail-on` ve exit kodları | [CI/CD](docs/usage.tr.md#4-cicd) |
 | npm | `npm install gtfs-sdk` | [npm](docs/usage.tr.md#5-gtfs-sdk-npm-paketi) |
 | Python | `pip install gtfs-analyzer` | [Python](docs/usage.tr.md#6-python-paketi) |
+| R | `remotes::install_github("ttezer/gtfs-analyzer", subdir = "r")` | [R](docs/usage.tr.md#7-r-paketi) |
 | ChatGPT | [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c), `/gtfs` | yukarıda |
 | Claude | [GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory), `/gtfs` | yukarıda |
 
-Tüm kurulum ve kullanım ayrıntıları: [Sekiz yolu kullanmak](docs/usage.tr.md).
+Tüm kurulum ve kullanım ayrıntıları: [Dokuz yolu kullanmak](docs/usage.tr.md).
 
 ---
 

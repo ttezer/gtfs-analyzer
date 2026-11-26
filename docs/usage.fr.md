@@ -1,8 +1,8 @@
-# Huit façons de l’utiliser
+# Neuf façons de l’utiliser
 
 🇫🇷 **Français** · [Retour au README](../README.fr.md)
 
-Le moteur de 621 règles de GTFS Validator & Analyzer est accessible de huit façons. Cette page décrit l’installation et l’usage de chacune.
+Le moteur de 630 règles de GTFS Validator & Analyzer est accessible de neuf façons. Cette page décrit l’installation et l’usage de chacune.
 
 ## 1. Navigateur
 
@@ -260,7 +260,30 @@ print(len(result["notices"]))
 la CLI. Paramètres, structure du résultat et types d’erreur :
 [`python/README.md`](../python/README.md) (en anglais).
 
-## 7–8. ChatGPT et Claude
+## 7. Paquet R
+
+Le paquet `gtfsanalyzer` exécute le binaire de la CLI depuis R et renvoie les résultats
+sous forme de data frames. Aucune chaîne d’outils Java, Python ou Rust n’est nécessaire.
+
+```r
+# install.packages("remotes")
+remotes::install_github("ttezer/gtfs-analyzer", subdir = "r")
+
+library(gtfsanalyzer)
+ga_install()                  # téléchargement du binaire vérifié par somme de contrôle
+res <- ga_analyze("feed.zip")
+res                           # verdict, score, signalements par gravité
+summary(res)                  # signalements par règle
+ga_compare("avant.zip", "apres.zip")   # ce qui a changé après une modification d’horaires
+```
+
+`ga_install()` n’installe que les versions du moteur dont la somme SHA256 est fixée dans
+le paquet, et s’arrête si le paquet `openssl` est absent. Pour utiliser un binaire que
+vous avez compilé ou téléchargé vous-même, définissez `GTFS_ANALYZER_BIN=/chemin/gtfs-analyzer`.
+Le code de sortie `1` (signalements présents) n’est pas une erreur ; un jeu illisible
+déclenche une condition `gtfsanalyzer_fatal`. Détails : [`r/README.md`](../r/README.md).
+
+## 8–9. ChatGPT et Claude
 
 Installation et usage : [section ChatGPT et Claude du README](../README.fr.md).
 

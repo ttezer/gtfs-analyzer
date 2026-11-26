@@ -1,8 +1,8 @@
-# Eight Ways to Use It
+# Nine Ways to Use It
 
 🇬🇧 **English** · [Back to README](../README.en.md)
 
-The 621-rule GTFS Validator & Analyzer engine can be reached in eight ways. This page covers installing and using each of them.
+The 630-rule GTFS Validator & Analyzer engine can be reached in nine ways. This page covers installing and using each of them.
 
 ## 1. Browser
 
@@ -259,7 +259,30 @@ print(len(result["notices"]))
 Parameters, the result structure, and error types are described in
 [`python/README.md`](../python/README.md).
 
-## 7–8. ChatGPT and Claude
+## 7. R package
+
+The `gtfsanalyzer` package runs the CLI binary from R and returns results as data
+frames. It needs no Java, Python or Rust toolchain.
+
+```r
+# install.packages("remotes")
+remotes::install_github("ttezer/gtfs-analyzer", subdir = "r")
+
+library(gtfsanalyzer)
+ga_install()                  # checksum-verified binary download into the user cache
+res <- ga_analyze("feed.zip")
+res                           # verdict, score, findings by severity
+summary(res)                  # findings per rule
+ga_compare("before.zip", "after.zip")   # what changed after a timetable edit
+```
+
+`ga_install()` installs only engine versions whose SHA256 checksums are pinned in the
+package, and stops if the `openssl` package is missing. To use a binary you built or
+downloaded yourself, set `GTFS_ANALYZER_BIN=/path/to/gtfs-analyzer`. Exit code `1`
+(findings present) is not an error; an unreadable feed raises a `gtfsanalyzer_fatal`
+condition. Details: [`r/README.md`](../r/README.md).
+
+## 8–9. ChatGPT and Claude
 
 Installation and usage are in the [ChatGPT and Claude section of the README](../README.en.md).
 

@@ -1,8 +1,8 @@
-# Sekiz Yolu Kullanmak
+# Dokuz Yolu Kullanmak
 
 🇹🇷 **Türkçe** · [README'ye dön](../README.md)
 
-GTFS Validator & Analyzer'ın 621 kurallı motoruna sekiz yoldan erişilir. Bu sayfa her yolun kurulumunu ve kullanımını anlatır.
+GTFS Validator & Analyzer'ın 630 kurallı motoruna dokuz yoldan erişilir. Bu sayfa her yolun kurulumunu ve kullanımını anlatır.
 
 ## 1. Tarayıcı
 
@@ -274,7 +274,30 @@ print(len(result["notices"]))
 sonuç yapısı ve hata türleri için [`python/README.md`](../python/README.md)
 dosyasına bakın.
 
-## 7–8. ChatGPT ve Claude
+## 7. R paketi
+
+`gtfsanalyzer` paketi CLI binary'sini R'dan çalıştırır ve sonuçları veri çerçevesi
+(data frame) olarak döndürür. Java, Python veya Rust araç zinciri gerekmez.
+
+```r
+# install.packages("remotes")
+remotes::install_github("ttezer/gtfs-analyzer", subdir = "r")
+
+library(gtfsanalyzer)
+ga_install()                  # checksum doğrulamalı binary indirme (kullanıcı önbelleğine)
+res <- ga_analyze("feed.zip")
+res                           # yayın kararı, skor, önem derecesine göre bulgular
+summary(res)                  # kural başına bulgular
+ga_compare("once.zip", "sonra.zip")   # sefer tablosu düzenlemesinden sonra ne değişti
+```
+
+`ga_install()` yalnız SHA256 checksum'ı pakette sabitlenmiş motor sürümlerini kurar;
+`openssl` paketi yoksa durur. Kendi derlediğiniz ya da indirdiğiniz binary'yi kullanmak
+için `GTFS_ANALYZER_BIN=/yol/gtfs-analyzer` ayarlayın. Exit kodu `1` (bulgu var) hata
+sayılmaz; okunamayan feed `gtfsanalyzer_fatal` koşulu üretir. Ayrıntılar:
+[`r/README.md`](../r/README.md).
+
+## 8–9. ChatGPT ve Claude
 
 Kurulum ve kullanım [README'deki ChatGPT ve Claude bölümünde](../README.md).
 

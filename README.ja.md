@@ -12,7 +12,7 @@
 [![Claude プラグイン](https://img.shields.io/badge/Claude%20%E3%83%97%E3%83%A9%E3%82%B0%E3%82%A4%E3%83%B3-GTFS%20Validator-d97757?style=flat&logo=claude&logoColor=white)](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)
 [![License MIT](https://img.shields.io/badge/%E3%83%A9%E3%82%A4%E3%82%BB%E3%83%B3%E3%82%B9-MIT-yellow?style=flat)](LICENSE)
 
-**GTFS Validator & Analyzer** は、GTFS ファイルを検証し、フィードの品質を分析するオープンソースの **GTFS バリデーター**です。Web アプリにアップロードした `.zip` はサーバーに送信されず、検証は **WebAssembly** によりユーザーの端末で実行されます。同じ **630 ルール**のエンジンに 8 つの方法でアクセスできます：
+**GTFS Validator & Analyzer** は、GTFS ファイルを検証し、フィードの品質を分析するオープンソースの **GTFS バリデーター**です。Web アプリにアップロードした `.zip` はサーバーに送信されず、検証は **WebAssembly** によりユーザーの端末で実行されます。同じ **630 ルール**のエンジンに 9 つの方法でアクセスできます：
 
 | 方法 | 用途 |
 |---|---|
@@ -22,6 +22,7 @@
 | **CI/CD**（終了コード + `--fail-on`） | フィード公開前のパイプラインゲート |
 | **[`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk) npm パッケージ** | Web または Node アプリへの組み込み |
 | **[`gtfs-analyzer`](https://pypi.org/project/gtfs-analyzer/) Python パッケージ**（`pip install gtfs-analyzer`） | Python アプリへの組み込み |
+| **`gtfsanalyzer` R パッケージ**（GitHub、`subdir = "r"`） | R からのフィード検証と時刻表バージョンの比較 |
 | **ChatGPT — [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)** | 会話内で ZIP または URL を検証し、指摘内容を説明 |
 | **Claude — [GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)** | `/gtfs` で ZIP・パス・URL を検証し、指摘内容を説明 |
 
@@ -169,7 +170,7 @@ Claude に [GTFS Validator プラグイン](https://claude.ai/customize/plugins/
 
 ---
 
-## 8 つの利用方法
+## 9 つの利用方法
 
 | 方法 | 始め方 | 詳細 |
 |---|---|---|
@@ -179,10 +180,11 @@ Claude に [GTFS Validator プラグイン](https://claude.ai/customize/plugins/
 | CI/CD | `--fail-on` と終了コード | [CI/CD](docs/usage.ja.md#4-cicd) |
 | npm | `npm install gtfs-sdk` | [npm](docs/usage.ja.md#5-gtfs-sdk-npm-パッケージ) |
 | Python | `pip install gtfs-analyzer` | [Python](docs/usage.ja.md#6-python-パッケージ) |
+| R | `remotes::install_github("ttezer/gtfs-analyzer", subdir = "r")` | [R](docs/usage.ja.md#7-r-パッケージ) |
 | ChatGPT | [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)、`/gtfs` | 上記 |
 | Claude | [GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)、`/gtfs` | 上記 |
 
-インストールと使い方の詳細：[8 つの利用方法](docs/usage.ja.md)。
+インストールと使い方の詳細：[9 つの利用方法](docs/usage.ja.md)。
 
 ---
 

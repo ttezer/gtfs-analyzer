@@ -12,7 +12,7 @@
 [![Plugin Claude](https://img.shields.io/badge/Plugin%20Claude-GTFS%20Validator-d97757?style=flat&logo=claude&logoColor=white)](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-yellow?style=flat)](LICENSE)
 
-**GTFS Validator & Analyzer** est un **validateur GTFS** open source qui contrôle les fichiers GTFS et analyse la qualité des jeux de données. Un `.zip` téléversé dans l’application web n’est jamais envoyé à un serveur ; la validation s’exécute sur l’appareil de l’utilisateur avec **WebAssembly**. Le même moteur de **630 règles** est accessible de huit façons :
+**GTFS Validator & Analyzer** est un **validateur GTFS** open source qui contrôle les fichiers GTFS et analyse la qualité des jeux de données. Un `.zip` téléversé dans l’application web n’est jamais envoyé à un serveur ; la validation s’exécute sur l’appareil de l’utilisateur avec **WebAssembly**. Le même moteur de **630 règles** est accessible de neuf façons :
 
 | Voie | Idéal pour |
 |---|---|
@@ -22,6 +22,7 @@
 | **CI/CD** (codes de sortie + `--fail-on`) | Une barrière de publication avant de diffuser un jeu de données |
 | **Paquet npm [`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk)** | Intégrer la validation dans votre application web ou Node |
 | **Paquet Python [`gtfs-analyzer`](https://pypi.org/project/gtfs-analyzer/)** (`pip install gtfs-analyzer`) | Intégrer la validation dans votre application Python |
+| **Paquet R `gtfsanalyzer`** (GitHub, `subdir = "r"`) | Valider des jeux et comparer des versions d’horaires depuis R |
 | **ChatGPT — [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)** | Valider un ZIP ou une URL dans une conversation et expliquer les signalements |
 | **Claude — [GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory)** | Valider un ZIP, un chemin ou une URL avec `/gtfs` et expliquer les signalements |
 
@@ -169,7 +170,7 @@ Ajoutez l’[extension GTFS Validator](https://claude.ai/customize/plugins/id/13
 
 ---
 
-## Huit façons de l’utiliser
+## Neuf façons de l’utiliser
 
 | Voie | Pour commencer | Détails |
 |---|---|---|
@@ -179,10 +180,11 @@ Ajoutez l’[extension GTFS Validator](https://claude.ai/customize/plugins/id/13
 | CI/CD | `--fail-on` et codes de sortie | [CI/CD](docs/usage.fr.md#4-cicd) |
 | npm | `npm install gtfs-sdk` | [npm](docs/usage.fr.md#5-paquet-npm-gtfs-sdk) |
 | Python | `pip install gtfs-analyzer` | [Python](docs/usage.fr.md#6-paquet-python) |
+| R | `remotes::install_github("ttezer/gtfs-analyzer", subdir = "r")` | [R](docs/usage.fr.md#7-paquet-r) |
 | ChatGPT | [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c), `/gtfs` | ci-dessus |
 | Claude | [GTFS Validator](https://claude.ai/customize/plugins/id/13a4a596-abf5-4301-91bc-41425febc400%40anthropic-plugin-directory?via=directory), `/gtfs` | ci-dessus |
 
-Tous les détails d’installation et d’usage : [Huit façons de l’utiliser](docs/usage.fr.md).
+Tous les détails d’installation et d’usage : [Neuf façons de l’utiliser](docs/usage.fr.md).
 
 ---
 
