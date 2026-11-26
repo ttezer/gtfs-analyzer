@@ -1099,6 +1099,13 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).not.toContain('O gün aktif takvimler (1): WK');
     expect(out.html).not.toContain('(Örnek servis günü');
 
+    out = render(notice('ab', 'OPR_001', 'MEDIUM', { entity_type: 'Route', entity_id: 'R1', service_id: 'WK', observed_value: '420', expected_value: '≤ 240',
+      details: { gap_from: '09:00', gap_to: '16:00', frequency_window_basis: 'lower_bound',
+        sample_date: '20261130', affected_days: '1', service_ids: '["WK"]', direction_id: '0' } }));
+    expect(out.html).toContain('kesinlikle en az 7 sa boşluk var');
+    expect(out.html).toContain('Frekans penceresi sınırları kesin kalkış saati değildir.');
+    expect(out.html).not.toContain('09:00 kalkışından sonraki sefer');
+
     // A combined service-day profile names its sample date, both active services and affected days.
     out = render(notice('b', 'OPR_003', 'LOW', { entity_type: 'Route', entity_id: 'R1', observed_value: '1', expected_value: '> 2',
       details: { gap_from: '08:00', gap_to: '08:01', trip_before: 'T1', trip_after: 'T2', stop_id: 'S1',
@@ -1109,9 +1116,9 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('<tr class="bad"><td>08:00</td><td>Çarşı</td></tr>');
 
     out = render(notice('bf', 'OPR_005', 'INFO', { entity_type: 'Route', entity_id: 'R1', observed_value: '5',
-      details: { median_min: '15', kind: 'dense', frequency_basis: 'declared_headway_secs', window_start: '08:00', window_end: '10:00', window_count: '2',
+      details: { median_min: '15', kind: 'dense', frequency_basis: 'declared_service_span', window_start: '08:00', window_end: '10:00', window_count: '2',
         sample_date: '20261130', affected_days: '1', service_ids: '["WK"]', direction_id: '0' } }));
-    expect(out.html).toContain('frekans penceresindeki beyan edilen ortalama sefer aralığı');
+    expect(out.html).toContain('hizmet dönemi için beyan edilen frekanslardan hesaplanan ortalama aralık');
     expect(out.html).not.toContain('kalkış);');
 
     out = render(notice('b5', 'OPR_005', 'INFO', { entity_type: 'Route', entity_id: 'R1', observed_value: '5',

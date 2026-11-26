@@ -2,12 +2,12 @@ import csv, io, zipfile, pathlib, subprocess, json, sys
 p=pathlib.Path(sys.argv[1] if len(sys.argv)>1 else '/tmp/gtfs-headway-calendar-fixtures')
 p.mkdir(parents=True, exist_ok=True)
 M='20261130'; T='20261201'; S='20261205'
-def fixture(name, groups, dates, exceptions=(), frequencies=(), peers=0):
+def fixture(name, groups, dates, exceptions=(), frequencies=(), peers=0, peer_deps=('08:00','08:15','08:30')):
     files={}
     def table(name, header, rows):
         f=io.StringIO(); w=csv.writer(f); w.writerow(header.split(',')); w.writerows(rows); files[name]=f.getvalue()
     routes=[]; trips=[]; times=[]; fs=[]
-    all_groups=[('R', *g) for g in groups]+[(f'P{i}', 'A', ('08:00','08:15','08:30'), 'X','Y') for i in range(peers)]
+    all_groups=[('R', *g) for g in groups]+[(f'P{i}', 'A', peer_deps, 'X','Y') for i in range(peers)]
     for i,(route, svc, deps, start, stop) in enumerate(all_groups):
         if route not in [r[0] for r in routes]: routes.append((route,route,'',3))
         for j,dep in enumerate(deps):
@@ -56,8 +56,14 @@ for exact in (0,1):
     fixture(f'freq{exact}',[g('A','00:00','08:01','08:15','08:29')],[cal('A')],frequencies=[(0,0,'08:00:00','08:20:00',420,exact)])
 fixture('freq_mixed',[g('A','00:00','08:01','08:15','08:29'),('A',('09:00','09:01'),'Z','W')],[cal('A')],frequencies=[(0,0,'08:00:00','08:20:00',420,0)])
 fixture('freq_window_gap',[g('A','00:00','16:00','16:15','23:30')],[cal('A')],frequencies=[(0,0,'08:00:00','16:00:00',900,0)])
+fixture('freq_boundary_after',[g('A','00:00','16:00')],[cal('A')],frequencies=[(0,0,'07:00:00','09:00:00',600,0)])
+fixture('freq_boundary_before',[g('A','05:00','00:00')],[cal('A')],frequencies=[(0,1,'12:00:00','14:00:00',600,0)])
+fixture('freq_boundary_windows',[g('A','00:00')],[cal('A')],frequencies=[(0,0,'07:00:00','09:00:00',600,0),(0,0,'17:00:00','19:00:00',600,0)])
+fixture('freq_continuous_windows',[g('A','00:00')],[cal('A')],frequencies=[(0,0,'07:00:00','09:00:00',600,0),(0,0,'09:00:00','11:00:00',600,0)])
 fixture('freq_window_bunch',[g('A','00:00','08:01','08:02')],[cal('A')],frequencies=[(0,0,'08:00:00','09:00:00',900,0)])
 fixture('freq_pure',[g('A','00:00')],[cal('A')],frequencies=[(0,0,'08:00:00','10:00:00',3600,0)],peers=6)
+fixture('freq_split_peers',[g('A','00:00')],[cal('A')],frequencies=[(0,0,'07:00:00','09:00:00',600,0),(0,0,'19:00:00','21:00:00',600,0)],peers=6)
+fixture('freq_gap_peers',[g('A','00:00')],[cal('A')],frequencies=[(0,0,'07:00:00','09:00:00',600,0),(0,0,'17:00:00','19:00:00',600,0)],peers=6,peer_deps=('08:00','08:10','08:20'))
 fixture('freq_overlap',[g('A','00:00','00:00')],[cal('A')],frequencies=[(0,0,'08:00:00','10:00:00',600,0),(0,1,'08:00:00','10:00:00',600,0)],peers=6)
 fixture('freq_mixed_peers',[g('A','00:00','08:05')],[cal('A')],frequencies=[(0,0,'08:00:00','10:00:00',3600,0)],peers=6)
 fixture('freq_exact_peers',[g('A','00:00')],[cal('A')],frequencies=[(0,0,'08:00:00','10:00:00',3600,1)],peers=6)

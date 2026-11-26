@@ -23,6 +23,7 @@ struct Profile<'a> {
     count: usize,
     declared: bool,
     window_count: usize,
+    expected_departures: Option<f64>,
 }
 
 struct Finding {
@@ -121,8 +122,8 @@ pub(super) fn check_opr005<'a>(
                 continue;
             }
             let declared = !windows.is_empty();
-            let (average, first, last, count) = if declared {
-                let Some((average, first, last, _expected)) =
+            let (average, first, last, count, expected_departures) = if declared {
+                let Some((average, first, last, expected)) =
                     frequency_schedule::declared_mean(&windows)
                 else {
                     coverage.opr_005.opr_005_skipped_profiles += 1;
@@ -130,12 +131,18 @@ pub(super) fn check_opr005<'a>(
                     continue;
                 };
                 coverage.opr_005.opr_005_frequency_profiles += 1;
-                (average, first, last, 0)
+                (average, first, last, 0, Some(expected))
             } else if departures.len() >= 2 {
                 let first = departures[0];
                 let last = departures[departures.len() - 1];
                 let count = departures.len();
-                ((last - first) / (count as u32 - 1), first, last, count)
+                (
+                    (last - first) / (count as u32 - 1),
+                    first,
+                    last,
+                    count,
+                    None,
+                )
             } else {
                 continue;
             };
@@ -152,6 +159,7 @@ pub(super) fn check_opr005<'a>(
                 count,
                 declared,
                 window_count: windows.len(),
+                expected_departures,
             });
         }
     }
@@ -242,7 +250,7 @@ pub(super) fn check_opr005<'a>(
         let median_min = median / 60.0;
         let example = headway_calendar::sample_date(records, &profile.dates);
         let message = if profile.declared {
-            format!("Route '{label}' direction {direction}, service day {example} (services {}): declared frequency headway {average_min:.0} min — the feed median for routes of the same type is {median_min:.0} min ({kind}).", profile.services.join(", "))
+            format!("Route '{label}' direction {direction}, service day {example} (services {}): estimated full-span average headway from declared frequency is {average_min:.0} min — the feed median for routes of the same type is {median_min:.0} min ({kind}).", profile.services.join(", "))
         } else if profile.services.len() == 1 {
             format!("Route '{label}' direction {direction}, calendar {}: average headway {average_min:.0} min — the feed median for routes of the same type is {median_min:.0} min ({kind}).", profile.services[0])
         } else {
@@ -254,7 +262,11 @@ pub(super) fn check_opr005<'a>(
             EntityType::Route,
             Some(route.to_string()),
             Some(route.to_string()),
-            "stop_times.txt",
+            if profile.declared {
+                "frequencies.txt"
+            } else {
+                "stop_times.txt"
+            },
             None,
             None,
             Some(format!("{average_min:.0}")),
@@ -268,10 +280,13 @@ pub(super) fn check_opr005<'a>(
         details.insert("median_min", format!("{median_min:.0}"));
         details.insert("kind", if sparse { "sparse" } else { "dense" }.to_string());
         if profile.declared {
-            details.insert("frequency_basis", "declared_headway_secs".to_string());
+            details.insert("frequency_basis", "declared_service_span".to_string());
             details.insert("window_start", hm(profile.first));
             details.insert("window_end", hm(profile.last));
             details.insert("window_count", profile.window_count.to_string());
+            if let Some(expected) = profile.expected_departures {
+                details.insert("expected_departures_estimate", format!("{expected:.2}"));
+            }
         } else {
             details.insert("first_departure", hm(profile.first));
             details.insert("last_departure", hm(profile.last));

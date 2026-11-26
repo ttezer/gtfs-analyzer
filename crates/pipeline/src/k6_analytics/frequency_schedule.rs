@@ -105,24 +105,74 @@ impl<'a> FrequencyIndex<'a> {
     }
 }
 
-/// A fixed-to-fixed gap can support an OPR_001 claim only if no unphased service
-/// window overlaps its interior. FRQ rules assess the declared window headway.
-pub(super) fn fixed_gaps_outside_windows(times: &[u32], windows: &[Window]) -> Vec<(u32, u32)> {
-    times
+#[derive(Clone, Copy)]
+pub(super) struct GapBound {
+    pub from: u32,
+    pub to: u32,
+    /// A window boundary is not itself a confirmed departure. The interval is a
+    /// guaranteed lower bound on the actual gap, not an observed trip-to-trip gap.
+    pub lower_bound: bool,
+}
+
+#[derive(Clone, Copy)]
+struct CoverageComponent {
+    start: u32,
+    end: u32,
+    start_fixed: bool,
+    end_fixed: bool,
+}
+
+/// Collapse fixed departures and frequency windows into service-coverage components.
+/// Gaps between components are guaranteed to contain no departure; a window edge
+/// yields only a lower bound on the actual trip-to-trip gap.
+pub(super) fn service_gap_bounds(times: &[u32], windows: &[Window]) -> Vec<GapBound> {
+    let mut coverage: Vec<CoverageComponent> = times
+        .iter()
+        .map(|&t| CoverageComponent {
+            start: t,
+            end: t,
+            start_fixed: true,
+            end_fixed: true,
+        })
+        .collect();
+    coverage.extend(windows.iter().map(|w| CoverageComponent {
+        start: w.start,
+        end: w.end,
+        start_fixed: false,
+        end_fixed: false,
+    }));
+    coverage.sort_unstable_by_key(|item| (item.start, item.end));
+    let mut components: Vec<CoverageComponent> = Vec::new();
+    for item in coverage {
+        if let Some(last) = components.last_mut() {
+            if item.start <= last.end {
+                if item.start == last.start {
+                    last.start_fixed |= item.start_fixed;
+                }
+                if item.end > last.end {
+                    last.end = item.end;
+                    last.end_fixed = item.end_fixed;
+                } else if item.end == last.end {
+                    last.end_fixed |= item.end_fixed;
+                }
+                continue;
+            }
+        }
+        components.push(item);
+    }
+    components
         .windows(2)
-        .filter_map(|pair| {
-            let (from, to) = (pair[0], pair[1]);
-            (!windows
-                .iter()
-                .any(|window| window.start < to && window.end > from))
-            .then_some((from, to))
+        .map(|pair| GapBound {
+            from: pair[0].end,
+            to: pair[1].start,
+            lower_bound: !(pair[0].end_fixed && pair[1].start_fixed),
         })
         .collect()
 }
 
-/// Equivalent mean of a pure frequency service. For overlapping windows the rates
-/// add, while the occupied time is counted once. Empty gaps between windows do
-/// not represent a declared headway and are excluded from this mean.
+/// Estimated route-level mean across the full service span of a pure frequency
+/// profile. Overlapping windows add rates, while the span is counted once.
+/// Gaps between windows remain in the numerator, as with scheduled profiles.
 pub(super) fn declared_mean(windows: &[Window]) -> Option<(u32, u32, u32, f64)> {
     let mut edges = Vec::with_capacity(windows.len() * 2);
     for window in windows {
@@ -134,19 +184,17 @@ pub(super) fn declared_mean(windows: &[Window]) -> Option<(u32, u32, u32, f64)> 
     let first = edges.first()?.0;
     let last = edges.last()?.0;
     let mut active_rate = 0.0;
-    let mut active_seconds = 0.0;
     let mut expected_departures = 0.0;
     for pair in edges.windows(2) {
         active_rate += pair[0].1;
         let span = f64::from(pair[1].0 - pair[0].0);
         if active_rate > 0.0 && span > 0.0 {
-            active_seconds += span;
             expected_departures += span * active_rate;
         }
     }
     (expected_departures > 0.0).then(|| {
         (
-            (active_seconds / expected_departures).round() as u32,
+            (f64::from(last - first) / expected_departures).round() as u32,
             first,
             last,
             expected_departures,
@@ -172,5 +220,30 @@ mod tests {
         };
         assert_eq!(declared_mean(&[first, second]).unwrap().0, 900);
         assert_eq!(declared_mean(&[first, first]).unwrap().0, 300);
+        let morning = Window {
+            start: 7 * 3600,
+            end: 9 * 3600,
+            headway: 600,
+        };
+        let evening = Window {
+            start: 17 * 3600,
+            end: 19 * 3600,
+            headway: 600,
+        };
+        assert_eq!(declared_mean(&[morning, evening]).unwrap().0, 1800);
+    }
+
+    #[test]
+    fn a_fixed_departure_at_a_window_edge_keeps_the_next_gap_exact() {
+        let window = Window {
+            start: 8 * 3600,
+            end: 9 * 3600,
+            headway: 600,
+        };
+        let bounds = service_gap_bounds(&[9 * 3600, 9 * 3600 + 900], &[window]);
+        assert_eq!(bounds.len(), 1);
+        assert!(!bounds[0].lower_bound);
+        let bounds = service_gap_bounds(&[10 * 3600], &[window]);
+        assert!(bounds[0].lower_bound);
     }
 }

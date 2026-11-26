@@ -300,10 +300,14 @@ pub(super) fn check_route_headway<'a>(
                     .largest_merged_departures
                     .max(departures.len() as u32);
                 let times = distinct_times(&departures);
-                if times.len() >= 2 {
-                    let pairs = frequency_schedule::fixed_gaps_outside_windows(&times, &windows);
-                    let gaps: Vec<u32> = pairs.iter().map(|&(a,b)| b-a).collect();
+                if times.len() + windows.len() >= 2 {
+                    let bounds = frequency_schedule::service_gap_bounds(&times, &windows);
+                    let gaps: Vec<u32> = bounds.iter().map(|gap| gap.to - gap.from).collect();
                     let maximum = gaps.iter().copied().max().unwrap_or(0);
+                    // A window's declared headway supplies the regular-service reference
+                    // when a guaranteed boundary gap has no second fixed comparison gap.
+                    let mut regularity_gaps = gaps.clone();
+                    regularity_gaps.extend(windows.iter().map(|window| window.headway));
                     let threshold = if rail_routes.contains(route) {
                         config.max_headway_warning_min_rail * 60
                     } else {
@@ -311,11 +315,14 @@ pub(super) fn check_route_headway<'a>(
                     };
                     if maximum > threshold
                         && !config.rural_route_ids.iter().any(|r| r == route)
-                        && !is_regular_headway(&gaps)
+                        && !is_regular_headway(&regularity_gaps)
                     {
                         let at = gaps.iter().position(|&g| g == maximum).unwrap();
-                        let pair = pairs[at];
-                        let message = if !windows.is_empty() {
+                        let bound = bounds[at];
+                        let pair = (bound.from, bound.to);
+                        let message = if bound.lower_bound {
+                            format!("Route '{label}' direction {dir_label}, service day {example} ({service_label}): guaranteed service gap of at least {:.0} min between frequency-window or fixed-departure boundaries — threshold {} min.", maximum as f64 / 60.0, threshold / 60)
+                        } else if !windows.is_empty() {
                             format!("Route '{label}' direction {dir_label}, service day {example} ({service_label}): a fixed-departure gap outside frequency windows is {:.0} min — threshold {} min.", maximum as f64 / 60.0, threshold / 60)
                         } else if services.len() == 1 {
                             format!("Route '{label}' direction {dir_label}, calendar {}: maximum headway {:.0} min — threshold {} min.", services[0], maximum as f64 / 60.0, threshold / 60)
@@ -346,7 +353,15 @@ pub(super) fn check_route_headway<'a>(
                             times.len(),
                         );
                         if !windows.is_empty() {
-                            notice.details.get_or_insert_with(Default::default).insert("frequency_window_basis", "fixed_gap_outside_windows".to_string());
+                            let details = notice.details.get_or_insert_with(Default::default);
+                            details.insert("frequency_window_basis", if bound.lower_bound { "lower_bound" } else { "fixed_gap_outside_windows" }.to_string());
+                            details.remove("departures");
+                            details.insert("exact_departure_times", times.len().to_string());
+                            details.insert("frequency_windows", windows.len().to_string());
+                            if bound.lower_bound {
+                                details.remove("trip_before");
+                                details.remove("trip_after");
+                            }
                         }
                         if !raw_routes.contains(route)
                             && maximum <= config.max_headway_warning_min_rail * 60
@@ -445,7 +460,10 @@ pub(super) fn check_route_headway<'a>(
                     times.len(),
                 );
                 if has_window {
-                    notice.details.get_or_insert_with(Default::default).insert("frequency_window_basis", "fixed_pair".to_string());
+                    let details = notice.details.get_or_insert_with(Default::default);
+                    details.insert("frequency_window_basis", "fixed_pair".to_string());
+                    details.remove("departures");
+                    details.insert("exact_departure_times", times.len().to_string());
                 }
                 if !first_stop.is_empty() {
                     notice

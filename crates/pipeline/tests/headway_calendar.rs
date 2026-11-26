@@ -204,6 +204,32 @@ fn frequency_windows_allow_only_actual_fixed_pairs_to_trigger_headway_rules() {
     assert!(headways(&run("freq_midnight_window")).is_empty());
 }
 
+#[test]
+fn frequency_window_edges_report_guaranteed_gap_lower_bounds() {
+    for (name, value, from, to) in [
+        ("freq_boundary_after", "420", "09:00", "16:00"),
+        ("freq_boundary_before", "420", "05:00", "12:00"),
+        ("freq_boundary_windows", "480", "09:00", "17:00"),
+    ] {
+        let result = run(name);
+        assert_eq!(headways(&result), vec![("OPR_001", value)], "{name}");
+        let notice = result.notices.iter().find(|n| n.rule_id == "OPR_001").unwrap();
+        let details = notice.details.as_ref().unwrap();
+        assert_eq!(details.get("frequency_window_basis").map(String::as_str), Some("lower_bound"), "{name}");
+        assert_eq!(details.get("gap_from").map(String::as_str), Some(from), "{name}");
+        assert_eq!(details.get("gap_to").map(String::as_str), Some(to), "{name}");
+        assert!(!details.contains_key("departures"), "{name}");
+        assert!(details.contains_key("exact_departure_times"), "{name}");
+        assert!(!details.contains_key("trip_before"), "{name}");
+        assert!(!details.contains_key("trip_after"), "{name}");
+        assert!(notice.message.contains("at least"), "{name}");
+        let mut translated = notice.clone();
+        Translator::new(Lang::Tr).unwrap().unwrap().translate(&mut translated);
+        assert!(translated.message.contains("en az"), "{name}: {}", translated.message);
+    }
+    assert!(headways(&run("freq_continuous_windows")).is_empty());
+}
+
 fn opr005<'a>(result: &'a ValidationResult) -> Vec<&'a gtfs_core::Notice> {
     result.notices.iter().filter(|notice| notice.rule_id == "OPR_005").collect()
 }
@@ -255,7 +281,7 @@ fn opr005_frequency_profiles_are_counted_as_unevaluated() {
 
 #[test]
 fn opr005_uses_declared_frequency_only_for_pure_frequency_profiles() {
-    for (name, headway) in [("freq_pure", "60"), ("freq_overlap", "5"), ("freq_exact_peers", "60")] {
+    for (name, headway) in [("freq_pure", "60"), ("freq_overlap", "5"), ("freq_split_peers", "35"), ("freq_gap_peers", "30"), ("freq_exact_peers", "60")] {
         let result = run(name);
         let findings = opr005(&result);
         assert_eq!(findings.len(), 1, "{name}");
@@ -264,9 +290,12 @@ fn opr005_uses_declared_frequency_only_for_pure_frequency_profiles() {
         if name == "freq_exact_peers" {
             assert!(!details.contains_key("frequency_basis"));
             assert_eq!(details.get("departures").map(String::as_str), Some("2"));
+            assert_eq!(findings[0].file.as_deref(), Some("stop_times.txt"));
         } else {
-            assert_eq!(details.get("frequency_basis").map(String::as_str), Some("declared_headway_secs"));
+            assert_eq!(details.get("frequency_basis").map(String::as_str), Some("declared_service_span"));
+            assert_eq!(findings[0].file.as_deref(), Some("frequencies.txt"));
             assert!(!details.contains_key("departures"));
+            assert!(details.contains_key("expected_departures_estimate"));
             assert_eq!(result.metrics.headway_coverage.opr_005.opr_005_frequency_profiles, 1);
         }
     }
@@ -280,7 +309,7 @@ fn opr005_uses_declared_frequency_only_for_pure_frequency_profiles() {
     assert!(coverage.get("opr_005").is_none());
     let mut notice = opr005(&pure)[0].clone();
     Translator::new(Lang::Tr).unwrap().unwrap().translate(&mut notice);
-    assert!(notice.message.contains("beyan edilen ortalama frekans aralığı"));
+    assert!(notice.message.contains("beyandan hesaplanan hizmet dönemi ortalaması"), "{}", notice.message);
 }
 
 #[test]

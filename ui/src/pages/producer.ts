@@ -1017,6 +1017,13 @@ function oprRuleText(n: Notice, result: ValidationResult): string | null {
   switch (n.rule_id) {
     case 'OPR_001':
       if (!d.gap_from || !d.gap_to || !n.observed_value) return null;
+      if (d.frequency_window_basis === 'lower_bound') {
+        return t('producer.card.OPR_001.what_lower_bound', {
+          route, dir: oprDirection(d, result), from: d.gap_from, to: d.gap_to,
+          gap: durationText(Number(n.observed_value) * 60), limit: durationText(Number(/\d+/.exec(n.expected_value ?? '')?.[0]) * 60),
+          context: profileContext || '',
+        });
+      }
       return t(`producer.card.OPR_001.${profileContext ? 'what_profile' : 'what_detail'}`, {
         route, dir: oprDirection(d, result, d.trip_before), days: days || '—', from: d.gap_from, to: d.gap_to,
         gap: durationText(Number(n.observed_value) * 60), limit: durationText(Number(/\d+/.exec(n.expected_value ?? '')?.[0]) * 60),
@@ -1033,7 +1040,7 @@ function oprRuleText(n: Notice, result: ValidationResult): string | null {
       return t('producer.card.OPR_004.what_detail', { route });
     case 'OPR_005':
       if (!d.median_min || !n.observed_value) return null;
-      if (d.frequency_basis === 'declared_headway_secs') {
+      if (d.frequency_basis === 'declared_service_span') {
         return t(`producer.card.OPR_005.${d.kind === 'dense' ? 'what_dense_frequency' : 'what_sparse_frequency'}`, {
           route, dir: oprDirection(d, result), hw: localizedNumber(n.observed_value), median: localizedNumber(d.median_min),
           first: d.window_start || '—', last: d.window_end || '—', context: profileContext || '',
