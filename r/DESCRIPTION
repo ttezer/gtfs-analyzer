@@ -1,0 +1,28 @@
+Package: gtfsanalyzer
+Type: Package
+Title: Validate and Analyse 'GTFS' Schedule Feeds with 'GTFS Analyzer'
+Version: 0.1.0
+Authors@R: person("Tacettin", "Tezer", email = "ttezer@gmail.com",
+    role = c("aut", "cre"))
+Description: An interface to the 'GTFS Analyzer' command line validator
+    <https://github.com/ttezer/gtfs-analyzer> for 'GTFS' (General Transit Feed
+    Specification) Schedule feeds. Runs the validator on a feed archive and
+    returns publishability, quality scores and findings as R objects, and
+    compares two versions of a feed. The validator is a standalone executable;
+    it can be installed into the user cache directory with a checksum-verified
+    download, or an existing executable can be used.
+License: MIT + file LICENSE
+URL: https://github.com/ttezer/gtfs-analyzer
+BugReports: https://github.com/ttezer/gtfs-analyzer/issues
+Encoding: UTF-8
+Depends: R (>= 4.1)
+Imports:
+    jsonlite,
+    stats,
+    tools,
+    utils
+Suggests:
+    openssl,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.1.1
