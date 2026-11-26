@@ -1146,6 +1146,7 @@ function oprTable(n: Notice, result: ValidationResult): string {
     case 'OPR_001':
     case 'OPR_003':
       if (!d.gap_from || !d.gap_to) return '';
+      if (n.rule_id === 'OPR_001' && d.frequency_window_basis === 'lower_bound') return '';
       return table(t(n.rule_id === 'OPR_001' ? 'producer.times.opr_gap' : 'producer.times.opr_bunch'),
         [t('producer.col.departure'), t('producer.col.direction')],
         [[d.gap_from, (d.trip_before && ni.trips?.[d.trip_before]) || '—'],

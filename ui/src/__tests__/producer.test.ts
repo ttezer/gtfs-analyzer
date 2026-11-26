@@ -1105,6 +1105,8 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('kesinlikle en az 7 sa boşluk var');
     expect(out.html).toContain('Frekans penceresi sınırları kesin kalkış saati değildir.');
     expect(out.html).not.toContain('09:00 kalkışından sonraki sefer');
+    expect(out.html).not.toContain('Boşluğun iki ucundaki seferler');
+    expect(out.html).not.toContain('<th>Sefer başlangıç saati</th>');
 
     // A combined service-day profile names its sample date, both active services and affected days.
     out = render(notice('b', 'OPR_003', 'LOW', { entity_type: 'Route', entity_id: 'R1', observed_value: '1', expected_value: '> 2',
