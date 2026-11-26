@@ -39,8 +39,10 @@ describe('headway evaluation coverage', () => {
     try {
       for (const locale of ['tr', 'en', 'ja', 'fr'] as const) {
         setLocale(locale);
-        expect(t('producer.card.opr_profile_one', { date: '2026-11-30', services: 'A, B' })).toContain('A, B');
-        expect(t('producer.card.opr_profile_many', { date: '2026-11-30', count: 2, services: 'A, B' })).toContain('2026-11-30');
+        expect(t('producer.card.opr_profile_one', { date: '2026-11-30', service_count: 2, services: 'A, B' })).toContain('A, B');
+        expect(t('producer.card.opr_profile_many', { date: '2026-11-30', count: 2, service_count: 2, services: 'A, B' })).toContain('2026-11-30');
+        expect(t('producer.card.OPR_001.what_profile', { route: 'R', dir: '', from: '08:00', to: '13:00', gap: '5h', limit: '4h', context: 'profile context' })).toContain('profile context');
+        expect(t('producer.card.OPR_003.what_profile', { route: 'R', dir: '', stop: 'X', from: '08:00', to: '08:01', gap: '1m', context: 'profile context' })).toContain('profile context');
         expect(t('domain.headway_coverage', { profiles: 1, days: 2, patterns: 3 })).toContain('OPR_001');
       }
     } finally {

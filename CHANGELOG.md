@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **OPR_001/003 planner cards show the representative service date, affected day count and active service IDs**, alongside the two departures. The feed metrics page shows frequency-template profiles omitted from those checks. Copy is available in Turkish, English, Japanese and French; Turkish CLI/Python messages also describe combined-service findings.
+- **OPR_001/003 planner cards show the representative service date, affected day count and readable service-day descriptions**, alongside the two departures. The number of active service calendars remains visible; raw IDs stay in technical `details`. The feed metrics page shows frequency-template profiles omitted from those checks. Copy is available in Turkish, English, Japanese and French; Turkish CLI/Python messages also describe combined-service findings.
 
 ### Fixed
 

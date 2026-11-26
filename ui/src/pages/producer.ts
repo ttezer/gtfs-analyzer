@@ -984,12 +984,10 @@ function oprRoute(n: Notice, result: ValidationResult, routeId?: string | null):
   return id ? result.name_index.routes?.[id] || id : '—';
 }
 
-/** A profile's example GTFS service date, affected dates and active service IDs. */
-function oprHeadwayDays(n: Notice, result: ValidationResult): string {
+/** A profile's example service date, affected dates and planner-readable service days. */
+function oprHeadwayProfile(n: Notice, result: ValidationResult): string | null {
   const d = n.details ?? {};
-  if (!d.sample_date || !d.affected_days || !d.service_ids) {
-    return n.service_id ? plannerServiceText(n.service_id, result) : '';
-  }
+  if (!d.sample_date || !d.affected_days || !d.service_ids) return null;
   let services: string[];
   try {
     const parsed: unknown = JSON.parse(d.service_ids);
@@ -997,10 +995,12 @@ function oprHeadwayDays(n: Notice, result: ValidationResult): string {
   } catch {
     services = [];
   }
-  if (!services.length) return n.service_id ? plannerServiceText(n.service_id, result) : '';
+  if (!services.length) return null;
   const count = Number(d.affected_days);
   return t(count === 1 ? 'producer.card.opr_profile_one' : 'producer.card.opr_profile_many', {
-    date: ymdText(d.sample_date), count: localizedNumber(d.affected_days), services: services.join(', '),
+    date: ymdText(d.sample_date), count: localizedNumber(d.affected_days),
+    service_count: localizedNumber(String(services.length)),
+    services: [...new Set(services.map(id => plannerServiceText(id, result)))].join(', '),
   });
 }
 
@@ -1009,23 +1009,25 @@ function oprRuleText(n: Notice, result: ValidationResult): string | null {
   const ni = result.name_index;
   const d = n.details ?? {};
   const route = oprRoute(n, result);
-  const days = (n.rule_id === 'OPR_001' || n.rule_id === 'OPR_003')
-    ? oprHeadwayDays(n, result)
-    : n.service_id ? plannerServiceText(n.service_id, result) : '';
+  const days = n.service_id ? plannerServiceText(n.service_id, result) : '';
+  const profileContext = n.rule_id === 'OPR_001' || n.rule_id === 'OPR_003'
+    ? oprHeadwayProfile(n, result) : null;
   const stopName = (id?: string) => (id ? ni.stops?.[id] || id : '—');
   const tripStops = n.entity_type === 'Trip' && n.entity_id ? ni.trip_stops?.[n.entity_id] ?? [] : [];
   switch (n.rule_id) {
     case 'OPR_001':
       if (!d.gap_from || !d.gap_to || !n.observed_value) return null;
-      return t('producer.card.OPR_001.what_detail', {
+      return t(`producer.card.OPR_001.${profileContext ? 'what_profile' : 'what_detail'}`, {
         route, dir: oprDirection(d, result, d.trip_before), days: days || '—', from: d.gap_from, to: d.gap_to,
         gap: durationText(Number(n.observed_value) * 60), limit: durationText(Number(/\d+/.exec(n.expected_value ?? '')?.[0]) * 60),
+        context: profileContext || '',
       });
     case 'OPR_003':
       if (!d.gap_from || !d.gap_to || !n.observed_value) return null;
-      return t('producer.card.OPR_003.what_detail', {
+      return t(`producer.card.OPR_003.${profileContext ? 'what_profile' : 'what_detail'}`, {
         route, dir: oprDirection(d, result, d.trip_before), days: days || '—', stop: stopName(d.stop_id),
         from: d.gap_from, to: d.gap_to, gap: durationText(Math.max(60, Number(n.observed_value) * 60)),
+        context: profileContext || '',
       });
     case 'OPR_004':
       return t('producer.card.OPR_004.what_detail', { route });

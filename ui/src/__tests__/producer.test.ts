@@ -1070,7 +1070,7 @@ describe('Üretici kartı görünümü', () => {
       trip_first_dep: { T1: '06:00', T2: '06:01' },
       trip_stops: { T1: ['S1', 'S2', 'S3', 'S2'], T2: ['S1', 'S2', 'S3'] }, trip_stop_sequences: { T1: [1, 2, 3, 4], T2: [1, 2, 3] },
       stop_coords: { S1: [41, 29], S2: [41.01, 29.01], S3: [41.02, 29.02] },
-      service_days: { WK: ['1111100', '20250101', '20271231', '0'] },
+      service_days: { WK: ['1111100', '20250101', '20271231', '0'], PEAK: ['1111111', '20250101', '20271231', '0'] },
     };
     const render = (n: Notice) => {
       const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
@@ -1091,13 +1091,38 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).not.toContain('<td>R1</td>');
     expect(out.map.opts?.pins).toHaveLength(3);
 
+    // New-engine single-service findings retain the planner's day description.
+    out = render(notice('a', 'OPR_001', 'MEDIUM', { entity_type: 'Route', entity_id: 'R1', service_id: 'WK', observed_value: '660', expected_value: '≤ 240',
+      details: { gap_from: '12:30', gap_to: '23:30', trip_before: 'T1', trip_after: 'T2',
+        sample_date: '20261130', affected_days: '2', service_ids: '["WK"]', direction_id: '0' } }));
+    expect(out.html).toContain('Örnek servis günü: 30.11.2026. O gün aktif takvimler (1): Hafta içi. Bulgu 2 günü etkiliyor.');
+    expect(out.html).not.toContain('O gün aktif takvimler (1): WK');
+    expect(out.html).not.toContain('(Örnek servis günü');
+
     // A combined service-day profile names its sample date, both active services and affected days.
     out = render(notice('b', 'OPR_003', 'LOW', { entity_type: 'Route', entity_id: 'R1', observed_value: '1', expected_value: '> 2',
       details: { gap_from: '08:00', gap_to: '08:01', trip_before: 'T1', trip_after: 'T2', stop_id: 'S1',
         sample_date: '20261130', affected_days: '2', service_ids: '["WK","PEAK"]', direction_id: '0' } }));
-    expect(out.html).toContain('örnek servis günü 30.11.2026 (o gün aktif servisler: WK, PEAK); bulgu 2 günü etkiliyor');
+    expect(out.html).toContain('Örnek servis günü: 30.11.2026. O gün aktif takvimler (2): Hafta içi, Her gün. Bulgu 2 günü etkiliyor.');
+    expect(out.html).not.toContain('O gün aktif takvimler (2): WK, PEAK');
     expect(out.html).toContain('Hastane durağından 08:00 ve 08:01 kalkışlı iki sefer');
     expect(out.html).toContain('<tr class="bad"><td>08:00</td><td>Çarşı</td></tr>');
+
+    // A service absent from name_index uses the existing planner fallback, never its raw ID.
+    out = render(notice('c', 'OPR_003', 'LOW', { entity_type: 'Route', entity_id: 'R1', service_id: 'UNKNOWN', observed_value: '1', expected_value: '> 2',
+      details: { gap_from: '08:00', gap_to: '08:01', trip_before: 'T1', trip_after: 'T2', stop_id: 'S1',
+        sample_date: '20261130', affected_days: '1', service_ids: '["UNKNOWN"]', direction_id: '0' } }));
+    expect(out.html).toContain('O gün aktif takvimler (1): Çalışma günlerini kontrol edin.');
+    expect(out.html).not.toContain('O gün aktif takvimler (1): UNKNOWN');
+
+    // Two service IDs with the same day description are counted but not repeated in prose.
+    const sharedDays = { ...ni, service_days: { ...ni.service_days, PEAK: ['1111100', '20250101', '20271231', '0'] as [string, string, string, string] } };
+    const sharedResult = result([notice('d', 'OPR_003', 'LOW', { entity_type: 'Route', entity_id: 'R1', observed_value: '1', expected_value: '> 2',
+      details: { gap_from: '08:00', gap_to: '08:01', trip_before: 'T1', trip_after: 'T2', stop_id: 'S1',
+        sample_date: '20261130', affected_days: '1', service_ids: '["WK","PEAK"]', direction_id: '0' } })], [], [['OPR_003', 1, 1]], true, sharedDays);
+    const sharedRoot = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(sharedRoot, sharedResult);
+    expect(sharedRoot.innerHTML).toContain('O gün aktif takvimler (2): Hafta içi.');
 
     // OPR_007: the repeated stop red in the trip's stop list.
     out = render(notice('a', 'OPR_007', 'LOW', { entity_type: 'Trip', entity_id: 'T1', observed_value: '2× repeat', details: { dup_stop: 'S2' } }));
