@@ -31,8 +31,8 @@ struct Finding {
     affected_dates: HashSet<u32>,
 }
 
-pub(super) fn check_opr005<'a>(
-    records: &'a EntityRecords,
+pub(super) fn check_opr005(
+    records: &EntityRecords,
     derived: &DerivedData,
     config: &ValidatorConfig,
     idx: &StopTimesIndex<'_>,

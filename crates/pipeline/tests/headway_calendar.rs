@@ -230,7 +230,7 @@ fn frequency_window_edges_report_guaranteed_gap_lower_bounds() {
     assert!(headways(&run("freq_continuous_windows")).is_empty());
 }
 
-fn opr005<'a>(result: &'a ValidationResult) -> Vec<&'a gtfs_core::Notice> {
+fn opr005(result: &ValidationResult) -> Vec<&gtfs_core::Notice> {
     result.notices.iter().filter(|notice| notice.rule_id == "OPR_005").collect()
 }
 
