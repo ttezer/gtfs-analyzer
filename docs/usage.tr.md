@@ -192,9 +192,9 @@ Doğrulamayı kendi Rust servisinize gömmek için `gtfs-pipeline`'ı doğrudan 
 
 ```toml
 [dependencies]
-gtfs-pipeline = "0.22.0"
-gtfs-config   = "0.22.0"
-gtfs-core     = "0.22.0"
+gtfs-pipeline = "0.23.0"
+gtfs-config   = "0.23.0"
+gtfs-core     = "0.23.0"
 ```
 
 ```rust
@@ -234,7 +234,7 @@ Exit kodları: `0` temiz · `1` eşiği aşan bulgu var · `2` feed okunamadı (
 
 ## 5. `gtfs-sdk` npm paketi
 
-`gtfs-sdk`, v0.22.0 doğrulama motorunu typed JavaScript/TypeScript API olarak sunar. Feed uygulamadan çıkmadan yerel WASM ile doğrulanır:
+`gtfs-sdk`, v0.23.0 doğrulama motorunu typed JavaScript/TypeScript API olarak sunar. Feed uygulamadan çıkmadan yerel WASM ile doğrulanır:
 
 ```js
 import { validateGtfs } from "gtfs-sdk";

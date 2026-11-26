@@ -179,9 +179,9 @@ To embed validation in your own Rust service, use `gtfs-pipeline` directly — n
 
 ```toml
 [dependencies]
-gtfs-pipeline = "0.22.0"
-gtfs-config   = "0.22.0"
-gtfs-core     = "0.22.0"
+gtfs-pipeline = "0.23.0"
+gtfs-config   = "0.23.0"
+gtfs-core     = "0.23.0"
 ```
 
 ```rust
@@ -221,7 +221,7 @@ Exit codes: `0` clean · `1` matching findings present · `2` feed/config/file e
 
 ## 5. `gtfs-sdk` npm package
 
-`gtfs-sdk` exposes the v0.22.0 validation engine as a typed JavaScript/TypeScript API. The feed is validated with local WASM and never leaves the application:
+`gtfs-sdk` exposes the v0.23.0 validation engine as a typed JavaScript/TypeScript API. The feed is validated with local WASM and never leaves the application:
 
 ```js
 import { validateGtfs } from "gtfs-sdk";

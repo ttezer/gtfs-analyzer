@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-11-26
+
+Highlights. **Headway checks (OPR_001/003/005)** now combine every service active on the same service date and model `frequencies.txt` windows. **`licenses.txt`** is recognised and checked by nine new `LIC` rules (630 rules). The CLI JSON output carries a `schema_version`, and releases ship an Intel macOS binary and a `SHA256SUMS` file, used by the new R package (`r/`).
+
 ### Added
 
+- **Release assets: Intel macOS binary and `SHA256SUMS`.** Releases now include `gtfs-analyzer-x86_64-macos` and one `SHA256SUMS` file listing the SHA-256 of every archive.
+- **R package `gtfsanalyzer` (`r/`).** Runs the CLI from R and returns the verdict, scores and findings as a data frame (`ga_analyze`), compares two feeds (`ga_compare`) and lists the rules (`ga_rules`). Versioned separately from the engine; not yet on CRAN.
 - **`licenses.txt` (GTFS Schedule, google/transit#607).** The optional file is now recognised (no longer `ARC_007` unknown file; `ARC_007` counts drop for feeds that ship it) and validated by nine new `LIC` rules: exactly one of `license_spdx_id` / `custom_license_url` per row (`LIC_001`, `LIC_002`), unknown or `.txt`-suffixed `licensed_table_name` (`LIC_003`), duplicate key including blank feed-wide rows (`LIC_004`), named table absent from the feed (`LIC_005`), no feed-wide row (`LIC_006`), SPDX ID not in the pinned SPDX License List 3.29.0, case-insensitive; values with `AND`/`OR`/`WITH` or parentheses are skipped, `LicenseRef-` IDs are reported (`LIC_007`), case or `locations` alias conflict (`LIC_008`), invalid `custom_license_url` (`LIC_009`). `LIC_001`/`002`/`003` mirror the MobilityData gtfs-validator #2270 notices and `LIC_004`/`008` its `duplicate_key` checks.
 - **CLI JSON envelope version.** `--json`, `--compact-json` and the fatal-error object now carry `schema_version` (currently `1`); `--json` and the fatal object also carry `engine_version` and `engine_commit`, which `--compact-json` already had. The fields are additive: no existing field changes. `schema_version` increases only when a field is removed, renamed or changes meaning.
 
@@ -3042,6 +3048,7 @@ filters (R2).
   audit (`cargo audit` blocking; `npm audit` reported, non-blocking).
 - GitHub Pages deploy builds from source to guarantee the live site matches `HEAD`.
 
+[0.23.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.19.0...v0.20.0
