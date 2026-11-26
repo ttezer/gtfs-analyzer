@@ -325,3 +325,11 @@ fn opr005_multi_service_message_translates_for_turkish_cli() {
     assert!(notice.message.contains("A, B, C aktif servisleri"));
 }
 
+#[test]
+fn daily_average_ignores_calendar_days_without_trips() {
+    // Two trips on 2026-11-30; service U runs 2026-11-30..12-05 but has no trips.
+    let metrics = run("unused_service").metrics;
+    assert_eq!(metrics.trip_count, 2);
+    assert_eq!(metrics.avg_daily_trips, 2.0);
+}
+

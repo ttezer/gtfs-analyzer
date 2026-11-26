@@ -52,6 +52,8 @@ for name,grp,dt,ex in [
  ('gap_split_single_merged',[g('A','08:00','08:15','16:30')],[cal('A')],[]),
  ('close_cancelled',[g('A','08:00','08:01'),g('B','09:00')],ab,[('A',M,2)]),
  ]: fixture(name,grp,dt,ex)
+# Service U has calendar days but no trips; it must not dilute the daily average.
+fixture('unused_service',[g('A','08:00','08:30')],[cal('A'),cal('U',M,S)])
 for exact in (0,1):
     fixture(f'freq{exact}',[g('A','00:00','08:01','08:15','08:29')],[cal('A')],frequencies=[(0,0,'08:00:00','08:20:00',420,exact)])
 fixture('freq_mixed',[g('A','00:00','08:01','08:15','08:29'),('A',('09:00','09:01'),'Z','W')],[cal('A')],frequencies=[(0,0,'08:00:00','08:20:00',420,0)])

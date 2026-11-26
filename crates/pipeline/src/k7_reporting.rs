@@ -1967,8 +1967,18 @@ fn build_metrics(
             active * multiplier
         })
         .sum();
-    let avg_daily_trips = if active_service_days > 0 {
-        total_trip_days as f64 / active_service_days as f64
+    // Average over the dates on which at least one trip runs: a calendar row that no trip
+    // uses (or a service whose trips were all removed) must not dilute the average.
+    let trip_days: FxHashSet<u32> = unique_trips
+        .values()
+        .copied()
+        .collect::<FxHashSet<&str>>()
+        .into_iter()
+        .filter_map(|svc| derived.calendar_bitmap.active_dates.get(svc))
+        .flat_map(|dates| dates.iter().copied())
+        .collect();
+    let avg_daily_trips = if !trip_days.is_empty() {
+        total_trip_days as f64 / trip_days.len() as f64
     } else {
         0.0
     };
