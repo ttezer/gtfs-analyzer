@@ -66,6 +66,11 @@ with zipfile.ZipFile(p/'close_window.zip','w',zipfile.ZIP_DEFLATED) as z:
     for name,body in close_window_files.items(): z.writestr(name,body)
 for name, grp in [('outlier_fp',[g('A','08:00','09:00'),g('B','08:15','08:30','08:45')]),('outlier_fp_merged',[g('A','08:00','08:15','08:30','08:45','09:00')]),('outlier_fn',[g('A','08:00','08:15','08:30'),g('B','08:05','08:20','08:35'),g('C','08:10','08:25','08:40')]),('outlier_fn_merged',[g('A','08:00','08:05','08:10','08:15','08:20','08:25','08:30','08:35','08:40')])]:
     fixture(name,grp,[cal(s) for s,*_ in grp],peers=6)
+outlier_split=[g('A','08:00','09:00'),g('B','08:15','08:30','08:45')]
+fixture('outlier_add',outlier_split,[cal('A'),cal('B',S,S)],[('B',M,1)],peers=6)
+fixture('outlier_remove',outlier_split,ab,[('B',M,2)],peers=6)
+fixture('outlier_dates_only',outlier_split,[],[('A',M,1),('B',M,1)],peers=6)
+fixture('outlier_weekend',outlier_split,[cal('A',M,S,(1,1,1,1,1,0,0)),cal('B',M,S,(0,0,0,0,0,1,1))],peers=6)
 departures=tuple(f'{8+i//60:02}:{i%60:02}' for i in range(60))
 fixture('route_volume',[g('A',*departures[::2]),g('B',*departures[1::2])],ab)
 fixture('route_volume_merged',[g('A',*departures)],[cal('A')])

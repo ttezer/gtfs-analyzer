@@ -1108,6 +1108,12 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('Hastane durağından 08:00 ve 08:01 kalkışlı iki sefer');
     expect(out.html).toContain('<tr class="bad"><td>08:00</td><td>Çarşı</td></tr>');
 
+    out = render(notice('b5', 'OPR_005', 'INFO', { entity_type: 'Route', entity_id: 'R1', observed_value: '5',
+      details: { median_min: '15', kind: 'dense', first_departure: '08:00', last_departure: '08:40', departures: '9',
+        sample_date: '20261130', affected_days: '2', service_ids: '["WK","PEAK"]', direction_id: '0' } }));
+    expect(out.html).toContain('Örnek servis günü: 30.11.2026. O gün aktif takvimler (2): Hafta içi, Her gün. Bulgu 2 günü etkiliyor.');
+    expect(out.html).not.toContain('O gün aktif takvimler (2): WK, PEAK');
+
     // A service absent from name_index uses the existing planner fallback, never its raw ID.
     out = render(notice('c', 'OPR_003', 'LOW', { entity_type: 'Route', entity_id: 'R1', service_id: 'UNKNOWN', observed_value: '1', expected_value: '> 2',
       details: { gap_from: '08:00', gap_to: '08:01', trip_before: 'T1', trip_after: 'T2', stop_id: 'S1',

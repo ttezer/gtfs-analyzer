@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 /// Coverage of timetable headway checks when a frequency template is present.
 /// These counts describe checks that could not be evaluated; they do not affect scores.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct HeadwayCoverage {
     /// Distinct active-service sets across route/direction groups.
     pub route_direction_profiles: u32,
@@ -15,6 +16,12 @@ pub struct HeadwayCoverage {
     pub opr_001_skipped_profiles: u32,
     pub opr_001_skipped_days: u32,
     pub opr_003_skipped_pattern_profiles: u32,
+    /// OPR_005 observations in the same-mode median/MAD baseline.
+    pub opr_005_evaluated_profiles: u32,
+    pub opr_005_skipped_profiles: u32,
+    pub opr_005_skipped_days: u32,
+    pub opr_005_merged_departure_rows: u64,
+    pub opr_005_largest_merged_departures: u32,
 }
 
 /// Size and row information for one GTFS file.

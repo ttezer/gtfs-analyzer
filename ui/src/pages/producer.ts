@@ -1010,7 +1010,7 @@ function oprRuleText(n: Notice, result: ValidationResult): string | null {
   const d = n.details ?? {};
   const route = oprRoute(n, result);
   const days = n.service_id ? plannerServiceText(n.service_id, result) : '';
-  const profileContext = n.rule_id === 'OPR_001' || n.rule_id === 'OPR_003'
+  const profileContext = n.rule_id === 'OPR_001' || n.rule_id === 'OPR_003' || n.rule_id === 'OPR_005'
     ? oprHeadwayProfile(n, result) : null;
   const stopName = (id?: string) => (id ? ni.stops?.[id] || id : '—');
   const tripStops = n.entity_type === 'Trip' && n.entity_id ? ni.trip_stops?.[n.entity_id] ?? [] : [];
@@ -1033,9 +1033,9 @@ function oprRuleText(n: Notice, result: ValidationResult): string | null {
       return t('producer.card.OPR_004.what_detail', { route });
     case 'OPR_005':
       if (!d.median_min || !n.observed_value) return null;
-      return t(d.kind === 'dense' ? 'producer.card.OPR_005.what_dense' : 'producer.card.OPR_005.what_sparse', {
+      return t(`producer.card.OPR_005.${d.kind === 'dense' ? 'what_dense' : 'what_sparse'}${profileContext ? '_profile' : ''}`, {
         route, dir: oprDirection(d, result), days: days || '—', hw: localizedNumber(n.observed_value), median: localizedNumber(d.median_min),
-        first: d.first_departure || '—', last: d.last_departure || '—', n: localizedNumber(d.departures || '—'),
+        first: d.first_departure || '—', last: d.last_departure || '—', n: localizedNumber(d.departures || '—'), context: profileContext || '',
       });
     case 'OPR_006':
       return n.entity_id ? t('producer.card.OPR_006.what_detail', { trip: tripPhrase(n.entity_id, result), stop: stopName(tripStops[0]) }) : null;

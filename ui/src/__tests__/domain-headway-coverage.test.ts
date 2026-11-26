@@ -23,11 +23,16 @@ describe('headway evaluation coverage', () => {
       route_direction_profiles: 3, pattern_profiles: 5, merged_departure_rows: 20,
       largest_merged_departures: 8, opr_001_skipped_profiles: 2,
       opr_001_skipped_days: 4, opr_003_skipped_pattern_profiles: 1,
+      opr_005_evaluated_profiles: 3, opr_005_skipped_profiles: 1,
+      opr_005_skipped_days: 2, opr_005_merged_departure_rows: 20,
+      opr_005_largest_merged_departures: 8,
     } });
     expect(html).toContain('rpt-coverage-note');
     expect(html).toContain('OPR_001');
     expect(html).toContain('OPR_003');
     expect(html).toContain('2 hat/yön profili (4 farklı tarih)');
+    expect(html).toContain('OPR_005');
+    expect(html).toContain('1 hat/yön profili (2 farklı tarih)');
   });
 
   it('does not show an exclusion note for fully evaluated profiles', () => {
@@ -44,6 +49,8 @@ describe('headway evaluation coverage', () => {
         expect(t('producer.card.OPR_001.what_profile', { route: 'R', dir: '', from: '08:00', to: '13:00', gap: '5h', limit: '4h', context: 'profile context' })).toContain('profile context');
         expect(t('producer.card.OPR_003.what_profile', { route: 'R', dir: '', stop: 'X', from: '08:00', to: '08:01', gap: '1m', context: 'profile context' })).toContain('profile context');
         expect(t('domain.headway_coverage', { profiles: 1, days: 2, patterns: 3 })).toContain('OPR_001');
+        expect(t('domain.opr005_coverage', { profiles: 1, days: 2 })).toContain('OPR_005');
+        expect(t('producer.card.OPR_005.what_sparse_profile', { route: 'R', dir: '', hw: 5, first: '08:00', last: '08:40', n: 9, median: 15, context: 'profile context' })).toContain('profile context');
       }
     } finally {
       setLocale(previous);

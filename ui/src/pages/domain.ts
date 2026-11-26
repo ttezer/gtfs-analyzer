@@ -258,6 +258,12 @@ export function renderMetrics(m: FeedMetrics): string {
       patterns: headway.opr_003_skipped_pattern_profiles.toLocaleString(intlLocale()),
     }))}</p>`
     : '';
+  const opr005Note = headway?.opr_005_skipped_profiles
+    ? `<p class="rpt-coverage-note">${escHtml(t('domain.opr005_coverage', {
+      profiles: headway.opr_005_skipped_profiles.toLocaleString(intlLocale()),
+      days: headway.opr_005_skipped_days.toLocaleString(intlLocale()),
+    }))}</p>`
+    : '';
 
   const fileRows = m.file_stats.map(f => `
     <tr>
@@ -271,6 +277,7 @@ export function renderMetrics(m: FeedMetrics): string {
       <h3 class="rpt-section-title">${t('domain.metrics_title')}${m.is_gtfs_jp ? ` <span class="jp-badge" title="${escHtml(t('domain.gtfs_jp.tip'))}">GTFS-JP</span>` : ''}${profileBadge}</h3>
       <div class="rpt-metrics-grid">${metricCards}</div>
       ${headwayNote}
+      ${opr005Note}
       ${fileRows ? `
         <div class="table-scroll rpt-files">
           <table class="data-table">

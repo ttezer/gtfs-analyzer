@@ -176,3 +176,60 @@ fn frequency_profiles_are_visible_as_unevaluated() {
     assert_eq!(coverage.opr_001_skipped_profiles, 1);
     assert_eq!(coverage.opr_003_skipped_pattern_profiles, 1);
 }
+
+fn opr005<'a>(result: &'a ValidationResult) -> Vec<&'a gtfs_core::Notice> {
+    result.notices.iter().filter(|notice| notice.rule_id == "OPR_005").collect()
+}
+
+#[test]
+fn opr005_merges_active_services_before_scoring_against_peers() {
+    for name in ["outlier_fp", "outlier_fp_merged", "outlier_add", "outlier_dates_only"] {
+        assert!(opr005(&run(name)).is_empty(), "{name} must not flag the merged 15-minute schedule");
+    }
+    for name in ["outlier_fn", "outlier_fn_merged"] {
+        let result = run(name);
+        let findings = opr005(&result);
+        assert_eq!(findings.len(), 1, "{name}");
+        let notice = findings[0];
+        assert_eq!(notice.entity_id.as_deref(), Some("R"));
+        assert_eq!(notice.observed_value.as_deref(), Some("5"));
+        assert_eq!(notice.details.as_ref().unwrap().get("median_min").map(String::as_str), Some("15"));
+        assert_eq!(notice.details.as_ref().unwrap().get("affected_days").map(String::as_str), Some("1"));
+        assert_eq!(notice.service_id.is_none(), name == "outlier_fn");
+    }
+    let split = run("outlier_fn");
+    let details = opr005(&split)[0].details.as_ref().unwrap();
+    assert_eq!(details.get("service_ids").map(String::as_str), Some("[\"A\",\"B\",\"C\"]"));
+    assert_eq!(details.get("sample_date").map(String::as_str), Some("20261130"));
+}
+
+#[test]
+fn opr005_respects_removed_services_and_separate_weekends() {
+    for name in ["outlier_remove", "outlier_weekend"] {
+        let result = run(name);
+        let findings = opr005(&result);
+        assert_eq!(findings.len(), 1, "{name}");
+        assert_eq!(findings[0].service_id.as_deref(), Some("A"));
+        assert_eq!(findings[0].observed_value.as_deref(), Some("60"));
+    }
+}
+
+#[test]
+fn opr005_frequency_profiles_are_counted_as_unevaluated() {
+    for name in ["freq0", "freq1", "freq_mixed"] {
+        let result = run(name);
+        assert!(opr005(&result).is_empty(), "{name}");
+        let coverage = &result.metrics.headway_coverage;
+        assert_eq!(coverage.opr_005_skipped_profiles, 1, "{name}");
+        assert_eq!(coverage.opr_005_skipped_days, 1, "{name}");
+    }
+}
+
+#[test]
+fn opr005_multi_service_message_translates_for_turkish_cli() {
+    let result = run("outlier_fn");
+    let mut notice = opr005(&result)[0].clone();
+    Translator::new(Lang::Tr).unwrap().unwrap().translate(&mut notice);
+    assert!(notice.message.contains("20261130 servis gününde"));
+    assert!(notice.message.contains("A, B, C aktif servisleri"));
+}

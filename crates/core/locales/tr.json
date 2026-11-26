@@ -2153,7 +2153,8 @@
       "The active services of route '{label}' have no weekend day (Saturday/Sunday).": "'{label}' kodlu hattın aktif servislerinde hafta sonu (Cumartesi/Pazar) günü yok."
     },
     "OPR_005": {
-      "Route '{route_label}' direction {a0}, calendar {a1}: average headway {hw_min} min — the feed median for routes of the same type is {med_min} min ({f_yon_str}).": "'{route_label}' hattının {a0} yönünde {a1} takviminde ortalama sefer aralığı {hw_min}dk — aynı tür hatların feed medyanı {med_min}dk ({f_yon_str})."
+      "Route '{route_label}' direction {a0}, calendar {a1}: average headway {hw_min} min — the feed median for routes of the same type is {med_min} min ({f_yon_str}).": "'{route_label}' hattının {a0} yönünde {a1} takviminde ortalama sefer aralığı {hw_min}dk — aynı tür hatların feed medyanı {med_min}dk ({f_yon_str}).",
+      "Route '{label}' direction {dir}, service day {date} (services {services}): average headway {average_min} min — the feed median for routes of the same type is {median_min} min ({kind}).": "'{label}' hattının {dir} yönünde {date} servis gününde ({services} aktif servisleri) ortalama sefer aralığı {average_min}dk — aynı tür hatların feed medyanı {median_min}dk ({kind})."
     },
     "OPR_006": {
       "A trip of route '{r}' has only {count} stops — a working trip needs at least 2 stops.": "'{r}' hattının seferinde yalnızca {count} durak var — işlevsel sefer için en az 2 durak gerekli."

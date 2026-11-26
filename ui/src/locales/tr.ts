@@ -1336,7 +1336,9 @@ const tr = {
     'producer.card.OPR_003.what_profile': "{route} hattının{dir} seferlerinde {stop} durağından {from} ve {to} kalkışlı iki sefer yalnız {gap} arayla kalkıyor; yolcu açısından ikinci sefer neredeyse aynı anda gelir. {context}",
     'producer.card.OPR_004.what_detail': "{route} hattının seferleri yalnız hafta içi çalışıyor; Cumartesi ve Pazar hiç sefer yok. Bilgi amaçlıdır.",
     'producer.card.OPR_005.what_sparse': "{route} hattının{dir} seferleri ({days}) ortalama {hw} dakikada bir kalkıyor ({first}–{last}, {n} kalkış); aynı türdeki hatlarda bu süre genellikle {median} dakika. Bu hat benzerlerinden çok daha seyrek.",
+    'producer.card.OPR_005.what_sparse_profile': "{route} hattının{dir} seferleri ortalama {hw} dakikada bir kalkıyor ({first}–{last}, {n} kalkış); aynı türdeki hatlarda bu süre genellikle {median} dakika. Bu hat benzerlerinden çok daha seyrek. {context}",
     'producer.card.OPR_005.what_dense': "{route} hattının{dir} seferleri ({days}) ortalama {hw} dakikada bir kalkıyor ({first}–{last}, {n} kalkış); aynı türdeki hatlarda bu süre genellikle {median} dakika. Bu hat benzerlerinden çok daha sık.",
+    'producer.card.OPR_005.what_dense_profile': "{route} hattının{dir} seferleri ortalama {hw} dakikada bir kalkıyor ({first}–{last}, {n} kalkış); aynı türdeki hatlarda bu süre genellikle {median} dakika. Bu hat benzerlerinden çok daha sık. {context}",
     'producer.card.OPR_006.what_detail': "{trip} yalnız bir duraktan oluşuyor ({stop}); yolcu bu seferle bir yerden bir yere gidemez.",
     'producer.card.OPR_007.what_detail': "{trip} {stop} durağından {n} kez geçiyor; arada başka duraklardan geçip aynı durağa dönmek genellikle durak sırasının yanlış girildiğini gösterir.",
     'producer.card.OPR_008.what_detail': "{trip} {n} bölümünde hız sınırın üstünde; en yüksek hız {max} km/s (sınır {limit} km/s). Bu genellikle yanlış durak saati ya da konumundan kaynaklanır.",
@@ -3380,6 +3382,7 @@ const tr = {
     'domain.metric.service_days' : 'Aktif Servis Günü',
     'domain.metric.avg_trips'    : 'Ort. Günlük Sefer',
     'domain.headway_coverage'    : 'Frekans şablonları nedeniyle OPR_001, {profiles} hat/yön profili ({days} farklı tarih); OPR_003 ise {patterns} ilk durak/desen profili için değerlendirilmedi.',
+    'domain.opr005_coverage': 'Frekans şablonları nedeniyle OPR_005, {profiles} hat/yön profili ({days} farklı tarih) için değerlendirilmedi.',
     'domain.table.file'          : 'Dosya',
     'domain.table.rows'          : 'Satır',
     'domain.table.size'          : 'Boyut',
@@ -6549,6 +6552,7 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
   },
   'OPR_005': {
     'Route \'{route_label}\' direction {a0}, calendar {a1}: average headway {hw_min} min — the feed median for routes of the same type is {med_min} min ({f_yon_str}).': '\'{route_label}\' hattının {a0} yönünde {a1} takviminde ortalama sefer aralığı {hw_min}dk — aynı tür hatların feed medyanı {med_min}dk ({f_yon_str}).',
+    'Route \'{label}\' direction {dir}, service day {date} (services {services}): average headway {average_min} min — the feed median for routes of the same type is {median_min} min ({kind}).': '\'{label}\' hattının {dir} yönünde {date} servis gününde ({services} aktif servisleri) ortalama sefer aralığı {average_min}dk — aynı tür hatların feed medyanı {median_min}dk ({kind}).',
   },
   'OPR_006': {
     'A trip of route \'{r}\' has only {count} stops — a working trip needs at least 2 stops.': '\'{r}\' hattının seferinde yalnızca {count} durak var — işlevsel sefer için en az 2 durak gerekli.',

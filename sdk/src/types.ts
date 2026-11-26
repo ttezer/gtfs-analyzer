@@ -98,6 +98,11 @@ export interface HeadwayCoverage {
   opr_001_skipped_profiles: number;
   opr_001_skipped_days: number;
   opr_003_skipped_pattern_profiles: number;
+  opr_005_evaluated_profiles: number;
+  opr_005_skipped_profiles: number;
+  opr_005_skipped_days: number;
+  opr_005_merged_departure_rows: number;
+  opr_005_largest_merged_departures: number;
 }
 
 export interface FeedMetrics {

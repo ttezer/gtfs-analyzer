@@ -104,7 +104,7 @@ fn ymd(date: (u32, u32, u32)) -> u32 {
     date.0 * 10_000 + date.1 * 100 + date.2
 }
 
-fn sample_date(records: &EntityRecords, dates: &[u32]) -> u32 {
+pub(super) fn sample_date(records: &EntityRecords, dates: &[u32]) -> u32 {
     if let Some(info) = records.feed_info.first() {
         let start = info.feed_start_date.map(ymd).unwrap_or(0);
         let end = info.feed_end_date.map(ymd).unwrap_or(u32::MAX);
@@ -113,6 +113,40 @@ fn sample_date(records: &EntityRecords, dates: &[u32]) -> u32 {
         }
     }
     dates[0]
+}
+
+pub(super) fn direction_key(direction: Option<u32>) -> &'static str {
+    match direction {
+        Some(0) => "0",
+        Some(1) => "1",
+        _ => "",
+    }
+}
+
+/// Group calendar dates by the active services present in one route/direction.
+/// Only date and service IDs are indexed; no trip rows are copied for each day.
+pub(super) fn active_service_profiles<'a>(
+    services: impl IntoIterator<Item = &'a str>,
+    active_dates: &HashMap<String, HashSet<u32>>,
+) -> BTreeMap<Vec<&'a str>, Vec<u32>> {
+    let mut by_date: HashMap<u32, Vec<&str>> = HashMap::new();
+    for service in services {
+        if let Some(dates) = active_dates.get(service) {
+            for &date in dates {
+                by_date.entry(date).or_default().push(service);
+            }
+        }
+    }
+    let mut profiles: BTreeMap<Vec<&str>, Vec<u32>> = BTreeMap::new();
+    for (date, mut services) in by_date {
+        services.sort_unstable();
+        services.dedup();
+        profiles.entry(services).or_default().push(date);
+    }
+    for dates in profiles.values_mut() {
+        dates.sort_unstable();
+    }
+    profiles
 }
 
 fn distinct_times(departures: &[Departure<'_>]) -> Vec<u32> {
@@ -202,11 +236,7 @@ pub(super) fn check_route_headway<'a>(
         let Some(&departure) = idx.trip_first_dep.get(trip.trip_id.as_str()) else {
             continue;
         };
-        let direction = match trip.direction_id {
-            Some(0) => "0",
-            Some(1) => "1",
-            _ => "",
-        };
+        let direction = direction_key(trip.direction_id);
         let stops = idx.by_trip.get(trip.trip_id.as_str());
         let first_stop = stops
             .and_then(|v| v.first())
@@ -242,22 +272,12 @@ pub(super) fn check_route_headway<'a>(
     for ((route, direction), schedules) in routes {
         // Date -> active services is only a small calendar index. The departure rows
         // are never copied per date; equal signatures share one analysis.
-        let mut by_date: HashMap<u32, Vec<&str>> = HashMap::new();
-        for &service in schedules.keys() {
-            if let Some(dates) = derived.calendar_bitmap.active_dates.get(service) {
-                for &date in dates {
-                    by_date.entry(date).or_default().push(service);
-                }
-            }
-        }
-        let mut profiles: BTreeMap<Vec<&str>, Vec<u32>> = BTreeMap::new();
-        for (date, mut services) in by_date {
-            services.sort_unstable();
-            profiles.entry(services).or_default().push(date);
-        }
-        for (services, mut dates) in profiles {
+        let profiles = active_service_profiles(
+            schedules.keys().copied(),
+            &derived.calendar_bitmap.active_dates,
+        );
+        for (services, dates) in profiles {
             coverage.route_direction_profiles += 1;
-            dates.sort_unstable();
             let example = sample_date(records, &dates);
             let label = labels.get(route).copied().unwrap_or(route);
             let dir_label = if direction.is_empty() { "-" } else { direction };

@@ -289,6 +289,7 @@ pub fn analyze_with_files(
     // With the `parallel` feature, checks run in parallel through rayon::scope; otherwise serially — SAME output.
     type K6Task<'a> = Box<dyn Fn() -> Vec<Notice> + Send + Sync + 'a>;
     let headway_coverage = std::sync::Mutex::new(HeadwayCoverage::default());
+    let opr005_coverage = std::sync::Mutex::new(HeadwayCoverage::default());
     let mut tasks: Vec<K6Task> = Vec::new();
     let mut skipped_checks = Vec::new();
     record_data_quality_skips(availability, config, today_yyyymmdd, &mut skipped_checks);
@@ -451,7 +452,7 @@ pub fn analyze_with_files(
             let _t = Timer::start("K6::remaining_analytics");
             let mut v = Vec::new();
             let mut c = 0u32;
-            check_remaining_analytics(
+            let coverage = check_remaining_analytics(
                 records,
                 derived,
                 config,
@@ -461,6 +462,7 @@ pub fn analyze_with_files(
                 &mut v,
                 &mut c,
             );
+            *opr005_coverage.lock().unwrap() = coverage;
             v
         }
     );
@@ -591,10 +593,17 @@ pub fn analyze_with_files(
     }
 
     drop(tasks);
+    let mut headway_coverage = headway_coverage.into_inner().unwrap();
+    let opr005_coverage = opr005_coverage.into_inner().unwrap();
+    headway_coverage.opr_005_evaluated_profiles = opr005_coverage.opr_005_evaluated_profiles;
+    headway_coverage.opr_005_skipped_profiles = opr005_coverage.opr_005_skipped_profiles;
+    headway_coverage.opr_005_skipped_days = opr005_coverage.opr_005_skipped_days;
+    headway_coverage.opr_005_merged_departure_rows = opr005_coverage.opr_005_merged_departure_rows;
+    headway_coverage.opr_005_largest_merged_departures = opr005_coverage.opr_005_largest_merged_departures;
     K6Result {
         notices,
         skipped_checks,
-        headway_coverage: headway_coverage.into_inner().unwrap(),
+        headway_coverage,
     }
 }
 
@@ -3793,6 +3802,7 @@ fn is_regular_headway(gaps: &[u32]) -> bool {
 // ── WP-09b: Route headway (regular service) ──────────────────────────────────
 
 mod headway_calendar;
+mod opr005_calendar;
 use headway_calendar::check_route_headway;
 
 /// A departure time (seconds) and the trip leaving then.
@@ -8821,7 +8831,7 @@ fn check_remaining_analytics<'a>(
     rail_shapes: &FxHashSet<&str>,
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
-) {
+) -> HeadwayCoverage {
     use crate::timing::Timer;
     let ti_rem = &records.trip_interns;
 
@@ -9864,168 +9874,11 @@ fn check_remaining_analytics<'a>(
         }
     }
 
-    // ── OPR_005: unusual service frequency (relative outlier by route_type) ──
-    // "Frequent/sparse" is relative, not absolute: instead of a fixed threshold, flag a
-    // (route,direction,calendar) group's average headway when it deviates from the median of
-    // groups with the SAME route_type by robust σ (MAD). Use one route_type baseline (do not
-    // compare metro with rural buses). A feed with uniform frequency produces zero notices.
-    {
+    // ── OPR_005: active service-day profile relative to same-mode peers ──────
+    let opr005_coverage = {
         let _topr5 = Timer::start("K6::rem::opr_005");
-        let route_short_opr5: HashMap<&str, &str> = records
-            .routes
-            .iter()
-            .map(|r| {
-                let label = r
-                    .route_short_name
-                    .as_deref()
-                    .filter(|s| !s.is_empty())
-                    .unwrap_or(r.route_id.as_str());
-                (r.route_id.as_str(), label)
-            })
-            .collect();
-        let route_type_opr5: HashMap<&str, u32> = records
-            .routes
-            .iter()
-            .map(|r| (r.route_id.as_str(), r.route_type.unwrap_or(3)))
-            .collect();
-
-        // (route_id, direction_key, service_id) → first departure times.
-        let mut route_headways: HashMap<(&str, &str, &str), Vec<u32>> = HashMap::new();
-        for trip in &records.trips {
-            let route_id = ti_rem.route_id(trip);
-            if route_id.is_empty() {
-                continue;
-            }
-            let dir_key: &str = match trip.direction_id {
-                Some(0) => "0",
-                Some(1) => "1",
-                _ => "-",
-            };
-            let svc_key = ti_rem.service_id(trip);
-            if let Some(&dep) = idx.trip_first_dep.get(trip.trip_id.as_str()) {
-                route_headways
-                    .entry((route_id, dir_key, svc_key))
-                    .or_default()
-                    .push(dep);
-            }
-        }
-
-        // 1) Average headway per group.
-        struct Hw<'a> {
-            route: &'a str,
-            dir: &'a str,
-            svc: &'a str,
-            hw: u32,
-            rtype: u32,
-            /// Planner context: first and last departure and how many there are.
-            first: u32,
-            last: u32,
-            count: usize,
-        }
-        let mut grps: Vec<Hw> = Vec::new();
-        for ((route_id, dir_key, svc_key), mut deps) in route_headways {
-            if deps.len() < 2 {
-                continue;
-            }
-            deps.sort_unstable();
-            deps.dedup();
-            if deps.len() < 2 {
-                continue;
-            }
-            let diffs: Vec<u32> = deps.windows(2).map(|w| w[1] - w[0]).collect();
-            let avg_hw = diffs.iter().sum::<u32>() / diffs.len() as u32;
-            let rtype = route_type_opr5.get(route_id).copied().unwrap_or(3);
-            grps.push(Hw {
-                route: route_id,
-                dir: dir_key,
-                svc: svc_key,
-                hw: avg_hw,
-                rtype,
-                first: deps[0],
-                last: deps[deps.len() - 1],
-                count: deps.len(),
-            });
-        }
-
-        // 2) Median + MAD per route_type (requires ≥5 groups for a baseline).
-        let mut by_type: HashMap<u32, Vec<u32>> = HashMap::new();
-        for g in &grps {
-            by_type.entry(g.rtype).or_default().push(g.hw);
-        }
-        let mut type_stats: HashMap<u32, (f64, f64)> = HashMap::new();
-        for (rt, mut hws) in by_type {
-            if hws.len() < 5 {
-                continue;
-            }
-            hws.sort_unstable();
-            let median = hws[hws.len() / 2] as f64;
-            let mut devs: Vec<f64> = hws.iter().map(|&h| (h as f64 - median).abs()).collect();
-            devs.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-            let mad = devs[devs.len() / 2] * 1.4826;
-            type_stats.insert(rt, (median, mad));
-        }
-
-        // 3) Emit groups that are outliers only against the same route_type median.
-        // Sort for determinism.
-        grps.sort_by(|a, b| (a.route, a.dir, a.svc).cmp(&(b.route, b.dir, b.svc)));
-        for g in &grps {
-            let (median, mad) = match type_stats.get(&g.rtype) {
-                Some(&s) => s,
-                None => continue,
-            };
-            let hw = g.hw as f64;
-            let use_ratio = mad < 30.0; // ~all routes have nearly the same frequency → use ratio
-            let is_outlier = if use_ratio {
-                let r = hw / median;
-                !(0.5..=2.0).contains(&r)
-            } else {
-                (hw - median).abs() > config.headway_outlier_sigma * mad
-            };
-            if !is_outlier {
-                continue;
-            }
-            let yon_str = if hw > median {
-                "unusually sparse"
-            } else {
-                "unusually dense"
-            };
-            let route_label = route_short_opr5.get(g.route).copied().unwrap_or(g.route);
-            let hw_min = hw / 60.0;
-            let med_min = median / 60.0;
-            let mut n = k6_notice(
-                ctr,
-                "OPR_005",
-                EntityType::Route,
-                Some(g.route.to_string()),
-                Some(g.route.to_string()),
-                "stop_times.txt",
-                None,
-                None,
-                Some(format!("{hw_min:.0}")),
-                None,
-                format!("Route '{route_label}' direction {}, calendar {}: average headway {hw_min:.0} min — the feed median for routes of the same type is {med_min:.0} min ({yon_str}).",
-                    g.dir, g.svc),
-                "Informational notice; this route's frequency is unusual for its mode.",
-            );
-            n.service_id = Some(g.svc.to_string());
-            {
-                let hm = |s: u32| format!("{:02}:{:02}", s / 3600, s / 60 % 60);
-                let details = n.details.get_or_insert_with(Default::default);
-                details.insert("median_min", format!("{med_min:.0}"));
-                details.insert(
-                    "kind",
-                    if hw > median { "sparse" } else { "dense" }.to_string(),
-                );
-                details.insert("first_departure", hm(g.first));
-                details.insert("last_departure", hm(g.last));
-                details.insert("departures", g.count.to_string());
-                if !g.dir.is_empty() {
-                    details.insert("direction_id", g.dir.to_string());
-                }
-            }
-            notices.push(n);
-        }
-    }
+        opr005_calendar::check_opr005(records, derived, config, idx, notices, ctr)
+    };
 
     // ── OPR_013: one-way route information (all trips share one direction_id) ─
     {
@@ -12177,6 +12030,7 @@ fn check_remaining_analytics<'a>(
             notices.append(&mut shp009_pending);
         }
     }
+    opr005_coverage
 }
 
 /// SHP_012: the route shape is far from the trip stops.
@@ -20260,7 +20114,7 @@ mod tests {
             trips,
             sts,
         );
-        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let result = analyze(&records, &active_test_service(), &default_config(), 20260514);
         let opr: Vec<_> = result
             .notices
             .iter()
@@ -20375,7 +20229,7 @@ mod tests {
             trips,
             sts,
         );
-        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let result = analyze(&records, &active_test_service(), &default_config(), 20260514);
         assert!(
             !result.notices.iter().any(|n| n.rule_id == "OPR_005"),
             "tekdüze sıklıkta OPR_005 üretilmemeli"
