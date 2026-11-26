@@ -1,5 +1,4 @@
 sample_feed <- function() system.file("extdata", "sample-feed.zip", package = "gtfsanalyzer")
-skip_without_binary <- function() skip_if_not(nzchar(ga_binary(required = FALSE)), "GTFS Analyzer executable not available")
 
 test_that("ga_analyze returns verdict, scores and a notice table", {
   skip_without_binary()

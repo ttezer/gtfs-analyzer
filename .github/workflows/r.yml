@@ -39,6 +39,10 @@ jobs:
     env:
       CARGO_INCREMENTAL: 0
       R_KEEP_PKG_SOURCE: yes
+      # Tests that need the CLI fail instead of skipping when it cannot be found.
+      # Without this, a wrong path skipped every analysis test on Windows and the
+      # job still passed (2026-11-26).
+      GTFSANALYZER_REQUIRE_BINARY: 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -62,7 +66,10 @@ jobs:
         run: |
           cargo build -p gtfs-analyzer
           BIN="$PWD/target/debug/gtfs-analyzer"
-          if [ "$RUNNER_OS" = "Windows" ]; then BIN="$BIN.exe"; fi
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            # Git Bash gives /d/a/...; R on Windows needs D:\a\...
+            BIN="$(cygpath -w "$BIN.exe")"
+          fi
           "$BIN" --version
           echo "GTFS_ANALYZER_BIN=$BIN" >> "$GITHUB_ENV"
 
