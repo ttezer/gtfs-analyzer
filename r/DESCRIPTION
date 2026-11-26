@@ -15,6 +15,9 @@ License: MIT + file LICENSE
 URL: https://github.com/ttezer/gtfs-analyzer
 BugReports: https://github.com/ttezer/gtfs-analyzer/issues
 Encoding: UTF-8
+SystemRequirements: GTFS Analyzer command line executable
+    (<https://github.com/ttezer/gtfs-analyzer/releases>), installed with
+    ga_install() or supplied through the GTFS_ANALYZER_BIN environment variable.
 Depends: R (>= 4.1)
 Imports:
     jsonlite,
