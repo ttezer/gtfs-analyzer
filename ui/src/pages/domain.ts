@@ -225,7 +225,7 @@ function countBySeverity(result: ValidationResult): SevCount {
 
 // ── Feed metrikleri ───────────────────────────────────────────────────────────
 
-function renderMetrics(m: FeedMetrics): string {
+export function renderMetrics(m: FeedMetrics): string {
   const profile = m.gtfs_jp_profile?.toLowerCase();
   const badgeKey = gtfsJpBadgeKey(
     profile,
@@ -250,6 +250,15 @@ function renderMetrics(m: FeedMetrics): string {
       <span class="rpt-metric-label">${it.label}</span>
     </div>`).join('');
 
+  const headway = m.headway_coverage;
+  const headwayNote = headway && (headway.opr_001_skipped_profiles || headway.opr_003_skipped_pattern_profiles)
+    ? `<p class="rpt-coverage-note">${escHtml(t('domain.headway_coverage', {
+      profiles: headway.opr_001_skipped_profiles.toLocaleString(intlLocale()),
+      days: headway.opr_001_skipped_days.toLocaleString(intlLocale()),
+      patterns: headway.opr_003_skipped_pattern_profiles.toLocaleString(intlLocale()),
+    }))}</p>`
+    : '';
+
   const fileRows = m.file_stats.map(f => `
     <tr>
       <td><code>${escHtml(f.name)}</code></td>
@@ -261,6 +270,7 @@ function renderMetrics(m: FeedMetrics): string {
     <div class="card">
       <h3 class="rpt-section-title">${t('domain.metrics_title')}${m.is_gtfs_jp ? ` <span class="jp-badge" title="${escHtml(t('domain.gtfs_jp.tip'))}">GTFS-JP</span>` : ''}${profileBadge}</h3>
       <div class="rpt-metrics-grid">${metricCards}</div>
+      ${headwayNote}
       ${fileRows ? `
         <div class="table-scroll rpt-files">
           <table class="data-table">

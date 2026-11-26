@@ -1328,6 +1328,8 @@ const tr = {
     'producer.card.opr_dir': " „{dir}“ yönünde",
     'producer.card.opr_dir_name_0': "gidiş (0)",
     'producer.card.opr_dir_name_1': "dönüş (1)",
+    'producer.card.opr_profile_one': "örnek servis günü {date} (o gün aktif servisler: {services}); bulgu 1 günü etkiliyor",
+    'producer.card.opr_profile_many': "örnek servis günü {date} (o gün aktif servisler: {services}); bulgu {count} günü etkiliyor",
     'producer.card.OPR_001.what_detail': "{route} hattının{dir} seferlerinde ({days}) {from} kalkışından sonraki sefer ancak {to} kalkışlı; arada {gap} boyunca sefer yok. Sınır {limit}.",
     'producer.card.OPR_003.what_detail': "{route} hattının{dir} seferlerinde ({days}) {stop} durağından {from} ve {to} kalkışlı iki sefer yalnız {gap} arayla kalkıyor; yolcu açısından ikinci sefer neredeyse aynı anda gelir.",
     'producer.card.OPR_004.what_detail': "{route} hattının seferleri yalnız hafta içi çalışıyor; Cumartesi ve Pazar hiç sefer yok. Bilgi amaçlıdır.",
@@ -3375,6 +3377,7 @@ const tr = {
     'domain.metric.shapes'       : 'Güzergah',
     'domain.metric.service_days' : 'Aktif Servis Günü',
     'domain.metric.avg_trips'    : 'Ort. Günlük Sefer',
+    'domain.headway_coverage'    : 'Frekans şablonları nedeniyle OPR_001, {profiles} hat/yön profili ({days} farklı tarih); OPR_003 ise {patterns} ilk durak/desen profili için değerlendirilmedi.',
     'domain.table.file'          : 'Dosya',
     'domain.table.rows'          : 'Satır',
     'domain.table.size'          : 'Boyut',
@@ -6533,9 +6536,11 @@ export const trMessageTemplates: Record<string, Record<string, string>> = {
   },
   'OPR_001': {
     'Route \'{route_label_hw}\' direction {dir_display}, calendar {service_id}: maximum headway {a0} min — threshold {a1} min.': '\'{route_label_hw}\' kodlu hattın {dir_display} yönünde {service_id} çalışma takviminde maksimum sefer aralığı {a0}dk — eşik {a1}dk.',
+    'Route \'{label}\' direction {dir_label}, service day {example} ({service_label}): maximum headway {a0} min — threshold {a1} min.': '\'{label}\' kodlu hattın {dir_label} yönünde {example} servis gününde ({service_label} aktif servisleri) maksimum sefer aralığı {a0}dk — eşik {a1}dk.',
   },
   'OPR_003': {
     'Route \'{route_label_hw}\' direction {dir_display}, calendar {service_id}: minimum headway {a0} min ≤ bunching threshold {a1} min.': '\'{route_label_hw}\' kodlu hattın {dir_display} yönünde {service_id} çalışma takviminde minimum sefer aralığı {a0}dk ≤ sıkışma eşiği {a1}dk.',
+    'Route \'{label}\' direction {dir_label}, service day {example} ({service_label}): minimum headway {a0} min ≤ bunching threshold {a1} min.': '\'{label}\' kodlu hattın {dir_label} yönünde {example} servis gününde ({service_label} aktif servisleri) minimum sefer aralığı {a0}dk ≤ sıkışma eşiği {a1}dk.',
   },
   'OPR_004': {
     'The active services of route \'{label}\' have no weekend day (Saturday/Sunday).': '\'{label}\' kodlu hattın aktif servislerinde hafta sonu (Cumartesi/Pazar) günü yok.',

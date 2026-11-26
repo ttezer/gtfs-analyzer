@@ -2,6 +2,7 @@
 //! ZIP -> K5 -> K6 -> K7 pipeline, including calendar exception overlays.
 
 use gtfs_pipeline::{validate_bytes, ValidateResult, ValidationResult, ValidatorConfig};
+use gtfs_core::i18n::{Lang, Translator};
 
 fn run(name: &str) -> ValidationResult {
     let path = format!(
@@ -140,6 +141,23 @@ fn simultaneous_departures_are_not_bunching_and_keep_capacity_signal() {
     let result = run("same_time");
     assert!(headways(&result).is_empty());
     assert!(result.notices.iter().any(|n| n.rule_id == "OPR_019"));
+}
+
+#[test]
+fn multi_service_message_is_translated_for_turkish_cli_and_python() {
+    let result = run("close");
+    let mut notice = result
+        .notices
+        .iter()
+        .find(|n| n.rule_id == "OPR_003")
+        .unwrap()
+        .clone();
+    Translator::new(Lang::Tr)
+        .unwrap()
+        .unwrap()
+        .translate(&mut notice);
+    assert!(notice.message.contains("20261130 servis gününde"));
+    assert!(notice.message.contains("A, B aktif servisleri"));
 }
 
 #[test]

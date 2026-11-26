@@ -984,12 +984,34 @@ function oprRoute(n: Notice, result: ValidationResult, routeId?: string | null):
   return id ? result.name_index.routes?.[id] || id : '—';
 }
 
+/** A profile's example GTFS service date, affected dates and active service IDs. */
+function oprHeadwayDays(n: Notice, result: ValidationResult): string {
+  const d = n.details ?? {};
+  if (!d.sample_date || !d.affected_days || !d.service_ids) {
+    return n.service_id ? plannerServiceText(n.service_id, result) : '';
+  }
+  let services: string[];
+  try {
+    const parsed: unknown = JSON.parse(d.service_ids);
+    services = Array.isArray(parsed) && parsed.every((id): id is string => typeof id === 'string') ? parsed : [];
+  } catch {
+    services = [];
+  }
+  if (!services.length) return n.service_id ? plannerServiceText(n.service_id, result) : '';
+  const count = Number(d.affected_days);
+  return t(count === 1 ? 'producer.card.opr_profile_one' : 'producer.card.opr_profile_many', {
+    date: ymdText(d.sample_date), count: localizedNumber(d.affected_days), services: services.join(', '),
+  });
+}
+
 /** Each OPR rule's own sentence in the planner's words; null keeps the card's general text. */
 function oprRuleText(n: Notice, result: ValidationResult): string | null {
   const ni = result.name_index;
   const d = n.details ?? {};
   const route = oprRoute(n, result);
-  const days = n.service_id ? plannerServiceText(n.service_id, result) : '';
+  const days = (n.rule_id === 'OPR_001' || n.rule_id === 'OPR_003')
+    ? oprHeadwayDays(n, result)
+    : n.service_id ? plannerServiceText(n.service_id, result) : '';
   const stopName = (id?: string) => (id ? ni.stops?.[id] || id : '—');
   const tripStops = n.entity_type === 'Trip' && n.entity_id ? ni.trip_stops?.[n.entity_id] ?? [] : [];
   switch (n.rule_id) {

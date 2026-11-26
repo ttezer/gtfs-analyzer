@@ -1091,6 +1091,14 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).not.toContain('<td>R1</td>');
     expect(out.map.opts?.pins).toHaveLength(3);
 
+    // A combined service-day profile names its sample date, both active services and affected days.
+    out = render(notice('b', 'OPR_003', 'LOW', { entity_type: 'Route', entity_id: 'R1', observed_value: '1', expected_value: '> 2',
+      details: { gap_from: '08:00', gap_to: '08:01', trip_before: 'T1', trip_after: 'T2', stop_id: 'S1',
+        sample_date: '20261130', affected_days: '2', service_ids: '["WK","PEAK"]', direction_id: '0' } }));
+    expect(out.html).toContain('örnek servis günü 30.11.2026 (o gün aktif servisler: WK, PEAK); bulgu 2 günü etkiliyor');
+    expect(out.html).toContain('Hastane durağından 08:00 ve 08:01 kalkışlı iki sefer');
+    expect(out.html).toContain('<tr class="bad"><td>08:00</td><td>Çarşı</td></tr>');
+
     // OPR_007: the repeated stop red in the trip's stop list.
     out = render(notice('a', 'OPR_007', 'LOW', { entity_type: 'Trip', entity_id: 'T1', observed_value: '2× repeat', details: { dup_stop: 'S2' } }));
     expect(out.html).toContain('10 hattının „Çarşı“ yönündeki 06:00 kalkışlı seferi Okul durağından 2 kez geçiyor');
