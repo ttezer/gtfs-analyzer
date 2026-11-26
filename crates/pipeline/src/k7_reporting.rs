@@ -1916,7 +1916,10 @@ fn build_metrics(
         }
     }
 
-    // Calculate daily runs for frequency-based trips (floor((end-start)/headway))
+    // Daily runs for frequency-based trips. exact_times=1 starts a trip at every
+    // start + n*headway < end, i.e. ceil((end-start)/headway); a window that the headway
+    // does not divide evenly gets one more run than the floor. exact_times=0 stays an
+    // estimate of floor((end-start)/headway).
     let mut freq_runs: HashMap<&str, u32> = HashMap::new();
     for freq in &records.frequencies {
         if freq.trip_id.is_empty() {
@@ -1935,7 +1938,13 @@ fn build_metrics(
         if end_s <= start_s {
             continue;
         }
-        *freq_runs.entry(freq.trip_id.as_str()).or_insert(0) += (end_s - start_s) / hw;
+        let span = end_s - start_s;
+        let runs = if freq.exact_times == Some(1) {
+            span.div_ceil(hw)
+        } else {
+            span / hw
+        };
+        *freq_runs.entry(freq.trip_id.as_str()).or_insert(0) += runs;
     }
 
     // trip_count: frequency trips are expanded by their daily run count

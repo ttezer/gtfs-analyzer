@@ -177,6 +177,10 @@ fn frequency_windows_and_exact_slots_have_distinct_coverage() {
     assert_eq!(coverage.opr_001_window_profiles, 0);
     assert_eq!(coverage.opr_003_window_pattern_profiles, 0);
     assert_eq!(headways(&exact), headways(&run("freq1_expanded")));
+    // 08:00-08:20 every 420 s runs at 08:00, 08:07 and 08:14 (ceil, not floor), plus the
+    // three timetabled trips: the same six trips as the expanded feed.
+    assert_eq!(exact.metrics.trip_count, 6);
+    assert_eq!(exact.metrics.trip_count, run("freq1_expanded").metrics.trip_count);
     let exact_bunch = exact.notices.iter().find(|n| n.rule_id == "OPR_003").unwrap();
     assert_eq!(exact_bunch.details.as_ref().unwrap().get("departures").map(String::as_str), Some("6"));
     let mixed = run("freq_mixed");
@@ -320,3 +324,4 @@ fn opr005_multi_service_message_translates_for_turkish_cli() {
     assert!(notice.message.contains("20261130 servis gününde"));
     assert!(notice.message.contains("A, B, C aktif servisleri"));
 }
+
