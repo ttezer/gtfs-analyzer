@@ -1,5 +1,22 @@
 use serde::{Deserialize, Serialize};
 
+/// Coverage of timetable headway checks when a frequency template is present.
+/// These counts describe checks that could not be evaluated; they do not affect scores.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct HeadwayCoverage {
+    /// Distinct active-service sets across route/direction groups.
+    pub route_direction_profiles: u32,
+    /// First-stop/pattern groups across those profiles.
+    pub pattern_profiles: u32,
+    /// Departure rows merged for evaluated route and pattern checks.
+    pub merged_departure_rows: u64,
+    /// Largest temporary merged departure list for one check.
+    pub largest_merged_departures: u32,
+    pub opr_001_skipped_profiles: u32,
+    pub opr_001_skipped_days: u32,
+    pub opr_003_skipped_pattern_profiles: u32,
+}
+
 /// Size and row information for one GTFS file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileInfo {
@@ -25,6 +42,9 @@ pub struct FeedMetrics {
     // MET_002 — Service coverage density
     pub active_service_days: u32,
     pub avg_daily_trips: f64,
+
+    #[serde(default)]
+    pub headway_coverage: HeadwayCoverage,
 
     // Feed validity window (feed_info.txt) — YYYYMMDD, None if absent
     pub feed_start_date: Option<u32>,

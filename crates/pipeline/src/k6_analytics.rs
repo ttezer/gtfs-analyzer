@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use url::Url;
 
 use gtfs_config::ValidatorConfig;
-use gtfs_core::{EntityType, Notice};
+use gtfs_core::{EntityType, HeadwayCoverage, Notice};
 
 use crate::k2::stop_times::CompactStopTime;
 use crate::k2::stop_times::StopTimesIndex as K2StopTimesIndex;
@@ -19,6 +19,7 @@ use crate::recovery::FileAvailability;
 pub struct K6Result {
     pub notices: Vec<Notice>,
     pub skipped_checks: Vec<String>,
+    pub headway_coverage: HeadwayCoverage,
 }
 
 #[derive(Debug)]
@@ -287,6 +288,7 @@ pub fn analyze_with_files(
     // `records/derived/config/idx`) → count/content/order are independent of emission order.
     // With the `parallel` feature, checks run in parallel through rayon::scope; otherwise serially — SAME output.
     type K6Task<'a> = Box<dyn Fn() -> Vec<Notice> + Send + Sync + 'a>;
+    let headway_coverage = std::sync::Mutex::new(HeadwayCoverage::default());
     let mut tasks: Vec<K6Task> = Vec::new();
     let mut skipped_checks = Vec::new();
     record_data_quality_skips(availability, config, today_yyyymmdd, &mut skipped_checks);
@@ -331,12 +333,14 @@ pub fn analyze_with_files(
     );
     add_task!(
         "K6::route_headway",
-        availability.all(&["routes.txt", "trips.txt", "stop_times.txt"]),
+        availability.all(&["routes.txt", "trips.txt", "stop_times.txt"])
+            && availability.any_present_and_available(&["calendar.txt", "calendar_dates.txt"]),
         || {
             let _t = Timer::start("K6::route_headway");
             let mut v = Vec::new();
             let mut c = 0u32;
-            check_route_headway(records, config, &idx, &mut v, &mut c);
+            let coverage = check_route_headway(records, derived, config, &idx, &mut v, &mut c);
+            *headway_coverage.lock().unwrap() = coverage;
             v
         }
     );
@@ -586,9 +590,11 @@ pub fn analyze_with_files(
         n.id = format!("k6/{}#{}", n.rule_id, i + 1);
     }
 
+    drop(tasks);
     K6Result {
         notices,
         skipped_checks,
+        headway_coverage: headway_coverage.into_inner().unwrap(),
     }
 }
 
@@ -3786,240 +3792,8 @@ fn is_regular_headway(gaps: &[u32]) -> bool {
 
 // ── WP-09b: Route headway (regular service) ──────────────────────────────────
 
-fn check_route_headway(
-    records: &EntityRecords,
-    config: &ValidatorConfig,
-    idx: &StopTimesIndex<'_>,
-    notices: &mut Vec<Notice>,
-    ctr: &mut u32,
-) {
-    let ti_hw = &records.trip_interns;
-    let route_short_hw: HashMap<&str, &str> = records
-        .routes
-        .iter()
-        .map(|r| {
-            let label = r
-                .route_short_name
-                .as_deref()
-                .filter(|s| !s.is_empty())
-                .unwrap_or(r.route_id.as_str());
-            (r.route_id.as_str(), label)
-        })
-        .collect();
-
-    // Two separate pools because the rules measure different things:
-    //  • OPR_001 (sparse service / largest gap) uses the route's TOTAL frequency →
-    //    coarse key (route_id, direction_key, service_id).
-    //  • OPR_003 (bunching / smallest gap) is meaningful only between trips in the SAME
-    //    service pattern → the fine key includes (first_stop_id, pattern).
-    // Otherwise (a) trips leaving different terminals at about the same time or
-    // (b) trips from the same stop to different DESTINATIONS (e.g. B100: "Bedford Av" 3-stop
-    // stub vs "Mill Basin" 29-stop full run) produce a false "1-minute bunching" finding. pattern =
-    // shape_id (or the last stop); keep first_stop IN THE KEY because without a shape, trips
-    // from different origins to the same destination could merge and bring back a terminal FP.
-    // Splitting OPR_001 by first stop/pattern would instead incorrectly mark short-line variants
-    // that start service only at certain times as "sparse".
-    // direction_key: "0"/"1"/... when direction_id exists, otherwise "" (no separate bucket).
-    // Each departure keeps its trip so the planner card can name the trips around a gap; the
-    // headway arithmetic below reads only the (sorted, deduplicated) times, as before.
-    let mut route_departures: HashMap<(&str, &str, &str), Vec<Departure>> = HashMap::new();
-    let mut route_stop_departures: HashMap<(&str, &str, &str, &str, &str), Vec<Departure>> =
-        HashMap::new();
-
-    for trip in &records.trips {
-        let route_id = ti_hw.route_id(trip);
-        if route_id.is_empty() {
-            continue;
-        }
-        let direction_key: &str = match trip.direction_id {
-            Some(0) => "0",
-            Some(1) => "1",
-            Some(d) => {
-                // Unexpected value: normalize to an empty string (do not create a separate bucket).
-                let _ = d;
-                ""
-            }
-            None => "",
-        };
-        let service_id = ti_hw.service_id(trip);
-
-        let Some(&dep) = idx.trip_first_dep.get(trip.trip_id.as_str()) else {
-            continue;
-        };
-
-        let stops = idx.by_trip.get(trip.trip_id.as_str());
-        let first_stop: &str = stops
-            .and_then(|v| v.first())
-            .map(|s| idx.stop_id_of(s))
-            .unwrap_or("");
-        // Service pattern: use shape_id when present, otherwise the last stop (destination).
-        let pattern: &str = match ti_hw.shape_id(trip).filter(|s| !s.is_empty()) {
-            Some(s) => s,
-            None => stops
-                .and_then(|v| v.last())
-                .map(|s| idx.stop_id_of(s))
-                .unwrap_or(""),
-        };
-
-        route_departures
-            .entry((route_id, direction_key, service_id))
-            .or_default()
-            .push((dep, trip.trip_id.as_str()));
-        route_stop_departures
-            .entry((route_id, direction_key, service_id, first_stop, pattern))
-            .or_default()
-            .push((dep, trip.trip_id.as_str()));
-    }
-
-    let max_secs = config.max_headway_warning_min * 60;
-    let bunching_secs = config.bunching_threshold_min * 60;
-
-    // Split the OPR_001 threshold by route_type: hourly service is not expected on intercity rail
-    // — a 580-minute gap on Ankara-Sivas YHT is normal operation, not a gap to close. DO NOT TOUCH
-    // OPR_005: it already works RELATIVELY per route_type using median+MAD and has no fixed threshold.
-    // FRQ rules are also out of scope — frequencies.txt already declares regular frequency; a large
-    // headway there is a separate phenomenon.
-    let rail_routes_hw: FxHashSet<&str> = records
-        .routes
-        .iter()
-        .filter(|r| r.route_type.is_some_and(is_rail_route_type))
-        .map(|r| r.route_id.as_str())
-        .collect();
-    let max_secs_rail = config.max_headway_warning_min_rail * 60;
-    // Handle cases where the route is rail but is hidden only by whitespace in its ID (`mdb-1065`).
-    let routes_raw_hw: FxHashSet<&str> =
-        records.routes.iter().map(|r| r.route_id.as_str()).collect();
-    let rail_trimmed_hw: FxHashMap<&str, bool> = records
-        .routes
-        .iter()
-        .filter(|r| r.route_type.is_some_and(is_rail_route_type))
-        .map(|r| (r.route_id.trim(), r.route_id != r.route_id.trim()))
-        .collect();
-
-    // OPR_001: does the largest consecutive departure gap across the route exceed the threshold?
-    // HashMap iteration order changes between processes; sort by key so the dedup representative
-    // among findings with the same entity_id does not depend on it.
-    let mut route_departures: Vec<_> = route_departures.into_iter().collect();
-    route_departures.sort_unstable_by_key(|(k, _)| *k);
-    for ((route_id, direction_key, service_id), trips) in route_departures {
-        let mut deps: Vec<u32> = trips.iter().map(|&(dep, _)| dep).collect();
-        deps.sort_unstable();
-        deps.dedup();
-        if deps.len() < 2 {
-            continue;
-        }
-        let gaps: Vec<u32> = deps.windows(2).map(|w| w[1] - w[0]).collect();
-        let max_hw = gaps.iter().copied().max().unwrap_or(0);
-        // Planner context: the first (earliest) largest gap and the trips on each side of it.
-        let gap_at = gaps.iter().position(|&g| g == max_hw).unwrap_or(0);
-        // OPR_001 is emitted only when (a) the gap threshold is exceeded, (b) the route is NOT in
-        // the manual rural list, and (c) departure intervals are irregular (a real gap). Regular-
-        // sparse (low-CV) routes are treated as intentional rural service and silenced.
-        let hw_threshold = if rail_routes_hw.contains(route_id) {
-            max_secs_rail
-        } else {
-            max_secs
-        };
-        if max_hw > hw_threshold
-            && !config.rural_route_ids.iter().any(|r| r == route_id)
-            && !is_regular_headway(&gaps)
-        {
-            let dir_display = if direction_key.is_empty() {
-                "-"
-            } else {
-                direction_key
-            };
-            let route_label_hw = route_short_hw.get(route_id).copied().unwrap_or(route_id);
-            let mut n001 = k6_notice(
-                ctr,
-                "OPR_001",
-                EntityType::Route,
-                Some(route_id.to_string()),
-                Some(route_id.to_string()),
-                "stop_times.txt",
-                None,
-                None,
-                Some(format!("{:.0}", max_hw as f64 / 60.0)),
-                Some(format!("≤ {}", hw_threshold / 60)),
-                format!("Route '{route_label_hw}' direction {dir_display}, calendar {service_id}: maximum headway {:.0} min — threshold {} min.",
-                    max_hw as f64 / 60.0, hw_threshold / 60),
-                "Increase peak/off-peak trip frequency or close large service gaps.",
-            );
-            n001.service_id = Some(service_id.to_string());
-            headway_details(
-                &mut n001,
-                &trips,
-                deps[gap_at],
-                deps[gap_at + 1],
-                direction_key,
-                deps.len(),
-            );
-            if !routes_raw_hw.contains(route_id) && max_hw <= max_secs_rail {
-                if let Some(&padded) = rail_trimmed_hw.get(route_id.trim()) {
-                    let file = if padded { "routes.txt" } else { "trips.txt" };
-                    mark_whitespace_join(&mut n001, file);
-                }
-            }
-            notices.push(n001);
-        }
-    }
-
-    // OPR_003: is the smallest positive interval between consecutive trips at the same first stop
-    // below the bunching threshold?
-    // HashMap iteration would make the dedup representative nondeterministic; sort by key.
-    let mut route_stop_departures: Vec<_> = route_stop_departures.into_iter().collect();
-    route_stop_departures.sort_unstable_by_key(|(k, _)| *k);
-    for ((route_id, direction_key, service_id, first_stop, _pattern), trips) in
-        route_stop_departures
-    {
-        let mut deps: Vec<u32> = trips.iter().map(|&(dep, _)| dep).collect();
-        deps.sort_unstable();
-        // dedup suppresses cross-day repeated departure times for the same
-        // service_id; may also hide true parallel same-time trips (known tradeoff)
-        deps.dedup();
-        if deps.len() < 2 {
-            continue;
-        }
-        let min_hw = deps.windows(2).map(|w| w[1] - w[0]).min().unwrap_or(0);
-        if min_hw < bunching_secs && min_hw > 0 {
-            // Planner context: the first (earliest) pair this close and the stop they leave from.
-            let pair = deps
-                .windows(2)
-                .find(|w| w[1] - w[0] == min_hw)
-                .map(|w| (w[0], w[1]))
-                .unwrap_or((0, 0));
-            let dir_display = if direction_key.is_empty() {
-                "-"
-            } else {
-                direction_key
-            };
-            let route_label_hw = route_short_hw.get(route_id).copied().unwrap_or(route_id);
-            let mut n = k6_notice(
-                ctr,
-                "OPR_003",
-                EntityType::Route,
-                Some(route_id.to_string()),
-                Some(route_id.to_string()),
-                "stop_times.txt",
-                None,
-                None,
-                Some(format!("{:.0}", min_hw as f64 / 60.0)),
-                Some(format!("> {}", config.bunching_threshold_min)),
-                format!("Route '{route_label_hw}' direction {dir_display}, calendar {service_id}: minimum headway {:.0} min ≤ bunching threshold {} min.",
-                    min_hw as f64 / 60.0, config.bunching_threshold_min),
-                "Adjust the trip schedule; very frequent trips may cause congestion.",
-            );
-            n.service_id = Some(service_id.to_string());
-            headway_details(&mut n, &trips, pair.0, pair.1, direction_key, deps.len());
-            if !first_stop.is_empty() {
-                n.details
-                    .get_or_insert_with(Default::default)
-                    .insert("stop_id", first_stop.to_string());
-            }
-            notices.push(n);
-        }
-    }
-}
+mod headway_calendar;
+use headway_calendar::check_route_headway;
 
 /// A departure time (seconds) and the trip leaving then.
 type Departure<'a> = (u32, &'a str);
@@ -15270,6 +15044,15 @@ mod tests {
         DerivedData::default()
     }
 
+    fn active_test_service() -> DerivedData {
+        let mut derived = empty_derived();
+        derived.calendar_bitmap.active_dates.insert(
+            "SVC".to_string(),
+            [20260514].into_iter().collect(),
+        );
+        derived
+    }
+
     fn stop(stop_id: &str, lat: f64, lon: f64) -> StopRecord {
         StopRecord {
             stop_id: stop_id.into(),
@@ -16857,7 +16640,7 @@ mod tests {
                 stoptime("T4", 2, "B", (13, 10, 0), (13, 10, 0), 9),
             ],
         );
-        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let result = analyze(&records, &active_test_service(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "OPR_001"));
     }
 
@@ -17128,7 +16911,7 @@ mod tests {
                 stoptime("T2", 2, "B", (8, 11, 0), (8, 11, 0), 5),
             ],
         );
-        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let result = analyze(&records, &active_test_service(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "OPR_003"));
     }
 
@@ -17255,7 +17038,7 @@ mod tests {
             trips,
             stoptimes,
         );
-        let result = analyze(&records, &empty_derived(), &cfg, 20260514);
+        let result = analyze(&records, &active_test_service(), &cfg, 20260514);
         // After dedup [28800, 28860] → min headway = 60s < 120s (2 min) → OPR_003 must fire.
         assert!(
             result.notices.iter().any(|n| n.rule_id == "OPR_003"),
@@ -20127,7 +19910,7 @@ mod tests {
                 stop_times: sts,
                 ..Default::default()
             };
-            analyze(&r, &empty_derived(), &default_config(), 20260514)
+            analyze(&r, &active_test_service(), &default_config(), 20260514)
         };
         assert!(
             build(3).notices.iter().any(|n| n.rule_id == "OPR_001"),

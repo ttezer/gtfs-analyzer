@@ -11,7 +11,7 @@ pub mod result;
 pub use enums::{
     AuthoritySource, DedupLevel, EntityType, FatalCode, R9Label, ReportId, RuleClass, Severity,
 };
-pub use metrics::{FeedMetrics, FileInfo};
+pub use metrics::{FeedMetrics, FileInfo, HeadwayCoverage};
 pub use notice::{contains_token, intern_notice_text, Notice, NoticeDetails, ReportItem};
 pub use reports::{
     R1Report, R2Report, R3Report, R4Report, R5Report, R7Report, R8Report, R9Item, R9Report,

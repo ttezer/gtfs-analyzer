@@ -2417,7 +2417,8 @@ fn validate_bytes_inspected_with_name_index(
             let _t = Timer::start("K7::agency_breakdown");
             agency_attribution::breakdown(&prepared, &k2.records, true)
         };
-        let k7 = report_k7_prepared(prepared, &k2.records, &k5.derived, file_stats, coverage_complete);
+        let mut k7 = report_k7_prepared(prepared, &k2.records, &k5.derived, file_stats, coverage_complete);
+        k7.metrics.headway_coverage = k6.headway_coverage;
         let mut agency_breakdown = agency_breakdown;
         agency_attribution::index_notices(&mut agency_breakdown, &k7.notices, &k2.records);
         (k7, agency_breakdown)

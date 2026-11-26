@@ -104,6 +104,16 @@ export interface FileInfo {
   bytes: number;
 }
 
+export interface HeadwayCoverage {
+  route_direction_profiles: number;
+  pattern_profiles: number;
+  merged_departure_rows: number;
+  largest_merged_departures: number;
+  opr_001_skipped_profiles: number;
+  opr_001_skipped_days: number;
+  opr_003_skipped_pattern_profiles: number;
+}
+
 export interface FeedMetrics {
   stop_count: number;
   route_count: number;
@@ -111,6 +121,7 @@ export interface FeedMetrics {
   shape_count: number;
   active_service_days: number;
   avg_daily_trips: number;
+  headway_coverage?: HeadwayCoverage;
   feed_start_date: number | null;     // feed_info validity window (YYYYMMDD)
   feed_end_date: number | null;
   service_start_date: number | null;  // actual service coverage range (YYYYMMDD)

@@ -1991,6 +1991,7 @@ fn build_metrics(
         shape_count,
         active_service_days,
         avg_daily_trips,
+        headway_coverage: Default::default(),
         feed_start_date,
         feed_end_date,
         service_start_date,
