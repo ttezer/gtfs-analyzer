@@ -333,3 +333,13 @@ fn daily_average_ignores_calendar_days_without_trips() {
     assert_eq!(metrics.avg_daily_trips, 2.0);
 }
 
+#[test]
+fn sub_minute_bunching_is_not_reported_as_zero_minutes() {
+    let result = run("close_seconds");
+    let mut notice = result.notices.iter().find(|n| n.rule_id == "OPR_003").unwrap().clone();
+    assert_eq!(notice.observed_value.as_deref(), Some("0.25"));
+    assert!(notice.message.contains("minimum headway 0.25 min"), "{}", notice.message);
+    Translator::new(Lang::Tr).unwrap().unwrap().translate(&mut notice);
+    assert!(notice.message.contains("0.25"), "{}", notice.message);
+    assert!(!notice.message.contains("minimum headway"), "{}", notice.message);
+}

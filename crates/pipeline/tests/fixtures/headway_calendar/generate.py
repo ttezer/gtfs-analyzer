@@ -12,8 +12,9 @@ def fixture(name, groups, dates, exceptions=(), frequencies=(), peers=0, peer_de
         if route not in [r[0] for r in routes]: routes.append((route,route,'',3))
         for j,dep in enumerate(deps):
             tid=f't{i}_{j}'; trips.append((route,svc,tid,0))
-            h,m=map(int,dep.split(':')); a=h*60+m+5
-            times += [(tid,dep+':00',dep+':00',start,1),(tid,f'{a//60:02}:{a%60:02}:00',f'{a//60:02}:{a%60:02}:00',stop,2)]
+            h,m=map(int,dep.split(':')[:2]); a=h*60+m+5
+            full=dep if dep.count(':')==2 else dep+':00'
+            times += [(tid,full,full,start,1),(tid,f'{a//60:02}:{a%60:02}:00',f'{a//60:02}:{a%60:02}:00',stop,2)]
             for fi, fj, st,en,hw,exact in frequencies:
                 if (fi,fj)==(i,j): fs.append((tid,st,en,hw,exact))
     table('agency','agency_id,agency_name,agency_url,agency_timezone',[('A','Test Transit','https://example.org','America/Fortaleza')])
@@ -54,6 +55,8 @@ for name,grp,dt,ex in [
  ]: fixture(name,grp,dt,ex)
 # Service U has calendar days but no trips; it must not dilute the daily average.
 fixture('unused_service',[g('A','08:00','08:30')],[cal('A'),cal('U',M,S)])
+# Two departures 15 s apart: OPR_003 must not report the interval as 0 min.
+fixture('close_seconds',[g('A','08:00','08:00:15','08:30')],[cal('A')])
 for exact in (0,1):
     fixture(f'freq{exact}',[g('A','00:00','08:01','08:15','08:29')],[cal('A')],frequencies=[(0,0,'08:00:00','08:20:00',420,exact)])
 fixture('freq_mixed',[g('A','00:00','08:01','08:15','08:29'),('A',('09:00','09:01'),'Z','W')],[cal('A')],frequencies=[(0,0,'08:00:00','08:20:00',420,0)])

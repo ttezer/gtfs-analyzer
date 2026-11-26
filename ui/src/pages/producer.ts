@@ -1033,7 +1033,9 @@ function oprRuleText(n: Notice, result: ValidationResult): string | null {
       if (!d.gap_from || !d.gap_to || !n.observed_value) return null;
       return t(`producer.card.OPR_003.${profileContext ? 'what_profile' : 'what_detail'}`, {
         route, dir: oprDirection(d, result, d.trip_before), days: days || '—', stop: stopName(d.stop_id),
-        from: d.gap_from, to: d.gap_to, gap: durationText(Math.max(60, Number(n.observed_value) * 60)),
+        from: d.gap_from, to: d.gap_to, // Sub-minute intervals arrive as decimals ("0.25" = 15 s); reports before that
+        // printed "0", which still reads as under a minute rather than "0 s".
+        gap: durationText(Number(n.observed_value) > 0 ? Number(n.observed_value) * 60 : 60),
         context: profileContext || '',
       });
     case 'OPR_004':

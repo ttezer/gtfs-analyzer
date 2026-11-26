@@ -1117,6 +1117,11 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('Hastane durağından 08:00 ve 08:01 kalkışlı iki sefer');
     expect(out.html).toContain('<tr class="bad"><td>08:00</td><td>Çarşı</td></tr>');
 
+    // A sub-minute interval ("0.25" min = 15 s) is shown in seconds, not rounded up to a minute.
+    out = render(notice('bs', 'OPR_003', 'LOW', { entity_type: 'Route', entity_id: 'R1', observed_value: '0.25', expected_value: '> 2',
+      details: { gap_from: '08:00:00', gap_to: '08:00:15', trip_before: 'T1', trip_after: 'T2', stop_id: 'S1', direction_id: '0' } }));
+    expect(out.html).toContain('15 sn');
+
     out = render(notice('bf', 'OPR_005', 'INFO', { entity_type: 'Route', entity_id: 'R1', observed_value: '5',
       details: { median_min: '15', kind: 'dense', frequency_basis: 'declared_service_span', window_start: '08:00', window_end: '10:00', window_count: '2',
         sample_date: '20261130', affected_days: '1', service_ids: '["WK"]', direction_id: '0' } }));

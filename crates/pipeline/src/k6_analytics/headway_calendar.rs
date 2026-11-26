@@ -106,6 +106,16 @@ fn ymd(date: (u32, u32, u32)) -> u32 {
     date.0 * 10_000 + date.1 * 100 + date.2
 }
 
+/// Interval in minutes for OPR_003 text and `observed_value`. Whole minutes as before; an
+/// interval under one minute keeps two decimals, so 15 s reads "0.25" instead of "0".
+fn interval_minutes(seconds: u32) -> String {
+    if seconds < 60 {
+        format!("{:.2}", seconds as f64 / 60.0)
+    } else {
+        format!("{:.0}", seconds as f64 / 60.0)
+    }
+}
+
 pub(super) fn sample_date(records: &EntityRecords, dates: &[u32]) -> u32 {
     if let Some(info) = records.feed_info.first() {
         let start = info.feed_start_date.map(ymd).unwrap_or(0);
@@ -430,11 +440,11 @@ pub(super) fn check_route_headway<'a>(
                     .unwrap();
                 let pair = (times[at], times[at + 1]);
                 let message = if has_window {
-                    format!("Route '{label}' direction {dir_label}, service day {example} ({service_label}): two fixed departures are {:.0} min apart ≤ bunching threshold {} min.", minimum as f64 / 60.0, config.bunching_threshold_min)
+                    format!("Route '{label}' direction {dir_label}, service day {example} ({service_label}): two fixed departures are {} min apart ≤ bunching threshold {} min.", interval_minutes(minimum), config.bunching_threshold_min)
                 } else if services.len() == 1 {
-                    format!("Route '{label}' direction {dir_label}, calendar {}: minimum headway {:.0} min ≤ bunching threshold {} min.", services[0], minimum as f64 / 60.0, config.bunching_threshold_min)
+                    format!("Route '{label}' direction {dir_label}, calendar {}: minimum headway {} min ≤ bunching threshold {} min.", services[0], interval_minutes(minimum), config.bunching_threshold_min)
                 } else {
-                    format!("Route '{label}' direction {dir_label}, service day {example} ({service_label}): minimum headway {:.0} min ≤ bunching threshold {} min.", minimum as f64 / 60.0, config.bunching_threshold_min)
+                    format!("Route '{label}' direction {dir_label}, service day {example} ({service_label}): minimum headway {} min ≤ bunching threshold {} min.", interval_minutes(minimum), config.bunching_threshold_min)
                 };
                 let mut notice = k6_notice(
                     ctr,
@@ -445,7 +455,7 @@ pub(super) fn check_route_headway<'a>(
                     "stop_times.txt",
                     None,
                     None,
-                    Some(format!("{:.0}", minimum as f64 / 60.0)),
+                    Some(interval_minutes(minimum)),
                     Some(format!("> {}", config.bunching_threshold_min)),
                     message,
                     "Adjust the trip schedule; very frequent trips may cause congestion.",
