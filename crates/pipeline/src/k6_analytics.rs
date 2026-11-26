@@ -595,11 +595,7 @@ pub fn analyze_with_files(
     drop(tasks);
     let mut headway_coverage = headway_coverage.into_inner().unwrap();
     let opr005_coverage = opr005_coverage.into_inner().unwrap();
-    headway_coverage.opr_005_evaluated_profiles = opr005_coverage.opr_005_evaluated_profiles;
-    headway_coverage.opr_005_skipped_profiles = opr005_coverage.opr_005_skipped_profiles;
-    headway_coverage.opr_005_skipped_days = opr005_coverage.opr_005_skipped_days;
-    headway_coverage.opr_005_merged_departure_rows = opr005_coverage.opr_005_merged_departure_rows;
-    headway_coverage.opr_005_largest_merged_departures = opr005_coverage.opr_005_largest_merged_departures;
+    headway_coverage.opr_005 = opr005_coverage.opr_005;
     K6Result {
         notices,
         skipped_checks,
@@ -3802,6 +3798,7 @@ fn is_regular_headway(gaps: &[u32]) -> bool {
 // ── WP-09b: Route headway (regular service) ──────────────────────────────────
 
 mod headway_calendar;
+mod frequency_schedule;
 mod opr005_calendar;
 use headway_calendar::check_route_headway;
 

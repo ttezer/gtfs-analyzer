@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-/// Coverage of timetable headway checks when a frequency template is present.
-/// These counts describe checks that could not be evaluated; they do not affect scores.
+/// Coverage and frequency modeling of timetable headway checks.
+/// These counts do not affect scores.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct HeadwayCoverage {
@@ -16,9 +16,21 @@ pub struct HeadwayCoverage {
     pub opr_001_skipped_profiles: u32,
     pub opr_001_skipped_days: u32,
     pub opr_003_skipped_pattern_profiles: u32,
+    /// Profiles with an unphased frequency window; only exact-time comparisons run.
+    pub opr_001_window_profiles: u32,
+    pub opr_003_window_pattern_profiles: u32,
+    #[serde(flatten)]
+    pub opr_005: Opr005Coverage,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Opr005Coverage {
     /// OPR_005 observations in the same-mode median/MAD baseline.
     pub opr_005_evaluated_profiles: u32,
     pub opr_005_skipped_profiles: u32,
+    pub opr_005_mixed_skipped_profiles: u32,
+    pub opr_005_frequency_profiles: u32,
     pub opr_005_skipped_days: u32,
     pub opr_005_merged_departure_rows: u64,
     pub opr_005_largest_merged_departures: u32,

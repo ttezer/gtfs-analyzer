@@ -7,7 +7,8 @@ use super::*;
 #[derive(Default)]
 struct ServiceTimes {
     departures: Vec<u32>,
-    has_frequency: bool,
+    windows: Vec<frequency_schedule::Window>,
+    invalid: bool,
 }
 
 struct Profile<'a> {
@@ -20,6 +21,8 @@ struct Profile<'a> {
     first: u32,
     last: u32,
     count: usize,
+    declared: bool,
+    window_count: usize,
 }
 
 struct Finding {
@@ -36,11 +39,7 @@ pub(super) fn check_opr005<'a>(
     ctr: &mut u32,
 ) -> HeadwayCoverage {
     let ti = &records.trip_interns;
-    let frequency_trips: HashSet<&str> = records
-        .frequencies
-        .iter()
-        .map(|f| f.trip_id.as_str())
-        .collect();
+    let frequency_index = frequency_schedule::FrequencyIndex::new(records);
     let route_labels: HashMap<&str, &str> = records
         .routes
         .iter()
@@ -82,8 +81,10 @@ pub(super) fn check_opr005<'a>(
             .or_default()
             .entry(service)
             .or_default();
-        schedule.departures.push(departure);
-        schedule.has_frequency |= frequency_trips.contains(trip.trip_id.as_str());
+        let model = frequency_index.resolve(trip.trip_id.as_str(), departure);
+        schedule.departures.extend(model.exact);
+        schedule.windows.extend(model.windows);
+        schedule.invalid |= !model.valid;
     }
 
     let mut coverage = HeadwayCoverage::default();
@@ -95,33 +96,50 @@ pub(super) fn check_opr005<'a>(
             &derived.calendar_bitmap.active_dates,
         );
         for (services, dates) in date_profiles {
-            if services
-                .iter()
-                .any(|service| schedules[service].has_frequency)
-            {
-                coverage.opr_005_skipped_profiles += 1;
+            if services.iter().any(|service| schedules[service].invalid) {
+                coverage.opr_005.opr_005_skipped_profiles += 1;
                 skipped_days.extend(dates);
                 continue;
             }
             let mut departures = Vec::new();
+            let mut windows = Vec::new();
             for service in &services {
                 departures.extend_from_slice(&schedules[service].departures);
+                windows.extend_from_slice(&schedules[service].windows);
             }
-            coverage.opr_005_merged_departure_rows += departures.len() as u64;
-            coverage.opr_005_largest_merged_departures = coverage
+            coverage.opr_005.opr_005_merged_departure_rows += departures.len() as u64;
+            coverage.opr_005.opr_005_largest_merged_departures = coverage
+                .opr_005
                 .opr_005_largest_merged_departures
                 .max(departures.len() as u32);
             departures.sort_unstable();
             departures.dedup();
-            if departures.len() < 2 {
+            if !departures.is_empty() && !windows.is_empty() {
+                coverage.opr_005.opr_005_skipped_profiles += 1;
+                coverage.opr_005.opr_005_mixed_skipped_profiles += 1;
+                skipped_days.extend(dates);
                 continue;
             }
-            coverage.opr_005_evaluated_profiles += 1;
-            let first = departures[0];
-            let last = departures[departures.len() - 1];
-            let count = departures.len();
-            // Same arithmetic as the previous consecutive-gap average, without a gap vector.
-            let average = (last - first) / (count as u32 - 1);
+            let declared = !windows.is_empty();
+            let (average, first, last, count) = if declared {
+                let Some((average, first, last, _expected)) =
+                    frequency_schedule::declared_mean(&windows)
+                else {
+                    coverage.opr_005.opr_005_skipped_profiles += 1;
+                    skipped_days.extend(dates);
+                    continue;
+                };
+                coverage.opr_005.opr_005_frequency_profiles += 1;
+                (average, first, last, 0)
+            } else if departures.len() >= 2 {
+                let first = departures[0];
+                let last = departures[departures.len() - 1];
+                let count = departures.len();
+                ((last - first) / (count as u32 - 1), first, last, count)
+            } else {
+                continue;
+            };
+            coverage.opr_005.opr_005_evaluated_profiles += 1;
             profiles.push(Profile {
                 route,
                 direction,
@@ -132,10 +150,12 @@ pub(super) fn check_opr005<'a>(
                 first,
                 last,
                 count,
+                declared,
+                window_count: windows.len(),
             });
         }
     }
-    coverage.opr_005_skipped_days = skipped_days.len() as u32;
+    coverage.opr_005.opr_005_skipped_days = skipped_days.len() as u32;
 
     // Preserve the existing upper median, scaled MAD, 5-observation minimum and threshold.
     let mut by_type: HashMap<u32, Vec<u32>> = HashMap::new();
@@ -221,7 +241,9 @@ pub(super) fn check_opr005<'a>(
         let average_min = average / 60.0;
         let median_min = median / 60.0;
         let example = headway_calendar::sample_date(records, &profile.dates);
-        let message = if profile.services.len() == 1 {
+        let message = if profile.declared {
+            format!("Route '{label}' direction {direction}, service day {example} (services {}): declared frequency headway {average_min:.0} min — the feed median for routes of the same type is {median_min:.0} min ({kind}).", profile.services.join(", "))
+        } else if profile.services.len() == 1 {
             format!("Route '{label}' direction {direction}, calendar {}: average headway {average_min:.0} min — the feed median for routes of the same type is {median_min:.0} min ({kind}).", profile.services[0])
         } else {
             format!("Route '{label}' direction {direction}, service day {example} (services {}): average headway {average_min:.0} min — the feed median for routes of the same type is {median_min:.0} min ({kind}).", profile.services.join(", "))
@@ -245,9 +267,16 @@ pub(super) fn check_opr005<'a>(
         let details = notice.details.get_or_insert_with(Default::default);
         details.insert("median_min", format!("{median_min:.0}"));
         details.insert("kind", if sparse { "sparse" } else { "dense" }.to_string());
-        details.insert("first_departure", hm(profile.first));
-        details.insert("last_departure", hm(profile.last));
-        details.insert("departures", profile.count.to_string());
+        if profile.declared {
+            details.insert("frequency_basis", "declared_headway_secs".to_string());
+            details.insert("window_start", hm(profile.first));
+            details.insert("window_end", hm(profile.last));
+            details.insert("window_count", profile.window_count.to_string());
+        } else {
+            details.insert("first_departure", hm(profile.first));
+            details.insert("last_departure", hm(profile.last));
+            details.insert("departures", profile.count.to_string());
+        }
         details.insert("sample_date", example.to_string());
         details.insert("affected_days", finding.affected_dates.len().to_string());
         details.insert(

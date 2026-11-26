@@ -1108,6 +1108,12 @@ describe('Üretici kartı görünümü', () => {
     expect(out.html).toContain('Hastane durağından 08:00 ve 08:01 kalkışlı iki sefer');
     expect(out.html).toContain('<tr class="bad"><td>08:00</td><td>Çarşı</td></tr>');
 
+    out = render(notice('bf', 'OPR_005', 'INFO', { entity_type: 'Route', entity_id: 'R1', observed_value: '5',
+      details: { median_min: '15', kind: 'dense', frequency_basis: 'declared_headway_secs', window_start: '08:00', window_end: '10:00', window_count: '2',
+        sample_date: '20261130', affected_days: '1', service_ids: '["WK"]', direction_id: '0' } }));
+    expect(out.html).toContain('frekans penceresindeki beyan edilen ortalama sefer aralığı');
+    expect(out.html).not.toContain('kalkış);');
+
     out = render(notice('b5', 'OPR_005', 'INFO', { entity_type: 'Route', entity_id: 'R1', observed_value: '5',
       details: { median_min: '15', kind: 'dense', first_departure: '08:00', last_departure: '08:40', departures: '9',
         sample_date: '20261130', affected_days: '2', service_ids: '["WK","PEAK"]', direction_id: '0' } }));

@@ -98,8 +98,12 @@ export interface HeadwayCoverage {
   opr_001_skipped_profiles: number;
   opr_001_skipped_days: number;
   opr_003_skipped_pattern_profiles: number;
+  opr_001_window_profiles: number;
+  opr_003_window_pattern_profiles: number;
   opr_005_evaluated_profiles: number;
   opr_005_skipped_profiles: number;
+  opr_005_mixed_skipped_profiles: number;
+  opr_005_frequency_profiles: number;
   opr_005_skipped_days: number;
   opr_005_merged_departure_rows: number;
   opr_005_largest_merged_departures: number;

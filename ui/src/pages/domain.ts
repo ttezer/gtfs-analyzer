@@ -264,6 +264,18 @@ export function renderMetrics(m: FeedMetrics): string {
       days: headway.opr_005_skipped_days.toLocaleString(intlLocale()),
     }))}</p>`
     : '';
+  const windowNote = headway && (headway.opr_001_window_profiles || headway.opr_003_window_pattern_profiles)
+    ? `<p class="rpt-coverage-note">${escHtml(t('domain.headway_window_coverage', {
+      profiles: headway.opr_001_window_profiles.toLocaleString(intlLocale()),
+      patterns: headway.opr_003_window_pattern_profiles.toLocaleString(intlLocale()),
+    }))}</p>`
+    : '';
+  const frequencyNote = headway && (headway.opr_005_frequency_profiles || headway.opr_005_mixed_skipped_profiles)
+    ? `<p class="rpt-coverage-note">${escHtml(t('domain.opr005_frequency', {
+      profiles: headway.opr_005_frequency_profiles.toLocaleString(intlLocale()),
+      mixed: headway.opr_005_mixed_skipped_profiles.toLocaleString(intlLocale()),
+    }))}</p>`
+    : '';
 
   const fileRows = m.file_stats.map(f => `
     <tr>
@@ -277,7 +289,9 @@ export function renderMetrics(m: FeedMetrics): string {
       <h3 class="rpt-section-title">${t('domain.metrics_title')}${m.is_gtfs_jp ? ` <span class="jp-badge" title="${escHtml(t('domain.gtfs_jp.tip'))}">GTFS-JP</span>` : ''}${profileBadge}</h3>
       <div class="rpt-metrics-grid">${metricCards}</div>
       ${headwayNote}
+      ${windowNote}
       ${opr005Note}
+      ${frequencyNote}
       ${fileRows ? `
         <div class="table-scroll rpt-files">
           <table class="data-table">

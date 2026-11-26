@@ -55,6 +55,14 @@ for name,grp,dt,ex in [
 for exact in (0,1):
     fixture(f'freq{exact}',[g('A','00:00','08:01','08:15','08:29')],[cal('A')],frequencies=[(0,0,'08:00:00','08:20:00',420,exact)])
 fixture('freq_mixed',[g('A','00:00','08:01','08:15','08:29'),('A',('09:00','09:01'),'Z','W')],[cal('A')],frequencies=[(0,0,'08:00:00','08:20:00',420,0)])
+fixture('freq_window_gap',[g('A','00:00','16:00','16:15','23:30')],[cal('A')],frequencies=[(0,0,'08:00:00','16:00:00',900,0)])
+fixture('freq_window_bunch',[g('A','00:00','08:01','08:02')],[cal('A')],frequencies=[(0,0,'08:00:00','09:00:00',900,0)])
+fixture('freq_pure',[g('A','00:00')],[cal('A')],frequencies=[(0,0,'08:00:00','10:00:00',3600,0)],peers=6)
+fixture('freq_overlap',[g('A','00:00','00:00')],[cal('A')],frequencies=[(0,0,'08:00:00','10:00:00',600,0),(0,1,'08:00:00','10:00:00',600,0)],peers=6)
+fixture('freq_mixed_peers',[g('A','00:00','08:05')],[cal('A')],frequencies=[(0,0,'08:00:00','10:00:00',3600,0)],peers=6)
+fixture('freq_exact_peers',[g('A','00:00')],[cal('A')],frequencies=[(0,0,'08:00:00','10:00:00',3600,1)],peers=6)
+fixture('freq_midnight_exact',[g('A','00:00','24:11')],[cal('A')],frequencies=[(0,0,'23:50:00','24:20:00',600,1)])
+fixture('freq_midnight_window',[g('A','00:00','24:11')],[cal('A')],frequencies=[(0,0,'23:50:00','24:20:00',600,0)])
 fixture('close_window',close,[cal('A',M,T),cal('B',M,T)])
 with zipfile.ZipFile(p/'close_window.zip') as z:
     close_window_files={n:z.read(n) for n in z.namelist()}

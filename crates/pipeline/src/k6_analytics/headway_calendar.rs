@@ -1,6 +1,6 @@
 //! OPR_001/003: evaluate one timetable for each distinct active service-day profile.
-//! The index holds only first departures, and a profile is analysed once regardless of
-//! how many calendar dates share its active service set.
+//! The index holds trip first departures; exact frequency slots are expanded locally.
+//! A profile is analysed once regardless of how many dates share its active service set.
 
 use super::*;
 
@@ -8,8 +8,10 @@ use super::*;
 struct ServiceSchedule<'a> {
     departures: Vec<Departure<'a>>,
     patterns: HashMap<(&'a str, &'a str), Vec<Departure<'a>>>,
-    frequency_patterns: HashSet<(&'a str, &'a str)>,
-    has_frequency: bool,
+    windows: Vec<frequency_schedule::Window>,
+    pattern_windows: HashMap<(&'a str, &'a str), Vec<frequency_schedule::Window>>,
+    unknown_patterns: HashSet<(&'a str, &'a str)>,
+    has_unknown: bool,
 }
 
 struct Candidate<'a> {
@@ -186,11 +188,7 @@ pub(super) fn check_route_headway<'a>(
     ctr: &mut u32,
 ) -> HeadwayCoverage {
     let ti = &records.trip_interns;
-    let frequency_trips: HashSet<&str> = records
-        .frequencies
-        .iter()
-        .map(|f| f.trip_id.as_str())
-        .collect();
+    let frequency_index = frequency_schedule::FrequencyIndex::new(records);
     let labels: HashMap<&str, &str> = records
         .routes
         .iter()
@@ -252,17 +250,21 @@ pub(super) fn check_route_headway<'a>(
             .or_default()
             .entry(service)
             .or_default();
-        let value = (departure, trip.trip_id.as_str());
-        schedule.departures.push(value);
-        schedule
-            .patterns
-            .entry((first_stop, pattern))
-            .or_default()
-            .push(value);
-        if frequency_trips.contains(trip.trip_id.as_str()) {
-            schedule.has_frequency = true;
-            schedule.frequency_patterns.insert((first_stop, pattern));
+        let model = frequency_index.resolve(trip.trip_id.as_str(), departure);
+        let key = (first_stop, pattern);
+        let pattern_departures = schedule.patterns.entry(key).or_default();
+        if !model.valid {
+            schedule.has_unknown = true;
+            schedule.unknown_patterns.insert(key);
+            continue;
         }
+        for time in model.exact {
+            let value = (time, trip.trip_id.as_str());
+            schedule.departures.push(value);
+            pattern_departures.push(value);
+        }
+        schedule.windows.extend_from_slice(&model.windows);
+        schedule.pattern_windows.entry(key).or_default().extend(model.windows);
     }
 
     let mut coverage = HeadwayCoverage::default();
@@ -282,12 +284,16 @@ pub(super) fn check_route_headway<'a>(
             let label = labels.get(route).copied().unwrap_or(route);
             let dir_label = if direction.is_empty() { "-" } else { direction };
             let service_label = services.join(", ");
-            let frequency_in_route = services.iter().any(|s| schedules[s].has_frequency);
+            let unknown_in_route = services.iter().any(|s| schedules[s].has_unknown);
+            let windows: Vec<_> = services.iter().flat_map(|s| schedules[s].windows.iter().copied()).collect();
 
-            if frequency_in_route {
+            if unknown_in_route {
                 coverage.opr_001_skipped_profiles += 1;
                 skipped_days.extend(&dates);
             } else {
+                if !windows.is_empty() {
+                    coverage.opr_001_window_profiles += 1;
+                }
                 let departures = profile_departures(&services, &schedules);
                 coverage.merged_departure_rows += departures.len() as u64;
                 coverage.largest_merged_departures = coverage
@@ -295,7 +301,8 @@ pub(super) fn check_route_headway<'a>(
                     .max(departures.len() as u32);
                 let times = distinct_times(&departures);
                 if times.len() >= 2 {
-                    let gaps: Vec<u32> = times.windows(2).map(|w| w[1] - w[0]).collect();
+                    let pairs = frequency_schedule::fixed_gaps_outside_windows(&times, &windows);
+                    let gaps: Vec<u32> = pairs.iter().map(|&(a,b)| b-a).collect();
                     let maximum = gaps.iter().copied().max().unwrap_or(0);
                     let threshold = if rail_routes.contains(route) {
                         config.max_headway_warning_min_rail * 60
@@ -307,8 +314,10 @@ pub(super) fn check_route_headway<'a>(
                         && !is_regular_headway(&gaps)
                     {
                         let at = gaps.iter().position(|&g| g == maximum).unwrap();
-                        let pair = (times[at], times[at + 1]);
-                        let message = if services.len() == 1 {
+                        let pair = pairs[at];
+                        let message = if !windows.is_empty() {
+                            format!("Route '{label}' direction {dir_label}, service day {example} ({service_label}): a fixed-departure gap outside frequency windows is {:.0} min — threshold {} min.", maximum as f64 / 60.0, threshold / 60)
+                        } else if services.len() == 1 {
                             format!("Route '{label}' direction {dir_label}, calendar {}: maximum headway {:.0} min — threshold {} min.", services[0], maximum as f64 / 60.0, threshold / 60)
                         } else {
                             format!("Route '{label}' direction {dir_label}, service day {example} ({service_label}): maximum headway {:.0} min — threshold {} min.", maximum as f64 / 60.0, threshold / 60)
@@ -336,6 +345,9 @@ pub(super) fn check_route_headway<'a>(
                             example,
                             times.len(),
                         );
+                        if !windows.is_empty() {
+                            notice.details.get_or_insert_with(Default::default).insert("frequency_window_basis", "fixed_gap_outside_windows".to_string());
+                        }
                         if !raw_routes.contains(route)
                             && maximum <= config.max_headway_warning_min_rail * 60
                         {
@@ -361,7 +373,8 @@ pub(super) fn check_route_headway<'a>(
             }
 
             let mut patterns: HashMap<(&str, &str), Vec<Departure<'_>>> = HashMap::new();
-            let mut frequency_patterns: HashSet<(&str, &str)> = HashSet::new();
+            let mut unknown_patterns: HashSet<(&str, &str)> = HashSet::new();
+            let mut window_patterns: HashSet<(&str, &str)> = HashSet::new();
             for service in &services {
                 for (&key, departures) in &schedules[service].patterns {
                     patterns
@@ -369,15 +382,20 @@ pub(super) fn check_route_headway<'a>(
                         .or_default()
                         .extend_from_slice(departures);
                 }
-                frequency_patterns.extend(&schedules[service].frequency_patterns);
+                unknown_patterns.extend(&schedules[service].unknown_patterns);
+                window_patterns.extend(schedules[service].pattern_windows.iter().filter(|(_, windows)| !windows.is_empty()).map(|(&key, _)| key));
             }
             let mut patterns: Vec<_> = patterns.into_iter().collect();
             coverage.pattern_profiles += patterns.len() as u32;
             patterns.sort_unstable_by_key(|(key, _)| *key);
             for ((first_stop, pattern), departures) in patterns {
-                if frequency_patterns.contains(&(first_stop, pattern)) {
+                if unknown_patterns.contains(&(first_stop, pattern)) {
                     coverage.opr_003_skipped_pattern_profiles += 1;
                     continue;
+                }
+                let has_window = window_patterns.contains(&(first_stop, pattern));
+                if has_window {
+                    coverage.opr_003_window_pattern_profiles += 1;
                 }
                 coverage.merged_departure_rows += departures.len() as u64;
                 coverage.largest_merged_departures = coverage
@@ -396,7 +414,9 @@ pub(super) fn check_route_headway<'a>(
                     .position(|w| w[1] - w[0] == minimum)
                     .unwrap();
                 let pair = (times[at], times[at + 1]);
-                let message = if services.len() == 1 {
+                let message = if has_window {
+                    format!("Route '{label}' direction {dir_label}, service day {example} ({service_label}): two fixed departures are {:.0} min apart ≤ bunching threshold {} min.", minimum as f64 / 60.0, config.bunching_threshold_min)
+                } else if services.len() == 1 {
                     format!("Route '{label}' direction {dir_label}, calendar {}: minimum headway {:.0} min ≤ bunching threshold {} min.", services[0], minimum as f64 / 60.0, config.bunching_threshold_min)
                 } else {
                     format!("Route '{label}' direction {dir_label}, service day {example} ({service_label}): minimum headway {:.0} min ≤ bunching threshold {} min.", minimum as f64 / 60.0, config.bunching_threshold_min)
@@ -424,6 +444,9 @@ pub(super) fn check_route_headway<'a>(
                     example,
                     times.len(),
                 );
+                if has_window {
+                    notice.details.get_or_insert_with(Default::default).insert("frequency_window_basis", "fixed_pair".to_string());
+                }
                 if !first_stop.is_empty() {
                     notice
                         .details

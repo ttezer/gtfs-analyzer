@@ -161,20 +161,47 @@ fn multi_service_message_is_translated_for_turkish_cli_and_python() {
 }
 
 #[test]
-fn frequency_profiles_are_visible_as_unevaluated() {
-    for name in ["freq0", "freq1"] {
-        let result = run(name);
-        assert!(headways(&result).is_empty(), "{name}");
-        let coverage = &result.metrics.headway_coverage;
-        assert_eq!(coverage.opr_001_skipped_profiles, 1, "{name}");
-        assert_eq!(coverage.opr_001_skipped_days, 1, "{name}");
-        assert_eq!(coverage.opr_003_skipped_pattern_profiles, 1, "{name}");
-    }
+fn frequency_windows_and_exact_slots_have_distinct_coverage() {
+    let unphased = run("freq0");
+    assert!(headways(&unphased).is_empty());
+    let coverage = &unphased.metrics.headway_coverage;
+    assert_eq!(coverage.opr_001_skipped_profiles, 0);
+    assert_eq!(coverage.opr_003_skipped_pattern_profiles, 0);
+    assert_eq!(coverage.opr_001_window_profiles, 1);
+    assert_eq!(coverage.opr_003_window_pattern_profiles, 1);
+
+    let exact = run("freq1");
+    assert_eq!(headways(&exact), vec![("OPR_003", "1")]);
+    let coverage = &exact.metrics.headway_coverage;
+    assert_eq!(coverage.opr_001_skipped_profiles, 0);
+    assert_eq!(coverage.opr_001_window_profiles, 0);
+    assert_eq!(coverage.opr_003_window_pattern_profiles, 0);
+    assert_eq!(headways(&exact), headways(&run("freq1_expanded")));
+    let exact_bunch = exact.notices.iter().find(|n| n.rule_id == "OPR_003").unwrap();
+    assert_eq!(exact_bunch.details.as_ref().unwrap().get("departures").map(String::as_str), Some("6"));
     let mixed = run("freq_mixed");
     assert_eq!(headways(&mixed), vec![("OPR_003", "1")]);
     let coverage = &mixed.metrics.headway_coverage;
-    assert_eq!(coverage.opr_001_skipped_profiles, 1);
-    assert_eq!(coverage.opr_003_skipped_pattern_profiles, 1);
+    assert_eq!(coverage.opr_001_window_profiles, 1);
+    assert_eq!(coverage.opr_003_window_pattern_profiles, 1);
+}
+
+#[test]
+fn frequency_windows_allow_only_actual_fixed_pairs_to_trigger_headway_rules() {
+    let gap = run("freq_window_gap");
+    assert_eq!(headways(&gap), vec![("OPR_001", "435")]);
+    let gap_notice = gap.notices.iter().find(|n| n.rule_id == "OPR_001").unwrap();
+    assert_eq!(gap_notice.details.as_ref().unwrap().get("frequency_window_basis").map(String::as_str), Some("fixed_gap_outside_windows"));
+    assert!(gap_notice.message.contains("outside frequency windows"));
+    let bunch = run("freq_window_bunch");
+    assert_eq!(headways(&bunch), vec![("OPR_003", "1")]);
+    let bunch_notice = bunch.notices.iter().find(|n| n.rule_id == "OPR_003").unwrap();
+    assert_eq!(bunch_notice.details.as_ref().unwrap().get("frequency_window_basis").map(String::as_str), Some("fixed_pair"));
+    assert!(bunch_notice.message.contains("two fixed departures"));
+    let exact = run("freq_midnight_exact");
+    assert_eq!(headways(&exact), vec![("OPR_003", "1")]);
+    assert_eq!(exact.notices.iter().find(|n| n.rule_id == "OPR_003").unwrap().details.as_ref().unwrap().get("gap_from").map(String::as_str), Some("24:10"));
+    assert!(headways(&run("freq_midnight_window")).is_empty());
 }
 
 fn opr005<'a>(result: &'a ValidationResult) -> Vec<&'a gtfs_core::Notice> {
@@ -216,13 +243,44 @@ fn opr005_respects_removed_services_and_separate_weekends() {
 
 #[test]
 fn opr005_frequency_profiles_are_counted_as_unevaluated() {
-    for name in ["freq0", "freq1", "freq_mixed"] {
+    for name in ["freq0", "freq_mixed"] {
         let result = run(name);
         assert!(opr005(&result).is_empty(), "{name}");
         let coverage = &result.metrics.headway_coverage;
-        assert_eq!(coverage.opr_005_skipped_profiles, 1, "{name}");
-        assert_eq!(coverage.opr_005_skipped_days, 1, "{name}");
+        assert_eq!(coverage.opr_005.opr_005_skipped_profiles, 1, "{name}");
+        assert_eq!(coverage.opr_005.opr_005_skipped_days, 1, "{name}");
     }
+    assert_eq!(run("freq1").metrics.headway_coverage.opr_005.opr_005_skipped_profiles, 0);
+}
+
+#[test]
+fn opr005_uses_declared_frequency_only_for_pure_frequency_profiles() {
+    for (name, headway) in [("freq_pure", "60"), ("freq_overlap", "5"), ("freq_exact_peers", "60")] {
+        let result = run(name);
+        let findings = opr005(&result);
+        assert_eq!(findings.len(), 1, "{name}");
+        assert_eq!(findings[0].observed_value.as_deref(), Some(headway), "{name}");
+        let details = findings[0].details.as_ref().unwrap();
+        if name == "freq_exact_peers" {
+            assert!(!details.contains_key("frequency_basis"));
+            assert_eq!(details.get("departures").map(String::as_str), Some("2"));
+        } else {
+            assert_eq!(details.get("frequency_basis").map(String::as_str), Some("declared_headway_secs"));
+            assert!(!details.contains_key("departures"));
+            assert_eq!(result.metrics.headway_coverage.opr_005.opr_005_frequency_profiles, 1);
+        }
+    }
+    let mixed = run("freq_mixed_peers");
+    assert!(opr005(&mixed).is_empty());
+    assert_eq!(mixed.metrics.headway_coverage.opr_005.opr_005_mixed_skipped_profiles, 1);
+    assert_eq!(mixed.metrics.headway_coverage.opr_005.opr_005_skipped_profiles, 1);
+    let pure = run("freq_pure");
+    let coverage = serde_json::to_value(&pure.metrics.headway_coverage).unwrap();
+    assert_eq!(coverage["opr_005_frequency_profiles"], 1);
+    assert!(coverage.get("opr_005").is_none());
+    let mut notice = opr005(&pure)[0].clone();
+    Translator::new(Lang::Tr).unwrap().unwrap().translate(&mut notice);
+    assert!(notice.message.contains("beyan edilen ortalama frekans aralığı"));
 }
 
 #[test]

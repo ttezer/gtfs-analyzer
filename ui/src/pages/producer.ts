@@ -1033,6 +1033,12 @@ function oprRuleText(n: Notice, result: ValidationResult): string | null {
       return t('producer.card.OPR_004.what_detail', { route });
     case 'OPR_005':
       if (!d.median_min || !n.observed_value) return null;
+      if (d.frequency_basis === 'declared_headway_secs') {
+        return t(`producer.card.OPR_005.${d.kind === 'dense' ? 'what_dense_frequency' : 'what_sparse_frequency'}`, {
+          route, dir: oprDirection(d, result), hw: localizedNumber(n.observed_value), median: localizedNumber(d.median_min),
+          first: d.window_start || '—', last: d.window_end || '—', context: profileContext || '',
+        });
+      }
       return t(`producer.card.OPR_005.${d.kind === 'dense' ? 'what_dense' : 'what_sparse'}${profileContext ? '_profile' : ''}`, {
         route, dir: oprDirection(d, result), days: days || '—', hw: localizedNumber(n.observed_value), median: localizedNumber(d.median_min),
         first: d.first_departure || '—', last: d.last_departure || '—', n: localizedNumber(d.departures || '—'), context: profileContext || '',
