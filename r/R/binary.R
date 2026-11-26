@@ -1,20 +1,36 @@
 # Locating and installing the GTFS Analyzer executable.
 
 # Engine version this package release is built and tested against.
-ga_engine_version <- "0.22.0"
+ga_engine_version <- "0.23.0"
 
 # SHA256 of each release archive, per engine version and platform. Filled from
 # the release's SHA256SUMS file when the pinned engine version changes. A
 # version or platform without an entry cannot be installed by `ga_install()`:
 # there is deliberately no unverified download path.
 ga_checksums <- list(
-  # "0.23.0" = c(
-  #   "x86_64-linux"   = "<sha256>",
-  #   "aarch64-macos"  = "<sha256>",
-  #   "x86_64-macos"   = "<sha256>",
-  #   "x86_64-windows" = "<sha256>"
-  # )
+  "0.23.0" = c(
+    "x86_64-linux"   = "fdd4b1d34704e25fcce1c3ceb8c4e02b8542555824295c94ce42e81241287873",
+    "aarch64-macos"  = "713d584375512cbf64d7107cd1d026e9b2d718cc58f116c9c62ae61108e735ef",
+    "x86_64-macos"   = "4eb9d46573830a8de51ead3362b2153df0e495c6c128dba6ef85d20c6603358b",
+    "x86_64-windows" = "c13b3b04735a048c17b1f406187b4622638a01f51b0e47def2fbe290c4372150"
+  )
 )
+
+# Stops unless the file's SHA-256 equals `expected`. as.character() on openssl's
+# digest keeps its "hash" class, and identical() never equals a classed value to
+# a plain string even when the digits match, so the attributes are dropped first.
+ga_verify_sha256 <- function(path, expected, label = basename(path)) {
+  con <- file(path, open = "rb")
+  on.exit(close(con), add = TRUE)
+  actual <- as.character(openssl::sha256(con))
+  attributes(actual) <- NULL
+  actual <- tolower(actual)
+  if (!identical(actual, tolower(unname(expected)))) {
+    stop("Checksum mismatch for ", label, ": expected ", expected, ", got ",
+         actual, ". The file was not installed.", call. = FALSE)
+  }
+  invisible(TRUE)
+}
 
 ga_release_url <- "https://github.com/ttezer/gtfs-analyzer/releases/download"
 
@@ -108,11 +124,7 @@ ga_install <- function(version = ga_engine_version, force = FALSE) {
   on.exit(unlink(archive), add = TRUE)
   utils::download.file(url, archive, mode = "wb", quiet = TRUE)
 
-  actual <- as.character(openssl::sha256(file(archive, open = "rb")))
-  if (!identical(tolower(actual), tolower(expected))) {
-    stop("Checksum mismatch for ", asset, ": expected ", expected, ", got ",
-         actual, ". The file was not installed.", call. = FALSE)
-  }
+  ga_verify_sha256(archive, expected, asset)
 
   dir.create(dest, recursive = TRUE, showWarnings = FALSE)
   if (grepl("windows$", platform)) {
